@@ -1,0 +1,66 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../constants.dart';
+import '../themes/theme_provider.dart';
+
+class IconCircleButton extends StatelessWidget {
+  final IconData icon;
+  final double h;
+  final double w;
+  final bool isColorChange, isRemoveContainer;
+  final Color colorL;
+  final Color colorD;
+
+  const IconCircleButton({
+    super.key,
+    this.icon = Icons.arrow_back_ios,
+    this.h = 38,
+    this.w = 38,
+    this.isColorChange = false,
+    this.isRemoveContainer = true,
+    this.colorL = kBlack,
+    this.colorD = kWhite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
+    return isRemoveContainer
+        ? Icon(
+            icon,
+            size: h * 0.7,
+            color: isColorChange
+                ? kAccent.withValues(alpha: kOpacity)
+                : themeProvider.isDarkMode
+                    ? colorD
+                    : colorL
+          )
+        : Container(
+            height: h + 10,
+            width: w + 10,
+            margin: const EdgeInsets.only(left: 5),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isColorChange
+                  ? themeProvider.isDarkMode
+                      ? colorD.withValues(alpha: kMidOpacity)
+                      : colorL.withValues(alpha: kMidOpacity)
+                  : themeProvider.isDarkMode
+                      ? colorD.withValues(alpha: kLowOpacity)
+                      : colorL.withValues(alpha: kLowOpacity),
+            ),
+            child: Icon(
+              icon,
+              size: h * 0.7,
+              color: isColorChange
+                  ? kAccent.withValues(alpha: kOpacity)
+                  : themeProvider.isDarkMode
+                      ? colorD
+                      : colorL
+            ),
+          );
+  }
+}

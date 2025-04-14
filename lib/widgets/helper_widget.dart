@@ -1,0 +1,514 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import '../constants.dart';
+import '../data_models/meal_model.dart';
+import '../data_models/post_model.dart';
+import '../data_models/profilescreen_data.dart';
+import '../detail_screen/challenge_detail_screen.dart';
+import '../detail_screen/recipe_detail.dart';
+import '../helper/utils.dart';
+import '../widgets/date_widget.dart';
+import '../pages/recipe_card_flex.dart';
+
+class SearchContentGrid extends StatefulWidget {
+  const SearchContentGrid({
+    super.key,
+    this.screenLength = 9,
+    required this.listType,
+    this.postId = '',
+    this.selectedCategory = '',
+  });
+
+  final int screenLength;
+  final String listType;
+  final String postId;
+  final String selectedCategory;
+
+  @override
+  _SearchContentGridState createState() => _SearchContentGridState();
+}
+
+class _SearchContentGridState extends State<SearchContentGrid> {
+  bool showAll = false;
+  List<Map<String, dynamic>> searchContentDatas = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchContent();
+  }
+
+  @override
+  void didUpdateWidget(SearchContentGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refetch content when category changes
+    if (oldWidget.selectedCategory != widget.selectedCategory) {
+      _fetchContent();
+    }
+  }
+
+  Future<void> _fetchContent() async {
+    try {
+      List<Map<String, dynamic>> fetchedData = [];
+
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+
+      if (widget.listType == "meals") {
+        snapshot = await firestore.collection('meals').get();
+      } else if (widget.listType == "group_cha") {
+        snapshot = await firestore.collection('group_cha').get();
+      } else if (widget.listType == "battle_post") {
+        // For battle posts, fetch all posts first
+        snapshot = await firestore.collection('battle_post').get();
+      } else {
+        setState(() {
+          searchContentDatas = [];
+        });
+        return;
+      }
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+
+        final postId = data['id'] as String?;
+        final postCategory = data['category'] as String?;
+
+        // If category is 'all' or no category selected, show all posts
+        if (widget.selectedCategory.toLowerCase() == 'all' ||
+            widget.selectedCategory.isEmpty) {
+          if (postId != null && postId.isNotEmpty) {
+            fetchedData.add(data);
+          }
+          continue;
+        }
+
+        // For battle posts, only show posts that match the selected category
+        if (widget.listType == "battle_post" &&
+            postCategory?.toLowerCase() ==
+                widget.selectedCategory.toLowerCase() &&
+            postId != null &&
+            postId.isNotEmpty) {
+          fetchedData.add(data);
+        }
+      }
+
+      if (widget.postId.isNotEmpty) {
+        fetchedData.removeWhere((item) => item['id'] == widget.postId);
+      }
+
+      setState(() {
+        searchContentDatas = fetchedData;
+      });
+    } catch (e) {
+      print('Error fetching content: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemCount = showAll
+        ? searchContentDatas.length
+        : (searchContentDatas.length > widget.screenLength
+            ? widget.screenLength
+            : searchContentDatas.length);
+
+    return Column(
+      children: [
+        if (searchContentDatas.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: noItemTastyWidget(
+              "No posts yet.",
+              "",
+              context,
+              false,
+            ),
+          )
+        else
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+            ),
+            padding: const EdgeInsets.only(
+              top: 4,
+              bottom: 4,
+            ),
+            itemCount: itemCount,
+            itemBuilder: (BuildContext ctx, index) {
+              final data = searchContentDatas[index];
+              return SearchContent(
+                dataSrc: data,
+                press: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChallengeDetailScreen(
+                      screen: widget.listType,
+                      dataSrc: data,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        if (searchContentDatas.isNotEmpty &&
+            searchContentDatas.length > widget.screenLength)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                showAll = !showAll;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1.0),
+              child: Icon(
+                showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 36,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class StatusWidget extends StatelessWidget {
+  final double total;
+  final double current;
+  final String sym;
+  final bool isLarge;
+
+  const StatusWidget({
+    super.key,
+    required this.total,
+    required this.current,
+    required this.isLarge,
+    this.sym = '',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    double progressValue = current == 0 ? 0 : current / total * 100;
+
+    ValueNotifier<double> valueNotifier = ValueNotifier<double>(progressValue);
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: kLightGrey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          // Progress Value on the left
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    '${current.toStringAsFixed(1)} $sym',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          // Circular Progress Bar on the right
+          Expanded(
+            flex: 1,
+            child: CustomCircularProgressBar(
+              valueNotifier: valueNotifier,
+              isMain: isLarge,
+              sym: sym,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//Profile Recipe List
+class ProfileRecipeList extends StatefulWidget {
+  const ProfileRecipeList({
+    super.key,
+  });
+
+  @override
+  State<ProfileRecipeList> createState() => _ProfileRecipeListState();
+}
+
+class _ProfileRecipeListState extends State<ProfileRecipeList> {
+  List<Meal> demoMealsPlanData = [];
+
+  @override
+  void initState() {
+    demoMealsPlanData = mealManager.meals;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          //generate user's recipe list
+          ...List.generate(
+            demoMealsPlanData.length,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: RecipeCardFlex(
+                recipe: demoMealsPlanData[index],
+                press: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipeDetailScreen(
+                      mealData: demoMealsPlanData[
+                          index], // Pass the selected meal data
+                    ),
+                  ),
+                ),
+                height: 200,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//Story Slider Widget
+class StorySlider extends StatelessWidget {
+  const StorySlider({
+    super.key,
+    required this.dataSrc,
+    required this.press,
+    this.mHeight = 100,
+    this.mWidth = 100,
+  });
+
+  final BadgeAchievementData dataSrc;
+  final VoidCallback press;
+  final double mHeight, mWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: press,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Background Image
+                  const Opacity(
+                    opacity: kMidOpacity,
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundImage: AssetImage(
+                        'assets/images/vegetable_stamp.jpg',
+                      ),
+                    ),
+                  ),
+
+                  // Title Text on top of the image
+                  SizedBox(
+                    width: 85,
+                    child: Text(
+                      dataSrc.title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SearchContent extends StatelessWidget {
+  const SearchContent({
+    super.key,
+    required this.dataSrc,
+    required this.press,
+  });
+
+  final Map<String, dynamic> dataSrc; // ✅ Data source map
+  final VoidCallback press;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<dynamic>? mediaPaths = dataSrc['mediaPaths'] as List<dynamic>?;
+    final String? mediaType = dataSrc['mediaType'] as String?;
+
+    final String? mediaPath = mediaPaths != null && mediaPaths.isNotEmpty
+        ? mediaPaths.first as String
+        : extPlaceholderImage;
+
+    return GestureDetector(
+      onTap: press,
+      child: Stack(
+        children: [
+          // ✅ Image Display (with loading & error handling)
+          mediaPath != null && mediaPath.isNotEmpty
+              ? Image.network(
+                  mediaPath,
+                  height: 140,
+                  width: 140,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                        child: CircularProgressIndicator(
+                      color: kAccent,
+                    ));
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      intPlaceholderImage,
+                      height: 140,
+                      width: 140,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                )
+              : Image.asset(
+                  intPlaceholderImage,
+                  height: 140,
+                  width: 140,
+                  fit: BoxFit.cover,
+                ),
+
+          // ✅ Video Overlay Icon
+          if (mediaType == 'video')
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                Icons.slideshow,
+                color: Colors.white,
+                size: 24,
+              ),
+            )
+
+          // ✅ Multiple Images Overlay Icon
+          else if (mediaPaths != null && mediaPaths.length > 1)
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                Icons.content_copy,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class SearchContentPost extends StatelessWidget {
+  const SearchContentPost({
+    super.key,
+    required this.dataSrc,
+    required this.press,
+  });
+
+  final Post dataSrc; // Assuming Post model
+  final VoidCallback press;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> mediaPaths = dataSrc.mediaPaths;
+    final String mediaPath =
+        mediaPaths.isNotEmpty ? mediaPaths.first : extPlaceholderImage;
+
+    return GestureDetector(
+      onTap: press,
+      child: Stack(
+        children: [
+          // Display image or fallback
+          mediaPath.isNotEmpty
+              ? Image.network(
+                  mediaPath,
+                  height: 140,
+                  width: 140,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                        child: CircularProgressIndicator(
+                      color: kAccent,
+                    ));
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      intPlaceholderImage,
+                      height: 140,
+                      width: 140,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                )
+              : Image.asset(
+                  intPlaceholderImage,
+                  height: 140,
+                  width: 140,
+                  fit: BoxFit.cover,
+                ),
+
+          // ✅ Video Icon
+          if (dataSrc.mediaType == 'video')
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                Icons.slideshow,
+                color: Colors.white,
+                size: 24,
+              ),
+            )
+
+          // ✅ Multiple Images Icon
+          else if (mediaPaths.length > 1)
+            const Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                Icons.content_copy,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

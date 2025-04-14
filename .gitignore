@@ -1,0 +1,90 @@
+# Dart/Flutter build and generated files
+/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+/android/
+/ios/
+/web/
+/macos/
+/linux/
+/windows/
+firebase.json
+
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+.DS_Store
+
+# Flutter/Dart package dependencies
+.packages
+pubspec.lock
+
+# Android build files
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/gradle-wrapper.jar
+/android/gradlew
+/android/gradlew.bat
+/android/local.properties
+/android/.gradle
+/android/captures/
+/android/key.properties
+
+# iOS build files
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+*.xccheckout
+*.xcscmblueprint
+*.xcuserstate
+/ios/.generated/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/app.flx
+/ios/Flutter/app.zip
+/ios/Flutter/flutter_assets/
+/ios/ServiceDefinitions.json
+/ios/Runner.xcworkspace/
+
+# macOS build files
+/macos/Flutter/ephemeral/
+/macos/Pods/
+/macos/Flutter/GeneratedPluginRegistrant.*
+
+# Web related
+/web/favicon.png
+/web/icons/
+/web/manifest.json
+
+# Coverage
+/coverage/
+
+# Temporary files
+*.log
+*.pyc
+*.swp
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# Environment files
+.env*
+*.env.dart 

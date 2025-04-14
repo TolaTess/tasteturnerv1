@@ -1,0 +1,276 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import '../constants.dart';
+import '../helper/utils.dart';
+import '../widgets/icon_widget.dart';
+import '../service/battle_service.dart';
+
+class UploadBattleImageScreen extends StatefulWidget {
+  final String battleId;
+  final String userId;
+  final String battleCategory;
+
+  const UploadBattleImageScreen({
+    super.key,
+    required this.battleId,
+    required this.userId,
+    this.battleCategory = 'Main',
+  });
+
+  @override
+  State<UploadBattleImageScreen> createState() =>
+      _UploadBattleImageScreenState();
+}
+
+class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
+  bool isUploading = false;
+  List<XFile> _selectedImages = [];
+  XFile? _recentImage;
+
+  Future<String> _compressAndResizeBattleImage(String imagePath) async {
+    // Read the image file
+    final File imageFile = File(imagePath);
+    final List<int> bytes = await imageFile.readAsBytes();
+    final Uint8List uint8Bytes = Uint8List.fromList(bytes);
+    final img.Image? image = img.decodeImage(uint8Bytes);
+
+    if (image == null) throw Exception('Failed to decode image');
+
+    // Calculate new dimensions while maintaining aspect ratio
+    const int maxDimension = 800; // Maximum dimension for battle images
+    final double aspectRatio = image.width / image.height;
+    int newWidth = image.width;
+    int newHeight = image.height;
+
+    if (image.width > maxDimension || image.height > maxDimension) {
+      if (aspectRatio > 1) {
+        newWidth = maxDimension;
+        newHeight = (maxDimension / aspectRatio).round();
+      } else {
+        newHeight = maxDimension;
+        newWidth = (maxDimension * aspectRatio).round();
+      }
+    }
+
+    // Resize the image
+    final img.Image resized = img.copyResize(
+      image,
+      width: newWidth,
+      height: newHeight,
+    );
+
+    // Compress the image
+    final List<int> compressed = img.encodeJpg(resized, quality: 85);
+    final Uint8List compressedBytes = Uint8List.fromList(compressed);
+
+    // Save to temporary file
+    final tempDir = await getTemporaryDirectory();
+    final String tempPath =
+        '${tempDir.path}/battle_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await File(tempPath).writeAsBytes(compressedBytes);
+
+    return tempPath;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGalleryImages();
+  }
+
+  Future<void> _loadGalleryImages() async {
+    final PermissionState permission =
+        await PhotoManager.requestPermissionExtend();
+
+    if (!permission.hasAccess) {
+      PhotoManager.openSetting();
+      return;
+    }
+
+    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+      type: RequestType.image,
+      onlyAll: true,
+    );
+
+    final List<AssetEntity> recentImages =
+        await albums.first.getAssetListPaged(page: 0, size: 1);
+
+    if (recentImages.isNotEmpty) {
+      final File? recentFile = await recentImages.first.file;
+      if (recentFile != null) {
+        setState(() {
+          _recentImage = XFile(recentFile.path);
+          _selectedImages = [_recentImage!];
+        });
+      }
+    } else {
+      setState(() {
+        _recentImage = null;
+      });
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_selectedImages.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select at least one image!')),
+        );
+      }
+      return;
+    }
+
+    setState(() => isUploading = true);
+
+    try {
+      final List<String> uploadedImageUrls = [];
+
+      for (final image in _selectedImages) {
+        // Compress and resize battle image before upload
+        final String compressedPath =
+            await _compressAndResizeBattleImage(image.path);
+
+        // Upload image using battle service
+        String downloadUrl = await BattleService.instance.uploadBattleImage(
+          battleId: widget.battleId,
+          userId: widget.userId,
+          imageFile: File(compressedPath),
+        );
+
+        uploadedImageUrls.add(downloadUrl);
+
+        // Clean up temporary file
+        await File(compressedPath).delete();
+      }
+
+      // Update battle with uploaded images
+      await BattleService.instance.uploadBattleImages(
+        battleId: widget.battleId,
+        userId: widget.userId,
+        imageUrls: uploadedImageUrls,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('Error uploading battle image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isUploading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(
+              "Upload Image - ${capitalizeFirstLetter(widget.battleCategory)}"),
+          leading: InkWell(
+            onTap: () => Navigator.pop(context),
+            child: const IconCircleButton(
+              isRemoveContainer: true,
+            ),
+          )),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            _recentImage != null
+                ? Image.file(
+                    File(_recentImage!.path),
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Center(child: Text("No Image Selected")),
+                  ),
+
+            // Show selected images grid under the recent image
+            if (_selectedImages.length > 1)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedImages.length,
+                  itemBuilder: (context, index) {
+                    final image = _selectedImages[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Image.file(
+                        File(image.path),
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () async {
+                List<XFile> pickedImages =
+                    await openMultiImagePickerModal(context: context);
+
+                if (pickedImages.isNotEmpty) {
+                  setState(() {
+                    _selectedImages = pickedImages;
+                    _recentImage = _selectedImages.first;
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                backgroundColor: isDarkMode
+                    ? kLightGrey.withOpacity(0.5)
+                    : kLightGrey.withOpacity(0.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50),
+                ),
+              ),
+              child: const Text("Pick Images"),
+            ),
+
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: isUploading ? null : _uploadImage,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                backgroundColor:
+                    isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50),
+                ),
+              ),
+              child: isUploading
+                  ? CircularProgressIndicator(
+                      color: isDarkMode ? kAccent : kDarkGrey,
+                    )
+                  : const Text("Upload Images"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

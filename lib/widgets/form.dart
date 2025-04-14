@@ -1,0 +1,147 @@
+import 'package:flutter/material.dart';
+import '../constants.dart';
+import '../pages/safe_text_field.dart';
+
+//you can find all form widget here
+
+class FirstNameField extends StatelessWidget {
+  const FirstNameField(
+      {super.key,
+      required this.kHint,
+      required this.themeProvider,
+      required this.controller});
+
+  final bool themeProvider;
+
+  final String kHint;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeTextField(
+      controller: controller,
+      style: TextStyle(
+        color: themeProvider ? kWhite : kBlack,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: themeProvider ? kDarkGrey : kBackgroundColor,
+        enabledBorder: underlineInputBorder(),
+        focusedBorder: underlineInputBorder(),
+        border: underlineInputBorder(),
+        labelStyle: const TextStyle(color: kLightGrey),
+        labelText: kHint,
+        suffixIcon: Icon(
+          Icons.person_outline,
+          color: themeProvider ? kPrimaryColor : kBlack,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 0,
+          vertical: 4,
+        ),
+      ),
+    );
+  }
+}
+
+class EmailField extends StatelessWidget {
+  const EmailField(
+      {super.key,
+      required this.kHint,
+      required this.themeProvider,
+      required this.controller});
+
+  final bool themeProvider;
+  final String kHint;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeTextField(
+      controller: controller,
+      style: TextStyle(
+        color: themeProvider ? kWhite : kBlack,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: themeProvider ? kDarkGrey : kBackgroundColor,
+        enabledBorder: underlineInputBorder(),
+        focusedBorder: underlineInputBorder(),
+        border: underlineInputBorder(),
+        labelStyle: const TextStyle(color: kLightGrey),
+        labelText: kHint,
+        suffixIcon: Icon(
+          Icons.email_outlined,
+          color: themeProvider ? kPrimaryColor : kBlack,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 0,
+          vertical: 4,
+        ),
+      ),
+    );
+  }
+}
+
+class PasswordField extends StatefulWidget {
+  const PasswordField(
+      {super.key,
+      required this.kHint,
+      required this.themeProvider,
+      required this.controller});
+
+  final String kHint;
+  final bool themeProvider;
+  final TextEditingController controller;
+
+  @override
+  State<PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<PasswordField> {
+  bool _isTextVisible = false;
+  @override
+  Widget build(BuildContext context) {
+    return SafeTextField(
+      controller: widget.controller,
+      style: TextStyle(
+        color: widget.themeProvider ? kWhite : kBlack,
+      ),
+      obscureText: !_isTextVisible,
+      keyboardType: TextInputType.emailAddress,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: widget.themeProvider ? kDarkGrey : kBackgroundColor,
+        enabledBorder: underlineInputBorder(),
+        focusedBorder: underlineInputBorder(),
+        border: underlineInputBorder(),
+        labelStyle: const TextStyle(color: kLightGrey),
+        labelText: widget.kHint,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 0,
+          vertical: 4,
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _isTextVisible ? Icons.visibility : Icons.visibility_off,
+            color: widget.themeProvider ? kPrimaryColor : kBlack,
+          ),
+          onPressed: () {
+            setState(() {
+              _isTextVisible = !_isTextVisible;
+            });
+          },
+        ),
+      ),
+    );
+  }
+}
+
+UnderlineInputBorder underlineInputBorder() {
+  return const UnderlineInputBorder(
+    borderSide: BorderSide(
+      color: Colors.black26,
+      width: 1.0,
+    ),
+  );
+}
