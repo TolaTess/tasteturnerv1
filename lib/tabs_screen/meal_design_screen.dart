@@ -90,8 +90,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Future<void> _loadMealPlans() async {
     try {
       final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfMonth = DateTime(now.year, now.month + 1, 0);
+      final startDate = DateTime(now.year, now.month, now.day);
+      final endDate =
+          startDate.add(const Duration(days: 34)); // 35 days including today
 
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
@@ -127,8 +128,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
         try {
           final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          return date.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
-              date.isBefore(endOfMonth.add(const Duration(days: 1)));
+          return !date.isBefore(startDate) && !date.isAfter(endDate);
         } catch (e) {
           print('Error parsing date: $e');
           return false;
@@ -756,7 +756,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 25),
+          const SizedBox(height: 15),
           // Collapsible Calendar Section
           ExpansionTile(
             initiallyExpanded: true,
@@ -804,9 +804,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ),
                   itemCount: 35,
                   itemBuilder: (context, index) {
-                    final date = DateTime.now()
-                        .subtract(Duration(days: DateTime.now().weekday - 1))
-                        .add(Duration(days: index));
+                    final date = DateTime.now().add(Duration(days: index));
                     final normalizedDate =
                         DateTime(date.year, date.month, date.day);
                     final normalizedSelectedDate = DateTime(selectedDate.year,
@@ -1090,7 +1088,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         ),
         if (meals.isNotEmpty)
           SizedBox(
-            height: 200,
+            height: 150,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
@@ -1098,7 +1096,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               itemBuilder: (context, index) {
                 final meal = meals[index];
                 return Container(
-                  width: 160,
+                  width: 130,
                   margin: const EdgeInsets.only(right: 16),
                   child: Card(
                     color: kAccentLight,
