@@ -10,6 +10,7 @@ import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../pages/dietary_choose_screen.dart';
+import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/secondary_button.dart';
@@ -265,22 +266,35 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Widget _buildBuddyTab() {
-    return FutureBuilder<DocumentSnapshot>(
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final lowerBound = dateFormat.format(sevenDaysAgo);
+    final upperBound = dateFormat.format(now);
+
+    return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
       future: firestore
           .collection('mealPlans')
           .doc(userService.userId)
           .collection('buddy')
-          .doc(DateFormat('yyyy-MM-dd').format(DateTime.now()))
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
           .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: kAccent));
         }
 
-        final mealPlan = snapshot.data?.data() as Map<String, dynamic>?;
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return _buildDefaultView(context);
+        }
+
+        // Use the most recent plan (last doc)
+        final mealPlan = docs.last.data();
         final isDarkMode = getThemeProvider(context).isDarkMode;
 
-        if (mealPlan == null || !snapshot.hasData) {
+        if (mealPlan == null) {
           // No meal plan found for today
           return _buildDefaultView(context);
         }
@@ -334,7 +348,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   const SizedBox(height: 24),
                   ListTile(
                     leading: GestureDetector(
-                      onTap: () => _spinFoodyChefUserPage(context),
+                      onTap: () => _tastyChefUserPage(context),
                       child: const CircleAvatar(
                         backgroundImage:
                             AssetImage('assets/images/tasty_cheerful.jpg'),
@@ -350,7 +364,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     ),
                     trailing: TextButton(
                       style: TextButton.styleFrom(
-                        backgroundColor: isDarkMode ? kWhite : kDarkGrey,
+                        backgroundColor: kAccentLight.withOpacity(kOpacity),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -358,8 +372,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       onPressed: () => _checkAndNavigateToGenerate(context),
                       child: Text(
                         'Generate more',
-                        style:
-                            TextStyle(color: isDarkMode ? kDarkGrey : kWhite),
+                        style: TextStyle(color: isDarkMode ? kWhite : kBlack),
                       ),
                     ),
                   ),
@@ -389,11 +402,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   ...meals.map(
                     (meal) => Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                          horizontal: 16, vertical: 4),
                       child: Container(
                         decoration: BoxDecoration(
                           color:
@@ -402,10 +415,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                              horizontal: 16, vertical: 4),
                           leading: Container(
-                            width: 60,
-                            height: 60,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
@@ -635,11 +648,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     return meals;
   }
 
-  Future<void> _spinFoodyChefUserPage(BuildContext context) async {
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const BuddyScreen()),
-    // );
+  Future<void> _tastyChefUserPage(BuildContext context) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TastyScreen()),
+    );
   }
 
   Future<void> _checkAndNavigateToGenerate(BuildContext context) async {
@@ -1234,7 +1247,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         ),
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         title: const Text(
-          'Special Day',
+          'Special Day?',
           style: TextStyle(color: kAccent),
         ),
         content: Column(
@@ -1245,7 +1258,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               style: TextStyle(
                 color: isDarkMode ? kWhite : kBlack,
                 fontSize: 16,
-                decoration: TextDecoration.underline,
               ),
             ),
             const SizedBox(height: 16),
