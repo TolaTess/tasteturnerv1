@@ -139,6 +139,47 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
     }
   }
 
+  // Helper function to create or update a badge
+  Future<void> _createOrUpdateBadge({
+    required String userId,
+    required String title,
+    required String description,
+    bool checkUserExists = true,
+  }) async {
+    final existingBadges = _badgeController.badgeAchievements
+        .where((badge) => badge.title == title)
+        .toList();
+
+    if (existingBadges.isEmpty) {
+      // Create new badge
+      final newBadge = BadgeAchievementData(
+        title: title,
+        description: description,
+        userids: [userId],
+        image: 'assets/images/tasty.png',
+      );
+      await _badgeController.addBadge(newBadge);
+    } else if (checkUserExists) {
+      // Badge exists, check if user needs to be added
+      final badge = existingBadges.first;
+      if (!badge.userids.contains(userId)) {
+        // Add user to existing badge
+        final updatedUserIds = List<String>.from(badge.userids)..add(userId);
+        final updatedBadge = BadgeAchievementData(
+          title: badge.title,
+          description: badge.description,
+          userids: updatedUserIds,
+          image: 'assets/images/tasty.png',
+        );
+        await _badgeController.addBadge(updatedBadge);
+      }
+    }
+
+    // Show badge notification
+    _showBadge.value = true;
+    _badgeTitle.value = title;
+  }
+
   Future<void> _checkAndAwardBadges(
       List<MapEntry<String, int>> sortedIngredients, String userId) async {
     try {
@@ -149,87 +190,41 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       final topIngredient = sortedIngredients[0].key.toLowerCase();
       final topIngredientCount = sortedIngredients[0].value;
 
-      // Check for vegetable badges (if user has used vegetables at least 5 times)
+      // Check for vegetable badges
       if (vegetables.contains(topIngredient) && topIngredientCount >= 5) {
-        const badgeTitle = 'Veggie Victor';
-        final existingBadge = _badgeController.badgeAchievements
-            .where((badge) =>
-                badge.title == badgeTitle && badge.userids.contains(userId))
-            .toList();
-
-        if (existingBadge.isEmpty) {
-          // Create new badge
-          final newBadge = BadgeAchievementData(
-            title: badgeTitle,
-            description:
-                'Used vegetables as your main ingredient 5+ times in a week',
-            userids: [userId],
-          );
-          await _badgeController.addBadge(newBadge);
-
-          // Show badge earned notification
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        } else {
-          // User already has this badge
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        }
+        await _createOrUpdateBadge(
+          userId: userId,
+          title: 'Veggie Victor',
+          description:
+              'Used vegetables as your main ingredient 5+ times in a week',
+        );
       }
 
       // Check for protein badges
-      else if (proteins.contains(topIngredient) && topIngredientCount >= 5) {
-        const badgeTitle = 'Protein Pro';
-        final existingBadge = _badgeController.badgeAchievements
-            .where((badge) =>
-                badge.title == badgeTitle && badge.userids.contains(userId))
-            .toList();
-
-        if (existingBadge.isEmpty) {
-          // Create new badge
-          final newBadge = BadgeAchievementData(
-            title: badgeTitle,
-            description: 'Used protein-rich ingredients 5+ times in a week',
-            userids: [userId],
-          );
-          await _badgeController.addBadge(newBadge);
-
-          // Show badge earned notification
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        } else {
-          // User already has this badge
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        }
+      if (proteins.contains(topIngredient) && topIngredientCount >= 5) {
+        await _createOrUpdateBadge(
+          userId: userId,
+          title: 'Protein Pro',
+          description: 'Used protein-rich ingredients 5+ times in a week',
+        );
       }
 
-      // Check for variety badge (if user has 5+ different ingredients)
-      else if (sortedIngredients.length >= 5) {
-        const badgeTitle = 'Food Explorer';
-        final existingBadge = _badgeController.badgeAchievements
-            .where((badge) =>
-                badge.title == badgeTitle && badge.userids.contains(userId))
-            .toList();
+      // Check for variety badge
+      if (sortedIngredients.length >= 5) {
+        await _createOrUpdateBadge(
+          userId: userId,
+          title: 'Food Explorer',
+          description: 'Used 5+ different ingredients in your meals this week',
+        );
+      }
 
-        if (existingBadge.isEmpty) {
-          // Create new badge
-          final newBadge = BadgeAchievementData(
-            title: badgeTitle,
-            description:
-                'Used 5+ different ingredients in your meals this week',
-            userids: [userId],
-          );
-          await _badgeController.addBadge(newBadge);
-
-          // Show badge earned notification
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        } else {
-          // User already has this badge
-          _showBadge.value = true;
-          _badgeTitle.value = badgeTitle;
-        }
+      // Check for streak badge
+      if (topIngredientCount >= 10) {
+        await _createOrUpdateBadge(
+          userId: userId,
+          title: 'Streak Master',
+          description: 'Used 10+ ingredients in a week',
+        );
       }
     } catch (e) {
       print('Error checking/awarding badges: $e');
@@ -282,7 +277,8 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
     return Obx(() {
       if (_isLoading.value) {
-        return const Center(child: CircularProgressIndicator(
+        return const Center(
+            child: CircularProgressIndicator(
           color: kAccent,
         ));
       }
@@ -291,7 +287,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         return Container(
           padding: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            color: isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
+            color: isDarkMode
+                ? kDarkGrey.withOpacity(0.9)
+                : kWhite.withOpacity(0.9),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
@@ -326,7 +324,8 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       return Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
+          color:
+              isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -424,7 +423,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 ),
                 Expanded(
                   flex: (percent2 * 100).round(),
-                  child: Container( 
+                  child: Container(
                     height: 60,
                     decoration: BoxDecoration(
                       color: kAccentLight,

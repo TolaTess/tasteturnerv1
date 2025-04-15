@@ -582,10 +582,10 @@ class _RecipeProfileState extends State<RecipeProfile> {
                   press: () {
                     if (isFollowing) {
                       friendController.unfollowFriend(
-                          userService.userId ?? '', widget.profileId);
+                          userService.userId ?? '', widget.profileId, context);
                     } else {
                       friendController.followFriend(
-                          userService.userId ?? '', widget.profileId);
+                          userService.userId ?? '', widget.profileId, context);
                     }
 
                     // ✅ Toggle UI immediately for better user experience

@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
+import '../helper/utils.dart';
 
 class FriendController extends GetxController {
   static FriendController instance = Get.find();
@@ -112,7 +114,7 @@ class FriendController extends GetxController {
   }
 
   /// Follow a friend
-  Future<void> followFriend(String currentUserId, String friendUserId) async {
+  Future<void> followFriend(String currentUserId, String friendUserId, BuildContext context) async {
     try {
       final followingDoc = await firestore
           .collection('users')
@@ -122,10 +124,10 @@ class FriendController extends GetxController {
           .get();
 
       if (followingDoc.exists) {
-        Get.snackbar(
+        showTastySnackbar(
           'Already Following',
           'You are already following this user.',
-          snackPosition: SnackPosition.BOTTOM,
+          context,
         );
         return;
       }
@@ -147,16 +149,16 @@ class FriendController extends GetxController {
       // Update local list
       followingList.add(friendUserId);
 
-      Get.snackbar(
+      showTastySnackbar(
         'Success',
         'You are now following this user.',
-        snackPosition: SnackPosition.BOTTOM,
+        context,
       );
     } catch (e) {
-      Get.snackbar(
-        'Error',
+      showTastySnackbar(
+        'Please try again.',
         'Failed to follow user: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        context,
       );
     }
   }
@@ -222,7 +224,7 @@ class FriendController extends GetxController {
   }
 
   /// Unfollow a friend
-  Future<void> unfollowFriend(String currentUserId, String friendUserId) async {
+  Future<void> unfollowFriend(String currentUserId, String friendUserId, BuildContext context) async {
     try {
       await firestore
           .collection('users')
@@ -241,16 +243,16 @@ class FriendController extends GetxController {
       // Update local list
       followingList.remove(friendUserId);
 
-      Get.snackbar(
+      showTastySnackbar(
         'Success',
         'You have unfollowed this user.',
-        snackPosition: SnackPosition.BOTTOM,
+        context,
       );
     } catch (e) {
-      Get.snackbar(
-        'Error',
+      showTastySnackbar(
+        'Please try again.',
         'Failed to unfollow user: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        context,
       );
     }
   }

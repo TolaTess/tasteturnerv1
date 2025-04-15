@@ -81,8 +81,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
     // Validate inputs
     if (nameController.text.trim().isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a meal name')),
+        showTastySnackbar(
+          'Please try again.',
+          'Please enter a meal name',
+          context,
         );
       }
       return;
@@ -90,8 +92,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
 
     if (quantityController.text.trim().isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a quantity')),
+        showTastySnackbar(
+          'Please try again.',
+          'Please enter a quantity',
+          context,
         );
       }
       return;
@@ -99,8 +103,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
 
     if (caloriesController.text.trim().isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter calories')),
+        showTastySnackbar(
+          'Please try again.',
+          'Please enter calories',
+          context,
         );
       }
       return;
@@ -151,7 +157,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
       );
 
       // Add to user's daily meals
-      await nutritionController.addUserMeal(
+      await dailyDataController.addUserMeal(
         userService.userId ?? '',
         _selectedMealType,
         userMeal,
@@ -160,8 +166,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
       await firestore.collection('meals').doc(mealId).set(meal.toJson());
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meal added successfully!')),
+        showTastySnackbar(
+          'Success',
+          'Meal added successfully!',
+          context,
         );
       }
 
@@ -169,8 +177,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
     } catch (e) {
       print("Error adding meal: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add meal: $e')),
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to add meal: $e',
+          context,
         );
       }
     } finally {

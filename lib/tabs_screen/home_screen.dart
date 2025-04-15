@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _initializeMealData() async {
-    await nutritionController.fetchAllMealData(
+    await dailyDataController.fetchAllMealData(
         userService.userId!, userService.currentUser!.settings);
   }
 
@@ -212,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             0.0
                         : 0.0;
                     final double currentWater =
-                        nutritionController.currentWater.value.toDouble();
+                        dailyDataController.currentWater.value.toDouble();
 
                     return StatusWidgetBox(
                       title: water,
@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       currentSteps = healthService.steps.value;
                     } else {
                       currentSteps =
-                          nutritionController.currentSteps.value.toInt();
+                          dailyDataController.currentSteps.value.toInt();
                     }
 
                     // Get target steps from settings, default to 10000 if not set

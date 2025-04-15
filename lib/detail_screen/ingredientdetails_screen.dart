@@ -57,11 +57,10 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         widget.item,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '${capitalizeFirstLetter(widget.item.title)} was removed from your Shopping List!'),
-          ),
+        showTastySnackbar(
+          'Success',
+          '${capitalizeFirstLetter(widget.item.title)} was removed from your Shopping List!',
+          context,
         );
       }
     } else {
@@ -70,12 +69,10 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         widget.item,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${capitalizeFirstLetter(widget.item.title)} was added to your Shopping List!',
-            ),
-          ),
+        showTastySnackbar(
+          'Success',
+          '${capitalizeFirstLetter(widget.item.title)} was added to your Shopping List!',
+          context,
         );
       }
     }

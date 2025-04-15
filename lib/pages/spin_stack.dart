@@ -71,8 +71,10 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 
           // Check if widget is still mounted before showing SnackBar
           if (mounted) {
-            ScaffoldMessenger.of(currentContext).showSnackBar(
-              const SnackBar(content: Text('Shopping list saved')),
+            showTastySnackbar(
+              'Success',
+              'Shopping list saved',
+              currentContext,
             );
           }
         } catch (e) {

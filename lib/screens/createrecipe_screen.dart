@@ -79,8 +79,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   Future<void> _uploadMeal() async {
     if (_selectedImages.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select at least one image!')),
+        showTastySnackbar(
+          'Please try again.',
+          'Please select at least one image!',
+          context,
         );
       }
       return;
@@ -129,8 +131,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       await firestore.collection('meals').doc(mealId).set(newMeal.toJson());
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meal uploaded successfully!')),
+        showTastySnackbar(
+          'Success',
+          'Meal uploaded successfully!',
+          context,
         );
       }
 
@@ -138,8 +142,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     } catch (e) {
       print("Error uploading meal: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload meal. Try again.')),
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to upload meal. Try again.',
+          context,
         );
       }
     } finally {

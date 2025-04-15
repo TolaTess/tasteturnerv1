@@ -128,10 +128,10 @@ class _SigninFormState extends State<SigninForm> {
                             authController.resetPassword(emailController.text);
                             Navigator.pop(context);
                           } else {
-                            Get.snackbar(
+                            showTastySnackbar(
                               'Error',
                               'Please enter your email address',
-                              snackPosition: SnackPosition.BOTTOM,
+                              context,
                             );
                           }
                         },

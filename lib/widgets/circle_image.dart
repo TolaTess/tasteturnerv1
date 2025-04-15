@@ -130,10 +130,10 @@ class _IngredientListViewSpinState extends State<IngredientListViewSpin> {
                                 widget.onRemoveItem(index);
                               });
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed')),
+                                showTastySnackbar(
+                                  'Success',
+                                  '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed',
+                                  context,
                                 );
                               }
                             }
@@ -167,10 +167,10 @@ class _IngredientListViewSpinState extends State<IngredientListViewSpin> {
                                 widget.onRemoveItem(index);
                               });
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(
-                                          '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed')),
+                                showTastySnackbar(
+                                  'Success',
+                                  '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed',
+                                  context,
                                 );
                               }
                             }

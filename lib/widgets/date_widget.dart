@@ -311,7 +311,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
 
   Future<void> _loadData() async {
     try {
-      nutritionController.fetchCalories(userService.userId!, 'Add Food');
+      dailyDataController.fetchCalories(userService.userId!, 'Add Food');
       setState(() {});
     } catch (e) {
       print('Error loading data: $e');
@@ -361,7 +361,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
               children: [
                 Obx(() {
                   double eatenCalories =
-                      nutritionController.eatenCalories.value.toDouble();
+                      dailyDataController.eatenCalories.value.toDouble();
 
                   return Expanded(
                     flex: 1,
@@ -382,10 +382,10 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                 }),
                 Obx(() {
                   double eatenCalories =
-                      nutritionController.eatenCalories.value.toDouble();
+                      dailyDataController.eatenCalories.value.toDouble();
 
                   double targetCalories =
-                      nutritionController.targetCalories.value;
+                      dailyDataController.targetCalories.value;
 
                   double remainingValue = targetCalories <= 0
                       ? 0.0
@@ -395,7 +395,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                   return Expanded(
                     flex: 1,
                     child: CustomCircularProgressBar(
-                      valueNotifier: nutritionController.dailyValueNotifier,
+                      valueNotifier: dailyDataController.dailyValueNotifier,
                       isMain: true,
                       remainingCalories: remainingValue,
                     ),
@@ -407,7 +407,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        nutritionController.targetCalories.value
+                        dailyDataController.targetCalories.value
                             .toInt()
                             .toString(),
                         style: const TextStyle(fontSize: 14),
@@ -549,11 +549,13 @@ class MacroNutritionOverview extends StatelessWidget {
 class NutritionStatusBar extends StatefulWidget {
   final String userId;
   final Map<String, String> userSettings;
+  final Function(String)? onMealTypeSelected;
 
   const NutritionStatusBar({
     super.key,
     required this.userId,
     required this.userSettings,
+    this.onMealTypeSelected,
   });
 
   @override
@@ -568,7 +570,7 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
   }
 
   void _initializeMealData() async {
-    await nutritionController.fetchAllMealData(
+    await dailyDataController.fetchAllMealData(
         widget.userId, widget.userSettings);
   }
 
@@ -577,9 +579,8 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode
-            ? kDarkGrey.withOpacity(0.75)
-            : kWhite.withOpacity(0.75),
+        color:
+            isDarkMode ? kDarkGrey.withOpacity(0.75) : kWhite.withOpacity(0.75),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
@@ -589,27 +590,27 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
           children: [
             _buildMealColumn(
               title: 'Breakfast',
-              target: nutritionController.breakfastTarget,
-              calories: nutritionController.breakfastCalories,
+              target: dailyDataController.breakfastTarget,
+              calories: dailyDataController.breakfastCalories,
               themeProvider: isDarkMode,
               context: context,
-              valueNotifier: nutritionController.breakfastNotifier,
+              valueNotifier: dailyDataController.breakfastNotifier,
             ),
             _buildMealColumn(
               title: 'Lunch',
-              target: nutritionController.lunchTarget,
-              calories: nutritionController.lunchCalories,
+              target: dailyDataController.lunchTarget,
+              calories: dailyDataController.lunchCalories,
               themeProvider: isDarkMode,
               context: context,
-              valueNotifier: nutritionController.lunchNotifier,
+              valueNotifier: dailyDataController.lunchNotifier,
             ),
             _buildMealColumn(
               title: 'Dinner',
-              target: nutritionController.dinnerTarget,
-              calories: nutritionController.dinnerCalories,
+              target: dailyDataController.dinnerTarget,
+              calories: dailyDataController.dinnerCalories,
               themeProvider: isDarkMode,
               context: context,
-              valueNotifier: nutritionController.dinnerNotifier,
+              valueNotifier: dailyDataController.dinnerNotifier,
             ),
           ],
         ),
@@ -634,20 +635,13 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
           const SizedBox(height: 2),
           Text(title,
               style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: kAccent)),
+                  fontWeight: FontWeight.bold, fontSize: 12, color: kAccent)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddFoodScreen(
-                    title: title,
-                  ),
-                ),
-              );
+              if (widget.onMealTypeSelected != null) {
+                widget.onMealTypeSelected!(title);
+              }
             },
             child: CustomCircularProgressBar(
               valueNotifier: valueNotifier,

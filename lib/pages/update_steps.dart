@@ -95,20 +95,22 @@ class _UpdateStepsModalState extends State<UpdateStepsModal> {
                 final steps = int.tryParse(stepsController.text);
                 if (steps != null) {
                   try {
-                    nutritionController.updateCurrentSteps(
+                    dailyDataController.updateCurrentSteps(
                         userService.userId ?? '', steps.toDouble());
 
                     Get.back();
-                    Get.snackbar(
-                        'Success', 'Your steps were updated successfully!',
-                        snackPosition: SnackPosition.BOTTOM);
+                    showTastySnackbar(
+                      'Success',
+                      'Your steps were updated successfully!',
+                      context,
+                    );
                   } catch (e) {
                     print("Error updating steps: $e");
-                    Get.snackbar(
-                      'Error',
+                    showTastySnackbar(
+                      'Please try again.',
                       'Failed to update steps',
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
+                      context,
+                      backgroundColor: kRed,
                     );
                   }
                 }

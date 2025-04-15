@@ -321,11 +321,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                       if (isFollowing) {
                                         friendController.unfollowFriend(
                                             userService.userId ?? '',
-                                            post.userId);
+                                            post.userId,
+                                            context);
                                       } else {
                                         friendController.followFriend(
                                             userService.userId ?? '',
-                                            post.userId);
+                                            post.userId,
+                                            context);
                                       }
 
                                       // ✅ Toggle UI immediately for better user experience

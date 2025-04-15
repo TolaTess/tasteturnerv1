@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,7 +62,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<Map<String, dynamic>> fetchChartData(String userid) async {
     final caloriesByDate =
-        await nutritionController.fetchCaloriesByDate(userid);
+        await dailyDataController.fetchCaloriesByDate(userid);
     List<String> dateLabels = [];
     List<FlSpot> chartData = prepareChartData(caloriesByDate, dateLabels);
 
@@ -422,11 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       press: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BadgesScreen(
-                            userid: userId,
-                            badgeAchievements:
-                                badgeController.badgeAchievements,
-                          ),
+                          builder: (context) => BadgesScreen(),
                         ),
                       ),
                     ),
@@ -435,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Badges Slider
                   if (myBadge.isNotEmpty)
                     SizedBox(
-                      height: 130,
+                      height: 100,
                       child: ListView.builder(
                         itemCount:
                             (myBadge.length > 2 ? 2 : myBadge.length) + 1,
@@ -451,49 +446,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 press: () {
                                   //todo
                                 },
-                              ),
-                            );
-                          } else {
-                            // "Add" option for users
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 15, horizontal: 5),
-                              child: SizedBox(
-                                width: 90,
-                                child: Column(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 25,
-                                      backgroundColor: isDarkMode
-                                          ? kDarkGrey
-                                          : kPrimaryColor.withOpacity(0.2),
-                                      child: IconButton(
-                                        icon: const Icon(Icons.add),
-                                        iconSize: 35,
-                                        onPressed: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => BadgesScreen(
-                                              userid: userId,
-                                              badgeAchievements: badgeController
-                                                  .badgeAchievements,
-                                            ),
-                                          ),
-                                        ),
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      "See more challenges",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
                               ),
                             );
                           }

@@ -480,11 +480,10 @@ Greet the user warmly and offer guidance based on:
         }
       } catch (e) {
         print("Error loading spin wheel: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to load ingredients. Please try again."),
-            duration: Duration(seconds: 3),
-          ),
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to load ingredients. Please try again.',
+          context,
         );
       }
       return;
@@ -550,10 +549,10 @@ Greet the user warmly and offer guidance based on:
         await _saveMessageToFirestore(response, 'buddy');
       } catch (e) {
         print("Error getting AI response: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to get AI response. Please try again."),
-          ),
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to get AI response. Please try again.',
+          context,
         );
       }
     }

@@ -2,6 +2,7 @@ import 'package:fit_hify/widgets/icon_widget.dart';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
+import '../helper/utils.dart';
 import '../widgets/circle_image.dart';
 
 class ShoppingListScreen extends StatefulWidget {
@@ -38,8 +39,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
       if (selectedItems.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No items selected to save!')),
+          showTastySnackbar(
+            'Please try again.',
+            'No items selected to save!',
+            context,
           );
         }
         return;
@@ -56,14 +59,18 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selection saved successfully!')),
+        showTastySnackbar(
+              'Success',
+          'Selection saved successfully!',
+          context,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving selection: $e')),
+        showTastySnackbar(
+          'Please try again.',
+          'Error saving selection: $e',
+          context,
         );
       }
     }
@@ -77,8 +84,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
       if (selectedItems.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No items selected to save!')),
+          showTastySnackbar(
+            'Please try again.',
+            'No items selected to save!',
+            context,
           );
         }
         return;
@@ -91,14 +100,18 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to meal plan successfully!')),
+        showTastySnackbar(
+          'Success',
+          'Added to meal plan successfully!',
+          context,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding to meal plan: $e')),
+        showTastySnackbar(
+          'Please try again.',
+          'Error adding to meal plan: $e',
+          context,
         );
       }
     }

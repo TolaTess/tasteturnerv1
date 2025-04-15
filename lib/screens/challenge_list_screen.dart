@@ -34,7 +34,7 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
   void _updateChallengeList() async {
     String userId = userService.userId ?? '';
 
-    myChallenge = await nutritionController.getMyChallenges(userId);
+    myChallenge = await dailyDataController.getMyChallenges(userId);
 
     allChallenges = await helperController.getAllChallenges();
 
@@ -59,8 +59,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
 
       if (!groupDoc.exists) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Group not found.")),
+          showTastySnackbar(
+            'Please try again.',
+            'Group not found.',
+            context,
           );
         }
         return;
@@ -75,8 +77,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
           'members': FieldValue.arrayRemove([userService.userId])
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("You left the group.")),
+          showTastySnackbar(
+            'Success',
+            'You left the group.',
+            context,
           );
         }
       } else {
@@ -85,8 +89,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
         }, SetOptions(merge: true));
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("You joined the group!")),
+          showTastySnackbar(
+            'Success',
+            'You joined the group!',
+            context,
           );
         }
       }
@@ -95,8 +101,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
     } catch (e) {
       print("Error updating group membership: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to update group membership.")),
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to update group membership.',
+          context,
         );
       }
     }
@@ -104,7 +112,7 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -300,7 +308,6 @@ class ChallengeItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     // ✅ Calculate progress using `startDate` and `endDate` from `dataSrc`
     final double progress = _calculateProgress(
       dataSrc['startDate'],
@@ -328,7 +335,9 @@ class ChallengeItem extends StatelessWidget {
                 height: 100,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
-                  image: mediaPath != null && mediaPath.isNotEmpty && mediaPath.contains('http')
+                  image: mediaPath != null &&
+                          mediaPath.isNotEmpty &&
+                          mediaPath.contains('http')
                       ? DecorationImage(
                           image: NetworkImage(mediaPath),
                           fit: BoxFit.cover,

@@ -135,17 +135,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           // Clean up temporary file
                           await File(compressedPath).delete();
 
-                          Get.snackbar(
+                          showTastySnackbar(
                             'Success',
                             'Your image was updated successfully!',
-                            snackPosition: SnackPosition.BOTTOM,
+                            context,
                           );
                         } catch (e) {
                           print("Error uploading profile image: $e");
-                          Get.snackbar(
-                            'Error',
+                          showTastySnackbar(
+                            'Please try again.',
                             'Failed to update profile image.',
-                            snackPosition: SnackPosition.BOTTOM,
+                            context,
                           );
                         }
                       }
@@ -195,10 +195,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       };
                       authController.updateUserData(updatedUser);
 
-                      Get.snackbar(
+                      showTastySnackbar(
                         'Success',
                         'Your data was updated successfully!',
-                        snackPosition: SnackPosition.BOTTOM,
+                        context,
                       );
                     },
                   ),

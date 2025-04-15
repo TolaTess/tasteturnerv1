@@ -52,10 +52,10 @@ class _NewPostScreenFinalState extends State<NewPostScreenFinal> {
               onTap: () async {
                 if (userId.isEmpty) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("User ID is missing."),
-                      ),
+                    showTastySnackbar(
+                      'Please try again.',
+                      'User ID is missing.',
+                      context,
                     );
                   }
                   return;
@@ -75,10 +75,10 @@ class _NewPostScreenFinalState extends State<NewPostScreenFinal> {
                     post, userId, widget.imagePaths);
 
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Post Added."),
-                    ),
+                  showTastySnackbar(
+                    'Success',
+                    'Post Added.',
+                    context,
                   );
                 }
 

@@ -76,8 +76,8 @@ class AuthController extends GetxController {
         } catch (e) {
           print("Failed to load user data: $e");
           // Handle the error appropriately - maybe show an error screen
-          Get.snackbar(
-            'Error',
+          Get.snackbar( 
+            'Please try again',
             'Failed to load user data. Please try again.',
             backgroundColor: Colors.red,
             colorText: Colors.white,
@@ -88,7 +88,7 @@ class AuthController extends GetxController {
       print("Error checking user existence: $e");
       // Handle the error appropriately
       Get.snackbar(
-        'Error',
+        'Please try again.',
         'Something went wrong. Please try again.',
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -175,10 +175,18 @@ class AuthController extends GetxController {
         await _setLoggedIn(true);
         Get.offAll(() => OnboardingScreen(userId: userId));
       } else {
-        Get.snackbar('Error Creating Account', 'Please fill in all fields.');
+        showTastySnackbar(
+          'Please try again.',
+          'Please fill in all fields.',
+          context,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error Creating Account', e.toString());
+      showTastySnackbar(
+        'Please try again.',
+        'Error Creating Account: $e',
+        context,
+      );
     }
   }
 

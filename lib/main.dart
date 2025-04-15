@@ -63,6 +63,7 @@ void main() async {
 
   // Create test battles
   // await TestBattleData.createTestBattles(BattleService.instance);
+  // await TestBadgeData.initializeBadgeCategories();
 
   // await addDummyPosts();
   await macroManager.getIngredientsByCategory("All");

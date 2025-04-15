@@ -5,8 +5,6 @@ class UserModel {
   String? displayName;
   String? bio, sex;
   String? profileImage;
-  int? points;
-
   List<String> followers;
   List<String> following;
 
@@ -22,7 +20,6 @@ class UserModel {
     this.bio = 'Today will be Epic!',
     this.sex = 'female',
     required this.profileImage,
-    this.points,
     this.followers = const [],
     this.following = const [],
     this.settings = const {},
@@ -49,7 +46,6 @@ class UserModel {
       displayName: data['displayName']?.toString() ?? '',
       bio: data['bio']?.toString() ?? 'Today will be Epic!',
       profileImage: data['profileImage']?.toString() ?? '',
-      points: data['points'] as int? ?? 0,
       followers: List<String>.from(data['followers'] ?? []),
       following: List<String>.from(data['following'] ?? []),
       settings: settings,
@@ -64,7 +60,6 @@ class UserModel {
       'displayName': displayName,
       'bio': bio,
       'profileImage': profileImage,
-      'points': points,
       'followers': followers,
       'following': following,
       'settings': settings,
@@ -86,7 +81,6 @@ class UserModel {
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
       profileImage: map['profileImage']?.toString() ?? '',
-      points: map['points'] as int? ?? 0,
       followers: List<String>.from(map['followers'] ?? []),
       following: List<String>.from(map['following'] ?? []),
       settings: settings,

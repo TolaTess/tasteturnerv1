@@ -154,19 +154,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
                               );
                             } else {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        "${demoMacroData[index].title} not applicable to the $selectedCategory"),
-                                    behavior: SnackBarBehavior
-                                        .floating, // Makes the SnackBar float
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                          24), // Curve the edges
-                                    ),
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 20),
-                                  ),
+                                showTastySnackbar(
+                                  'Please try again.',
+                                  "${demoMacroData[index].title} not applicable to the $selectedCategory",
+                                  context,
                                 );
                               }
                             }

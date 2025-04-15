@@ -46,6 +46,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final FoodApiService _macroApiService = FoodApiService();
   final RxBool _isSearching = false.obs;
 
+  // Replace the food section maps with meal type maps
+  final Map<String, List<UserMeal>> breakfastList = {};
+  final Map<String, List<UserMeal>> lunchList = {};
+  final Map<String, List<UserMeal>> dinnerList = {};
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +60,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   Future<Map<String, dynamic>> fetchChartData(String userid) async {
     final caloriesByDate =
-        await nutritionController.fetchCaloriesByDate(userid);
+        await dailyDataController.fetchCaloriesByDate(userid);
     List<String> dateLabels = [];
     List<FlSpot> chartData = prepareChartData(caloriesByDate, dateLabels);
 
@@ -92,7 +97,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Fetch meals and ingredients
       _allMeals = mealManager.meals;
       _allIngredients = macroManager.ingredient;
-      nutritionController.fetchMealsForToday(userId);
+      dailyDataController.fetchMealsForToday(userId);
       setState(() {});
     } catch (e) {
       print('Error loading data: $e');
@@ -155,21 +160,177 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     }
   }
 
-  void _showDetailPopup(dynamic result, String? userId, String foodType) {
-    int selectedNumber = 0; // For option
-    int selectedUnit = 0; // For option 3
-    List<UserMeal> selectedMacroItems = [];
+  void _showSearchResults(BuildContext context, String mealType) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.2,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: getThemeProvider(context).isDarkMode
+                      ? kWhite.withOpacity(kMidOpacity)
+                      : kBlack.withOpacity(kMidOpacity),
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: getThemeProvider(context).isDarkMode
+                        ? kWhite.withOpacity(0.3)
+                        : kBlack.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Meal type header
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                  child: Text(
+                    'Add to $mealType',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: getThemeProvider(context).isDarkMode
+                          ? kWhite
+                          : kBlack,
+                    ),
+                  ),
+                ),
+                // Search box
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SearchButton2(
+                    controller: _searchController,
+                    onChanged: (query) {
+                      _filterSearchResults(query);
+                    },
+                    kText: 'Search meals or ingredients',
+                  ),
+                ),
+                // Results
+                Expanded(
+                  child: Obx(() {
+                    if (_isSearching.value) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: kAccent,
+                        ),
+                      );
+                    }
 
-    // Item name
+                    if (_searchResults.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No results found',
+                          style: TextStyle(
+                            color: getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kBlack,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      itemCount: _searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = _searchResults[index];
+                        return ListTile(
+                          leading: result is Meal &&
+                                  result.mediaPaths.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.network(
+                                    result.mediaPaths.first,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Image.asset(
+                                      getAssetImageForItem(
+                                          result.category ?? 'default'),
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                )
+                              : result is IngredientData &&
+                                      result.mediaPaths.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        result.mediaPaths.first,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error,
+                                                stackTrace) =>
+                                            Image.asset(intPlaceholderImage),
+                                      ),
+                                    )
+                                  : null,
+                          title: Text(
+                            result is Meal
+                                ? result.title
+                                : result is MacroData
+                                    ? capitalizeFirstLetter(result.title)
+                                    : result is IngredientData
+                                        ? capitalizeFirstLetter(result.title)
+                                        : 'Unknown Item',
+                            style: TextStyle(
+                              color: getThemeProvider(context).isDarkMode
+                                  ? kWhite
+                                  : kBlack,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context); // Close the modal
+                            _showDetailPopup(
+                                result, userService.userId, mealType);
+                            _searchController.clear();
+                            setState(() {
+                              _searchResults.clear();
+                            });
+                          },
+                        );
+                      },
+                    );
+                  }),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDetailPopup(dynamic result, String? userId, String mealType) {
+    int selectedNumber = 0;
+    int selectedUnit = 0;
+
     String itemName = result is Meal
         ? result.title
-        : result is MacroData
-            ? capitalizeFirstLetter(result.title)
-            : result is IngredientData
-                ? capitalizeFirstLetter(result.title)
-                : 'Unknown Item';
-    String mealId = result is Meal
-        ? result.mealId
         : result is MacroData
             ? capitalizeFirstLetter(result.title)
             : result is IngredientData
@@ -179,53 +340,27 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     showDialog(
       context: context,
       builder: (context) {
-        final isDarkMode = getThemeProvider(context).isDarkMode;
-
         return StatefulBuilder(
-          // ✅ Allow UI updates inside the dialog
           builder: (context, setModalState) {
+            final isDarkMode = getThemeProvider(context).isDarkMode;
             return AlertDialog(
-              backgroundColor:
-                  isDarkMode ? kLightGrey.withOpacity(kOpacity) : kWhite,
+              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
               title: Text(
-                itemName,
-                style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                'Add to $mealType',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Meal type selection row
-                  if (widget.title == 'Add Food') ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildMealTypeOption(
-                            'Breakfast', 'Breakfast', foodType == 'Breakfast',
-                            (isSelected) {
-                          setModalState(() {
-                            foodType = isSelected ? 'Breakfast' : foodType;
-                          });
-                        }),
-                        _buildMealTypeOption(
-                            'Lunch', 'Lunch', foodType == 'Lunch',
-                            (isSelected) {
-                          setModalState(() {
-                            foodType = isSelected ? 'Lunch' : foodType;
-                          });
-                        }),
-                        _buildMealTypeOption(
-                            'Dinner', 'Dinner', foodType == 'Dinner',
-                            (isSelected) {
-                          setModalState(() {
-                            foodType = isSelected ? 'Dinner' : foodType;
-                          });
-                        }),
-                      ],
+                  Text(
+                    itemName,
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
                     ),
-                    const SizedBox(height: 15),
-                  ] else ...[
-                    const SizedBox.shrink(),
-                  ],
+                  ),
+                  const SizedBox(height: 15),
                   SizedBox(
                     height: MediaQuery.of(context).size.height * 0.3,
                     width: MediaQuery.of(context).size.width * 0.9,
@@ -249,316 +384,89 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       ],
                     ),
                   ),
-                  // ✅ Show selected macro items if any
-                  if (result is MacroData ||
-                      result is IngredientData &&
-                          selectedMacroItems.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    const Text("Selected Ingredients:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    Column(
-                      children: selectedMacroItems
-                          .map((item) => ListTile(
-                                title: Text(item.name),
-                                subtitle:
-                                    Text("${item.quantity} ${item.servings}"),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () {
-                                    setModalState(
-                                        () => selectedMacroItems.remove(item));
-                                  },
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ]
                 ],
               ),
               actions: [
-                if (result is Meal) ...[
-                  // ✅ Meal Handling: Cancel & Add buttons
-
-                  SecondaryButton(
-                    text: 'Cancel',
-                    press: () => Navigator.pop(context),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kAccent,
+                    ),
                   ),
-                  SecondaryButton(
-                    text: 'Add',
-                    press: () async {
-                      final userMeal = UserMeal(
-                        name: result.title,
-                        quantity: '$selectedNumber',
-                        servings: '${unitOptions[selectedUnit]}',
-                        calories: result.calories,
-                        mealId: mealId,
-                      );
-
-                      try {
-                        await nutritionController.addUserMeal(
-                            userId ?? '', foodType, userMeal);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Meal added successfully."),
-                            ),
-                          );
-                        }
-                        Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Failed to add meal: $e")),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ] else if (result is MacroData || result is IngredientData) ...[
-                  SecondaryButton(
-                    text: 'Add Another',
-                    press: () {
-                      final calories = result is MacroData
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final userMeal = UserMeal(
+                      name: itemName,
+                      quantity: '$selectedNumber',
+                      servings: '${unitOptions[selectedUnit]}',
+                      calories: result is Meal
                           ? result.calories
-                          : (result as IngredientData).macros['calories']
-                                  is String
-                              ? int.tryParse(
-                                      (result.macros['calories'] as String)
-                                          .replaceAll(RegExp(r'[^0-9]'), '')) ??
-                                  0
-                              : (result.macros['calories'] as num?)?.toInt() ??
-                                  0;
+                          : result is MacroData
+                              ? result.calories
+                              : 0,
+                      mealId: result is Meal ? result.mealId : itemName,
+                    );
 
-                      final newMacroItem = UserMeal(
-                        name: result is MacroData
-                            ? result.title
-                            : (result as IngredientData).title,
-                        quantity: '$selectedNumber',
-                        servings: '${unitOptions[selectedUnit]}',
-                        calories: calories,
-                        mealId: result is MacroData ? result.title : result.id,
+                    try {
+                      // Add meal to Firestore using nutritionController
+                      await dailyDataController.addUserMeal(
+                        userService.userId ?? '',
+                        mealType, // Using the meal type (Breakfast/Lunch/Dinner)
+                        userMeal,
                       );
 
-                      setModalState(() => selectedMacroItems.add(newMacroItem));
-                    },
-                  ),
-                  SecondaryButton(
-                    text: 'Save',
-                    press: () async {
-                      if (selectedMacroItems.isEmpty) {
-                        // If no items have been added with "Add Another", create one item
-                        final calories = result is MacroData
-                            ? result.calories
-                            : (result as IngredientData).macros['calories']
-                                    is String
-                                ? int.tryParse((result.macros['calories']
-                                            as String)
-                                        .replaceAll(RegExp(r'[^0-9]'), '')) ??
-                                    0
-                                : (result.macros['calories'] as num?)
-                                        ?.toInt() ??
-                                    0;
-
-                        final singleItem = UserMeal(
-                          name: result.name,
-                          quantity: '$selectedNumber',
-                          servings: '${unitOptions[selectedUnit]}',
-                          calories: calories,
-                          mealId: result.name,
+                      if (mounted) {
+                        showTastySnackbar(
+                          'Success',
+                          'Added ${userMeal.name} to $mealType',
+                          context,
                         );
-
-                        try {
-                          await nutritionController.addUserMeal(
-                              userId ?? '', foodType, singleItem);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Item saved successfully!")),
-                            );
-                          }
-                          Navigator.pop(context);
-                          return;
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text("Failed to save item: $e")),
-                            );
-                          }
-                          return;
-                        }
                       }
 
-                      try {
-                        for (var macroMeal in selectedMacroItems) {
-                          await nutritionController.addUserMeal(
-                              userId ?? '', foodType, macroMeal);
+                      // Update local state
+                      setState(() {
+                        switch (mealType) {
+                          case 'Breakfast':
+                            breakfastList[widget.title] ??= [];
+                            breakfastList[widget.title]!.add(userMeal);
+                            break;
+                          case 'Lunch':
+                            lunchList[widget.title] ??= [];
+                            lunchList[widget.title]!.add(userMeal);
+                            break;
+                          case 'Dinner':
+                            dinnerList[widget.title] ??= [];
+                            dinnerList[widget.title]!.add(userMeal);
+                            break;
                         }
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("All items saved successfully!"),
-                            ),
-                          );
-                        }
-                        Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Failed to save items: $e")),
-                          );
-                        }
+                      });
+
+                      Navigator.pop(context);
+                    } catch (e) {
+                      if (mounted) {
+                        showTastySnackbar(
+                          'Please try again.',
+                          'Failed to add meal: $e',
+                          context,
+                        );
                       }
-                    },
+                    }
+                  },
+                  child: Text(
+                    'Add',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kAccent,
+                    ),
                   ),
-                ]
+                ),
               ],
             );
           },
         );
       },
-    );
-  }
-
-  Widget _buildSearchResults() {
-    if (_searchResults.isEmpty && !_isSearching.value) {
-      return const SizedBox.shrink();
-    }
-
-    return Positioned(
-      left: 16,
-      right: 16,
-      top: 25 + 58,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.4,
-          ),
-          decoration: BoxDecoration(
-            color: getThemeProvider(context).isDarkMode ? kLightGrey : kWhite,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Obx(() {
-            if (_isSearching.value) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(
-                    color: kAccent,
-                  ),
-                ),
-              );
-            }
-
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final result = _searchResults[index];
-                final bool isApiMeal =
-                    result is Meal && result.mealId.startsWith('api_');
-
-                return ListTile(
-                  leading: result is Meal && result.mediaPaths.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            result.mediaPaths.isNotEmpty
-                                ? result.mediaPaths.first
-                                : extPlaceholderImage,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                              getAssetImageForItem(
-                                  result.category ?? 'default'),
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        )
-                      : result is IngredientData && result.mediaPaths.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.network(
-                                result.mediaPaths.first,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Image.asset(
-                                  getAssetImageForItem('default'),
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            )
-                          : null,
-                  title: Text(
-                    result is Meal
-                        ? result.title
-                        : result is MacroData
-                            ? capitalizeFirstLetter(result.title)
-                            : result is IngredientData
-                                ? capitalizeFirstLetter(result.title)
-                                : 'Unknown Item',
-                    style: TextStyle(
-                      color: getThemeProvider(context).isDarkMode
-                          ? kWhite
-                          : kBlack,
-                    ),
-                  ),
-                  onTap: () {
-                    _showDetailPopup(result, userService.userId, widget.title);
-                    _searchController.clear();
-                    setState(() {
-                      _searchResults.clear();
-                    });
-                  },
-                );
-              },
-            );
-          }),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMealTypeOption(
-      String label, String value, bool isSelected, Function(bool) onSelected) {
-    return GestureDetector(
-      onTap: () => onSelected(!isSelected),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? kAccentLight : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? kAccentLight : kPrimaryColor,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? kWhite : kPrimaryColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
     );
   }
 
@@ -610,306 +518,137 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // NutritionStatusBar - placed before TabBar
+            // NutritionStatusBar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: NutritionStatusBar(
                 userId: userService.userId ?? '',
                 userSettings: userService.currentUser!.settings,
+                onMealTypeSelected: (mealType) {
+                  setState(() {
+                    foodType = mealType;
+                  });
+                  _showSearchResults(context, mealType);
+                },
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // TabBar and TabBarView
+            //row of search icon and + button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                    onPressed: () => _showSearchResults(context, foodType),
+                    icon: const Icon(Icons.search)),
+                IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddMealManuallyScreen(
+                            mealType: foodType,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add)),
+              ],
+            ),
+
+            // Selected Items List
             Expanded(
-              child: DefaultTabController(
-                length: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TabBar(
-                      labelColor: isDarkMode ? kWhite : kBlack,
-                      unselectedLabelColor: kLightGrey,
-                      indicatorColor: isDarkMode ? kWhite : kBlack,
-                      tabs: const [
-                        Tab(icon: Icon(Icons.add)),
-                        Tab(icon: Icon(Icons.favorite_border)),
-                      ],
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          // Add Meals/Ingredients Tab
-                          Stack(
+              child: Obx(() {
+                final allMealsByType = widget.title == 'Add Food'
+                    ? dailyDataController.userMealList.values
+                        .expand((meals) => meals)
+                        .toList()
+                    : dailyDataController.userMealList[widget.title] ?? [];
+
+                if (allMealsByType.isEmpty) {
+                  return noItemTastyWidget(
+                      'No items added', '', context, false);
+                }
+
+                return ListView.builder(
+                  itemCount: allMealsByType.length,
+                  itemBuilder: (context, index) {
+                    final userMeal = allMealsByType[index];
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8.0, horizontal: 8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: kLightGrey.withOpacity(kLowOpacity),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Main Column (Selected Items List)
-                              Column(
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const SizedBox(height: 25),
-                                  // Search TextField
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
-                                    child: SearchButton2(
-                                      controller: _searchController,
-                                      onChanged: _filterSearchResults,
-                                      kText: 'Search meals or ingredients',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 15),
-
-                                  // Manual Add Button
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0),
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: kAccent,
-                                        minimumSize: const Size(120, 50),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                AddMealManuallyScreen(
-                                              mealType: widget.title,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.add_circle_outline,
-                                              color: Colors.white),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Add Meal Manually',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyLarge
-                                                ?.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ],
+                                  Flexible(
+                                    child: Text(
+                                      userMeal.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-
-                                  // Selected Items List
-                                  Expanded(
-                                    child: Obx(() {
-                                      final allMealsByType = widget.title ==
-                                              'Add Food'
-                                          ? nutritionController
-                                              .userMealList.values
-                                              .expand((meals) => meals)
-                                              .toList()
-                                          : nutritionController
-                                                  .userMealList[widget.title] ??
-                                              [];
-
-                                      if (allMealsByType.isEmpty) {
-                                        return const SizedBox.shrink();
-                                      }
-
-                                      return ListView.builder(
-                                        itemCount: allMealsByType.length,
-                                        itemBuilder: (context, index) {
-                                          final userMeal =
-                                              allMealsByType[index];
-
-                                          return Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 8.0, horizontal: 8.0),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: kLightGrey
-                                                    .withOpacity(kLowOpacity),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(12.0),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .spaceBetween,
-                                                      children: [
-                                                        Text(
-                                                          userMeal.name,
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                        IconButton(
-                                                          iconSize: 20,
-                                                          color: isDarkMode
-                                                              ? kLightGrey
-                                                              : kWhite.withOpacity(
-                                                                  kLowOpacity),
-                                                          icon: const Icon(
-                                                              Icons.delete),
-                                                          onPressed: () async {
-                                                            await nutritionController
-                                                                .removeMeal(
-                                                              userService
-                                                                      .userId ??
-                                                                  '',
-                                                              widget.title,
-                                                              userMeal,
-                                                            );
-                                                          },
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 8.0),
-                                                    Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .spaceBetween,
-                                                      children: [
-                                                        Text(
-                                                          ('${userMeal.quantity} ${userMeal.servings}'),
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          '${userMeal.calories} kcal',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 12,
-                                                            fontWeight:
-                                                                FontWeight.w200,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 8.0),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                  IconButton(
+                                    iconSize: 20,
+                                    color: isDarkMode
+                                        ? kLightGrey
+                                        : kWhite.withOpacity(kLowOpacity),
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () async {
+                                      await dailyDataController.removeMeal(
+                                        userService.userId ?? '',
+                                        widget.title,
+                                        userMeal,
                                       );
-                                    }),
+                                    },
                                   ),
                                 ],
                               ),
-
-                              // Overlay for Search Results
-                              if (_searchResults.isNotEmpty ||
-                                  _isSearching.value)
-                                _buildSearchResults(),
+                              const SizedBox(height: 8.0),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    ('${userMeal.quantity} ${userMeal.servings}'),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${userMeal.calories} kcal',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w200,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8.0),
                             ],
                           ),
-                          // Favorite Meals Tab
-                          FutureBuilder<List<Meal>>(
-                            future: mealManager.fetchFavoriteMeals(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                    child: CircularProgressIndicator(
-                                  color: kAccent,
-                                ));
-                              } else if (snapshot.hasError) {
-                                return Center(
-                                    child: Text('Error: ${snapshot.error}'));
-                              } else if (!snapshot.hasData ||
-                                  snapshot.data!.isEmpty) {
-                                return const Center(
-                                    child: Text('No favorite meals yet.'));
-                              } else {
-                                final favoriteMeals = snapshot.data!;
-                                return ListView.builder(
-                                  itemCount: favoriteMeals.length,
-                                  itemBuilder: (context, index) {
-                                    final meal = favoriteMeals[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8.0, horizontal: 16.0),
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          _showDetailPopup(
-                                              meal,
-                                              userid,
-                                              widget
-                                                  .title); // Pass the Meal object
-                                          setState(() {
-                                            _searchResults
-                                                .clear(); // Clear results after selection
-                                          });
-                                        },
-                                        child: Row(
-                                          children: [
-                                            // Image
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(8.0),
-                                              child: Image.network(
-                                                meal.mediaPaths
-                                                    .first, // Replace with your image field
-                                                width: 50,
-                                                height: 50,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error,
-                                                        stackTrace) =>
-                                                    Image.asset(
-                                                  getAssetImageForItem(
-                                                      'default'),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16.0),
-                                            // Title
-                                            Expanded(
-                                              child: Text(
-                                                meal.title, // Replace with your title field
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    );
+                  },
+                );
+              }),
             ),
           ],
         ),

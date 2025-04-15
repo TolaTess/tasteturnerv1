@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:fit_hify/themes/theme_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -14,8 +15,6 @@ import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/photo_manager.dart';
-import '../screens/recipe_screen.dart';
-import '../screens/shopping_list.dart';
 import '../widgets/bottom_nav.dart';
 
 int currentPage = 0;
@@ -315,6 +314,17 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
   );
 }
 
+/// Shows a success snackbar with a custom message
+void showTastySnackbar(String title, String message, BuildContext context,
+    {Color? backgroundColor}) {
+  Get.snackbar(
+    title,
+    message,
+    snackPosition: SnackPosition.BOTTOM,
+    backgroundColor: backgroundColor ?? kAccent,
+  );
+}
+
 /// ✅ Function to Get Next Occurrence of a Specific Day (e.g., Tuesday)
 DateTime getNextWeekday(String dueDateString) {
   // Parse the due date string to get a DateTime
@@ -329,7 +339,7 @@ DateTime getNextWeekday(String dueDateString) {
     DateTime now = DateTime.now();
     dueDate = DateTime(now.year, now.month, now.day + 7, 12, 0, 0);
   }
-  
+
   // If the due date is in the past, move it to next week
   DateTime now = DateTime.now();
   if (dueDate.isBefore(now)) {
@@ -342,7 +352,7 @@ DateTime getNextWeekday(String dueDateString) {
       0,
     );
   }
-  
+
   return dueDate;
 }
 
@@ -521,4 +531,3 @@ Widget noItemTastyWidget(
     ),
   );
 }
-

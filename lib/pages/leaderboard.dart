@@ -27,32 +27,41 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       setState(() => isLoading = true);
 
       final userId = userService.userId;
-      final QuerySnapshot snapshot = await firestore
-          .collection('users')
-          .where('points', isGreaterThan: 0)
-          .orderBy('points', descending: true)
+      final QuerySnapshot pointsSnapshot = await firestore
+          .collection('points')
+          .where('point', isGreaterThan: 0)
+          .orderBy('point', descending: true)
           .limit(50)
           .get();
 
       final List<Map<String, dynamic>> data = [];
       int userRank = 0;
 
-      for (var i = 0; i < snapshot.docs.length; i++) {
-        final doc = snapshot.docs[i];
-        final userData = doc.data() as Map<String, dynamic>?;
+      for (var i = 0; i < pointsSnapshot.docs.length; i++) {
+        final pointsDoc = pointsSnapshot.docs[i];
+        final pointsData = pointsDoc.data() as Map<String, dynamic>?;
+        final docUserId = pointsDoc.id;
+
+
+        // Fetch user details using the user ID from points collection
+        final userDoc = await firestore
+            .collection('users')
+            .doc(docUserId)
+            .get();
+        final userData = userDoc.data() as Map<String, dynamic>?;
 
         final userMap = {
-          'id': doc.id,
+          'id': docUserId,
           'displayName': userData?['displayName'] ?? 'Unknown',
           'profileImage': userData?['profileImage'] ?? intPlaceholderImage,
-          'points': userData?['points'] ?? 0,
+          'points': pointsData?['point'] ?? 0,
           'rank': i + 1,
           'subtitle': userData?['subtitle'] ?? 'ENERGY FAN',
         };
 
         data.add(userMap);
 
-        if (doc.id == userId) {
+        if (docUserId == userId) {
           userRank = i + 1;
           currentUserRank = userMap;
         }

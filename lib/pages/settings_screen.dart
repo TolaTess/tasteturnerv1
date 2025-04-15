@@ -235,29 +235,27 @@ class _SettingCategoryState extends State<SettingCategory> {
                                       authController
                                           .updateUserData(updatedSettings);
                                     } catch (e) {
-                                      Get.snackbar(
+                                      showTastySnackbar(
                                         'Error',
                                         'Failed to update settings. Please try again.',
-                                        backgroundColor: Colors.red,
-                                        colorText: Colors.white,
+                                        context,
                                       );
                                     }
                                   });
 
                                   if (!granted) {
-                                    Get.snackbar(
+                                    showTastySnackbar(
                                       'Permission Required',
                                       'Please allow access to health data to enable syncing.',
-                                      backgroundColor: Colors.red,
-                                      colorText: Colors.white,
+                                      context,
                                     );
                                   }
                                 } else {
-                                  Get.snackbar(
+                                  showTastySnackbar(
                                     'Not Available',
                                     'Health tracking is not available on your device.',
-                                    backgroundColor: Colors.red,
-                                    colorText: Colors.white,
+                                    context,
+                                    backgroundColor: kRed,
                                   );
                                   setState(() {
                                     // Update user settings to reflect health sync is off
@@ -272,11 +270,11 @@ class _SettingCategoryState extends State<SettingCategory> {
                                 }
                               } catch (e) {
                                 print("Error initializing health sync: $e");
-                                Get.snackbar(
-                                  'Error',
+                                showTastySnackbar(
+                                  'Please try again.',
                                   'Failed to initialize health sync. Please try again.',
-                                  backgroundColor: Colors.red,
-                                  colorText: Colors.white,
+                                  context,
+                                  backgroundColor: kRed,
                                 );
                                 setState(() {
                                   // Update user settings to reflect health sync is off

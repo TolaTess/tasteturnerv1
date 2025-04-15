@@ -188,11 +188,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                       );
                                     } else {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content:
-                                                  Text('Ingredient not found')),
+                                        showTastySnackbar(
+                                          'Please try again.',
+                                          'Ingredient not found',
+                                          context,
                                         );
                                       }
                                     }
@@ -276,11 +275,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                         if (userId.isEmpty ||
                                             battleId.isEmpty) {
                                           if (!mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text(
-                                                    'Error: Missing user ID or battle ID')),
+                                          showTastySnackbar(
+                                            'Please try again.',
+                                            'Error: Missing user ID or battle ID',
+                                            context,
                                           );
                                           return;
                                         }
@@ -398,11 +396,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                           } catch (e) {
                                             print("Error joining battle: $e");
                                             if (!mounted) return;
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content: Text(
-                                                      'Failed to join battle')),
+                                            showTastySnackbar(
+                                              'Please try again.',
+                                              'Failed to join battle',
+                                              context,
                                             );
                                           }
                                         }

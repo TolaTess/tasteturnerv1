@@ -78,14 +78,18 @@ class _ShoppingListViewState extends State<ShoppingListView> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Removed ${item.title} from shopping list')),  
+        showTastySnackbar(
+          'Success',
+          'Removed ${item.title} from shopping list',
+          context,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error removing item: $e')),
+        showTastySnackbar(
+          'Please try again.',
+          'Error removing item: $e',
+          context,
         );
       }
     }

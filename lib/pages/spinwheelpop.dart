@@ -325,13 +325,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   void snackbar(BuildContext context, String mMacro, String category) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("$mMacro not applicable to the $category"),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        ),
+      showTastySnackbar(
+        'Please try again.',
+        "$mMacro not applicable to the $category",
+        context,
       );
     }
   }

@@ -30,6 +30,9 @@ class NutritionController extends GetxController {
   var targetCalories = 0.0.obs;
   var totalCalories = 0.obs;
 
+  var streakDays = 0.obs;
+  var pointsAchieved = 0.obs;
+
   final RxInt eatenCalories = 0.obs;
   final ValueNotifier<double> dailyValueNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> breakfastNotifier = ValueNotifier<double>(0);
@@ -66,6 +69,67 @@ class NutritionController extends GetxController {
       print("Error fetching calories: $e");
       return {};
     }
+  }
+
+  Future<void> fetchPointsAchieved(String userId) async {
+    if (userId.isEmpty) {
+      pointsAchieved.value = 0;
+      return;
+    }
+
+    final userMealsRef = firestore.collection('points').doc(userId);
+
+    final docSnapshot = await userMealsRef.get();
+
+    final data = docSnapshot.data();
+    print(data);
+
+    pointsAchieved.value = data?['point'] ?? 0;
+  }
+
+  Future<void> fetchStreakDays(String userId) async {
+    if (userId.isEmpty) {
+      streakDays.value = 0;
+      return;
+    }
+
+    final today = DateTime.now();
+    final lastWeekDate = today.subtract(const Duration(days: 6));
+    final dateFormat = DateFormat('yyyy-MM-dd');
+
+    final userMealsRef =
+        firestore.collection('userMeals').doc(userId).collection('meals');
+
+    final docSnapshot = await userMealsRef.get();
+
+    // Filter documents by date after fetching
+    final todayStr = dateFormat.format(today);
+    final lastWeekStr = dateFormat.format(lastWeekDate);
+
+    final data = docSnapshot.docs
+        .where((doc) {
+          final docDate = doc.id;
+          return docDate.compareTo(lastWeekStr) >= 0 &&
+              docDate.compareTo(todayStr) <= 0;
+        })
+        .map((doc) => doc.data())
+        .toList();
+
+    if (data.isEmpty) {
+      streakDays.value = 0;
+      return;
+    }
+
+    final streak = data.length;
+    // Add null check and filter out any null dates
+    final streakDates = data
+        .map((doc) => doc['date'])
+        .where((date) => date != null)
+        .map((date) => date.toString())
+        .toList();
+
+    // Only update streak if we have valid dates
+    streakDays.value = streakDates.isEmpty ? 0 : streak;
   }
 
   /// Fetches calories only for today's date

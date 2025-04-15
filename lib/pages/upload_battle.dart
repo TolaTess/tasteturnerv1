@@ -118,8 +118,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   Future<void> _uploadImage() async {
     if (_selectedImages.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select at least one image!')),
+        showTastySnackbar(
+          'Please try again.',
+          'Please select at least one image!',
+          context,
         );
       }
       return;

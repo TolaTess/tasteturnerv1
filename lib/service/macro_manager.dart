@@ -90,6 +90,17 @@ class MacroManager extends GetxController {
           .collection('shoppingList')
           .doc('week_$currentWeek');
 
+      // Get the existing document first
+      final docSnapshot = await userMealsRef.get();
+      List<String> existingItemIds = [];
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        if (data != null && data['itemIds'] != null) {
+          existingItemIds = List<String>.from(data['itemIds']);
+        }
+      }
+
       // Get IDs from new items and filter out nulls
       final List<String> newItemIds = newShoppingList
           .map((item) => item.id)
@@ -97,12 +108,15 @@ class MacroManager extends GetxController {
           .cast<String>()
           .toList();
 
-      // Save the data with week information
+      // Merge existing and new items, removing duplicates
+      final Set<String> mergedItemIds = {...existingItemIds, ...newItemIds};
+
+      // Save the merged data with week information
       await userMealsRef.set({
-        'itemIds': newItemIds,
+        'itemIds': mergedItemIds.toList(),
         'week': currentWeek,
         'year': DateTime.now().year,
-        'created_at': FieldValue.serverTimestamp(),
+        'created_at': docSnapshot.exists ? FieldValue.serverTimestamp() : null,
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

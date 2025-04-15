@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
 import '../detail_screen/post_detail_screen.dart';
+import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/follow_button.dart';
 import '../widgets/helper_widget.dart';
@@ -149,8 +150,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         user!.profileImage!.isNotEmpty &&
                                         user!.profileImage!.contains('http')
                                     ? NetworkImage(user!.profileImage!)
-                                    : const AssetImage(
-                                            intPlaceholderImage) as ImageProvider,
+                                    : const AssetImage(intPlaceholderImage)
+                                        as ImageProvider,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -312,10 +313,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               press: () {
                                 if (isFollowing) {
                                   friendController.unfollowFriend(
-                                      userService.userId ?? '', newUserid);
+                                      userService.userId ?? '',
+                                      newUserid,
+                                      context);
                                 } else {
                                   friendController.followFriend(
-                                      userService.userId ?? '', newUserid);
+                                      userService.userId ?? '',
+                                      newUserid,
+                                      context);
                                 }
 
                                 // Update the UI immediately
@@ -333,7 +338,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                             return FollowButton(
                               h: 40,
-                               w: 120,
+                              w: 120,
                               press: () async {
                                 if (isFollowing || isFollower) {
                                   Navigator.push(
@@ -346,12 +351,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     ),
                                   );
                                 } else {
-                                  Get.snackbar(
-                                    "Follow Required",
+                                  showTastySnackbar(
+                                    'Follow Required',
                                     "You need to follow this user to start a chat.",
-                                    snackPosition: SnackPosition.BOTTOM,
+                                    context,
                                     backgroundColor: Colors.redAccent,
-                                    colorText: Colors.white,
                                   );
                                 }
                               },
@@ -373,11 +377,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       press: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BadgesScreen(
-                            userid: widget.userId,
-                            badgeAchievements:
-                                badgeController.badgeAchievements,
-                          ),
+                          builder: (context) => BadgesScreen(),
                         ),
                       ),
                     ),
@@ -386,7 +386,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   // Badges Slider
                   if (myBadge.isNotEmpty)
                     SizedBox(
-                        height: 130,
+                      height: 130,
                       child: ListView.builder(
                         itemCount: myBadge.length > 5
                             ? 5

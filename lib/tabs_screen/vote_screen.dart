@@ -125,11 +125,10 @@ class _VoteScreenState extends State<VoteScreen> {
 
     if (hasVoted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You have already voted in this battle'),
-            backgroundColor: Colors.red,
-          ),
+        showTastySnackbar(
+          'Please try again.',
+          'You have already voted in this battle',
+          context,
         );
       }
       return;
@@ -196,8 +195,10 @@ class _VoteScreenState extends State<VoteScreen> {
     try {
       if (userId == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please sign in to vote')),
+          showTastySnackbar(
+            'Please try again.',
+            'Please sign in to vote',
+            context,
           );
         }
         return;
@@ -205,8 +206,10 @@ class _VoteScreenState extends State<VoteScreen> {
 
       if (candidateUserId == userId) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('You cannot vote for yourself')),
+          showTastySnackbar(
+            'Please try again.',
+            'You cannot vote for yourself',
+            context,
           );
         }
         return;
@@ -219,15 +222,19 @@ class _VoteScreenState extends State<VoteScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thank you for voting!')),
+        showTastySnackbar(
+          'Success',
+          'Thank you for voting!',
+          context,
         );
       }
     } catch (e) {
       print("Error casting vote: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred while voting')),
+        showTastySnackbar(
+          'Please try again.',
+          'An error occurred while voting',
+          context,
         );
       }
     }
@@ -368,11 +375,10 @@ class VoteItemCard extends StatelessWidget {
         return GestureDetector(
           onTap: hasVoted
               ? () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('You have already voted in this battle'),
-                      backgroundColor: Colors.red,
-                    ),
+                  showTastySnackbar(
+                    'Please try again.',
+                    'You have already voted in this battle',
+                    context,
                   );
                 }
               : onTap,

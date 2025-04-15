@@ -59,7 +59,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-      final user = userService.currentUser;
+    final user = userService.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -179,8 +179,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   } catch (e) {
                                     print("Error updating Premium: $e");
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: $e')),
+                                      showTastySnackbar(
+                                        'Please try again.',
+                                        'Error: $e',
+                                        context,
                                       );
                                     }
                                   }
@@ -215,8 +217,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             } catch (e) {
                               print("Error updating Premium: $e");
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                showTastySnackbar(
+                                  'Please try again.',
+                                  'Error: $e',
+                                  context,
+                                  backgroundColor: kRed,
                                 );
                               }
                             }
@@ -257,4 +262,3 @@ class BulletPoint extends StatelessWidget {
     );
   }
 }
-

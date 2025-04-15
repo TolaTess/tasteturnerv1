@@ -69,7 +69,7 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
 
   @override
   Widget build(BuildContext context) {
-     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: Center(
         child: Column(
@@ -86,17 +86,19 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
             // Save Button
             ElevatedButton(
               onPressed: () {
-                nutritionController.updateCurrentWater(
+                dailyDataController.updateCurrentWater(
                     userService.userId ?? '', currentWaterLevelNotifier.value);
 
-                Get.snackbar('Success', 'Your water was updated successfully!',
-                    snackPosition: SnackPosition.BOTTOM);
+                showTastySnackbar(
+                  'Success',
+                  'Your water was updated successfully!',
+                  context,
+                );
 
                 Navigator.pop(context); // Close the modal
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isDarkMode ? kDarkGrey : kAccent,
+                backgroundColor: isDarkMode ? kDarkGrey : kAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 40,
                   vertical: 12,
@@ -235,7 +237,6 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
                     widgetName: 'Water Intake',
                     total: widget.total,
                     sym: 'ml',
-        
                   );
                 },
               ),

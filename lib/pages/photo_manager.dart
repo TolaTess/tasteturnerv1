@@ -55,13 +55,11 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
       });
     } catch (e) {
       print('Error loading gallery images: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Failed to load gallery images. Please check permissions.'),
-            backgroundColor: Colors.red,
-          ),
+      if (mounted) {  
+        showTastySnackbar(
+          'Try again',
+          'Failed to load gallery images. Please check permissions.',
+          context,
         );
       }
     }
@@ -256,12 +254,10 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
       print('Error loading gallery images: $e');
       // Show error message to user if needed
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Failed to load gallery images. Please check permissions.'),
-            backgroundColor: Colors.red,
-          ),
+        showTastySnackbar(
+          'Try again',
+          'Failed to load gallery images. Please check permissions.',
+          context,
         );
       }
     }
