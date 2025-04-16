@@ -8,9 +8,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import '../widgets/bottom_nav.dart';
+import '../widgets/icon_widget.dart';
 
 class ChooseDietScreen extends StatefulWidget {
-  const ChooseDietScreen({super.key});
+  const ChooseDietScreen({super.key, this.isOnboarding = false});
+  final bool isOnboarding;
 
   @override
   State<ChooseDietScreen> createState() => _ChooseDietScreenState();
@@ -463,6 +465,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return mealIds;
   }
 
+  @override
+  void dispose() {
+    if (!widget.isOnboarding) {
+      _updateUserPreferences(userService.userId ?? '');
+    }
+    super.dispose();
+  }
+
   Future<void> _saveMealPlanToFirestore(String userId, String date,
       List<String> mealIds, Map<String, dynamic>? mealPlan) async {
     final docRef = FirebaseFirestore.instance
@@ -677,9 +687,6 @@ Include:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$appNameBuddy Planner'),
-      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -690,11 +697,19 @@ Include:
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 24),
+                if (!widget.isOnboarding)
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    child: const IconCircleButton(),
+                  ),
+                if (!widget.isOnboarding) const SizedBox(height: 24),
+
                 const Text(
                   textAlign: TextAlign.center,
                   "Tell me your dietary preferences?",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
+                    overflow: TextOverflow.ellipsis,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -713,10 +728,10 @@ Include:
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 104,
-                    mainAxisExtent: 132,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+                    maxCrossAxisExtent: 100,
+                    mainAxisExtent: 90,
+                    mainAxisSpacing: 5,
+                    crossAxisSpacing: 5,
                   ),
                   itemCount: demoDietData.length,
                   itemBuilder: (BuildContext ctx, index) {
@@ -772,16 +787,18 @@ Include:
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-        child: SecondaryButton(
-          text: "Generate",
-          press: () => _showMealPlanOptionsDialog(),
-        ),
-      ),
+      bottomNavigationBar: !widget.isOnboarding
+          ? Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              child: SecondaryButton(
+                text: "Generate",
+                press: () => _showMealPlanOptionsDialog(),
+              ),
+            )
+          : null,
     );
   }
 }
@@ -821,13 +838,15 @@ class DietItem extends StatelessWidget {
         ),
         child: Column(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                dataSrc.image,
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
+            Flexible(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  dataSrc.image,
+                  width: 85,
+                  height: 60,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             Padding(
@@ -881,7 +900,7 @@ class AllergyItem extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: const BorderRadius.all(
-              Radius.circular(50),
+              Radius.circular(10),
             ),
             border: Border.all(
               color: kPrimaryColor,

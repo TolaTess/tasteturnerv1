@@ -84,6 +84,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         case 4:
           _isNextEnabled = true; // Settings page - always enabled
           break;
+        case 5:
+          _isNextEnabled = true; // Feature tour page - always enabled
+          break;
         default:
           _isNextEnabled = false;
       }
@@ -200,9 +203,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios,
-                      color: kDarkGrey,
+                      color: getThemeProvider(context).isDarkMode
+                          ? kWhite
+                          : kDarkGrey,
                     ),
                     onPressed: () {
                       _controller.previousPage(
@@ -256,9 +261,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         decoration: InputDecoration(
           filled: true,
           fillColor: const Color(0xFFF3F3F3),
-          enabledBorder: outlineInputBorder(20),
-          focusedBorder: outlineInputBorder(20),
-          border: outlineInputBorder(20),
+          enabledBorder: outlineInputBorder(10),
+          focusedBorder: outlineInputBorder(10),
+          border: outlineInputBorder(10),
           labelStyle: const TextStyle(color: Color(0xffefefef)),
           hintStyle: const TextStyle(color: kLightGrey),
           hintText: "Enter your name",
@@ -279,7 +284,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildPreferencePage() {
-    return const ChooseDietScreen();
+    return const ChooseDietScreen(isOnboarding: true);
   }
 
   /// Feature Tour Page
@@ -309,7 +314,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child1: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -319,7 +324,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     child: ListTile(
                       leading: Icon(
                         feature['icon'] as IconData,
-                        color: kAccent,
+                        color: kAccentLight,
                         size: 32,
                       ),
                       title: Text(
@@ -356,7 +361,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           checkboxTheme: CheckboxThemeData(
             fillColor: WidgetStateProperty.resolveWith<Color>((states) {
               if (states.contains(WidgetState.selected)) {
-                return kAccent;
+                return kAccentLight;
               }
               return kWhite;
             }),
@@ -366,7 +371,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
+            color: kDarkGrey,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
@@ -407,7 +412,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
+              color: kDarkGrey,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -444,7 +449,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child2: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -479,7 +484,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child3: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -522,7 +527,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child1: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -551,7 +556,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       .toggleTheme();
                 });
               },
-              activeColor: kAccent,
+              activeColor: kAccentLight,
               inactiveTrackColor:
                   getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
               inactiveThumbColor:
@@ -568,7 +573,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               subtitle: const Text(
-                "Get personalized guidance and chat support",
+                "Go Premium to get personalized guidance and chat support - 7 days free trial",
                 style: TextStyle(
                   color: kWhite,
                   fontSize: 12,
@@ -581,7 +586,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   _validateInputs();
                 });
               },
-              activeColor: kAccent,
+              activeColor: kAccentLight,
               inactiveTrackColor:
                   getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
               inactiveThumbColor:
@@ -656,7 +661,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 }
                 _validateInputs();
               },
-              activeColor: kAccent,
+              activeColor: kAccentLight,
               inactiveTrackColor:
                   getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
               inactiveThumbColor:
@@ -684,41 +689,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (!title.contains("Your Body Measurements"))
-              const SizedBox(height: 100),
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: kWhite,
-                ),
-              ),
-            ),
-            const SizedBox(height: 50),
+            title.contains("Welcome to $appName!")
+                ? const SizedBox(height: 70)
+                : const SizedBox(height: 30),
             title.isNotEmpty
-                ? Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: kWhite,
-                      ),
+                ? Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      overflow: TextOverflow.ellipsis,
+                      fontWeight: FontWeight.w600,
                     ),
                   )
                 : const SizedBox.shrink(),
+            const SizedBox(height: 20),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color:
+                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+              ),
+            ),
+            const SizedBox(height: 50),
             const SizedBox(height: 20),
             child1,
             const SizedBox(height: 20),
@@ -728,7 +722,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             const SizedBox(height: 50),
             if (!title.contains("Key Features") &&
                 !title.contains("What are your goals?") &&
-                !title.contains("Your Body Measurements"))
+                !title.contains("Your Body Measurements") &&
+                !title.contains("App Settings"))
               TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0.8, end: 1.0),
                 duration: const Duration(milliseconds: 1500),
@@ -780,16 +775,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFF3F3F3),
-              enabledBorder: outlineInputBorder(20),
-              focusedBorder: outlineInputBorder(20),
-              border: outlineInputBorder(20),
+              enabledBorder: outlineInputBorder(10),
+              focusedBorder: outlineInputBorder(10),
+              border: outlineInputBorder(10),
               labelStyle: const TextStyle(color: Color(0xffefefef)),
               hintStyle: const TextStyle(color: kLightGrey),
               hintText: "Enter your height",
               floatingLabelBehavior: FloatingLabelBehavior.always,
               contentPadding: const EdgeInsets.only(
-                top: 16,
-                bottom: 16,
+                top: 10,
+                bottom: 10,
                 right: 10,
                 left: 10,
               ),
@@ -871,30 +866,4 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
   }
-}
-
-Widget _selectableButton({
-  required String text,
-  required bool selected,
-  required VoidCallback onTap,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 5),
-      decoration: BoxDecoration(
-        color: selected ? kAccent : Colors.grey[300], // Highlight if selected
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: selected ? kAccent : Colors.grey, width: 1.5),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.black,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ),
-  );
 }

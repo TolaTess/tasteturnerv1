@@ -465,15 +465,54 @@ class MacroManager extends GetxController {
       final battles = await _battleService.getBattlesByCategory(category);
       if (battles.isEmpty) return [];
 
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = battles.first;
-      final dates = currentBattle['dates'] as Map<String, dynamic>;
-      final currentBattleData = dates[currentDate];
+      final activeBattles = battles.where((battle) {
+        final dates = battle['dates'] as Map<String, dynamic>;
+        // Check all dates in the battle for an active status
+        return dates.values.any((dateData) =>
+            dateData is Map<String, dynamic> &&
+            dateData['status'] == 'active' &&
+            !DateTime.now().isAfter(DateTime.parse(dateData['ended_at'])));
+      }).toList();
 
-      if (currentBattleData == null) return [];
+      if (activeBattles.isEmpty) return [];
+
+      // Find the battle with the earliest active date
+      final currentBattle = activeBattles.reduce((a, b) {
+        final aDates = a['dates'] as Map<String, dynamic>;
+        final bDates = b['dates'] as Map<String, dynamic>;
+
+        // Find earliest active date for each battle
+        final aActiveDate = aDates.entries
+            .where((entry) => entry.value['status'] == 'active')
+            .map((entry) => entry.key)
+            .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
+
+        final bActiveDate = bDates.entries
+            .where((entry) => entry.value['status'] == 'active')
+            .map((entry) => entry.key)
+            .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
+
+        return aActiveDate.compareTo(bActiveDate) < 0 ? a : b;
+      });
+
+      // Get the earliest active date for this battle
+      final dates = currentBattle['dates'] as Map<String, dynamic>;
+      final activeDate = dates.entries
+          .where((entry) => entry.value['status'] == 'active')
+          .map((entry) => entry.key)
+          .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
+
+      final battleData = dates[activeDate];
+      if (battleData == null) return [];
+
+      // Check if battle has ended
+      final endDate = DateTime.parse(battleData['ended_at']);
+      if (DateTime.now().isAfter(endDate)) {
+        return [];
+      }
 
       final List<Map<String, dynamic>> battleIngredients = [];
-      for (String ingredientId in currentBattleData['ingredients']) {
+      for (String ingredientId in battleData['ingredients']) {
         final ingredient = await fetchIngredient(ingredientId);
         if (ingredient != null) {
           battleIngredients.add({
@@ -483,7 +522,7 @@ class MacroManager extends GetxController {
                 ? ingredient.mediaPaths.first
                 : '',
             'categoryId': currentBattle['id'],
-            'dueDate': currentBattleData['ended_at'],
+            'dueDate': battleData['ended_at'],
           });
         }
       }

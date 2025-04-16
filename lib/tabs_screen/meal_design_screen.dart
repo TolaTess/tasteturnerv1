@@ -10,7 +10,6 @@ import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../pages/dietary_choose_screen.dart';
-import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/secondary_button.dart';
@@ -19,6 +18,7 @@ import '../screens/favorite_screen.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'dart:ui' as ui;
+import 'buddy_tab.dart';
 
 import '../screens/shopping_list.dart';
 
@@ -40,7 +40,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   List<MacroData> shoppingList = [];
   List<MacroData> myShoppingList = [];
   Set<String> selectedShoppingItems = {};
-  Timer? _tastyPopupTimer;
+  // Cache for buddy tab data
+  Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   int get _tabCount => 3;
 
   @override
@@ -52,17 +53,32 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     _loadMealPlans();
     shoppingList = macroManager.ingredient;
     macroManager.fetchShoppingList(userService.userId ?? '');
-    // Show Tasty popup after a short delay
-    _tastyPopupTimer = Timer(const Duration(milliseconds: 10000), () {
-      if (mounted) {
-        tastyPopupService.showTastyPopup(context, 'meal_design', [], []);
-      }
-    });
+    // Initialize buddy data cache if needed
+    if (widget.initialTabIndex == 2) {
+      _initializeBuddyData();
+    }
+  }
+
+  void _initializeBuddyData() {
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final lowerBound = dateFormat.format(sevenDaysAgo);
+    final upperBound = dateFormat.format(now);
+
+    _buddyDataFuture = firestore
+        .collection('mealPlans')
+        .doc(userService.userId)
+        .collection('buddy')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
+        .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
+        .get();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Only recreate tab controller if count changes
     final newTabCount = _tabCount;
     if (_tabController.length != newTabCount) {
       final oldIndex = _tabController.index;
@@ -72,10 +88,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         vsync: this,
         initialIndex: oldIndex.clamp(0, newTabCount - 1),
       );
+      _tabController.addListener(_handleTabIndex);
     }
   }
 
   void _handleTabIndex() {
+    if (_tabController.index == 2 && _buddyDataFuture == null) {
+      _initializeBuddyData();
+    }
     setState(() {});
   }
 
@@ -83,7 +103,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   void dispose() {
     _tabController.removeListener(_handleTabIndex);
     _tabController.dispose();
-    _tastyPopupTimer?.cancel();
     super.dispose();
   }
 
@@ -257,301 +276,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           _buildCalendarTab(),
           _buildShoppingListTab(),
           if (userService.currentUser?.isPremium == true)
-            _buildBuddyTab()
+            const BuddyTab()
           else
             _buildDefaultView(context)
         ],
       ),
     );
-  }
-
-  Widget _buildBuddyTab() {
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final lowerBound = dateFormat.format(sevenDaysAgo);
-    final upperBound = dateFormat.format(now);
-
-    return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      future: firestore
-          .collection('mealPlans')
-          .doc(userService.userId)
-          .collection('buddy')
-          .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
-          .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
-          .get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: kAccent));
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return _buildDefaultView(context);
-        }
-
-        // Use the most recent plan (last doc)
-        final mealPlan = docs.last.data();
-        final isDarkMode = getThemeProvider(context).isDarkMode;
-
-        if (mealPlan == null) {
-          // No meal plan found for today
-          return _buildDefaultView(context);
-        }
-
-        final generations = (mealPlan['generations'] as List<dynamic>?)
-                ?.map((gen) => gen as Map<String, dynamic>)
-                .toList() ??
-            [];
-
-        if (generations.isEmpty) {
-          // No generations available
-          return _buildDefaultView(context);
-        }
-
-        // Use the first generation (or adjust to use a specific one)
-        final selectedGeneration =
-            generations[0]; // Could be dynamic based on user selection
-
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchMealsFromIds(selectedGeneration['mealIds']),
-          builder: (context, mealsSnapshot) {
-            if (mealsSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                  child: CircularProgressIndicator(color: kAccent));
-            }
-
-            if (mealsSnapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error loading meals: ${mealsSnapshot.error}',
-                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                ),
-              );
-            }
-
-            final meals = mealsSnapshot.data ?? [];
-            // Get the most common category from all meals
-            final mostCommonCategory = getMostCommonCategory(meals);
-            if (meals.isEmpty) {
-              return noItemTastyWidget(
-                'No meals available for this generation.',
-                '',
-                context,
-                false,
-              );
-            }
-
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  const SizedBox(height: 24),
-                  ListTile(
-                    leading: GestureDetector(
-                      onTap: () => _tastyChefUserPage(context),
-                      child: const CircleAvatar(
-                        backgroundImage:
-                            AssetImage('assets/images/tasty_cheerful.jpg'),
-                        radius: 25,
-                      ),
-                    ),
-                    title: Text(
-                      '$appNameBuddy 👋',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    trailing: TextButton(
-                      style: TextButton.styleFrom(
-                        backgroundColor: kAccentLight.withOpacity(kOpacity),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      onPressed: () => _checkAndNavigateToGenerate(context),
-                      child: Text(
-                        'Generate more',
-                        style: TextStyle(color: isDarkMode ? kWhite : kBlack),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Builder(
-                    builder: (context) {
-                      String bio = getRandomMealTypeBio(mostCommonCategory);
-                      List<String> parts = bio.split(': ');
-                      return Column(
-                        children: [
-                          Text(
-                            parts[0] + ':',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: kAccent,
-                            ),
-                          ),
-                          Text(
-                            parts.length > 1 ? parts[1] : '',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  ...meals.map(
-                    (meal) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color:
-                              _getMealTypeColor(meal['category'] ?? 'default'),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                _getMealTypeImage(
-                                    meal['category'] ?? 'default'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            meal['title'] ?? 'Untitled Meal',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          subtitle: Row(
-                            children: [
-                              const Icon(
-                                Icons.restaurant,
-                                size: 16,
-                                color: Colors.white70,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${meal['calories'] ?? 0} kcal',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_forward_ios,
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RecipeDetailScreen(
-                                    mealData: Meal(
-                                      mealId: meal['mealId']?.toString() ?? '',
-                                      title: meal['title']?.toString() ??
-                                          'Delicious Meal - Untitled',
-                                      userId: meal['userId']?.toString() ??
-                                          'Taste Turner',
-                                      category: meal['category']?.toString() ??
-                                          'default',
-                                      calories: meal['calories'] is int
-                                          ? meal['calories'] as int
-                                          : int.tryParse(meal['calories']
-                                                      ?.toString() ??
-                                                  '0') ??
-                                              0,
-                                      ingredients: meal['ingredients'] is Map
-                                          ? Map<String, String>.from(
-                                              meal['ingredients'])
-                                          : <String,
-                                              String>{}, // Default to empty map if not present
-                                      categories: meal['categories'] is List
-                                          ? List<String>.from(meal['categories']
-                                              .map((e) => e.toString()))
-                                          : <String>[],
-                                      createdAt: meal['createdAt'] is Timestamp
-                                          ? (meal['createdAt'] as Timestamp)
-                                              .toDate()
-                                          : DateTime.now(),
-                                      mediaPaths: meal['mediaPaths'] is List
-                                          ? List<String>.from(meal['mediaPaths']
-                                              .map((e) => e.toString()))
-                                          : <String>[
-                                              ''
-                                            ], // Default to single empty string if not present
-                                      serveQty: meal['serveQty'] is int
-                                          ? meal['serveQty'] as int
-                                          : int.tryParse(meal['serveQty']
-                                                      ?.toString() ??
-                                                  '1') ??
-                                              1,
-                                      steps: meal['steps'] is List
-                                          ? List<String>.from(meal['steps']
-                                              .map((e) => e.toString()))
-                                          : <String>[],
-                                      macros: meal['macros'] is Map
-                                          ? Map<String, String>.from(
-                                              meal['macros'])
-                                          : <String,
-                                              String>{}, // Default to empty map if not present
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  String getMostCommonCategory(List<Map<String, dynamic>> meals) {
-    final allCategories = meals
-        .expand((meal) => meal['categories'] as List<dynamic>)
-        .map((category) => category.toString().toLowerCase())
-        .toList();
-
-    final categoryCount = <String, int>{};
-    for (final category in allCategories) {
-      categoryCount[category] = (categoryCount[category] ?? 0) + 1;
-    }
-
-    String mostCommonCategory = 'balanced';
-    int highestCount = 0;
-
-    categoryCount.forEach((category, count) {
-      if (count > highestCount) {
-        mostCommonCategory = category;
-        highestCount = count;
-      }
-    });
-    return mostCommonCategory;
   }
 
 // Helper method for default "No meal plan" view
@@ -631,30 +361,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-// Sample _fetchMealsFromIds implementation (unchanged from previous suggestion)
-  Future<List<Map<String, dynamic>>> _fetchMealsFromIds(
-      List<dynamic> mealIds) async {
-    if (mealIds.isEmpty) return [];
-
-    final List<Map<String, dynamic>> meals = [];
-    final mealCollection = firestore.collection('meals');
-
-    for (final mealId in mealIds) {
-      final docSnapshot = await mealCollection.doc(mealId).get();
-      if (docSnapshot.exists) {
-        meals.add(docSnapshot.data() as Map<String, dynamic>);
-      }
-    }
-    return meals;
-  }
-
-  Future<void> _tastyChefUserPage(BuildContext context) async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const TastyScreen()),
-    );
-  }
-
   Future<void> _checkAndNavigateToGenerate(BuildContext context) async {
     try {
       // Get the start of the current week (Monday)
@@ -723,31 +429,31 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-  Color _getMealTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'protein':
-        return Colors.green[200]!;
-      case 'grain':
-        return Colors.orange[200]!;
-      case 'vegetable':
-        return Colors.lightGreen[200]!;
-      default:
-        return Colors.blue[200]!;
-    }
-  }
+//   Color _getMealTypeColor(String type) {
+//     switch (type.toLowerCase()) {
+//       case 'protein':
+//         return Colors.green[200]!;
+//       case 'grain':
+//         return Colors.orange[200]!;
+//       case 'vegetable':
+//         return Colors.lightGreen[200]!;
+//       default:
+//         return Colors.blue[200]!;
+//     }
+//   }
 
-  String _getMealTypeImage(String type) {
-    switch (type.toLowerCase()) {
-      case 'protein':
-        return 'assets/images/meat.jpg';
-      case 'grain':
-        return 'assets/images/grain.jpg';
-      case 'vegetable':
-        return 'assets/images/vegetable.jpg';
-      default:
-        return 'assets/images/placeholder.jpg';
-    }
-  }
+//   String _getMealTypeImage(String type) {
+//     switch (type.toLowerCase()) {
+//       case 'protein':
+//         return 'assets/images/meat.jpg';
+//       case 'grain':
+//         return 'assets/images/grain.jpg';
+//       case 'vegetable':
+//         return 'assets/images/vegetable.jpg';
+//       default:
+//         return 'assets/images/placeholder.jpg';
+//     }
+//   }
 
   Widget _buildCalendarTab() {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -1356,86 +1062,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return isDarkMode ? kWhite : kBlack;
     }
   }
-}
-
-// Custom painter for the special meals graph
-class SpecialMealsGraphPainter extends CustomPainter {
-  final Map<DateTime, bool> specialDays;
-  final DateTime currentMonth;
-  final bool isDarkMode;
-
-  SpecialMealsGraphPainter({
-    required this.specialDays,
-    required this.currentMonth,
-    required this.isDarkMode,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isDarkMode ? Colors.white12 : Colors.black12
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final width = size.width;
-    final height = size.height;
-    final startOfMonth = DateTime(currentMonth.year, currentMonth.month, 1);
-    final daysInMonth =
-        DateTime(currentMonth.year, currentMonth.month + 1, 0).day;
-
-    // Draw the base line
-    final path = Path();
-    path.moveTo(0, height * 0.5);
-    path.lineTo(width, height * 0.5);
-    canvas.drawPath(path, paint);
-
-    // Draw special day markers
-    final markerPaint = Paint()
-      ..color = Colors.amber[700]!
-      ..style = PaintingStyle.fill;
-
-    for (var i = 0; i < daysInMonth; i++) {
-      final date = startOfMonth.add(Duration(days: i));
-      if (specialDays[date] ?? false) {
-        final x = (width * (i + 1)) / (daysInMonth + 1);
-        final y = height * 0.3; // Elevated position for special days
-
-        // Draw connecting line
-        final linePaint = Paint()
-          ..color = Colors.amber[700]!.withOpacity(0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2;
-        canvas.drawLine(
-          Offset(x, height * 0.5),
-          Offset(x, y),
-          linePaint,
-        );
-
-        // Draw marker
-        canvas.drawCircle(Offset(x, y), 8, markerPaint);
-
-        // Draw date text
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: '${date.day}',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white70 : Colors.black87,
-              fontSize: 12,
-            ),
-          ),
-          textDirection: ui.TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(x - textPainter.width / 2, y - 25),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 //ingredients category
