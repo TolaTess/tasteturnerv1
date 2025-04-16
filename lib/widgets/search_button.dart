@@ -71,7 +71,7 @@ class SearchButton2 extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SafeTextField(
-      style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+      style: TextStyle(color: isDarkMode ? kBlack : kWhite),
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(

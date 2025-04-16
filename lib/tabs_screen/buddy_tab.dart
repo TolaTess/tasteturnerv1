@@ -570,6 +570,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 110),
                 ],
               ),
             );

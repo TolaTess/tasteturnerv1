@@ -135,162 +135,154 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.2,
-        maxChildSize: 0.8,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(
-                  color: getThemeProvider(context).isDarkMode
-                      ? kWhite.withOpacity(kMidOpacity)
-                      : kBlack.withOpacity(kMidOpacity),
-                  blurRadius: 15,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Drag handle
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.2,
+          maxChildSize: 0.8,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color:
+                    getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
                     color: getThemeProvider(context).isDarkMode
-                        ? kWhite.withOpacity(0.3)
-                        : kBlack.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+                        ? kWhite.withOpacity(kMidOpacity)
+                        : kBlack.withOpacity(kMidOpacity),
+                    blurRadius: 15,
+                    offset: const Offset(0, -5),
                   ),
-                ),
-                // Meal type header
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-                  child: Text(
-                    'Add to $mealType',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Drag handle
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
                       color: getThemeProvider(context).isDarkMode
-                          ? kWhite
-                          : kBlack,
+                          ? kWhite.withOpacity(0.3)
+                          : kBlack.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                // Search box
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SearchButton2(
-                    controller: _searchController,
-                    onChanged: (query) {
-                      _filterSearchResults(query);
-                    },
-                    kText: 'Search meals or ingredients',
+                  // Meal type header
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                    child: Text(
+                      'Add to $mealType',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: getThemeProvider(context).isDarkMode
+                            ? kWhite
+                            : kBlack,
+                      ),
+                    ),
                   ),
-                ),
-                // Results
-                Expanded(
-                  child: Obx(() {
-                    if (_isSearching.value) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: kAccent,
-                        ),
-                      );
-                    }
-
-                    if (_searchResults.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'No results found',
-                          style: TextStyle(
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kBlack,
+                  // Search box
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: SearchButton2(
+                      controller: _searchController,
+                      onChanged: (query) {
+                        _filterSearchResults(query);
+                      },
+                      kText: 'Search meals or ingredients',
+                    ),
+                  ),
+                  // Results
+                  Expanded(
+                    child: Obx(() {
+                      if (_isSearching.value) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: kAccent,
                           ),
-                        ),
-                      );
-                    }
+                        );
+                      }
 
-                    return ListView.builder(
-                      controller: scrollController,
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        final result = _searchResults[index];
-                        return ListTile(
-                          leading: result is Meal &&
-                                  result.mediaPaths.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Image.network(
-                                    result.mediaPaths.first,
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Image.asset(
-                                      getAssetImageForItem(
-                                          result.category ?? 'default'),
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                )
-                              : result is IngredientData &&
-                                      result.mediaPaths.isNotEmpty
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.network(
-                                        result.mediaPaths.first,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error,
-                                                stackTrace) =>
-                                            Image.asset(intPlaceholderImage),
-                                      ),
-                                    )
-                                  : null,
-                          title: Text(
-                            result is Meal
-                                ? result.title
-                                : result is MacroData
-                                    ? capitalizeFirstLetter(result.title)
-                                    : result is IngredientData
-                                        ? capitalizeFirstLetter(result.title)
-                                        : 'Unknown Item',
+                      if (_searchResults.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No results found',
                             style: TextStyle(
                               color: getThemeProvider(context).isDarkMode
                                   ? kWhite
                                   : kBlack,
                             ),
                           ),
-                          onTap: () {
-                            Navigator.pop(context); // Close the modal
-                            _showDetailPopup(
-                                result, userService.userId, mealType);
-                            _searchController.clear();
-                            setState(() {
-                              _searchResults.clear();
-                            });
-                          },
                         );
-                      },
-                    );
-                  }),
-                ),
-              ],
-            ),
-          );
-        },
+                      }
+
+                      return ListView.builder(
+                        controller: scrollController,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final result = _searchResults[index];
+                          return ListTile(
+                            leading:
+                                result is Meal && result.mediaPaths.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.network(
+                                          result.mediaPaths.first,
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Image.asset(
+                                            getAssetImageForItem(
+                                                result.category ?? 'default'),
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                            title: Text(
+                              result is Meal
+                                  ? result.title
+                                  : result is MacroData
+                                      ? capitalizeFirstLetter(result.title)
+                                      : result is IngredientData
+                                          ? capitalizeFirstLetter(result.title)
+                                          : 'Unknown Item',
+                              style: TextStyle(
+                                color: getThemeProvider(context).isDarkMode
+                                    ? kWhite
+                                    : kBlack,
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context); // Close the modal
+                              _showDetailPopup(
+                                  result, userService.userId, mealType);
+                              _searchController.clear();
+                              setState(() {
+                                _searchResults.clear();
+                              });
+                            },
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -445,6 +437,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       drawer: CustomDrawer(),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
@@ -484,395 +477,406 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
       ),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            //row of search icon and + button
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.3,
-                padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                margin: const EdgeInsets.only(top: 12, bottom: 12, right: 14),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? kDarkGrey : kWhite,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                        onPressed: () => _showSearchResults(context, foodType),
-                        icon: const Icon(Icons.search)),
-                    IconButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddMealManuallyScreen(
-                                mealType: foodType,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              //row of search icon and + button
+              Align(
+                alignment: Alignment.topRight,
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.3,
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                  margin: const EdgeInsets.only(top: 12, bottom: 12, right: 14),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? kDarkGrey : kWhite,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                          onPressed: () =>
+                              _showSearchResults(context, foodType),
+                          icon: const Icon(Icons.search)),
+                      IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddMealManuallyScreen(
+                                  mealType: foodType,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.add)),
-                  ],
+                            );
+                          },
+                          icon: const Icon(Icons.add)),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // NutritionStatusBar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: NutritionStatusBar(
-                userId: userService.userId ?? '',
-                userSettings: userService.currentUser!.settings,
-                onMealTypeSelected: (mealType) {
-                  setState(() {
-                    foodType = mealType;
-                  });
-                  _showSearchResults(context, mealType);
-                },
+              // NutritionStatusBar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: NutritionStatusBar(
+                  userId: userService.userId ?? '',
+                  userSettings: userService.currentUser!.settings,
+                  onMealTypeSelected: (mealType) {
+                    setState(() {
+                      foodType = mealType;
+                    });
+                    _showSearchResults(context, mealType);
+                  },
+                ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Selected Items List
-            Expanded(
-              child: Obx(() {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          // Breakfast Section (Left)
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? (dailyDataController
-                                                .userMealList['Breakfast']
-                                                ?.isNotEmpty ??
-                                            false)
-                                        ? kAccent.withOpacity(0.5)
-                                        : kDarkGrey.withOpacity(0.9)
-                                    : (dailyDataController
-                                                .userMealList['Breakfast']
-                                                ?.isNotEmpty ??
-                                            false)
-                                        ? kAccent.withOpacity(0.5)
-                                        : kWhite.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(15),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.wb_sunny_outlined,
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kDarkGrey),
-                                            const SizedBox(width: 8),
-                                            GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                    foodType = 'Breakfast';
-                                                });
-                                                _showSearchResults(
-                                                    context, 'Breakfast');
-                                              },
-                                              child: Text(
-                                                'Breakfast',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDarkMode
-                                                      ? kWhite
-                                                      : kDarkGrey,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Text(
-                                          '${dailyDataController.userMealList['Breakfast']?.length ?? 0} items',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isDarkMode
-                                                ? kWhite.withOpacity(0.7)
-                                                : kDarkGrey.withOpacity(0.7),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: dailyDataController
-                                                .userMealList['Breakfast']
-                                                ?.isEmpty ??
-                                            true
-                                        ? Center(
-                                            child: Text(
-                                              'No breakfast items added',
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite.withOpacity(0.5)
-                                                    : kDarkGrey
-                                                        .withOpacity(0.5),
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8),
-                                            itemCount: dailyDataController
-                                                    .userMealList['Breakfast']
-                                                    ?.length ??
-                                                0,
-                                            itemBuilder: (context, index) {
-                                              final meal = dailyDataController
-                                                      .userMealList[
-                                                  'Breakfast']![index];
-                                              return _buildMealItem(meal,
-                                                  isDarkMode, 'Breakfast');
-                                            },
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Lunch Section (Right)
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? (dailyDataController.userMealList['Lunch']
-                                                ?.isNotEmpty ??
-                                            false)
-                                        ? kAccent.withOpacity(0.5)
-                                        : kDarkGrey.withOpacity(0.9)
-                                    : (dailyDataController.userMealList['Lunch']
-                                                ?.isNotEmpty ??
-                                            false)
-                                        ? kAccent.withOpacity(0.5)
-                                        : kWhite.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(15),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.wb_cloudy_outlined,
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kDarkGrey),
-                                            const SizedBox(width: 8),
-                                            GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                  foodType = 'Lunch';
-                                                });
-                                                _showSearchResults(context, 'Lunch');
-                                              },
-                                              child: Text(
-                                                'Lunch',
-                                                style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDarkMode
-                                                      ? kWhite
-                                                      : kDarkGrey,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Text(
-                                          '${dailyDataController.userMealList['Lunch']?.length ?? 0} items',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isDarkMode
-                                                ? kWhite.withOpacity(0.7)
-                                                : kDarkGrey.withOpacity(0.7),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: dailyDataController
-                                                .userMealList['Lunch']
-                                                ?.isEmpty ??
-                                            true
-                                        ? Center(
-                                            child: Text(
-                                              'No lunch items added',
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite.withOpacity(0.5)
-                                                    : kDarkGrey
-                                                        .withOpacity(0.5),
-                                              ),
-                                            ),
-                                          )
-                                        : ListView.builder(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 2),
-                                            itemCount: dailyDataController
-                                                    .userMealList['Lunch']
-                                                    ?.length ??
-                                                0,
-                                            itemBuilder: (context, index) {
-                                              final meal = dailyDataController
-                                                      .userMealList['Lunch']![
-                                                  index];
-                                              return _buildMealItem(
-                                                  meal, isDarkMode, 'Lunch');
-                                            },
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Dinner Section (Bottom)
-                    Container(
-                      height: MediaQuery.of(context).size.height * 0.3,
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? (dailyDataController
-                                        .userMealList['Dinner']?.isNotEmpty ??
-                                    false)
-                                ? kAccent.withOpacity(0.5)
-                                : kDarkGrey.withOpacity(0.9)
-                            : (dailyDataController
-                                        .userMealList['Dinner']?.isNotEmpty ??
-                                    false)
-                                ? kAccent.withOpacity(0.5)
-                                : kWhite.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.nightlight_outlined,
-                                        color: isDarkMode ? kWhite : kDarkGrey),
-                                    const SizedBox(width: 8),
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          foodType = 'Dinner';
-                                        });
-                                        _showSearchResults(context, 'Dinner');
-                                      },
-                                      child: Text(
-                                        'Dinner',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                        ),
-                                      ),
+              // Selected Items List
+              SizedBox(
+                height: MediaQuery.of(context).size.height -
+                    300, // Fixed height for the list area
+                child: Obx(() {
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // Breakfast Section (Left)
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? (dailyDataController
+                                                  .userMealList['Breakfast']
+                                                  ?.isNotEmpty ??
+                                              false)
+                                          ? kAccent.withOpacity(0.5)
+                                          : kDarkGrey.withOpacity(0.9)
+                                      : (dailyDataController
+                                                  .userMealList['Breakfast']
+                                                  ?.isNotEmpty ??
+                                              false)
+                                          ? kAccent.withOpacity(0.5)
+                                          : kWhite.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
                                     ),
                                   ],
                                 ),
-                                Text(
-                                  '${dailyDataController.userMealList['Dinner']?.length ?? 0} items',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDarkMode
-                                        ? kWhite.withOpacity(0.7)
-                                        : kDarkGrey.withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: dailyDataController
-                                        .userMealList['Dinner']?.isEmpty ??
-                                    true
-                                ? Center(
-                                    child: Text(
-                                      'No dinner items added',
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? kWhite.withOpacity(0.5)
-                                            : kDarkGrey.withOpacity(0.5),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.wb_sunny_outlined,
+                                                  color: isDarkMode
+                                                      ? kWhite
+                                                      : kDarkGrey),
+                                              const SizedBox(width: 8),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    foodType = 'Breakfast';
+                                                  });
+                                                  _showSearchResults(
+                                                      context, 'Breakfast');
+                                                },
+                                                child: Text(
+                                                  'Breakfast',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kDarkGrey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '${dailyDataController.userMealList['Breakfast']?.length ?? 0} items',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDarkMode
+                                                  ? kWhite.withOpacity(0.7)
+                                                  : kDarkGrey.withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  )
-                                : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8),
-                                    itemCount: dailyDataController
-                                            .userMealList['Dinner']?.length ??
-                                        0,
-                                    itemBuilder: (context, index) {
-                                      final meal = dailyDataController
-                                          .userMealList['Dinner']![index];
-                                      return _buildMealItem(
-                                          meal, isDarkMode, 'Dinner');
-                                    },
-                                  ),
-                          ),
-                        ],
+                                    Expanded(
+                                      child: dailyDataController
+                                                  .userMealList['Breakfast']
+                                                  ?.isEmpty ??
+                                              true
+                                          ? Center(
+                                              child: Text(
+                                                'No breakfast items added',
+                                                style: TextStyle(
+                                                  color: isDarkMode
+                                                      ? kWhite.withOpacity(0.5)
+                                                      : kDarkGrey
+                                                          .withOpacity(0.5),
+                                                ),
+                                              ),
+                                            )
+                                          : ListView.builder(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
+                                              itemCount: dailyDataController
+                                                      .userMealList['Breakfast']
+                                                      ?.length ??
+                                                  0,
+                                              itemBuilder: (context, index) {
+                                                final meal = dailyDataController
+                                                        .userMealList[
+                                                    'Breakfast']![index];
+                                                return _buildMealItem(meal,
+                                                    isDarkMode, 'Breakfast');
+                                              },
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Lunch Section (Right)
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? (dailyDataController
+                                                  .userMealList['Lunch']
+                                                  ?.isNotEmpty ??
+                                              false)
+                                          ? kAccent.withOpacity(0.5)
+                                          : kDarkGrey.withOpacity(0.9)
+                                      : (dailyDataController
+                                                  .userMealList['Lunch']
+                                                  ?.isNotEmpty ??
+                                              false)
+                                          ? kAccent.withOpacity(0.5)
+                                          : kWhite.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.wb_cloudy_outlined,
+                                                  color: isDarkMode
+                                                      ? kWhite
+                                                      : kDarkGrey),
+                                              const SizedBox(width: 8),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    foodType = 'Lunch';
+                                                  });
+                                                  _showSearchResults(
+                                                      context, 'Lunch');
+                                                },
+                                                child: Text(
+                                                  'Lunch',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kDarkGrey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Text(
+                                            '${dailyDataController.userMealList['Lunch']?.length ?? 0} items',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDarkMode
+                                                  ? kWhite.withOpacity(0.7)
+                                                  : kDarkGrey.withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: dailyDataController
+                                                  .userMealList['Lunch']
+                                                  ?.isEmpty ??
+                                              true
+                                          ? Center(
+                                              child: Text(
+                                                'No lunch items added',
+                                                style: TextStyle(
+                                                  color: isDarkMode
+                                                      ? kWhite.withOpacity(0.5)
+                                                      : kDarkGrey
+                                                          .withOpacity(0.5),
+                                                ),
+                                              ),
+                                            )
+                                          : ListView.builder(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2),
+                                              itemCount: dailyDataController
+                                                      .userMealList['Lunch']
+                                                      ?.length ??
+                                                  0,
+                                              itemBuilder: (context, index) {
+                                                final meal = dailyDataController
+                                                        .userMealList['Lunch']![
+                                                    index];
+                                                return _buildMealItem(
+                                                    meal, isDarkMode, 'Lunch');
+                                              },
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ],
+                      // Dinner Section (Bottom)
+                      Container(
+                        height: MediaQuery.of(context).size.height * 0.3,
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? (dailyDataController
+                                          .userMealList['Dinner']?.isNotEmpty ??
+                                      false)
+                                  ? kAccent.withOpacity(0.5)
+                                  : kDarkGrey.withOpacity(0.9)
+                              : (dailyDataController
+                                          .userMealList['Dinner']?.isNotEmpty ??
+                                      false)
+                                  ? kAccent.withOpacity(0.5)
+                                  : kWhite.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.nightlight_outlined,
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            foodType = 'Dinner';
+                                          });
+                                          _showSearchResults(context, 'Dinner');
+                                        },
+                                        child: Text(
+                                          'Dinner',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color:
+                                                isDarkMode ? kWhite : kDarkGrey,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    '${dailyDataController.userMealList['Dinner']?.length ?? 0} items',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDarkMode
+                                          ? kWhite.withOpacity(0.7)
+                                          : kDarkGrey.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: dailyDataController
+                                          .userMealList['Dinner']?.isEmpty ??
+                                      true
+                                  ? Center(
+                                      child: Text(
+                                        'No dinner items added',
+                                        style: TextStyle(
+                                          color: isDarkMode
+                                              ? kWhite.withOpacity(0.5)
+                                              : kDarkGrey.withOpacity(0.5),
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      itemCount: dailyDataController
+                                              .userMealList['Dinner']?.length ??
+                                          0,
+                                      itemBuilder: (context, index) {
+                                        final meal = dailyDataController
+                                            .userMealList['Dinner']![index];
+                                        return _buildMealItem(
+                                            meal, isDarkMode, 'Dinner');
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
