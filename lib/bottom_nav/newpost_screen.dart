@@ -92,17 +92,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       appBar: AppBar(
-        leading: InkWell(
-          onTap: () => Get.to(() => const BottomNavSec()),
-          child: const Icon(Icons.close, size: 28),
-        ),
-        title: const Text(
-          "New Post",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        leading: const SizedBox.shrink(),
+        
         actions: [
           Align(
             alignment: Alignment.center,

@@ -98,307 +98,93 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               ),
 
               //Challenge
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? kDarkModeAccent.withOpacity(kLowOpacity)
-                      : kLightGrey.withOpacity(kLowOpacity),
-                  borderRadius: BorderRadius.circular(10),
+              ExpansionTile(
+                title: const Text(
+                  ingredientBattle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? kDarkModeAccent.withOpacity(kLowOpacity)
+                          : kLightGrey.withOpacity(kLowOpacity),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          ingredientBattle,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(
-                      height: 15,
-                    ),
-
-                    // Timer Row
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.hourglass_top_rounded,
-                          color: Color(0xFFDF2D20),
-                          size: 20,
-                        ),
-                        const SizedBox(
-                          width: 4,
-                        ),
-                        Countdown(
-                            targetDate: battleList.isEmpty
-                                ? DateTime.now()
-                                : getNextWeekday(
-                                    battleList.first['dueDate'] ?? '')),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // GridView for discount data
-                    SizedBox(
-                      height: 185,
-                      child: battleList.isEmpty
-                          ? noItemTastyWidget(
-                              "No battles available",
-                              "",
-                              context,
-                              false,
-                            )
-                          : GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 270,
-                                mainAxisExtent: 212,
-                                crossAxisSpacing: 15,
-                              ),
-                              itemCount: battleList.length,
-                              itemBuilder: (BuildContext ctx, index) {
-                                return DetailItem(
-                                  dataSrc: battleList[index],
-                                  onTap: () async {
-                                    final ingredientId =
-                                        battleList[index]['id'];
-                                    final ingredientData = await macroManager
-                                        .fetchIngredient(ingredientId);
-
-                                    if (ingredientData != null) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              IngredientDetailsScreen(
-                                            item: ingredientData,
-                                            ingredientItems: const [],
-                                            isRefresh: false,
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      if (mounted) {
-                                        showTastySnackbar(
-                                          'Please try again.',
-                                          'Ingredient not found',
-                                          context,
-                                        );
-                                      }
-                                    }
-                                  },
-                                );
-                              },
+                        // Timer Row
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.hourglass_top_rounded,
+                              color: Color(0xFFDF2D20),
+                              size: 20,
                             ),
-                    ),
+                            const SizedBox(
+                              width: 4,
+                            ),
+                            Countdown(
+                                targetDate: battleList.isEmpty
+                                    ? DateTime.now()
+                                    : getNextWeekday(
+                                        battleList.first['dueDate'] ?? '')),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
 
-                    const SizedBox(height: 15),
+                        // GridView for discount data
+                        SizedBox(
+                          height: 185,
+                          child: battleList.isEmpty
+                              ? noItemTastyWidget(
+                                  "No battles available",
+                                  "",
+                                  context,
+                                  false,
+                                )
+                              : GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 270,
+                                    mainAxisExtent: 212,
+                                    crossAxisSpacing: 15,
+                                  ),
+                                  itemCount: battleList.length,
+                                  itemBuilder: (BuildContext ctx, index) {
+                                    return DetailItem(
+                                      dataSrc: battleList[index],
+                                      onTap: () async {
+                                        final ingredientId =
+                                            battleList[index]['id'];
+                                        final ingredientData =
+                                            await macroManager
+                                                .fetchIngredient(ingredientId);
 
-                    //join now button
-                    Center(
-                      child: battleList.isEmpty
-                          ? null
-                          : FutureBuilder<bool>(
-                              future: macroManager.isUserInBattle(
-                                  userService.userId ?? '',
-                                  battleList.first['categoryId']),
-                              builder: (context, snapshot) {
-                                if (!snapshot.hasData) {
-                                  return const CircularProgressIndicator(
-                                    color: kAccent,
-                                  );
-                                }
-
-                                bool isJoined = snapshot.data ?? false;
-
-                                return Builder(
-                                  builder: (context) {
-                                    final DateTime deadline = DateTime.parse(
-                                        battleList.first['dueDate'] ?? '');
-                                    final bool isDeadlineOver =
-                                        deadline.isBefore(DateTime.now());
-
-                                    // Case 1: Deadline is over
-                                    if (isDeadlineOver) {
-                                      return Text(
-                                        'Deadline Over',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      );
-                                    }
-
-                                    // Case 2: User has already joined
-                                    if (isJoined) {
-                                      return GestureDetector(
-                                        onTap: () {
+                                        if (ingredientData != null) {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                               builder: (context) =>
-                                                  const ProfileScreen(),
+                                                  IngredientDetailsScreen(
+                                                item: ingredientData,
+                                                ingredientItems: const [],
+                                                isRefresh: false,
+                                              ),
                                             ),
                                           );
-                                        },
-                                        child: const Text(
-                                          'Manage in profile screen',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: kAccent,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      );
-                                    }
-
-                                    // Case 3: Deadline not over and user hasn't joined
-                                    return SecondaryButton(
-                                      text: "Join Now",
-                                      press: () async {
-                                        String userId =
-                                            userService.userId ?? '';
-                                        String battleId = battleList.isNotEmpty
-                                            ? battleList.first['categoryId']
-                                            : '';
-
-                                        if (userId.isEmpty ||
-                                            battleId.isEmpty) {
-                                          if (!mounted) return;
-                                          showTastySnackbar(
-                                            'Please try again.',
-                                            'Error: Missing user ID or battle ID',
-                                            context,
-                                          );
-                                          return;
-                                        }
-
-                                        // Show instructions dialog before joining
-                                        if (!mounted) return;
-                                        bool? shouldJoin =
-                                            await showDialog<bool>(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return AlertDialog(
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              backgroundColor: isDarkMode
-                                                  ? kDarkGrey
-                                                  : kWhite,
-                                              title: const Text(
-                                                'Food Battle Instructions',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: kAccent,
-                                                ),
-                                              ),
-                                              content: SingleChildScrollView(
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      '🎨 Create a Masterpiece!',
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 16,
-                                                        color: isDarkMode
-                                                            ? kWhite
-                                                            : kBlack,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      'Rules of the Battle:',
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: isDarkMode
-                                                            ? kWhite
-                                                            : kBlack,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      '• Use only the listed ingredients plus:\n'
-                                                      '  - Onions\n'
-                                                      '  - Herbs\n'
-                                                      '  - Spices\n\n'
-                                                      '• Create a visually stunning dish\n'
-                                                      '• Take a high-quality photo\n'
-                                                      '• Submit before the deadline\n\n'
-                                                      'Remember: Presentation is key! Users will vote based on appearance.',
-                                                      style: TextStyle(
-                                                        height: 1.4,
-                                                        color: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.color,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(false),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                ElevatedButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(true),
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor: kAccent,
-                                                  ),
-                                                  child: const Text(
-                                                    'Join Battle',
-                                                    style: TextStyle(
-                                                        color: Colors.white),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-
-                                        if (shouldJoin == true && mounted) {
-                                          try {
-                                            final user =
-                                                userService.currentUser;
-                                            await macroManager.joinBattle(
-                                              userId,
-                                              battleId,
-                                              selectedCategory,
-                                              user!.displayName ?? '',
-                                              '',
-                                            );
-                                            if (!mounted) return;
-                                            setState(() {});
-                                          } catch (e) {
-                                            print("Error joining battle: $e");
-                                            if (!mounted) return;
+                                        } else {
+                                          if (mounted) {
                                             showTastySnackbar(
                                               'Please try again.',
-                                              'Failed to join battle',
+                                              'Ingredient not found',
                                               context,
                                             );
                                           }
@@ -406,12 +192,236 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                       },
                                     );
                                   },
-                                );
-                              },
-                            ),
+                                ),
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        //join now button
+                        Center(
+                          child: battleList.isEmpty
+                              ? null
+                              : FutureBuilder<bool>(
+                                  future: macroManager.isUserInBattle(
+                                      userService.userId ?? '',
+                                      battleList.first['categoryId']),
+                                  builder: (context, snapshot) {
+                                    if (!snapshot.hasData) {
+                                      return const CircularProgressIndicator(
+                                        color: kAccent,
+                                      );
+                                    }
+
+                                    bool isJoined = snapshot.data ?? false;
+
+                                    return Builder(
+                                      builder: (context) {
+                                        final DateTime deadline =
+                                            DateTime.parse(
+                                                battleList.first['dueDate'] ??
+                                                    '');
+                                        final bool isDeadlineOver =
+                                            deadline.isBefore(DateTime.now());
+
+                                        // Case 1: Deadline is over
+                                        if (isDeadlineOver) {
+                                          return Text(
+                                            'Deadline Over',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          );
+                                        }
+
+                                        // Case 2: User has already joined
+                                        if (isJoined) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const ProfileScreen(),
+                                                ),
+                                              );
+                                            },
+                                            child: const Text(
+                                              'Manage in profile screen',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: kAccent,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          );
+                                        }
+
+                                        // Case 3: Deadline not over and user hasn't joined
+                                        return SecondaryButton(
+                                          text: "Join Now",
+                                          press: () async {
+                                            String userId =
+                                                userService.userId ?? '';
+                                            String battleId = battleList
+                                                    .isNotEmpty
+                                                ? battleList.first['categoryId']
+                                                : '';
+
+                                            if (userId.isEmpty ||
+                                                battleId.isEmpty) {
+                                              if (!mounted) return;
+                                              showTastySnackbar(
+                                                'Please try again.',
+                                                'Error: Missing user ID or battle ID',
+                                                context,
+                                              );
+                                              return;
+                                            }
+
+                                            // Show instructions dialog before joining
+                                            if (!mounted) return;
+                                            bool? shouldJoin =
+                                                await showDialog<bool>(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                  ),
+                                                  backgroundColor: isDarkMode
+                                                      ? kDarkGrey
+                                                      : kWhite,
+                                                  title: const Text(
+                                                    'Food Battle Instructions',
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: kAccent,
+                                                    ),
+                                                  ),
+                                                  content:
+                                                      SingleChildScrollView(
+                                                    child: Column(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          '🎨 Create a Masterpiece!',
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 16,
+                                                            color: isDarkMode
+                                                                ? kWhite
+                                                                : kBlack,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        Text(
+                                                          'Rules of the Battle:',
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: isDarkMode
+                                                                ? kWhite
+                                                                : kBlack,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        Text(
+                                                          '• Use only the listed ingredients plus:\n'
+                                                          '  - Onions\n'
+                                                          '  - Herbs\n'
+                                                          '  - Spices\n\n'
+                                                          '• Create a visually stunning dish\n'
+                                                          '• Take a high-quality photo\n'
+                                                          '• Submit before the deadline\n\n'
+                                                          'Remember: Presentation is key! Users will vote based on appearance.',
+                                                          style: TextStyle(
+                                                            height: 1.4,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .bodyMedium
+                                                                ?.color,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(context)
+                                                              .pop(false),
+                                                      child:
+                                                          const Text('Cancel'),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(context)
+                                                              .pop(true),
+                                                      style: ElevatedButton
+                                                          .styleFrom(
+                                                        backgroundColor:
+                                                            kAccent,
+                                                      ),
+                                                      child: const Text(
+                                                        'Join Battle',
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.white),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+
+                                            if (shouldJoin == true && mounted) {
+                                              try {
+                                                final user =
+                                                    userService.currentUser;
+                                                await macroManager.joinBattle(
+                                                  userId,
+                                                  battleId,
+                                                  selectedCategory,
+                                                  user!.displayName ?? '',
+                                                  '',
+                                                );
+                                                if (!mounted) return;
+                                                setState(() {});
+                                              } catch (e) {
+                                                print(
+                                                    "Error joining battle: $e");
+                                                if (!mounted) return;
+                                                showTastySnackbar(
+                                                  'Please try again.',
+                                                  'Failed to join battle',
+                                                  context,
+                                                );
+                                              }
+                                            }
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 15),
 

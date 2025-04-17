@@ -86,20 +86,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                     // Back Button
                     InkWell(
                       onTap: () {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        } else {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BottomNavSec(
-                                selectedIndex: 3,
-                                foodScreenTabIndex:
-                                    widget.screen == 'battle_post' ? 0 : 1,
-                              ),
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BottomNavSec(
+                              selectedIndex: 3,
+                              foodScreenTabIndex:
+                                  widget.screen == 'battle_post' ? 0 : 1,
                             ),
-                          );
-                        }
+                          ),
+                        );
                       },
                       child: Container(
                         width: 40,
