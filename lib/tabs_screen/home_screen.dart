@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ValueNotifier<double> currentNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   Timer? _tastyPopupTimer;
-  bool allEnabled = true;
+  bool allDisabled = false;
 
   void _openDailyFoodPage(
     BuildContext context,
@@ -106,7 +106,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _initializeMealData();
+    // _initializeMealData();
+    _getAllDisabled().then((value) {
+      if (value) {
+        allDisabled = value;
+        setState(() {
+          allDisabled = value;
+        });
+      }
+    });
     // Show Tasty popup after a short delay
     _tastyPopupTimer = Timer(const Duration(milliseconds: 4000), () {
       if (mounted) {
@@ -115,24 +123,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-
-  void _initializeMealData() async {
-    await dailyDataController.fetchAllMealData(
-        userService.userId!, userService.currentUser!.settings);
-
-    // Check if all routine items are enabled
-    final routineSnapshot = await firestore
-        .collection('userMeals')
-        .doc(userService.userId!)
-        .collection('routine')
-        .get();
-
-    for (var doc in routineSnapshot.docs) {
-      if ((doc.data()['isEnabled'] as bool)) {
-        allEnabled = false;
-        break;
-      }
-    }
+   Future<bool> _getAllDisabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('allDisabledKey') ?? false;
   }
 
   @override
@@ -154,11 +147,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 15),
 
               // Add Horizontal Routine List
-              if (allEnabled)
+              if (!allDisabled)
                 DailyRoutineListHorizontal(userId: userService.userId!),
-              if (allEnabled) const SizedBox(height: 15),
-              if (allEnabled) Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              if (allEnabled) const SizedBox(height: 15),
+              if (!allDisabled) const SizedBox(height: 15),
+              if (!allDisabled) Divider(color: isDarkMode ? kWhite : kDarkGrey),
+              if (!allDisabled) const SizedBox(height: 15),
 
               // Weekly Ingredients Battle Widget
               const WeeklyIngredientBattle(),

@@ -225,7 +225,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               //Search by Meals
               TitleSection(
                 title: searchMeal,
-                press: () => Navigator.push(
+                press: () => Navigator.push(             
                   context,
                   MaterialPageRoute(
                     builder: (context) => const RecipeListCategory(

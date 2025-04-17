@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:fit_hify/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
@@ -92,10 +93,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const BottomNavSec()),
-          ),
+          onTap: () => Get.to(() => const BottomNavSec()),
           child: const Icon(Icons.close, size: 28),
         ),
         title: const Text(
@@ -110,36 +108,29 @@ class _NewPostScreenState extends State<NewPostScreen> {
             alignment: Alignment.center,
             child: InkWell(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NewPostScreenFinal(
-                      _selectedImages.map((img) => img.path).toList(),
-                    ),
+                Get.to(
+                  () => NewPostScreenFinal(
+                    _selectedImages.map((img) => img.path).toList(),
                   ),
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: themeProvider.isDarkMode
-                      ? kLightGrey
-                      : kAccent,
+                  color: themeProvider.isDarkMode ? kLightGrey : kAccent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child:     Text(
+                child: Text(
                   "Next",
                   style: TextStyle(
-                    color: themeProvider.isDarkMode
-                        ?kWhite
-                        : kWhite,
+                    color: themeProvider.isDarkMode ? kWhite : kWhite,
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            ), 
+            ),
           ),
           const SizedBox(width: 20),
         ],
@@ -180,18 +171,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: themeProvider.isDarkMode
-                            ? kLightGrey
-                            : kAccent,
+                        color: themeProvider.isDarkMode ? kLightGrey : kAccent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.content_copy,
-                            color: themeProvider.isDarkMode
-                                ? kWhite
-                                : kWhite,
+                            color: themeProvider.isDarkMode ? kWhite : kWhite,
                             size: 24,
                           ),
                           SizedBox(width: 8),
@@ -199,9 +186,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                             "SELECT MULTIPLE",
                             style: TextStyle(
                               fontSize: 14,
-                              color: themeProvider.isDarkMode
-                                  ? kWhite
-                                  : kWhite,
+                              color: themeProvider.isDarkMode ? kWhite : kWhite,
                             ),
                           ),
                         ],

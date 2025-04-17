@@ -157,9 +157,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               ),
               const SizedBox(height: 15),
               ExpansionTile(
-                title: const Text(
-                  "Health & Fitness"  
-                ),
+                title: const Text("Health & Fitness"),
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
                 textColor: kAccent,
@@ -222,10 +220,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
+                        constraints: const BoxConstraints(maxHeight: 300), // Control height
                         builder: (context) => Container(
-                          color: isDarkMode
-                              ? kDarkGrey
-                              : const Color.fromARGB(255, 9, 5, 5),
+                          color: isDarkMode ? kDarkGrey : kWhite,
                           child: ListView.builder(
                             itemCount: healthGoals.length,
                             itemBuilder: (context, index) {

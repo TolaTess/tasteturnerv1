@@ -9,6 +9,7 @@ import '../data_models/profilescreen_data.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../pages/upload_battle.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
 import '../screens/badges_screen.dart';
@@ -177,6 +178,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         0.0;
     double progressPercentage =
         calculateWeightProgress(startWeight, goalWeight, currentWeight) / 100;
+    final fitnessGoal = userService.currentUser?.settings['fitnessGoal'] ?? '';
+    final shouldShowGoals = [
+      "Improve Health & Track Activities",
+      "AI Guidance & Communities"
+    ].contains(fitnessGoal);
 
     return Scaffold(
       body: SafeArea(
@@ -210,19 +216,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : kPrimaryColor,
             ),
             leading: InkWell(
-              onTap: () => Navigator.pop(context),
+              onTap: () => Get.to(() => const BottomNavSec()),
               child: const IconCircleButton(
                 isRemoveContainer: true,
               ),
             ),
             actions: [
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                ),
+                onTap: () => Get.to(() => const SettingsScreen()),
                 child: const Padding(
                   padding: EdgeInsets.only(
                     right: 20,
@@ -437,12 +438,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BadgesScreen(),
-                            ),
-                          ),
+                          onTap: () => Get.to(() => BadgesScreen()),
                           child: Text(
                             seeAll,
                             style: TextStyle(
@@ -480,63 +476,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   );
                 }),
-
-                Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                if (!shouldShowGoals)
+                  Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
                 // Goals Section
-                Builder(
-                  builder: (context) {
-                    final fitnessGoal =
-                        userService.currentUser?.settings['fitnessGoal'] ?? '';
-                    final shouldShowGoals = [
-                      "Improve Health & Track Activities",
-                      "AI Guidance & Communities"
-                    ].contains(fitnessGoal);
-
-                    return ExpansionTile(
-                      collapsedIconColor: kAccent,
-                      iconColor: kAccent,
-                      textColor: kAccent,
-                      collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                      title: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                if (!shouldShowGoals)
+                  Builder(
+                    builder: (context) {
+                      return ExpansionTile(
+                        collapsedIconColor: kAccent,
+                        iconColor: kAccent,
+                        textColor: kAccent,
+                        collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 5),
+                              child: Text(
+                                goals,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () =>
+                                  Get.to(() => const NutritionSettingsPage()),
+                              child: const Text(
+                                'update',
+                                style: TextStyle(
+                                  color: kAccent,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(left: 5),
-                            child: Text(
-                              goals,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NutritionSettingsPage(),
-                              ),
-                            ),
-                            child: const Text(
-                              'update',
-                              style: TextStyle(
-                                color: kAccent,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.all(shouldShowGoals ? 5.0 : 0.0),
-                          child: Column(
-                            children: [
-                              if (shouldShowGoals)
-                                const SizedBox.shrink()
-                              else
+                          Padding(
+                            padding: const EdgeInsets.all(5.0),
+                            child: Column(
+                              children: [
                                 Row(
                                   children: [
                                     Text(
@@ -581,14 +563,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     const SizedBox(height: 20)
                                   ],
                                 ),
-                             
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                        ],
+                      );
+                    },
+                  ),
 
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
@@ -667,16 +648,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 ),
                                               ),
                                               onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        UploadBattleImageScreen(
-                                                      battleId: battle['id'],
-                                                      userId: userId,
-                                                      battleCategory:
-                                                          battle['category'],
-                                                    ),
+                                                Get.to(
+                                                  () => UploadBattleImageScreen(
+                                                    battleId: battle['id'],
+                                                    userId: userId,
+                                                    battleCategory:
+                                                        battle['category'],
                                                   ),
                                                 );
                                               },
@@ -687,7 +664,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               children: [
                                                 GestureDetector(
                                                   onTap: () {
-                                                    Navigator.push(
+                                                    Navigator.push( 
                                                       context,
                                                       MaterialPageRoute(
                                                         builder: (context) =>
@@ -822,7 +799,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               return SearchContentPost(
                                 dataSrc: data,
                                 press: () {
-                                  Navigator.push(
+                                  Navigator.push( 
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => PostDetailScreen(

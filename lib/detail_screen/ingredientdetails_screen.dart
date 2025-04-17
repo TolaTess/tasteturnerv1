@@ -170,7 +170,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   title:
                       "Recipes with ${capitalizeFirstLetter(widget.item.title)}",
                   press: () {
-                    Navigator.push(
+                    Navigator.push( 
                       context,
                       MaterialPageRoute(
                         builder: (context) => RecipeListCategory(

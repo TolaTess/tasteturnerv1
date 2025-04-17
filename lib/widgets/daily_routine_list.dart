@@ -180,6 +180,23 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                   color: item.isEnabled ? kAccent : kLightGrey,
                                 ),
                                 onPressed: () async {
+                                  int totalItems = items.length;
+                                  int disabledCount = items
+                                      .where((item) => !item.isEnabled)
+                                      .length;
+
+                                  // If this enabled item is being disabled and it's the last one
+                                  if (item.isEnabled &&
+                                      disabledCount == totalItems - 1) {
+                                    // If we're disabling the last enabled item
+
+                                    await _routineService.setAllDisabled(true);
+                                  } else if (!item.isEnabled &&
+                                      disabledCount == totalItems) {
+                                    // If we're enabling the first item when all were disabled
+                                    await _routineService.setAllDisabled(false);
+                                  }
+
                                   await _routineService.toggleRoutineItem(
                                     widget.userId,
                                     item,

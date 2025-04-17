@@ -1,4 +1,5 @@
 import 'package:fit_hify/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data_models/routine_item.dart';
 
 class RoutineService {
@@ -36,13 +37,6 @@ class RoutineService {
   Future<List<RoutineItem>> _createDefaultRoutine(String userId) async {
     print(userService.currentUser!.settings);
     final defaultItems = [
-      RoutineItem(
-        id: 'Wake Up Time',
-        title: 'Wake Up Time',
-        value: '6:00 AM',
-        type: 'time',
-        isEnabled: true,
-      ),
       RoutineItem(
         id: 'Make Bed',
         title: 'Make Bed',
@@ -85,13 +79,6 @@ class RoutineService {
         type: 'quantity',
         isEnabled: true,
       ),
-      RoutineItem(
-        id: 'Sleep Duration',
-        title: 'Sleep Duration',
-        value: '8 hours',
-        type: 'duration',
-        isEnabled: true,
-      ),
     ];
 
     // Save default items to Firestore
@@ -109,7 +96,7 @@ class RoutineService {
 
   Future<void> updateRoutineItem(String userId, RoutineItem item) async {
     try {
-      await   firestore
+      await firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')
@@ -131,6 +118,11 @@ class RoutineService {
     } catch (e) {
       print('Error toggling routine item: $e');
     }
+  }
+
+  Future<void> setAllDisabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('allDisabledKey', value);
   }
 
   Future<void> addRoutineItem(String userId, RoutineItem item) async {
