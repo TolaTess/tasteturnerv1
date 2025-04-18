@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
+  DateTime currentDate = DateTime.now();
 
   void _openDailyFoodPage(
     BuildContext context,
@@ -193,6 +194,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final inspiration = currentUser.bio ?? getRandomBio(bios);
     final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
+    final formattedDate = DateFormat('d MMMM').format(currentDate);
 
     return Scaffold(
       drawer: const CustomDrawer(),
@@ -332,33 +334,84 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      onPressed: () async {
-                        setState(() {
-                          // Update the date
-                        });
+                      onPressed: () {
+                        final DateTime sevenDaysAgo =
+                            DateTime.now().subtract(const Duration(days: 7));
+                        if (currentDate.isAfter(sevenDaysAgo)) {
+                          setState(() {
+                            currentDate = DateTime(
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                            ).subtract(const Duration(days: 1));
+                          });
+                        }
                       },
-                      icon: const Icon(Icons.arrow_back_ios_new),
-                    ),
-                    Text(
-                      DateFormat('EEEE').format(DateTime.now()),
-                      style: const TextStyle(
-                        fontSize: 14,
+                      icon: Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 20,
+                        color: currentDate.isBefore(DateTime.now()
+                                .subtract(const Duration(days: 7)))
+                            ? kLightGrey.withOpacity(0.5)
+                            : null,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('d MMMM').format(DateTime.now()),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.amber[700],
+                    Row(
+                      children: [
+                        Text(
+                          DateFormat('EEEE').format(currentDate),
+                          style: const TextStyle(
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat('d MMMM').format(currentDate),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.amber[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        final DateTime now = DateTime.now();
+                        final DateTime nextDate = DateTime(
+                          currentDate.year,
+                          currentDate.month,
+                          currentDate.day,
+                        ).add(const Duration(days: 1));
+
+                        setState(() {
+                          // Only allow moving forward if next date is not after today
+                          if (!nextDate.isAfter(
+                              DateTime(now.year, now.month, now.day))) {
+                            currentDate = nextDate;
+                          } else {
+                            currentDate =
+                                DateTime(now.year, now.month, now.day);
+                          }
+                        });
+                      },
+                      icon: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 20,
+                        color: currentDate.isAtSameMomentAs(DateTime(
+                          DateTime.now().year,
+                          DateTime.now().month,
+                          DateTime.now().day,
+                        ))
+                            ? kLightGrey.withOpacity(0.5)
+                            : null,
                       ),
                     ),
                   ],
@@ -372,14 +425,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 DailyRoutineListHorizontal(userId: userService.userId!),
               if (!allDisabled) const SizedBox(height: 15),
               if (!allDisabled) Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              if (!allDisabled) const SizedBox(height: 15),
-
-              // Weekly Ingredients Battle Widget
-              const WeeklyIngredientBattle(),
-
-              const SizedBox(height: 15),
-              Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              const SizedBox(height: 8),
+              if (!allDisabled) const SizedBox(height: 10),
 
               // PageView - today macros and macro breakdown
               SizedBox(
@@ -413,6 +459,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 10),
 
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
+              const SizedBox(height: 10),
+
+              // Weekly Ingredients Battle Widget
+              const WeeklyIngredientBattle(),
+
+              const SizedBox(height: 15),
+              Divider(color: isDarkMode ? kWhite : kDarkGrey),
+              const SizedBox(height: 8),
 
               // Icons Navigation
 
