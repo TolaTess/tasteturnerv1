@@ -481,7 +481,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
                 const SizedBox(height: 15),
                 Text(
-                  'Based on your meal plans from this week',
+                  'Based on your meal in last 7 days',
                   style: TextStyle(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,

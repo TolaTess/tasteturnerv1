@@ -320,7 +320,6 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       decoration: BoxDecoration(
         color: kAccent.withOpacity(0.5),
@@ -330,53 +329,6 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
         padding: const EdgeInsets.all(4),
         child: Column(
           children: [
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('EEEE').format(DateTime.now()),
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormat('d MMMM').format(DateTime.now()),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.amber[700],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate:
-                            DateTime.now().subtract(const Duration(days: 7)),
-                        lastDate: DateTime.now(),
-                        builder: (context, child) {
-                          return Theme(
-                            data: getDatePickerTheme(context, isDarkMode),
-                            child: child!,
-                          );
-                        },
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          // Update the date
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -592,6 +544,7 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
   }
 
   void _initializeMealData() async {
+    print('widget.userSettings: ${widget.userSettings}');
     await dailyDataController.fetchAllMealData(
         widget.userId, widget.userSettings);
   }

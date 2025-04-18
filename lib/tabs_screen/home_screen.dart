@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../screens/message_screen.dart';
+import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
 import '../widgets/bottom_model.dart';
 import '../widgets/home_widget.dart';
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
+  int _lastUnreadCount = 0; // Track last unread count
 
   void _openDailyFoodPage(
     BuildContext context,
@@ -115,6 +118,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       }
     });
+    _initializeMealData();
+    chatController.loadUserChats(userService.userId ?? '');
     // Show Tasty popup after a short delay
     _tastyPopupTimer = Timer(const Duration(milliseconds: 4000), () {
       if (mounted) {
@@ -123,9 +128,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-   Future<bool> _getAllDisabled() async {
+  void _initializeMealData() async {
+    await dailyDataController.fetchAllMealData(
+        userService.userId!, userService.currentUser!.settings);
+  }
+
+  Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
+  }
+
+  // Add this method to handle notifications
+  Future<void> _handleUnreadNotifications(int unreadCount) async {
+    // Only proceed if the unread count has changed
+    if (unreadCount == _lastUnreadCount) return;
+
+    if (unreadCount >= 1) {
+      // Only show notification if we haven't shown it before
+      if (!await notificationService.hasShownUnreadNotification) {
+        await notificationService.showNotification(
+          title: 'Unread Messages',
+          body: 'You have $unreadCount unread messages',
+        );
+        await notificationService.setHasShownUnreadNotification(true);
+      }
+    } else if (_lastUnreadCount > 0) {
+      // Only reset if we're transitioning from unread to read
+      await notificationService.resetUnreadNotificationState();
+    }
+
+    _lastUnreadCount = unreadCount; // Update last unread count
+  }
+
+  ImageProvider _getAvatarImage(String? imageUrl) {
+    if (imageUrl != null &&
+        imageUrl.isNotEmpty &&
+        imageUrl.startsWith("http") &&
+        imageUrl != "null") {
+      return NetworkImage(imageUrl);
+    }
+    return const AssetImage(intPlaceholderImage);
   }
 
   @override
@@ -137,14 +179,193 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    // Safely access user data with null checks
+    final currentUser = userService.currentUser;
+    if (currentUser == null) {
+      // Show a loading state if user data isn't available yet
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final inspiration = currentUser.bio ?? getRandomBio(bios);
+    final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
+
     return Scaffold(
+      drawer: const CustomDrawer(),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(75),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Avatar and Greeting Section
+                  Row(
+                    children: [
+                      Builder(builder: (context) {
+                        return GestureDetector(
+                          onTap: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                          child: CircleAvatar(
+                            radius: 25,
+                            backgroundColor: kAccent.withOpacity(kOpacity),
+                            child: CircleAvatar(
+                              backgroundImage: _getAvatarImage(avatarUrl),
+                              radius: 23,
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$greeting ${currentUser.displayName}!',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            inspiration,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: kLightGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  // Message Section
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? kDarkModeAccent.withOpacity(kLowOpacity)
+                          : kBackgroundColor,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MessageScreen(),
+                              ),
+                            );
+                          },
+                          child: Icon(Icons.message,
+                              size: 30, color: kAccent.withOpacity(0.6)),
+                        ),
+                        const SizedBox(width: 5),
+
+                        // Unread Count Badge
+                        Obx(() {
+                          final nonBuddyChats = chatController.userChats
+                              .where((chat) => !(chat['participants'] as List)
+                                  .contains('buddy'))
+                              .toList();
+
+                          if (nonBuddyChats.isEmpty) {
+                            return const SizedBox
+                                .shrink(); // Hide badge if no chats
+                          }
+
+                          // Calculate total unread count across all non-buddy chats
+                          final int unreadCount = nonBuddyChats.fold<int>(
+                            0,
+                            (sum, chat) =>
+                                sum + (chat['unreadCount'] as int? ?? 0),
+                          );
+
+                          // Handle notifications
+                          _handleUnreadNotifications(unreadCount);
+
+                          if (unreadCount >= 1) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: kRed,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            );
+                          } else {
+                            return const SizedBox
+                                .shrink(); // Hide badge if unreadCount is 0
+                          }
+                        }),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () async {
+                        setState(() {
+                          // Update the date
+                        });
+                      },
+                      icon: const Icon(Icons.arrow_back_ios_new),
+                    ),
+                    Text(
+                      DateFormat('EEEE').format(DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('d MMMM').format(DateTime.now()),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.amber[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
 
               // Add Horizontal Routine List
               if (!allDisabled)
@@ -158,11 +379,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               const SizedBox(height: 15),
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              const SizedBox(height: 15),
+              const SizedBox(height: 8),
 
               // PageView - today macros and macro breakdown
               SizedBox(
-                height: 225,
+                height: 180,
                 child: PageView(
                   controller: _pageController,
                   onPageChanged: (value) => setState(() {

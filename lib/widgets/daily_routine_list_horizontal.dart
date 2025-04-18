@@ -241,16 +241,13 @@ class _DailyRoutineListHorizontalState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Daily Routine',
-                      style: TextStyle(
+                    Text(
+                      !_badgeAwarded ? 'Daily Routine' : 'Routine',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (_badgeAwarded)
-                      Icon(Icons.emoji_events, color: Colors.amber[600]),
-                    const SizedBox(width: 8),
                     if (_badgeAwarded)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -259,12 +256,20 @@ class _DailyRoutineListHorizontalState
                           color: kAccent.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(yesterday))}',
-                          style: const TextStyle(
-                            color: kAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Row(
+                          children: [
+                            if (_badgeAwarded)
+                              Icon(Icons.emoji_events,
+                                  color: Colors.amber[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(yesterday))}',
+                              style: const TextStyle(
+                                color: kAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],

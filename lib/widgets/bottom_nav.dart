@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../tabs_screen/challenge_tab_screen.dart';
+import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
 import '../tabs_screen/home_tab_screen.dart';
 import '../bottom_nav/newpost_screen.dart';
@@ -42,9 +43,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     List<Widget> pages = [
-      HomeTabScreen(
-        initialTabIndex: _currentTabIndex,
-      ),
+      const HomeScreen(),
       const RecipeScreen(),
       const NewPostScreen(),
       const ChallengeTabScreen(),

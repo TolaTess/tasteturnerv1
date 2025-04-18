@@ -253,6 +253,7 @@ class NutritionController extends GetxController {
 
   // Initialize settings based on user data
   void loadSettings(Map<String, dynamic>? settings) {
+    print('settings: $settings');
     if (settings == null) {
       targetCalories.value = 0.0;
       targetWater.value = 0.0;
