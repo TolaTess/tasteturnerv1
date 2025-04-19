@@ -12,6 +12,7 @@ class SafeTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onTap;
   final int? maxLines;
   final int? minLines;
   final bool? enabled;
@@ -34,6 +35,7 @@ class SafeTextField extends StatefulWidget {
     this.focusNode,
     this.onChanged,
     this.onSubmitted,
+    this.onTap,
     this.maxLines = 1,
     this.minLines,
     this.enabled,
@@ -71,6 +73,7 @@ class _SafeTextFieldState extends State<SafeTextField> {
       focusNode: _focusNode,
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
+      onTap: widget.onTap,
       maxLines: widget.maxLines,
       minLines: widget.minLines,
       enabled: widget.enabled,
@@ -116,8 +119,10 @@ class SafeTextFormField extends FormField<String> {
     InputDecoration? decoration,
     TextStyle? style,
     bool obscureText = false,
+    bool readOnly = false,
     TextInputType? keyboardType,
     ValueChanged<String>? onChanged,
+    VoidCallback? onTap,
     FocusNode? focusNode,
     bool autofocus = false,
     FormFieldValidator<String>? validator,
@@ -141,6 +146,7 @@ class SafeTextFormField extends FormField<String> {
               ),
               style: style,
               obscureText: obscureText,
+              readOnly: readOnly,
               keyboardType: keyboardType,
               onChanged: (value) {
                 field.didChange(value);
@@ -148,6 +154,7 @@ class SafeTextFormField extends FormField<String> {
                   onChanged(value);
                 }
               },
+              onTap: onTap,
               focusNode: focusNode,
               autofocus: autofocus,
               maxLines: maxLines,
@@ -168,6 +175,80 @@ class _SafeTextFormFieldState extends FormFieldState<String> {
 
   @override
   SafeTextFormField get widget => super.widget as SafeTextFormField;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller == null) {
+      _controller = TextEditingController(text: widget.initialValue);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void reset() {
+    super.reset();
+    if (widget.controller == null) {
+      _controller?.text = widget.initialValue ?? '';
+    }
+    setState(() {});
+  }
+}
+
+class SafeDropdownFormField extends FormField<String> {
+  final TextEditingController? controller;
+  final VoidCallback? onTap;
+
+  SafeDropdownFormField({
+    Key? key,
+    this.controller,
+    this.onTap,
+    InputDecoration? decoration,
+    TextStyle? style,
+    FormFieldValidator<String>? validator,
+    FormFieldSetter<String>? onSaved,
+    String? initialValue,
+    bool enabled = true,
+  }) : super(
+          key: key,
+          initialValue: controller?.text ?? initialValue ?? '',
+          validator: validator,
+          onSaved: onSaved,
+          builder: (FormFieldState<String> field) {
+            final _SafeDropdownFormFieldState state =
+                field as _SafeDropdownFormFieldState;
+
+            return SafeTextField(
+              controller: state._effectiveController,
+              decoration: decoration?.copyWith(
+                errorText: field.errorText,
+                suffixIcon: const Icon(Icons.arrow_drop_down),
+              ),
+              style: style,
+              readOnly: true,
+              onTap: onTap,
+              enabled: enabled,
+            );
+          },
+        );
+
+  @override
+  FormFieldState<String> createState() => _SafeDropdownFormFieldState();
+}
+
+class _SafeDropdownFormFieldState extends FormFieldState<String> {
+  TextEditingController? _controller;
+
+  TextEditingController get _effectiveController =>
+      widget.controller ?? _controller!;
+
+  @override
+  SafeDropdownFormField get widget => super.widget as SafeDropdownFormField;
 
   @override
   void initState() {

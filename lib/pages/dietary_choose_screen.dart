@@ -1,10 +1,13 @@
 import 'package:fit_hify/widgets/secondary_button.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/base_model.dart';
 import '../helper/utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+import '../widgets/bottom_nav.dart';
 
 class ChooseDietScreen extends StatefulWidget {
   const ChooseDietScreen({super.key});
@@ -350,7 +353,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       // Hide loading and navigate back
       if (mounted) {
         Navigator.of(context).pop(); // Hide loading
-        Navigator.of(context).pop(); // Return to previous screen
+        Get.to(
+            () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 2));
       }
     } catch (e) {
       _handleError(e);
@@ -362,9 +366,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => const Center(
-        child: CircularProgressIndicator(color: kAccent),
-      ),
+      builder: (BuildContext context) => noItemTastyWidget(
+          'Generating Meal Plan, Please Wait...', '', context, false),
     );
   }
 
@@ -592,6 +595,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;
+    final dailyCalorieGoal =
+        userService.currentUser?.settings['foodGoals'] ?? 2000;
     final allergies = selectedAllergies.isEmpty
         ? ['No allergies']
         : selectedAllergies.toList();
@@ -599,6 +604,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     if (selectedCuisine == 'Balanced') {
       return '''
 Generate a balanced meal plan considering:
+Daily calorie goal: $dailyCalorieGoal
 Dietary preference: $dietPreference
 Allergies to avoid: ${allergies.join(', ')}
 Please provide a balanced mix of proteins, grains, legumes, healthy fats and vegetables.

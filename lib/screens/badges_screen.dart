@@ -50,7 +50,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
               .toList();
 
           badgeCounter = 15 - myBadge.length;
-
           return SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -73,44 +72,81 @@ class _BadgesScreenState extends State<BadgesScreen> {
                   const SizedBox(height: 24),
 
                   // Streak Days Counter
-                  Center(
-                    child: Column(
-                      children: [
-                        const Center(
+                  Column(
+                    children: [
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Column(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    'Streak',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Obx(() {
+                                  return Text(
+                                    '${dailyDataController.streakDays}',
+                                    style: const TextStyle(
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      color: kAccentLight,
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                            SizedBox(width: 40),
+                            Column(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    'Points',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Obx(() {
+                                  return Text(
+                                    '${dailyDataController.pointsAchieved}',
+                                    style: const TextStyle(
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      color: kAccentLight,
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (dailyDataController.streakDays > 0)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8.0),
                           child: Text(
-                            'Streak',
+                            "This is the longest Streak days you've ever had!",
                             style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              color: kAccent,
                             ),
                           ),
                         ),
-                        Obx(() {
-                          return Text(
-                            '${dailyDataController.streakDays}',
-                            style: const TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                              color: kAccentLight,
-                            ),
-                          );
-                        }),
-                        if (dailyDataController.streakDays > 0)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              "This is the longest Streak days you've ever had!",
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: kAccent,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
+
+                  _buildProgressItem(
+                      '🏆 Badges', '${myBadge.length}', isDarkMode),
 
                   // User's Earned Badges
                   if (myBadge.isNotEmpty)
@@ -155,7 +191,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                                 const SizedBox(height: 10),
                                 Text(
                                   badge.title,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 11),
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -171,7 +207,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
 
                   // Badge Categories
                   const Text(
-                    'Other Badges',
+                    'Badges to Collect',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -218,7 +254,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                               const SizedBox(height: 10),
                               Text(
                                 category.title,
-                                style: const TextStyle(fontSize: 12),
+                                style: const TextStyle(fontSize: 11),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -229,27 +265,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
                       },
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Overall Progress
-                  const Text(
-                    'Your Overall Progress',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildProgressItem(
-                      'Completed Badges', '${myBadge.length}', isDarkMode),
-
-                  const SizedBox(height: 16),
-                  Obx(() {
-                    return _buildScoredPoints(
-                        dailyDataController.pointsAchieved.toString(),
-                        isDarkMode);
-                  }),
                 ],
               ),
             ),
@@ -263,54 +278,26 @@ class _BadgesScreenState extends State<BadgesScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
             label,
             style: TextStyle(
-              fontSize: 14,
+             fontSize: 18,
+                      fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(width: 10),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
+              color: kAccentLight,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildScoredPoints(String points, bool isDarkMode) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Scored Points',
-          style: TextStyle(
-            fontSize: 14,
-          ),
-        ),
-        Row(
-          children: [
-            Text(
-              points,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.monetization_on,
-              size: 16,
-              color: Colors.amber,
-            ),
-          ],
-        ),
-      ],
     );
   }
 

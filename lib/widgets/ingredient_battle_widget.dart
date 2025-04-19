@@ -1,3 +1,4 @@
+import 'package:fit_hify/screens/badges_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -349,27 +350,32 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                   ),
                 ),
                 if (_showBadge.value)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.emoji_events,
-                            size: 16, color: kAccent),
-                        const SizedBox(width: 4),
-                        Text(
-                          _badgeTitle.value,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: kAccent,
+                  GestureDetector(
+                    onTap: () {
+                      Get.to(() => BadgesScreen());
+                    },
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.emoji_events,
+                              size: 16, color: kAccent),
+                          const SizedBox(width: 4),
+                          Text(
+                            _badgeTitle.value,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: kAccent,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
               ],

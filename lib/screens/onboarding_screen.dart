@@ -44,34 +44,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool syncHealthData = false;
   bool _isNextEnabled = false;
 
-  // Activity level options
-  final List<String> activityLevels = [
-    "Sedentary (Little to no exercise)",
-    "Lightly active (1-3 days/week)",
-    "Moderately active (3-5 days/week)",
-    "Very active (6-7 days/week)"
-  ];
-
-  // Goals options
-  final List<String> goals = [
-    "Improve health & track activities",
-    "Gain muscle",
-    "Lose weight",
-    "AI guidance & communities"
-  ];
-
-  // Add these variables to the existing state variables
-  String selectedBodyType = '';
-  List<Map<String, String>> bodyTypeSymptoms = [
-    {"symptom": "Often feel cold and seek warmth", "type": "cold"},
-    {"symptom": "Prefer warm/hot drinks", "type": "cold"},
-    {"symptom": "Cold hands and feet", "type": "cold"},
-    {"symptom": "Often feel hot and seek coolness", "type": "hot"},
-    {"symptom": "Prefer cold drinks", "type": "hot"},
-    {"symptom": "Face tends to be red", "type": "hot"}
-  ];
-  List<String> selectedSymptoms = [];
-
   // Add this to your state variables
   bool _isTextVisible = false;
 
@@ -319,7 +291,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       },
       {
         'title': 'Chat with Tasty',
-        'description': 'Get personalized nutrition advice and recipe meal plans',
+        'description':
+            'Get personalized nutrition advice and recipe meal plans',
         'icon': Icons.chat_bubble
       }
     ];
@@ -391,7 +364,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
-            children: goals.map((goal) {
+            children: healthGoals.map((goal) {
               return CheckboxListTile(
                 title: Text(
                   goal,

@@ -82,7 +82,6 @@ class NutritionController extends GetxController {
     final docSnapshot = await userMealsRef.get();
 
     final data = docSnapshot.data();
-    print(data);
 
     pointsAchieved.value = data?['point'] ?? 0;
   }
@@ -615,14 +614,16 @@ class NutritionController extends GetxController {
   }
 
   // Fetch all meal types
-  Future<void> fetchAllMealData(String userId, Map<String, String> user) async {
-    loadSettings(user);
-    // getWater(userId);
+  Future<void> fetchAllMealData(String userId, Map<String, String> userSettings) async {
+    loadSettings(userSettings);
     await fetchUserDailyMetrics(userId);
     await fetchCaloriesForDate(userId);
     await fetchCalories(userId, 'Breakfast');
     await fetchCalories(userId, 'Lunch');
     await fetchCalories(userId, 'Dinner');
+    await fetchMealsForToday(userId);
+    fetchPointsAchieved(userId);
+    fetchStreakDays(userId);
   }
 
   // Add daily meal reminders

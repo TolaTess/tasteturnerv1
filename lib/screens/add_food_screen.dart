@@ -15,7 +15,6 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
-import '../widgets/secondary_button.dart';
 import './add_meal_manually_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {

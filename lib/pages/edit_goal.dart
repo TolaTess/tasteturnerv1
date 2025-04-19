@@ -135,7 +135,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               SafeTextFormField(
                 controller: foodController,
                 style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -154,7 +154,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               ExpansionTile(
                 title: Text(
                   "Health & Fitness",
@@ -163,7 +163,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
                 children: [
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   SafeTextFormField(
                     controller: dietPerfController,
                     style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -183,7 +183,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   SafeTextFormField(
                     controller: targetStepsController,
                     style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -207,7 +207,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   SafeTextFormField(
                     controller: fitnessGoalController,
                     style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
                       labelText: "Fitness Goal",
                       labelStyle:
@@ -215,15 +214,37 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       enabledBorder: outlineInputBorder(20),
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                      suffixIconColor: kAccent,
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your starting weight.";
-                      }
-                      return null;
+                    readOnly: true,
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => Container(
+                          color: isDarkMode ? kDarkGrey : const Color.fromARGB(255, 9, 5, 5),
+                          child: ListView.builder(
+                            itemCount: healthGoals.length,
+                            itemBuilder: (context, index) {
+                              return ListTile(
+                                title: Text(
+                                  healthGoals[index],
+                                  style: TextStyle(
+                                      color: isDarkMode ? kWhite : kDarkGrey),
+                                ),
+                                onTap: () {
+                                  fitnessGoalController.text =
+                                      healthGoals[index];
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      );
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   SafeTextFormField(
                     controller: heightController,
                     style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -240,7 +261,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ],
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
               ExpansionTile(
                 title: Text(
@@ -270,7 +291,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   SafeTextFormField(
                     controller: goalWeightController,
                     style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),

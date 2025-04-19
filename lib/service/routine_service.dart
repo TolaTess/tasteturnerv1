@@ -1,0 +1,150 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fit_hify/constants.dart';
+import '../data_models/routine_item.dart';
+
+class RoutineService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static RoutineService? _instance;
+
+  RoutineService._();
+
+  static RoutineService get instance {
+    _instance ??= RoutineService._();
+    return _instance!;
+  }
+
+  Future<List<RoutineItem>> getRoutineItems(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // Return default routine items if none exist
+        return await _createDefaultRoutine(userId);
+      }
+
+      return snapshot.docs
+          .map((doc) => RoutineItem.fromMap({...doc.data(), 'title': doc.id}))
+          .toList();
+    } catch (e) {
+      print('Error getting routine items: $e');
+      return [];
+    }
+  }
+
+  Future<List<RoutineItem>> _createDefaultRoutine(String userId) async {
+    print(userService.currentUser!.settings);
+    final defaultItems = [
+      RoutineItem(
+        id: 'Wake Up Time',
+        title: 'Wake Up Time',
+        value: '6:00 AM',
+        type: 'time',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Make Bed',
+        title: 'Make Bed',
+        value: '5 min',
+        type: 'duration',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Meditate',
+        title: 'Meditate',
+        value: '10 min',
+        type: 'duration',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Gym',
+        title: 'Gym',
+        value: '1 hour',
+        type: 'duration',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Water Intake',
+        title: 'Water Intake',
+        value: '${userService.currentUser!.settings['waterIntake']} ml',
+        type: 'quantity',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Nutrition Goal',
+        title: 'Nutrition Goal',
+        value: '${userService.currentUser!.settings['foodGoal']} calories',
+        type: 'quantity',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Steps',
+        title: 'Steps',
+        value: '${userService.currentUser!.settings['targetSteps']}',
+        type: 'quantity',
+        isEnabled: true,
+      ),
+      RoutineItem(
+        id: 'Sleep Duration',
+        title: 'Sleep Duration',
+        value: '8 hours',
+        type: 'duration',
+        isEnabled: true,
+      ),
+    ];
+
+    // Save default items to Firestore
+    for (var item in defaultItems) {
+      await _firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .doc(item.title)
+          .set(item.toMap());
+    }
+
+    return defaultItems;
+  }
+
+  Future<void> updateRoutineItem(String userId, RoutineItem item) async {
+    try {
+      await _firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .doc(item.title)
+          .update(item.toMap());
+    } catch (e) {
+      print('Error updating routine item: $e');
+    }
+  }
+
+  Future<void> toggleRoutineItem(String userId, RoutineItem item) async {
+    try {
+      await _firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .doc(item.title)
+          .update({'isEnabled': !item.isEnabled});
+    } catch (e) {
+      print('Error toggling routine item: $e');
+    }
+  }
+
+  Future<void> addRoutineItem(String userId, RoutineItem item) async {
+    try {
+      await _firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .doc(item.title)
+          .set(item.toMap());
+    } catch (e) {
+      print('Error adding routine item: $e');
+    }
+  }
+}
