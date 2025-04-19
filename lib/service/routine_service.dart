@@ -35,7 +35,6 @@ class RoutineService {
   }
 
   Future<List<RoutineItem>> _createDefaultRoutine(String userId) async {
-    print(userService.currentUser!.settings);
     final defaultItems = [
       RoutineItem(
         id: 'Make Bed',

@@ -161,6 +161,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
                 textColor: kAccent,
+                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                 children: [
                   const SizedBox(height: 15),
                   SafeTextFormField(
@@ -270,6 +271,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
                 textColor: kAccent,
+                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                 children: [
                   const SizedBox(height: 10),
                   SafeTextFormField(

@@ -429,32 +429,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-//   Color _getMealTypeColor(String type) {
-//     switch (type.toLowerCase()) {
-//       case 'protein':
-//         return Colors.green[200]!;
-//       case 'grain':
-//         return Colors.orange[200]!;
-//       case 'vegetable':
-//         return Colors.lightGreen[200]!;
-//       default:
-//         return Colors.blue[200]!;
-//     }
-//   }
-
-//   String _getMealTypeImage(String type) {
-//     switch (type.toLowerCase()) {
-//       case 'protein':
-//         return 'assets/images/meat.jpg';
-//       case 'grain':
-//         return 'assets/images/grain.jpg';
-//       case 'vegetable':
-//         return 'assets/images/vegetable.jpg';
-//       default:
-//         return 'assets/images/placeholder.jpg';
-//     }
-//   }
-
   Widget _buildCalendarTab() {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 

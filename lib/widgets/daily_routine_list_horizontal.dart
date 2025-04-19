@@ -8,8 +8,9 @@ import '../service/routine_service.dart';
 
 class DailyRoutineListHorizontal extends StatefulWidget {
   final String userId;
-
-  const DailyRoutineListHorizontal({Key? key, required this.userId})
+  final DateTime date;
+  const DailyRoutineListHorizontal(
+      {Key? key, required this.userId, required this.date})
       : super(key: key);
 
   @override
@@ -33,6 +34,21 @@ class _DailyRoutineListHorizontalState
     super.initState();
     _routineItems = _loadRoutineItems();
     _checkYesterdayCompletion();
+  }
+
+  @override
+  void didUpdateWidget(DailyRoutineListHorizontal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.date != widget.date) {
+      _routineItems = _loadRoutineItems();
+    }
+  }
+
+  bool getCurrentDate(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   Future<void> _checkYesterdayCompletion() async {
@@ -110,7 +126,6 @@ class _DailyRoutineListHorizontalState
   Future<List<dynamic>> _loadRoutineItems() async {
     final items = await _routineService.getRoutineItems(widget.userId);
     final completionStatus = await _loadCompletionStatus();
-
     final result = items.map((item) {
       return {
         'item': item,
@@ -138,7 +153,7 @@ class _DailyRoutineListHorizontalState
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
-          .doc(today)
+          .doc(widget.date.toIso8601String().split('T')[0])
           .set({
         'completionPercentage': completionPercentage,
         'timestamp': FieldValue.serverTimestamp(),
@@ -152,7 +167,7 @@ class _DailyRoutineListHorizontalState
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
-          .doc(today)
+          .doc(widget.date.toIso8601String().split('T')[0])
           .get();
 
       if (doc.exists) {
@@ -167,12 +182,17 @@ class _DailyRoutineListHorizontalState
   }
 
   Future<void> _toggleCompletion(String title, bool currentStatus) async {
+    if (!getCurrentDate(widget.date)) {
+      // Don't allow toggling for past dates
+      return;
+    }
+
     try {
       final docRef = FirebaseFirestore.instance
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
-          .doc(today);
+          .doc(widget.date.toIso8601String().split('T')[0]);
 
       // Get current completion status
       final doc = await docRef.get();

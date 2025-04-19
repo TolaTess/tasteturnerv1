@@ -139,6 +139,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         userService.userId!, userService.currentUser!.settings, currentDate);
   }
 
+  // void _initializeRoutineDataByDate() async {
+  //   await routineService.fetchAllRoutineDataByDate(
+  //       userService.userId!, userService.currentUser!.settings, currentDate);
+  // }
+
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
@@ -365,6 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ).subtract(const Duration(days: 1));
                           });
                           _initializeMealDataByDate(); // Fetch data for new date
+                          // _initializeRoutineDataByDate();
                         }
                       },
                       icon: Icon(
@@ -436,7 +442,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               // Add Horizontal Routine List
               if (!allDisabled)
-                DailyRoutineListHorizontal(userId: userService.userId!),
+                DailyRoutineListHorizontal(
+                    userId: userService.userId!, date: currentDate),
               if (!allDisabled) const SizedBox(height: 15),
               if (!allDisabled) Divider(color: isDarkMode ? kWhite : kDarkGrey),
               if (!allDisabled) const SizedBox(height: 10),
@@ -525,13 +532,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       upperColor: kBlue,
                       isWater: true,
                       press: () {
-                        _openDailyFoodPage(
-                          context,
-                          waterTotal,
-                          currentWater,
-                          "Water Tracker",
-                          true,
-                        );
+                        if (getCurrentDate(currentDate)) {
+                          _openDailyFoodPage(
+                            context,
+                            waterTotal,
+                            currentWater,
+                            "Water Tracker",
+                            true,
+                          );
+                        }
                       },
                     );
                   }),
@@ -569,13 +578,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       isSquare: true,
                       upperColor: kAccent,
                       press: () {
-                        _openStepsUpdatePage(
-                          context,
-                          targetSteps.toDouble(),
-                          currentSteps.toDouble(),
-                          "Steps Tracker",
-                          healthService.isAuthorized.value,
-                        );
+                        if (getCurrentDate(currentDate)) {
+                          _openStepsUpdatePage(
+                            context,
+                            targetSteps.toDouble(),
+                            currentSteps.toDouble(),
+                            "Steps Tracker",
+                            healthService.isAuthorized.value,
+                          );
+                        }
                       },
                     );
                   }),
