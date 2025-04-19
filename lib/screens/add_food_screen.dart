@@ -67,7 +67,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Fetch meals and ingredients
       _allMeals = mealManager.meals;
       _allIngredients = macroManager.ingredient;
-      dailyDataController.fetchMealsForToday(userId);
+      final currentDate = DateTime.now();
+      dailyDataController.fetchMealsForToday(userId, currentDate);
       setState(() {});
     } catch (e) {
       print('Error loading data: $e');
@@ -884,6 +885,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   // Helper method to build consistent meal items
   Widget _buildMealItem(UserMeal meal, bool isDarkMode, String mealType) {
+    final currentDate = DateTime.now();
     return Card(
       elevation: 0,
       color: Colors.transparent,
@@ -918,6 +920,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               userService.userId ?? '',
               mealType,
               meal,
+              currentDate,
             );
           },
         ),

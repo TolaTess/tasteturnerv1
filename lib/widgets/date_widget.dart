@@ -306,16 +306,6 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    try {
-      dailyDataController.fetchCalories(userService.userId!, 'Add Food');
-      setState(() {});
-    } catch (e) {
-      print('Error loading data: $e');
-    }
   }
 
   @override
@@ -544,9 +534,9 @@ class _NutritionStatusBarState extends State<NutritionStatusBar> {
   }
 
   void _initializeMealData() async {
-    print('widget.userSettings: ${widget.userSettings}');
+    final today = DateTime.now();
     await dailyDataController.fetchAllMealData(
-        widget.userId, widget.userSettings);
+        widget.userId, widget.userSettings, today);
   }
 
   @override

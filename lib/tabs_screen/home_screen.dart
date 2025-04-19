@@ -131,7 +131,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _initializeMealData() async {
     await dailyDataController.fetchAllMealData(
-        userService.userId!, userService.currentUser!.settings);
+        userService.userId!, userService.currentUser!.settings, DateTime.now());
+  }
+
+  void _initializeMealDataByDate() async {
+    await dailyDataController.fetchAllMealDataByDate(
+        userService.userId!, userService.currentUser!.settings, currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -171,6 +176,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return const AssetImage(intPlaceholderImage);
   }
 
+  // Add this helper method to check if date is today
+  bool getCurrentDate(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
@@ -194,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final inspiration = currentUser.bio ?? getRandomBio(bios);
     final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
-    final formattedDate = DateFormat('d MMMM').format(currentDate);
 
     return Scaffold(
       drawer: const CustomDrawer(),
@@ -240,9 +252,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Text(
                             inspiration,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w400,
                               color: kLightGrey,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -334,7 +347,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 5),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
@@ -352,6 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               currentDate.day,
                             ).subtract(const Duration(days: 1));
                           });
+                          _initializeMealDataByDate(); // Fetch data for new date
                         }
                       },
                       icon: Icon(
@@ -359,7 +372,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         size: 20,
                         color: currentDate.isBefore(DateTime.now()
                                 .subtract(const Duration(days: 7)))
-                            ? kLightGrey.withOpacity(0.5)
+                            ? isDarkMode
+                                ? kLightGrey.withOpacity(0.5)
+                                : kDarkGrey.withOpacity(0.1)
                             : null,
                       ),
                     ),
@@ -368,14 +383,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Text(
                           DateFormat('EEEE').format(currentDate),
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           DateFormat('d MMMM').format(currentDate),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 20,
                             fontWeight: FontWeight.w400,
                             color: Colors.amber[700],
                           ),
@@ -392,7 +408,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ).add(const Duration(days: 1));
 
                         setState(() {
-                          // Only allow moving forward if next date is not after today
                           if (!nextDate.isAfter(
                               DateTime(now.year, now.month, now.day))) {
                             currentDate = nextDate;
@@ -401,16 +416,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 DateTime(now.year, now.month, now.day);
                           }
                         });
+                        _initializeMealDataByDate(); // Fetch data for new date
                       },
                       icon: Icon(
                         Icons.arrow_forward_ios,
                         size: 20,
-                        color: currentDate.isAtSameMomentAs(DateTime(
-                          DateTime.now().year,
-                          DateTime.now().month,
-                          DateTime.now().day,
-                        ))
-                            ? kLightGrey.withOpacity(0.5)
+                        color: getCurrentDate(currentDate)
+                            ? isDarkMode
+                                ? kLightGrey.withOpacity(0.5)
+                                : kDarkGrey.withOpacity(0.1)
                             : null,
                       ),
                     ),
@@ -418,7 +432,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
               // Add Horizontal Routine List
               if (!allDisabled)
@@ -438,15 +452,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddFoodScreen(
-                                //todo
-
-                                ),
-                          ),
-                        );
+                        if (getCurrentDate(currentDate)) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AddFoodScreen(),
+                            ),
+                          );
+                        }
                       },
                       child: DailyNutritionOverview(
                         settings: userService.currentUser!.settings,
@@ -457,7 +470,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
 
               const SizedBox(height: 10),
-
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
               const SizedBox(height: 10),
 

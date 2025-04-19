@@ -532,6 +532,11 @@ Widget noItemTastyWidget(
   );
 }
 
+getCurrentDate(DateTime date) {
+  return date.isAtSameMomentAs(
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day));
+}
+
 ThemeData getDatePickerTheme(BuildContext context, bool isDarkMode) {
   if (isDarkMode) {
     return Theme.of(context).copyWith(

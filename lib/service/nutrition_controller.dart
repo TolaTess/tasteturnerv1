@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../constants.dart';
 import '../data_models/user_meal.dart';
+import '../helper/utils.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -132,13 +133,13 @@ class NutritionController extends GetxController {
   }
 
   /// Fetches calories only for today's date
-  Future<void> fetchCaloriesForDate(String userId) async {
+  Future<void> fetchCaloriesForDate(String userId, DateTime mDate) async {
     if (userId.isEmpty) {
       totalCalories.value = 0;
       return;
     }
 
-    final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final date = DateFormat('yyyy-MM-dd').format(mDate);
 
     try {
       final userMealsRef = firestore
@@ -184,7 +185,7 @@ class NutritionController extends GetxController {
 
   // -------------------------------------------------------------------------------------------------------
 
-  Future<void> fetchUserDailyMetrics(String userId) async {
+  Future<void> fetchUserDailyMetrics(String userId, DateTime mDate) async {
     if (userId.isEmpty) {
       currentWater.value = 0.0;
       currentSteps.value = 0.0;
@@ -192,9 +193,8 @@ class NutritionController extends GetxController {
     }
 
     try {
-      final today = DateTime.now();
       final date =
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+          "${mDate.year}-${mDate.month.toString().padLeft(2, '0')}-${mDate.day.toString().padLeft(2, '0')}";
 
       final userMealsRef = firestore
           .collection('userMeals')
@@ -253,7 +253,6 @@ class NutritionController extends GetxController {
 
   // Initialize settings based on user data
   void loadSettings(Map<String, dynamic>? settings) {
-    print('settings: $settings');
     if (settings == null) {
       targetCalories.value = 0.0;
       targetWater.value = 0.0;
@@ -345,9 +344,10 @@ class NutritionController extends GetxController {
   }
 
 // Fetch calories for a specific meal type
-  Future<void> fetchCalories(String userId, String mealType) async {
+  Future<void> fetchCalories(
+      String userId, String mealType, DateTime mDate) async {
     try {
-      final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final date = DateFormat('yyyy-MM-dd').format(mDate);
 
       final userMealsRef = firestore
           .collection('userMeals')
@@ -397,26 +397,27 @@ class NutritionController extends GetxController {
       case 'Breakfast':
         breakfastCalories.value = totalCalories;
         breakfastTarget.value = (targetCalories.value * 0.30).toInt();
-        
+
         // Calculate progress percentage for breakfast
         double breakfastProgress = breakfastTarget.value <= 0
-            ? 0.0 
-            : (totalCalories / breakfastTarget.value) * 100;
-            
-        breakfastNotifier.value = breakfastProgress.isNaN || breakfastProgress.isInfinite
             ? 0.0
-            : breakfastProgress.clamp(0.0, 100.0);
+            : (totalCalories / breakfastTarget.value) * 100;
+
+        breakfastNotifier.value =
+            breakfastProgress.isNaN || breakfastProgress.isInfinite
+                ? 0.0
+                : breakfastProgress.clamp(0.0, 100.0);
         break;
 
       case 'Lunch':
         lunchCalories.value = totalCalories;
         lunchTarget.value = (targetCalories.value * 0.35).toInt();
-        
+
         // Calculate progress percentage for lunch
         double lunchProgress = lunchTarget.value <= 0
             ? 0.0
             : (totalCalories / lunchTarget.value) * 100;
-            
+
         lunchNotifier.value = lunchProgress.isNaN || lunchProgress.isInfinite
             ? 0.0
             : lunchProgress.clamp(0.0, 100.0);
@@ -425,12 +426,12 @@ class NutritionController extends GetxController {
       case 'Dinner':
         dinnerCalories.value = totalCalories;
         dinnerTarget.value = (targetCalories.value * 0.35).toInt();
-        
+
         // Calculate progress percentage for dinner
         double dinnerProgress = dinnerTarget.value <= 0
             ? 0.0
             : (totalCalories / dinnerTarget.value) * 100;
-            
+
         dinnerNotifier.value = dinnerProgress.isNaN || dinnerProgress.isInfinite
             ? 0.0
             : dinnerProgress.clamp(0.0, 100.0);
@@ -445,6 +446,7 @@ class NutritionController extends GetxController {
 
   void updateCalories(double newCalories, double targetCalories) {
     eatenCalories.value = newCalories.toInt();
+    print('eatenCalories updateCalories: $eatenCalories');
 
     // Prevent division by zero and handle edge cases
     double progressPercentage =
@@ -458,6 +460,7 @@ class NutritionController extends GetxController {
 
     // ✅ Update ValueNotifier to trigger animation with a valid value
     dailyValueNotifier.value = safeProgressValue;
+    print('dailyValueNotifier updateCalories: $dailyValueNotifier');
   }
 
   Future<List<Map<String, dynamic>>> getMyChallenges(String userid) async {
@@ -496,10 +499,9 @@ class NutritionController extends GetxController {
     }
   }
 
-  Future<void> fetchMealsForToday(String userId) async {
+  Future<void> fetchMealsForToday(String userId, DateTime mDate) async {
     try {
-      final today = DateTime.now();
-      final dateId = DateFormat('yyyy-MM-dd').format(today);
+      final dateId = DateFormat('yyyy-MM-dd').format(mDate);
 
       final mealRef = firestore
           .collection('userMeals')
@@ -530,7 +532,7 @@ class NutritionController extends GetxController {
       });
 
       userMealList.assignAll(parsedMeals);
-      await fetchCalories(userId, 'Add Food');
+      await fetchCalories(userId, 'Add Food', mDate);
     } catch (e) {
       print('Error fetching meals: $e');
     }
@@ -576,17 +578,28 @@ class NutritionController extends GetxController {
         });
       }
 
-      fetchMealsForToday(userId);
+      fetchMealsForToday(userId, today);
     } catch (e) {
       print('Error adding meal: $e');
     }
   }
 
   /// Delete a user meal
-  Future<void> removeMeal(String userId, String foodType, UserMeal meal) async {
+  Future<void> removeMeal(
+      String userId, String foodType, UserMeal meal, DateTime mDate) async {
     try {
-      final today = DateTime.now();
-      final dateId = DateFormat('yyyy-MM-dd').format(today);
+      String dateId = '';
+      if (getCurrentDate(mDate)) {
+        final today = DateTime.now();
+        dateId = DateFormat('yyyy-MM-dd').format(today);
+      } else {
+        Get.snackbar(
+          'Error',
+          'You cannot remove a meal from a previous day',
+          colorText: kRed,
+          backgroundColor: kDarkGrey,
+        );
+      }
 
       final mealRef = FirebaseFirestore.instance
           .collection('userMeals')
@@ -623,7 +636,7 @@ class NutritionController extends GetxController {
         userMealList[foodType]!.removeWhere((m) => m.name == meal.name);
         userMealList.refresh();
       }
-      await fetchCalories(userId, 'Add Food');
+      await fetchCalories(userId, 'Add Food', mDate);
     } catch (e) {
       print('Error removing meal: $e');
     }
@@ -631,16 +644,34 @@ class NutritionController extends GetxController {
 
   // Fetch all meal types
   Future<void> fetchAllMealData(
-      String userId, Map<String, String> userSettings) async {
+      String userId, Map<String, String> userSettings, DateTime date) async {
     loadSettings(userSettings);
-    await fetchUserDailyMetrics(userId);
-    await fetchCaloriesForDate(userId);
-    await fetchCalories(userId, 'Breakfast');
-    await fetchCalories(userId, 'Lunch');
-    await fetchCalories(userId, 'Dinner');
-    await fetchMealsForToday(userId);
-    fetchPointsAchieved(userId);
-    fetchStreakDays(userId);
+    await fetchUserDailyMetrics(userId, date);
+    await fetchCaloriesForDate(userId, date);
+    await fetchMealsForToday(userId, date);
+    await fetchCalories(userId, 'Breakfast', date);
+    await fetchCalories(userId, 'Lunch', date);
+    await fetchCalories(userId, 'Dinner', date);
+    if (getCurrentDate(date)) {
+      fetchPointsAchieved(userId);
+      fetchStreakDays(userId);
+    }
+  }
+
+  Future<void> fetchAllMealDataByDate(
+      String userId, Map<String, String> userSettings, DateTime date) async {
+    loadSettings(userSettings);
+    await fetchUserDailyMetrics(userId, date);
+    await fetchCalories(userId, 'Breakfast', date);
+    await fetchCalories(userId, 'Lunch', date);
+    await fetchCalories(userId, 'Dinner', date);
+    resetCalories();
+  }
+
+  void resetCalories() {
+    eatenCalories.value =
+        breakfastCalories.value + lunchCalories.value + dinnerCalories.value;
+    dailyValueNotifier.value = eatenCalories.value / targetCalories.value * 100;
   }
 
   // Add daily meal reminders
