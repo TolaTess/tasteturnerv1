@@ -179,23 +179,6 @@ class TastyPopupService {
 
       // Mark as shown
       await prefs.setBool(prefKey, true);
-      await prefs.setString(
-          'tasty_popup_shown_date', DateTime.now().toString().split(' ')[0]);
-    }
-  }
-
-  // Reset all popups
-  Future<void> resetAllPopups() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString('tasty_popup_shown_date') !=
-        DateTime.now().toString().split(' ')[0]) {
-      await prefs.setBool(_homeScreenKey, false);
-      await prefs.setBool(_recipeScreenKey, false);
-      await prefs.setBool(_challengeScreenKey, false);
-      await prefs.setBool(_mealDesignScreenKey, false);
-      await prefs.setBool(_messageScreenKey, false);
-      await prefs.setString(
-          'tasty_popup_shown_date', DateTime.now().toString().split(' ')[0]);
     }
   }
 }

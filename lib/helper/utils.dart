@@ -531,3 +531,34 @@ Widget noItemTastyWidget(
     ),
   );
 }
+
+ThemeData getDatePickerTheme(BuildContext context, bool isDarkMode) {
+  if (isDarkMode) {
+    return Theme.of(context).copyWith(
+      colorScheme: const ColorScheme.dark(
+        surface: kDarkGrey,
+        primary: kAccent, // Date selction background color
+        onPrimary: kDarkGrey, // Header text color
+        onSurface: kAccent, // Calendar text colorr
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: kAccent, // Button text color
+        ),
+      ),
+    );
+  } else {
+    return Theme.of(context).copyWith(
+      colorScheme: ColorScheme.light(
+        primary: kAccent, // Date selction background color
+        onPrimary: kDarkGrey, // Header text color
+        onSurface: kDarkGrey, // Calendar text color
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: kAccent, // Button text color
+        ),
+      ),
+    );
+  }
+}

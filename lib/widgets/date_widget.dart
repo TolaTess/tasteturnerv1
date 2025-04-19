@@ -320,6 +320,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       decoration: BoxDecoration(
         color: kAccent.withOpacity(0.5),
@@ -350,10 +351,33 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                       color: Colors.amber[700],
                     ),
                   ),
+                  IconButton(
+                    onPressed: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate:
+                            DateTime.now().subtract(const Duration(days: 7)),
+                        lastDate: DateTime.now(),
+                        builder: (context, child) {
+                          return Theme(
+                            data: getDatePickerTheme(context, isDarkMode),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          // Update the date
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.keyboard_arrow_down),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

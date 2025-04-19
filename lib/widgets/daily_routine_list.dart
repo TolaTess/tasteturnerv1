@@ -126,10 +126,6 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
               title: const Text(
                 'Routine Items',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
               ),
               children: [
                 ListView.builder(
@@ -175,7 +171,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                   icon: Icon(Icons.edit,
                                       color: isDarkMode ? kWhite : kBlack),
                                   onPressed: () => _showEditDialog(item),
-                              ),
+                                ),
                               IconButton(
                                 icon: Icon(
                                   item.isEnabled

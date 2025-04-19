@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/notification_service.dart';
+import '../widgets/daily_routine_list.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
@@ -156,12 +157,12 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               ),
               const SizedBox(height: 15),
               ExpansionTile(
-                title: Text(
-                  "Health & Fitness",
-                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                title: const Text(
+                  "Health & Fitness"  
                 ),
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
+                textColor: kAccent,
                 children: [
                   const SizedBox(height: 15),
                   SafeTextFormField(
@@ -222,7 +223,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       showModalBottomSheet(
                         context: context,
                         builder: (context) => Container(
-                          color: isDarkMode ? kDarkGrey : const Color.fromARGB(255, 9, 5, 5),
+                          color: isDarkMode
+                              ? kDarkGrey
+                              : const Color.fromARGB(255, 9, 5, 5),
                           child: ListView.builder(
                             itemCount: healthGoals.length,
                             itemBuilder: (context, index) {
@@ -264,12 +267,12 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               const SizedBox(height: 15),
 
               ExpansionTile(
-                title: Text(
+                title: const Text(
                   "Weight Management",
-                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
                 ),
                 collapsedIconColor: kAccent,
                 iconColor: kAccent,
+                textColor: kAccent,
                 children: [
                   const SizedBox(height: 10),
                   SafeTextFormField(
@@ -333,6 +336,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 15),
+
+              DailyRoutineList(userId: userService.currentUser!.userId ?? ''),
 
               const SizedBox(height: 30),
 

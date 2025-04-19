@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import '../pages/photo_manager.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
-import 'newpostfinal_screen.dart';
+import '../screens/newpostfinal_screen.dart';
 
 class NewPostScreen extends StatefulWidget {
   const NewPostScreen({super.key});

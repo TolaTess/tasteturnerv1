@@ -11,9 +11,7 @@ import '../pages/edit_goal.dart';
 import '../pages/upload_battle.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
-import '../widgets/title_section.dart';
-import '../widgets/daily_routine_list.dart';
-import 'badges_screen.dart';
+import '../screens/badges_screen.dart';
 import '../pages/settings_screen.dart';
 import '../detail_screen/post_detail_screen.dart';
 import '../service/battle_service.dart';
@@ -583,7 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     const SizedBox(height: 20)
                                   ],
                                 ),
-                              DailyRoutineList(userId: userId),
+                             
                             ],
                           ),
                         ),

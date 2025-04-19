@@ -9,7 +9,7 @@ import '../data_models/post_model.dart';
 import '../helper/utils.dart';
 import '../pages/comment_section.dart';
 import '../screens/friend_screen.dart';
-import '../screens/profile_screen.dart';
+import '../bottom_nav/profile_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/follow_button.dart';

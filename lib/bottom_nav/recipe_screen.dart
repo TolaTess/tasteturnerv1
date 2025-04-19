@@ -12,7 +12,7 @@ import '../widgets/circle_image.dart';
 import '../widgets/bottom_model.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
-import 'recipes_list_category_screen.dart';
+import '../screens/recipes_list_category_screen.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});

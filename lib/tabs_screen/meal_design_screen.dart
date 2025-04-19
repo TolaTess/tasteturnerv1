@@ -917,18 +917,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: kAccent, // Header background color
-              onPrimary: Colors.white, // Header text color
-              onSurface: Colors.black, // Calendar text color
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: kAccent, // Button text color
-              ),
-            ),
-          ),
+          data: getDatePickerTheme(context, isDarkMode),
           child: child!,
         );
       },

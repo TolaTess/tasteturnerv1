@@ -4,7 +4,7 @@ import 'dart:async';
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
-import '../screens/profile_screen.dart';
+import '../bottom_nav/profile_screen.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/secondary_button.dart';

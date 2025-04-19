@@ -5,8 +5,8 @@ import '../constants.dart';
 import '../tabs_screen/challenge_tab_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
 import '../tabs_screen/home_tab_screen.dart';
-import '../screens/newpost_screen.dart';
-import '../screens/recipe_screen.dart';
+import '../bottom_nav/newpost_screen.dart';
+import '../bottom_nav/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 
 class BottomNavSec extends StatefulWidget {

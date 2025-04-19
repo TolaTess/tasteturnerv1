@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               // PageView - today macros and macro breakdown
               SizedBox(
-                height: 200,
+                height: 225,
                 child: PageView(
                   controller: _pageController,
                   onPageChanged: (value) => setState(() {

@@ -71,7 +71,6 @@ void main() async {
   // Initialize notification service
   final notificationService = NotificationService();
   await notificationService.initNotification();
-  await tastyPopupService.resetAllPopups();
 
   // Set up daily reminders
   await notificationService.scheduleMultipleDailyReminders(

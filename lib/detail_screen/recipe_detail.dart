@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
-import '../screens/profile_screen.dart';
+import '../bottom_nav/profile_screen.dart';
 import '../widgets/secondary_button.dart';
 import '../constants.dart';
 import '../widgets/follow_button.dart';
