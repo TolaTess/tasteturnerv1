@@ -63,14 +63,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     _loadMuteState();
   }
 
-  Future<void> _fetchMeals() async {
-    final meals =
-        await mealManager.fetchMealsByCategory(widget.selectedCategory);
-    setState(() {
-      _mealList = meals.map((meal) => meal.title).toList();
-    });
-  }
-
   Future<void> _loadMuteState() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -149,16 +141,19 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     setState(() {
       selectedCategoryIdMeal = categoryId;
       selectedCategoryMeal = category;
-      _updateMealList(category);
+      _updateMealList();
     });
   }
 
-  Future<void> _updateMealList(String category) async {
+  Future<void> _updateMealList() async {
     try {
-      final newMealList = await mealManager.fetchMealsByCategory(category);
+      print('selectedCategoryMeal: $selectedCategoryMeal');
+      print('widget.selectedCategory: ${widget.selectedCategory}');
+      final newMealList = await mealManager.fetchMealsByCategoryAndType(
+          widget.selectedCategory, selectedCategoryMeal);
       if (!mounted) return;
       setState(() {
-        _mealList = newMealList.map((meal) => meal.title).toList();
+        _mealList = newMealList.map((meal) => meal.title).toList().take(10).toList();
       });
     } catch (e) {
       print("Error updating meal list: $e");
@@ -167,6 +162,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         const SnackBar(content: Text('Failed to update meals')),
       );
     }
+  }
+
+  Future<void> _fetchMeals() async {
+    final meals =
+        await mealManager.fetchMealsByCategory(widget.selectedCategory);
+    setState(() {
+      _mealList = meals.map((meal) => meal.title).toList().take(10).toList();
+    });
   }
 
   @override
@@ -329,7 +332,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 35),
 
         //category options
         CategorySelector(
@@ -341,11 +344,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           darkModeAccentColor: kDarkModeAccent,
         ),
 
+        const SizedBox(height: 50),
+
         Expanded(
           child: Center(
             child: _mealList.isEmpty
                 ? noItemTastyWidget(
-                    "No meals found for ${widget.selectedCategory}",
+                    "No meals found for ${widget.selectedCategory} ${selectedCategoryMeal}",
                     "",
                     context,
                     false,
