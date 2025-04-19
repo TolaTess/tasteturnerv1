@@ -52,51 +52,12 @@ class MealManager extends GetxController {
     }
     try {
       QuerySnapshot snapshot;
-      if (category == 'All') {
+      if (category == 'All' || category == 'all') {
         snapshot = await firestore.collection('meals').get();
       } else {
         snapshot = await firestore
             .collection('meals')
             .where('categories', arrayContains: category.toLowerCase())
-            .get();
-      }
-
-      if (snapshot.docs.isEmpty) {
-        return [];
-      }
-
-      return snapshot.docs
-          .map((doc) {
-            try {
-              final data = doc.data() as Map<String, dynamic>;
-              return Meal.fromJson(doc.id, data);
-            } catch (e) {
-              print('Error parsing meal data for category $category: $e');
-              return null;
-            }
-          })
-          .whereType<Meal>()
-          .toList();
-    } catch (e) {
-      print('Error fetching meals by category: $e');
-      return [];
-    }
-  }
-
-  Future<List<Meal>> fetchMealsByCategoryAndType(
-      String category, String type) async {
-    if (category.isEmpty || type.isEmpty) {
-      return [];
-    }
-    try {
-      QuerySnapshot snapshot;
-      if (type == 'Balanced') {
-        snapshot = await firestore.collection('meals').get();
-      } else {
-        snapshot = await firestore
-            .collection('meals')
-            .where('categories', arrayContains: category.toLowerCase())
-            .where('cuisineType', isEqualTo: type.toLowerCase())
             .get();
       }
 

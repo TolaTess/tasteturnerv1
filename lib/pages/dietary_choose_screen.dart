@@ -484,8 +484,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   Future<List<String>> _saveMealsToFirestore(
       String userId, Map<String, dynamic>? mealPlan) async {
-    print(
-        'Starting _saveMealsToFirestore for userId: $userId at ${DateTime.now()}');
     if (mealPlan == null ||
         mealPlan['meals'] == null ||
         mealPlan['meals'] is! List) {
@@ -509,7 +507,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       // Process data
       final ingredients = _convertToStringMap(mealData['ingredients'] ?? []);
       final steps = _convertToStringList(mealData['instructions'] ?? []);
-      final categories = _convertToStringList(mealData['categories'] ?? []);
+      final categories = [..._convertToStringList(mealData['categories'] ?? []), selectedCuisine];
       final type = _parseStringOrDefault(mealData['type'], '');
 
       final processedNutritionalInfo = {
@@ -705,12 +703,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     }
   }
 
-  // // Helper methods for safe type conversion
-  // int _parseIntOrDefault(dynamic value, int defaultValue) {
-  //   if (value == null) return defaultValue;
-  //   return int.tryParse(value.toString()) ?? defaultValue;
-  // }
-
   String _parseStringOrDefault(dynamic value, String defaultValue) {
     if (value == null) return defaultValue;
     return value.toString();
@@ -731,17 +723,10 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
         ? ['No allergies']
         : selectedAllergies.toList();
 
-    if (selectedCuisine == 'Balanced') {
-      return '''
-Generate a balanced meal plan considering:
-Daily calorie goal: $dailyCalorieGoal
-Dietary preference: $dietPreference
-Allergies to avoid: ${allergies.join(', ')}
-Please provide a balanced mix of proteins, grains, legumes, healthy fats and vegetables.
-''';
-    } else {
-      return '''
+    return '''
+
 Generate a ${selectedCuisine} cuisine meal plan considering:
+Daily calorie goal: $dailyCalorieGoal
 Dietary preference: $dietPreference
 Allergies to avoid: ${allergies.join(', ')}
 Include:
@@ -749,38 +734,7 @@ Include:
 - $grainDishes grain dishes
 - $vegDishes vegetable dishes
 ''';
-    }
   }
-
-  // Map<String, dynamic> _calculateNutritionalSummary(
-  //     Map<String, dynamic> mealPlan) {
-  //   // Basic implementation - this could be replaced with an actual call to geminiService if that method exists
-  //   int totalCalories = 0;
-  //   int totalProtein = 0;
-  //   int totalCarbs = 0;
-  //   int totalFat = 0;
-
-  //   for (final mealType in ['breakfast', 'lunch', 'dinner', 'snacks']) {
-  //     if (mealPlan[mealType] != null) {
-  //       totalCalories +=
-  //           int.tryParse(mealPlan[mealType]['calories']?.toString() ?? '0') ??
-  //               0;
-  //       totalProtein +=
-  //           int.tryParse(mealPlan[mealType]['protein']?.toString() ?? '0') ?? 0;
-  //       totalCarbs +=
-  //           int.tryParse(mealPlan[mealType]['carbs']?.toString() ?? '0') ?? 0;
-  //       totalFat +=
-  //           int.tryParse(mealPlan[mealType]['fat']?.toString() ?? '0') ?? 0;
-  //     }
-  //   }
-
-  //   return {
-  //     'calories': totalCalories,
-  //     'protein': totalProtein,
-  //     'carbs': totalCarbs,
-  //     'fat': totalFat,
-  //   };
-  // }
 
   // Add this helper method for nutritional info validation
   bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {

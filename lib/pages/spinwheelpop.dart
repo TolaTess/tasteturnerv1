@@ -49,7 +49,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       StreamController<int>.broadcast(); // For SpinWheelWidget control
   late AudioPlayer _audioPlayer;
   bool _isMuted = false;
-  String selectedCategoryMeal = 'all';
+  String selectedCategoryMeal = 'Balanced';
   String selectedCategoryIdMeal = '';
 
   @override
@@ -141,26 +141,29 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     setState(() {
       selectedCategoryIdMeal = categoryId;
       selectedCategoryMeal = category;
-      _updateMealList();
+      _updateMealListByType();
     });
   }
 
-  Future<void> _updateMealList() async {
-    try {
-      print('selectedCategoryMeal: $selectedCategoryMeal');
-      print('widget.selectedCategory: ${widget.selectedCategory}');
-      final newMealList = await mealManager.fetchMealsByCategoryAndType(
-          widget.selectedCategory, selectedCategoryMeal);
-      if (!mounted) return;
+  void _updateMealListByType() async {
+    if (!mounted) return;
+    
+    if (selectedCategoryMeal == 'Balanced') {
       setState(() {
-        _mealList = newMealList.map((meal) => meal.title).toList().take(10).toList();
+        _mealList = widget.mealList.map((meal) => meal.title).take(10).toList();
       });
-    } catch (e) {
-      print("Error updating meal list: $e");
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update meals')),
-      );
+    } else {
+      final newMealList = widget.mealList
+          .where((meal) => meal.categories.contains(selectedCategoryMeal))
+          .toList();
+
+      setState(() {
+        if (newMealList.length > 10) {
+          _mealList = newMealList.map((meal) => meal.title).take(10).toList();
+        } else {
+          _mealList = newMealList.map((meal) => meal.title).toList();
+        }
+      });
     }
   }
 
@@ -275,7 +278,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == protein)
+              onTap: () => widget.macroList.any((macro) => macro == protein.toLowerCase())
                   ? _updateMacro(protein)
                   : snackbar(context, protein, widget.selectedCategory),
               child: CircleAvatar(
@@ -286,7 +289,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               ),
             ),
             GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == carbs)
+              onTap: () => widget.macroList.any((macro) => macro == carbs.toLowerCase())
                   ? _updateMacro(carbs)
                   : snackbar(context, carbs, widget.selectedCategory),
               child: Container(
@@ -301,7 +304,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               ),
             ),
             GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == fat)
+              onTap: () => widget.macroList.any((macro) => macro == fat.toLowerCase())
                   ? _updateMacro(fat)
                   : snackbar(context, fat, widget.selectedCategory),
               child: CircleAvatar(
@@ -359,7 +362,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     mealList: widget.mealList,
                     labels: [], // Empty since we use customLabels
                     customLabels: _mealList,
-                    macro: widget.macro, // No macro filtering for meals
+                    macro: selectedCategoryMeal, // No macro filtering for meals
                     isMealSpin: true,
                     playSound: _playSound,
                   ),
@@ -373,7 +376,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     if (mounted) {
       showTastySnackbar(
         'Please try again.',
-        "$mMacro not applicable to the $category",
+        "$mMacro not 2 applicable to the $category",
         context,
       );
     }

@@ -46,6 +46,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   List<String> availableLabels = [];
   List<MacroData> fullLabelsList = [];
   List<Meal> fullMealList = [];
+  Key _spinningWheelKey = UniqueKey();
 
   @override
   void initState() {
@@ -92,73 +93,46 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
     if (oldWidget.macro != widget.macro ||
         oldWidget.customLabels != widget.customLabels) {
       _updateLabelsBasedOnMacro(widget.macro);
+      // Force rebuild of spinning wheel with new key
+      setState(() {
+        _spinningWheelKey = UniqueKey();
+      });
     }
   }
 
   void _updateLabelsBasedOnMacro(String macro) {
     setState(() {
+      availableLabels = []; // Clear existing labels first
+
       if (widget.isMealSpin) {
-        availableLabels = widget.customLabels!.toSet().toList();
+        if (widget.customLabels != null) {
+          availableLabels = widget.customLabels!.toSet().toList();
+        }
       } else if (widget.mealList != null && widget.mealList!.isNotEmpty) {
         fullMealList = widget.mealList!.toList();
         isMacroEmpty = fullMealList.isEmpty;
         availableLabels =
-            fullMealList.map((meal) => meal.title).take(8).toList();
+            fullMealList.map((meal) => meal.title).take(10).toList();
       } else if (widget.customLabels != null &&
           widget.customLabels!.isNotEmpty) {
+        print('widget.customLabels 2: ${widget.customLabels?.length}');
         availableLabels = widget.customLabels!.toSet().toList();
       } else {
+        print('widget.labels 2: ${widget.labels.length}');
         fullLabelsList = widget.labels
             .where((item) => item.type.toLowerCase() == macro.toLowerCase())
             .toList();
-
+        print('widget.fullLabelsList 2: ${fullLabelsList.length}');
         isMacroEmpty = fullLabelsList.isEmpty;
-
         availableLabels =
-            fullLabelsList.map((macroData) => macroData.title).take(8).toList();
+            fullLabelsList.map((macroData) => macroData.title).take(10).toList();
+        print('widget.availableLabels 2: ${availableLabels.length}');
+        // _maintainAvailableLabels();
       }
 
-      _maintainAvailableLabels();
+      // Ensure we don't have empty labels
+      availableLabels.removeWhere((label) => label.trim().isEmpty);
     });
-  }
-
-  void _maintainAvailableLabels() {
-    // Remove accepted items from available labels
-    availableLabels.removeWhere((label) => acceptedItems.contains(label));
-
-    // Try to fill up to 8 labels from fullLabelsList first
-    while (availableLabels.length < 8 && fullLabelsList.isNotEmpty) {
-      // Find a label that isn't already in availableLabels or acceptedItems
-      MacroData? newLabel;
-      for (var label in fullLabelsList) {
-        if (!acceptedItems.contains(label.title) &&
-            !availableLabels.contains(label.title)) {
-          newLabel = label;
-          break;
-        }
-      }
-
-      if (newLabel != null && newLabel.title.isNotEmpty) {
-        availableLabels.add(newLabel.title);
-      } else {
-        break;
-      }
-    }
-
-    // If we still need more labels and have meals available, add from mealList
-    if (availableLabels.length < 8 &&
-        widget.mealList != null &&
-        widget.mealList!.isNotEmpty) {
-      for (var meal in widget.mealList!) {
-        if (availableLabels.length >= 8) break;
-
-        if (!acceptedItems.contains(meal.title) &&
-            !availableLabels.contains(meal.title) &&
-            meal.title.isNotEmpty) {
-          availableLabels.add(meal.title);
-        }
-      }
-    }
   }
 
   void _acceptSelectedLabel(String label) {
@@ -167,7 +141,6 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         acceptedItems.add(label);
       }
       availableLabels.remove(label);
-      _maintainAvailableLabels();
       selectedLabel = null;
     });
   }
@@ -176,6 +149,19 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
+    // If no labels available, show a message instead of empty wheel
+    if (availableLabels.isEmpty) {
+      return Center(
+        child: Text(
+          'No items available for ${widget.macro}',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       child: Column(
         children: [
@@ -183,6 +169,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             alignment: Alignment.center,
             children: [
               WidgetSpinningWheel(
+                key: _spinningWheelKey,
                 playSound: widget.playSound,
                 labels: availableLabels,
                 defaultSpeed: 0.05,
@@ -303,7 +290,6 @@ class AcceptedItemsList extends StatefulWidget {
 }
 
 class _AcceptedItemsListState extends State<AcceptedItemsList> {
-
   void removeItem(int index) {
     setState(() {
       widget.acceptedItems.removeAt(index);
