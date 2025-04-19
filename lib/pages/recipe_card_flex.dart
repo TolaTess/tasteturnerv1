@@ -79,7 +79,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
               child: Stack(
                 children: [
                   // Recipe image
-                  mediaPath != null && mediaPath.isNotEmpty
+                  mediaPath != null && mediaPath.isNotEmpty && mediaPath.startsWith('http')
                       ? Image.network(
                           mediaPath,
                           width: double.infinity,

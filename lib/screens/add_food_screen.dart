@@ -230,27 +230,28 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         itemBuilder: (context, index) {
                           final result = _searchResults[index];
                           return ListTile(
-                            leading:
-                                result is Meal && result.mediaPaths.isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: Image.network(
-                                          result.mediaPaths.first,
-                                          width: 40,
-                                          height: 40,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Image.asset(
-                                            getAssetImageForItem(
-                                                result.category ?? 'default'),
-                                            width: 40,
-                                            height: 40,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      )
-                                    : null,
+                            leading: result is Meal &&
+                                    result.mediaPaths.isNotEmpty &&
+                                    result.mediaPaths.first.startsWith('http')
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Image.network(
+                                      result.mediaPaths.first,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Image.asset(
+                                        getAssetImageForItem(
+                                            result.category ?? 'default'),
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                             title: Text(
                               result is Meal
                                   ? result.title

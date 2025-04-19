@@ -1,6 +1,5 @@
 import 'package:fit_hify/data_models/macro_data.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
@@ -68,140 +67,6 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   }
 }
 
-class IngredientListViewSpin extends StatefulWidget {
-  final List<Map<String, String>> demoAcceptedData;
-  final bool spin;
-  final bool isEdit;
-  final Function(int) onRemoveItem;
-  final bool isMealSpin;
-
-  const IngredientListViewSpin({
-    super.key,
-    required this.demoAcceptedData,
-    required this.spin,
-    required this.isEdit,
-    required this.onRemoveItem,
-    this.isMealSpin = false,
-  });
-
-  @override
-  State<IngredientListViewSpin> createState() => _IngredientListViewSpinState();
-}
-
-class _IngredientListViewSpinState extends State<IngredientListViewSpin> {
-  bool showAll = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final processedItems = widget.demoAcceptedData; // No casting needed
-    final itemCount = showAll
-        ? processedItems.length
-        : (processedItems.length > 5 ? 5 : processedItems.length);
-
-    if (processedItems.isEmpty) {
-      return noItemTastyWidget(
-        'No ingredients available',
-        'Add ingredients to see them here',
-        context,
-        false,
-      );
-    } else {
-      return Column(
-        children: [
-          SizedBox(
-            height: getPercentageHeight(100, context),
-            child: widget.isMealSpin
-                ? ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.only(
-                      top: 4,
-                      bottom: 4,
-                    ),
-                    itemCount: itemCount,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: IngredientItemSpin(
-                          dataSrc: processedItems[index],
-                          press: () {
-                            if (widget.isEdit) {
-                              setState(() {
-                                widget.onRemoveItem(index);
-                              });
-                              if (mounted) {
-                                showTastySnackbar(
-                                  'Success',
-                                  '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed',
-                                  context,
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      );
-                    },
-                  )
-                : GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 2.5,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.only(
-                      top: 4,
-                      bottom: 4,
-                    ),
-                    itemCount: itemCount,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: IngredientItemSpin(
-                          dataSrc: processedItems[index],
-                          press: () {
-                            if (widget.isEdit) {
-                              setState(() {
-                                widget.onRemoveItem(index);
-                              });
-                              if (mounted) {
-                                showTastySnackbar(
-                                  'Success',
-                                  '${capitalizeFirstLetter(processedItems[index]['title'] ?? '')} removed',
-                                  context,
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          if (processedItems.length > 6)
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  showAll = !showAll;
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Icon(
-                  showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                  size: 36,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-        ],
-      );
-    }
-  }
-}
-
 //ingredients category
 class IngredientItem extends StatelessWidget {
   const IngredientItem({
@@ -242,7 +107,9 @@ class IngredientItem extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               CircleAvatar(
-                backgroundImage: AssetImage(getAssetImageForItem(imagePath)),
+                backgroundImage: imagePath.startsWith('http')
+                    ? NetworkImage(imagePath) as ImageProvider
+                    : AssetImage(getAssetImageForItem(imagePath)),
                 radius: radius,
               ),
               // Gradient overlay
@@ -291,69 +158,6 @@ class IngredientItem extends StatelessWidget {
             ),
           )
         ],
-      ),
-    );
-  }
-}
-
-class IngredientItemSpin extends StatelessWidget {
-  const IngredientItemSpin({
-    super.key,
-    required this.dataSrc,
-    required this.press,
-    this.isSelected = false,
-    this.radius = 35,
-  });
-
-  final dynamic dataSrc;
-  final VoidCallback press;
-  final bool isSelected;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    String title = '';
-    if (dataSrc is Map) {
-      title = dataSrc['title'] ?? '';
-    } else {
-      try {
-        title = dataSrc.title ?? '';
-      } catch (e) {
-        title = '';
-      }
-    }
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    return GestureDetector(
-      onTap: press,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDarkMode
-                  ? kAccent.withOpacity(0.6)
-                  : kAccent.withOpacity(0.2))
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.circle, size: 8),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                capitalizeFirstLetter(title),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../themes/theme_provider.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/circle_image.dart';
 import '../widgets/bottom_model.dart';
+import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
@@ -67,7 +68,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categoryDatas = helperController.category;
+    final headers = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
@@ -93,7 +94,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
               //category options - here is category widget - chatgpt
               CategorySelector(
-                categories: categoryDatas,
+                categories: headers,
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,
@@ -174,6 +175,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
               const SizedBox(height: 10),
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
+              const SizedBox(height: 5),
 
               // ------------------------------------Premium / Ads------------------------------------
 
@@ -195,24 +197,26 @@ class _RecipeScreenState extends State<RecipeScreen> {
               // ------------------------------------Premium / Ads-------------------------------------
 
               const SizedBox(height: 10),
-
               //Search by Ingredients
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  searchIngredients,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+              TitleSection(
+                title: searchIngredients,
+                press: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => IngredientFeatures(
+                      items: fullLabelsList,
+                      isRecipe: true,
+                    ),
                   ),
                 ),
+                more: seeAll,
               ),
               const SizedBox(
-                height: 15,
+                height: 24,
               ),
               //rows of Ingredients
               IngredientListViewRecipe(
-                demoAcceptedData: fullLabelsList,
+                demoAcceptedData: fullLabelsList.take(10).toList(),
                 spin: false,
                 isEdit: false,
                 onRemoveItem: (int) {},
@@ -225,7 +229,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               //Search by Meals
               TitleSection(
                 title: searchMeal,
-                press: () => Navigator.push(             
+                press: () => Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const RecipeListCategory(

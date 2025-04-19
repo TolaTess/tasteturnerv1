@@ -420,16 +420,21 @@ class VoteItemCard extends StatelessWidget {
                           ),
                         ),
                         child: ClipOval(
-                          child: Image.network(
-                            item['image'] ?? '',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                          child: item['image'].startsWith('http')
+                              ? Image.network(
+                                  item['image'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
                               return Image.asset(
                                 getAssetImageForItem(item['image']),
                                 fit: BoxFit.cover,
-                              );
-                            },
-                          ),
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                getAssetImageForItem(item['image']),
+                                fit: BoxFit.cover,
+                              ),
                         ),
                       ),
                       SizedBox(height: isLarge ? 16 : 8),

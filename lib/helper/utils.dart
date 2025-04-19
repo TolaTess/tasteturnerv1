@@ -47,6 +47,12 @@ List<String> extractSlashedItems(String messageContent) {
       .toList();
 }
 
+String removeDashWithSpace(String messageContent) {
+  List<String> words = messageContent.split('_');
+  List<String> capitalizedWords = words.map((word) => capitalizeFirstLetter(word.trim())).toList();
+  return capitalizedWords.join(' ');
+}
+
 String getTextBeforeSlash(String input) {
   int slashIndex = input.indexOf('/');
   return slashIndex != -1 ? input.substring(0, slashIndex).trim() : input;
@@ -485,7 +491,7 @@ Widget noItemTastyWidget(
             return Transform.translate(
               offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
               child: const CircleAvatar(
-                radius: 20,
+                radius: 18,
                 backgroundImage: AssetImage('assets/images/tasty_cheerful.jpg'),
               ),
             );
@@ -494,10 +500,10 @@ Widget noItemTastyWidget(
         const SizedBox(height: 5),
         Text(
           message,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: themeProvider.isDarkMode ? kLightGrey : kAccent,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w400,
+            color: kAccent,
           ),
           textAlign: TextAlign.center,
         ),

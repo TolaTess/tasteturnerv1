@@ -116,8 +116,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   borderRadius: BorderRadius.circular(20),
                   child: Image.asset(
                     getAssetImageForItem(widget.item.mediaPaths.first),
-                    width: getPercentageWidth(80, context),
-                    height: getPercentageWidth(80, context),
+                    width: getPercentageWidth(70, context),
+                    height: getPercentageWidth(70, context),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -148,7 +148,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   ),
                 if (widget.item.macros.isNotEmpty)
                   const SizedBox(
-                    height: 1.5,
+                    height: 10,
                   ),
                 if (widget.item.macros.isNotEmpty)
                   Padding(
@@ -161,7 +161,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   ),
                 if (widget.item.macros.isNotEmpty)
                   const SizedBox(
-                    height: 1.5,
+                    height: 10,
                   ),
 
                 //recipes
@@ -186,7 +186,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 ),
                 if (widget.item.features.isNotEmpty)
                   const SizedBox(
-                    height: 1,
+                    height: 10,
                   ),
                 if (widget.item.features.isNotEmpty)
                   Padding(
@@ -199,7 +199,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   ),
                 if (widget.item.features.isNotEmpty)
                   const SizedBox(
-                    height: 1,
+                    height: 10,
                   ),
 
                 //Features
@@ -219,6 +219,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         }, // Toggle full features
                         more: isFullList ? seeAll : 'Less',
                       ),
+                      const SizedBox(height: 10),
                       AnimatedCrossFade(
                         duration: const Duration(milliseconds: 300),
                         crossFadeState: isHideList
@@ -229,7 +230,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             const SizedBox(height: 2.8),
                             // Avatar list
                             SizedBox(
-                              height: getPercentageWidth(15, context),
+                              height: getPercentageWidth(10, context),
                               child: ListView.builder(
                                 shrinkWrap: true,
                                 itemCount: widget.item.features.length,
@@ -252,10 +253,12 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ],
                   ),
                 const SizedBox(
-                  height: 1,
+                  height: 10,
                 ),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
+ const SizedBox(
+                  height: 5,
+                ),
 // ------------------------------------Premium------------------------------------
 
                 isPremium ?? userService.currentUser?.isPremium ?? false
