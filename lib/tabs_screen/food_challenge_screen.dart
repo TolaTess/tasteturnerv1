@@ -99,6 +99,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
               //Challenge
               ExpansionTile(
+                collapsedIconColor: kAccent,
+                iconColor: kAccent,
+                textColor: kAccent,
+                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                 title: const Text(
                   ingredientBattle,
                   style: TextStyle(
@@ -225,9 +229,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                                         // Case 1: Deadline is over
                                         if (isDeadlineOver) {
-                                          return Text(
+                                          return const Text(
                                             'Deadline Over',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
                                               color: Colors.red,
                                               fontWeight: FontWeight.w600,

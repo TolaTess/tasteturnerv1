@@ -6,6 +6,7 @@ import 'package:percent_indicator/percent_indicator.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
+import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../pages/upload_battle.dart';
@@ -14,7 +15,6 @@ import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
 import '../screens/badges_screen.dart';
 import '../pages/settings_screen.dart';
-import '../detail_screen/post_detail_screen.dart';
 import '../service/battle_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -430,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           badges,
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -439,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         GestureDetector(
                           onTap: () => Get.to(() => BadgesScreen()),
-                          child: Text(
+                          child: const Text(
                             seeAll,
                             style: TextStyle(
                               color: kAccent,
@@ -651,7 +651,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 Get.to(
                                                   () => UploadBattleImageScreen(
                                                     battleId: battle['id'],
-                                                    userId: userId,
                                                     battleCategory:
                                                         battle['category'],
                                                   ),
@@ -664,14 +663,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               children: [
                                                 GestureDetector(
                                                   onTap: () {
-                                                    Navigator.push( 
+                                                    Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
                                                         builder: (context) =>
                                                             UploadBattleImageScreen(
                                                           battleId:
                                                               battle['id'],
-                                                          userId: userId,
                                                           battleCategory:
                                                               battle[
                                                                   'category'],
@@ -799,11 +797,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               return SearchContentPost(
                                 dataSrc: data,
                                 press: () {
-                                  Navigator.push( 
+                                  Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => PostDetailScreen(
-                                        post: data,
+                                      builder: (context) => ChallengeDetailScreen(
+                                        dataSrc: data.toFirestore(),
                                         screen: 'myPost',
                                       ),
                                     ),

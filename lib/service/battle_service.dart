@@ -213,7 +213,8 @@ class BattleService extends GetxController {
       if (currentBattle == null) return false;
 
       // Check if user is in participants map
-      final participants = currentBattle['participants'] as Map<String, dynamic>?;
+      final participants =
+          currentBattle['participants'] as Map<String, dynamic>?;
       return participants != null && participants.containsKey(userId);
     } catch (e) {
       print('Error checking if user joined battle: $e');
@@ -290,16 +291,41 @@ class BattleService extends GetxController {
       final battleDoc = await battlesRef.doc(battleId).get();
       if (!battleDoc.exists) throw Exception('Battle not found');
 
+
+      // Step 1: Extract data and dates
       final data = battleDoc.data() as Map<String, dynamic>;
       final dates = data['dates'] as Map<String, dynamic>;
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
 
-      if (currentBattle == null) throw Exception('No active battle found');
+      // Step 2: Check if dates is empty
+      if (dates.isEmpty) {
+        print('No date data available.');
+        return;
+      }
+      // Step 3: Get the first date key
+      final firstDateKey =
+          dates.keys.first; // Gets the first key (e.g., "2025-04-14")
+
+      final dateData = dates[firstDateKey] as Map<String, dynamic>;
+
+      // Step 4: Access ended_at
+      final endedAtRaw = dateData['ended_at'];
+
+      // Step 5: Convert ended_at to DateTime
+      DateTime endedAt;
+      if (endedAtRaw is Timestamp) {
+        endedAt = endedAtRaw.toDate();
+      } else if (endedAtRaw is String) {
+        endedAt = DateTime.parse(endedAtRaw);
+      } else {
+        throw Exception('Invalid ended_at format');
+      }
+      if (endedAt.isBefore(DateTime.now())) {
+        throw Exception('Battle has ended');
+      }
 
       // Update participant's media in the battle
       await battlesRef.doc(battleId).update(
-          {'dates.$currentDate.participants.$userId.mediaPaths': imageUrls});
+          {'dates.$firstDateKey.participants.$userId.mediaPaths': imageUrls});
 
       // Move battle from ongoing to voted for the user
       await firestore.collection('users').doc(userId).update({
@@ -311,7 +337,7 @@ class BattleService extends GetxController {
       await firestore.collection('battle_post').doc(battleId).set({
         'mediaPaths': imageUrls,
         'category': data['category'],
-        'name': currentBattle['participants'][userId]['name'] ?? 'Unknown',
+        'name': dateData['participants'][userId]['name'] ?? 'Unknown',
         'favorites': [],
       }, SetOptions(merge: true));
     } catch (e) {

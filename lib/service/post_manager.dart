@@ -92,7 +92,7 @@ class PostController extends GetxController {
   bool isFileSizeValid(String filePath, int maxSizeInMB) {
     final file = File(filePath);
     final fileSizeInBytes = file.lengthSync();
-    final maxSizeInBytes = maxSizeInMB * 1024 * 1024; // Convert MB to Bytes
+    final maxSizeInBytes = 20 * 1024; // 20kb in bytes
     return fileSizeInBytes <= maxSizeInBytes;
   }
 
@@ -144,27 +144,28 @@ class PostController extends GetxController {
   Future<void> uploadPost(
       Post post, String userId, List<String> imagePaths) async {
     try {
-      if (!isFileSizeValid(imagePaths.first, 5)) {
-        // Example: 10 MB limit
-        print('File size exceeds limit.');
-        return;
-      }
-
       // Create a reference for the new post document
       final postRef = firestore.collection('posts').doc();
 
       // Upload images to Firebase Storage
       List<String> downloadUrls = [];
       for (String imagePath in imagePaths) {
+        // Check if the path is already a URL
+        if (imagePath.startsWith('http')) {
+          downloadUrls.add(imagePath);
+          continue;
+        }
+
+        // Handle local file
         if (!File(imagePath).existsSync()) {
           print('File does not exist at path: $imagePath');
-          return;
+          continue;
         }
 
         // Compress and resize image before upload
         final String compressedPath = await _compressAndResizeImage(imagePath);
 
-        final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+        final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
         final storageRef = firebaseStorage.ref().child('post_images/$fileName');
 
         final uploadTask = storageRef.putFile(File(compressedPath));
@@ -174,6 +175,10 @@ class PostController extends GetxController {
 
         // Clean up temporary file
         await File(compressedPath).delete();
+      }
+
+      if (downloadUrls.isEmpty) {
+        throw Exception('No valid images to upload');
       }
 
       // Create a new Post object with the download URLs
@@ -188,13 +193,14 @@ class PostController extends GetxController {
       // Add the post ID to the user's 'posts' field
       final userRef = firestore.collection('users').doc(userId);
       batch.update(userRef, {
-        'posts': FieldValue.arrayUnion([postRef.id]), // Add the post ID
+        'posts': FieldValue.arrayUnion([postRef.id]),
       });
 
       // Commit the batch
       await batch.commit();
     } catch (e) {
       print('Error uploading post: $e');
+      throw Exception('Failed to upload post: $e');
     }
   }
 }

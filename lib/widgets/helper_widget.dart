@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -51,15 +50,55 @@ class _SearchContentGridState extends State<SearchContentGrid> {
     try {
       List<Map<String, dynamic>> fetchedData = [];
 
-      QuerySnapshot<Map<String, dynamic>> snapshot;
+      List<Map<String, dynamic>> snapshot;
 
       if (widget.listType == "meals") {
-        snapshot = await firestore.collection('meals').get();
+        snapshot = await firestore
+            .collection('meals')
+            .get()
+            .then((value) => value.docs.map((doc) {
+                  final data = doc.data();
+                  data['id'] = doc.id;
+                  return data;
+                }).toList());
       } else if (widget.listType == "group_cha") {
-        snapshot = await firestore.collection('group_cha').get();
+        snapshot = await firestore
+            .collection('group_cha')
+            .get()
+            .then((value) => value.docs.map((doc) {
+                  final data = doc.data();
+                  data['id'] = doc.id;
+                  return data;
+                }).toList());
       } else if (widget.listType == "battle_post") {
-        // For battle posts, fetch all posts first
-        snapshot = await firestore.collection('battle_post').get();
+        // Fetch both posts and battle posts
+        snapshot = await firestore
+            .collection('battle_post')
+            .get()
+            .then((value) => value.docs.map((doc) {
+                  final data = doc.data();
+                  data['id'] = doc.id;
+                  return data;
+                }).toList());
+        final battlePostSnapshot =
+            await firestore.collection('battle_post').get();
+        final postSnapshot = await firestore.collection('posts').get();
+
+        // Convert posts to maps
+        final postMaps = postSnapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Convert battle posts to maps and combine with posts
+        final battlePostMaps = battlePostSnapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        snapshot = [...postMaps, ...battlePostMaps];
       } else {
         setState(() {
           searchContentDatas = [];
@@ -67,9 +106,8 @@ class _SearchContentGridState extends State<SearchContentGrid> {
         return;
       }
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        data['id'] = doc.id;
+      for (var doc in snapshot) {
+        final data = doc;
 
         final postId = data['id'] as String?;
         final postCategory = data['category'] as String?;
@@ -405,20 +443,8 @@ class SearchContent extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
 
-          // ✅ Video Overlay Icon
-          if (mediaType == 'video')
-            const Positioned(
-              top: 4,
-              right: 4,
-              child: Icon(
-                Icons.slideshow,
-                color: Colors.white,
-                size: 24,
-              ),
-            )
-
           // ✅ Multiple Images Overlay Icon
-          else if (mediaPaths != null && mediaPaths.length > 1)
+          if (mediaPaths != null && mediaPaths.length > 1)
             const Positioned(
               top: 4,
               right: 4,
@@ -484,20 +510,8 @@ class SearchContentPost extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
 
-          // ✅ Video Icon
-          if (dataSrc.mediaType == 'video')
-            const Positioned(
-              top: 4,
-              right: 4,
-              child: Icon(
-                Icons.slideshow,
-                color: Colors.white,
-                size: 24,
-              ),
-            )
-
           // ✅ Multiple Images Icon
-          else if (mediaPaths.length > 1)
+          if (mediaPaths.length > 1)
             const Positioned(
               top: 4,
               right: 4,

@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
-import '../detail_screen/post_detail_screen.dart';
+import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/follow_button.dart';
@@ -455,8 +455,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => PostDetailScreen(
-                                          post: data,
+                                        builder: (context) =>
+                                            ChallengeDetailScreen(
+                                          dataSrc: data.toFirestore(),
                                           screen: 'myPost',
                                         ),
                                       ),

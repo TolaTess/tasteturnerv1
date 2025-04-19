@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../pages/upload_battle.dart';
 import '../tabs_screen/challenge_tab_screen.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
-import '../tabs_screen/home_tab_screen.dart';
-import '../bottom_nav/newpost_screen.dart';
 import '../bottom_nav/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 
@@ -45,7 +44,10 @@ class _BottomNavSecState extends State<BottomNavSec> {
     List<Widget> pages = [
       const HomeScreen(),
       const RecipeScreen(),
-      const NewPostScreen(),
+      const UploadBattleImageScreen(
+        battleId: battleIdConstant,
+        isMainPost: true,
+      ),
       const ChallengeTabScreen(),
       MealDesignScreen(
         initialTabIndex: _currentTabIndex,

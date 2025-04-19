@@ -1,6 +1,7 @@
 import 'package:fit_hify/screens/badges_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
@@ -27,11 +28,44 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
   @override
   void initState() {
     super.initState();
-    _loadIngredientData();
+    _initializeIngredientData();
+    _scheduleWeeklyUpdate();
+  }
+
+  Future<void> _initializeIngredientData() async {
+    _isLoading.value = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final shouldUpdate = prefs.getBool('ingredient_battle_new_week') ?? true;
+
+      if (shouldUpdate &&
+          DateTime.now().hour == 12) {
+        // It's time to update the data
+        await _loadIngredientData();
+
+        // Save the current top ingredients for static display
+        await prefs.setString('top_ingredient_1', _topIngredient1.value);
+        await prefs.setString('top_ingredient_2', _topIngredient2.value);
+        await prefs.setInt('count_1', _count1.value);
+        await prefs.setInt('count_2', _count2.value);
+
+        // Reset the update flag - will be set true again next Friday
+        await prefs.setBool('ingredient_battle_new_week', false);
+      } else {
+        // Load saved static data
+        _topIngredient1.value = prefs.getString('top_ingredient_1') ?? '';
+        _topIngredient2.value = prefs.getString('top_ingredient_2') ?? '';
+        _count1.value = prefs.getInt('count_1') ?? 0;
+        _count2.value = prefs.getInt('count_2') ?? 0;
+      }
+    } catch (e) {
+      print('Error initializing ingredient data: $e');
+    } finally {
+      _isLoading.value = false;
+    }
   }
 
   Future<void> _loadIngredientData() async {
-    _isLoading.value = true;
     try {
       // Get meals from the last 7 days
       final now = DateTime.now();
@@ -42,6 +76,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       if (userId == null) {
         throw Exception('User not logged in');
       }
+
+      // Clear previous counts
+      _ingredientCounts.clear();
 
       // Fetch meal plans for the last 7 days
       final mealPlansData =
@@ -65,7 +102,6 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         if (meal.ingredients.isNotEmpty) {
           meal.ingredients.forEach((ingredient, amount) {
             final cleanIngredient = ingredient.trim().toLowerCase();
-            // Check if the ingredient should be excluded
             bool shouldExclude = excludedIngredients
                 .any((excluded) => cleanIngredient.contains(excluded));
 
@@ -91,14 +127,18 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         // Check for badges and possibly award a new one
         await _checkAndAwardBadges(sortedIngredients, userId);
 
-        // Schedule a notification for Friday to announce the winning ingredient
-        _scheduleIngredientWinnerNotification(
-            _topIngredient1.value, _count1.value);
+        // If it's Friday, send the notification immediately
+        if (now.weekday == 5 && now.hour == 12) {
+          await notificationService.showNotification(
+            id: 2001,
+            title: 'Weekly Ingredient Battle Results! 🏆',
+            body:
+                '${_topIngredient1.value} wins this week with ${_count1.value} uses! Runner up: ${_topIngredient2.value} with ${_count2.value} uses.',
+          );
+        }
       }
     } catch (e) {
       print('Error loading ingredient data: $e');
-    } finally {
-      _isLoading.value = false;
     }
   }
 
@@ -232,43 +272,17 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
     }
   }
 
-  // Schedule a notification for Friday announcing the winning ingredient
-  void _scheduleIngredientWinnerNotification(String topIngredient, int count) {
+  Future<void> _scheduleWeeklyUpdate() async {
     try {
-      // Get current date
       final now = DateTime.now();
 
-      // Check if today is Friday (DateTime weekday: 1 = Monday, 5 = Friday)
+      // If it's Friday, set the flag for update
       if (now.weekday == 5) {
-        // It's Friday, send the notification
-        notificationService.showNotification(
-          id: 2001, // Unique ID for ingredient battle notification
-          title: 'Ingredient Battle Winner! 🏆',
-          body:
-              '$topIngredient is your top ingredient this week with $count uses! Keep up your healthy eating habits.',
-        );
-      } else {
-        // Calculate days until next Friday
-        int daysUntilFriday = (5 - now.weekday) % 7;
-        if (daysUntilFriday == 0)
-          daysUntilFriday = 7; // If today is Friday, schedule for next Friday
-
-        // Friday at 12:00 PM
-        final targetHour = 12;
-        final targetMinute = 0;
-
-        // Schedule for the upcoming Friday
-        notificationService.scheduleDailyReminder(
-          id: 2001, // Unique ID for ingredient battle notification
-          title: 'Ingredient Battle Winner! 🏆',
-          body:
-              '$topIngredient is your top ingredient this week with $count uses! Keep up your healthy eating habits.',
-          hour: targetHour,
-          minute: targetMinute,
-        );
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('ingredient_battle_new_week', true);
       }
     } catch (e) {
-      print('Error scheduling ingredient battle notification: $e');
+      print('Error scheduling weekly update: $e');
     }
   }
 

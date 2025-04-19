@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
-import '../data_models/post_model.dart';
 import '../data_models/user_data_model.dart';
 import '../detail_screen/challenge_detail_screen.dart';
-import '../detail_screen/post_detail_screen.dart';
 import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
@@ -346,9 +344,9 @@ class ChatItem extends StatelessWidget {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PostDetailScreen(
-                                  post: Post.fromMap(
-                                      dataSrc.toMap(), extractedItems.first),
+                                builder: (context) => ChallengeDetailScreen(
+                                  dataSrc: dataSrc.toMap(),
+                                  screen: 'myPost',
                                 ),
                               ),
                             );

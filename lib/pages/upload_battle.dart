@@ -1,25 +1,29 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
+import '../data_models/post_model.dart';
 import '../helper/utils.dart';
+import '../widgets/bottom_nav.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
-  final String userId;
   final String battleCategory;
+  final bool isMainPost;
 
   const UploadBattleImageScreen({
     super.key,
     required this.battleId,
-    required this.userId,
     this.battleCategory = 'Main',
+    this.isMainPost = false,
   });
 
   @override
@@ -31,6 +35,16 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   bool isUploading = false;
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
+  String selectedCategory = 'all';
+  String selectedCategoryId = '';
+
+  void _updateCategoryData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryId = categoryId;
+      selectedCategory = category;
+    });
+  }
 
   Future<String> _compressAndResizeBattleImage(String imagePath) async {
     // Read the image file
@@ -42,7 +56,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     if (image == null) throw Exception('Failed to decode image');
 
     // Calculate new dimensions while maintaining aspect ratio
-    const int maxDimension = 800; // Maximum dimension for battle images
+    const int maxDimension = 512; // Maximum dimension for battle images
     final double aspectRatio = image.width / image.height;
     int newWidth = image.width;
     int newHeight = image.height;
@@ -120,7 +134,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
-          'Please select at least one image!',
+          '',
           context,
         );
       }
@@ -140,7 +154,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         // Upload image using battle service
         String downloadUrl = await BattleService.instance.uploadBattleImage(
           battleId: widget.battleId,
-          userId: widget.userId,
+          userId: userService.userId ?? '',
           imageFile: File(compressedPath),
         );
 
@@ -150,15 +164,34 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         await File(compressedPath).delete();
       }
 
-      // Update battle with uploaded images
-      await BattleService.instance.uploadBattleImages(
-        battleId: widget.battleId,
-        userId: widget.userId,
-        imageUrls: uploadedImageUrls,
-      );
+      if (widget.isMainPost) {
+        // Move battle from ongoing to voted for the user
+        print(selectedCategory);
+        final post = Post(
+          id: '',
+          userId: userService.userId ?? '',
+          mediaPaths: uploadedImageUrls,
+          name: userService.currentUser?.displayName ?? '',
+          category: selectedCategory,
+        );
+
+        await postController.uploadPost(
+            post, userService.userId ?? '', uploadedImageUrls);
+      } else {
+        // Update battle with uploaded images
+        await BattleService.instance.uploadBattleImages(
+          battleId: widget.battleId,
+          userId: userService.userId ?? '',
+          imageUrls: uploadedImageUrls,
+        );
+      }
 
       if (mounted) {
-        Navigator.pop(context);
+        if (widget.isMainPost) {
+          Get.to(() => const BottomNavSec());
+        } else {
+          Get.back();
+        }
       }
     } catch (e) {
       print('Error uploading battle image: $e');
@@ -177,27 +210,45 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final categoryDatas = helperController.category;
+
     return Scaffold(
       appBar: AppBar(
-          title: Text(
-              "Upload Image - ${capitalizeFirstLetter(widget.battleCategory)}"),
-          leading: InkWell(
-            onTap: () => Navigator.pop(context),
-            child: const IconCircleButton(
-              isRemoveContainer: true,
-            ),
-          )),
+          title: Text(!widget.isMainPost
+              ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
+              : "Post Image"),
+          leading: widget.isMainPost
+              ? const SizedBox.shrink()
+              : InkWell(
+                  onTap: () => Get.back(),
+                  child: const IconCircleButton(
+                    isRemoveContainer: true,
+                  ),
+                )),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            //category options
+            if (widget.isMainPost)
+              CategorySelector(
+                categories: categoryDatas,
+                selectedCategoryId: selectedCategoryId,
+                onCategorySelected: _updateCategoryData,
+                isDarkMode: isDarkMode,
+                accentColor: kAccent,
+                darkModeAccentColor: kDarkModeAccent,
+              ),
             const SizedBox(height: 20),
             _recentImage != null
-                ? Image.file(
-                    File(_recentImage!.path),
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.file(
+                      File(_recentImage!.path),
+                      height: 250,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   )
                 : Container(
                     height: 200,

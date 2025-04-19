@@ -24,30 +24,75 @@ class ChallengeDetailScreen extends StatefulWidget {
 }
 
 class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
-  bool _isFavorited = false;
+  bool isLiked = false;
+  int likesCount = 0;
+
   List<String> extractedItems = [];
   @override
   void initState() {
-    super.initState();
-    extractedItems =
-        extractSlashedItems(widget.dataSrc['title'] ?? widget.dataSrc['name']);
+    if (widget.screen == 'myPost') {
+      extractedItems = [widget.dataSrc['id'] ?? ''];
+    } else {
+      extractedItems = extractSlashedItems(
+          widget.dataSrc['title'] ?? widget.dataSrc['name']);
+    }
     _loadFavoriteStatus();
+    super.initState();
+
+    // Safely handle favorites
+    final favorites = List<String>.from(widget.dataSrc['favorites'] ?? []);
+    isLiked = favorites.contains(userService.userId);
+    likesCount = favorites.length;
   }
 
   Future<void> _loadFavoriteStatus() async {
     final isFavorite = await firebaseService.isRecipeFavorite(
         userService.userId, widget.dataSrc['id'] ?? extractedItems.first);
     setState(() {
-      _isFavorited = isFavorite;
+      isLiked = isFavorite;
     });
   }
 
-  Future<void> _toggleFavorite() async {
-    await firebaseService.toggleFavorite(
-        userService.userId, widget.dataSrc['id'] ?? extractedItems.first);
+  /// ✅ Toggle like status & update Firestore
+  Future<void> toggleLikePost() async {
+    String collectionName = 'posts';
+    var postRef =
+        firestore.collection(collectionName).doc(widget.dataSrc['id']);
+    var postSnapshot = await postRef.get();
+
+    // If not found in posts, try battle_posts collection
+    if (!postSnapshot.exists) {
+      collectionName = 'battle_post';
+      postRef = firestore.collection(collectionName).doc(widget.dataSrc['id']);
+      postSnapshot = await postRef.get();
+
+      if (!postSnapshot.exists) {
+        print('Document not found in either posts or battle_posts');
+        return;
+      }
+    }
+
+    // Get current favorites from Firestore to ensure we have the latest data
+    final currentData = postSnapshot.data() ?? {};
+    List<String> likes = List<String>.from(currentData['favorites'] ?? []);
+
     setState(() {
-      _isFavorited = !_isFavorited;
+      if (likes.contains(userService.userId)) {
+        likes.remove(userService.userId ?? '');
+        isLiked = false;
+        likesCount--;
+      } else {
+        likes.add(userService.userId ?? '');
+        isLiked = true;
+        likesCount++;
+      }
     });
+
+    // Use the correct collection reference for the update
+    await firestore
+        .collection(collectionName)
+        .doc(widget.dataSrc['id'])
+        .update({'favorites': likes});
   }
 
   String getTitle() {
@@ -61,6 +106,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       return widget.dataSrc['name']?.toString().isNotEmpty == true
           ? widget.dataSrc['name'].toString()
           : 'Food Battle';
+    } else if (widget.screen == 'myPost') {
+      if (widget.dataSrc['name']?.toString().isNotEmpty != true) {
+        return 'My Post';
+      }
+      final postName = widget.dataSrc['name'].toString();
+      final userName = userService.currentUser?.displayName ?? '';
+      return userName == postName ? 'My Post' : postName;
     } else {
       return widget.dataSrc['title']?.toString().isNotEmpty == true
           ? widget.dataSrc['title'].toString()
@@ -164,20 +216,36 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 fit: BoxFit.cover,
                               ),
                             )
-                          : PageView.builder(
-                              itemCount: imageUrls.length,
-                              itemBuilder: (context, index) {
-                                final imageUrl = imageUrls[index];
-                                return Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Image.asset(
-                                    intPlaceholderImage,
-                                    fit: BoxFit.cover,
+                          : Stack(
+                              children: [
+                                PageView.builder(
+                                  itemCount: imageUrls.length,
+                                  itemBuilder: (context, index) {
+                                    final imageUrl = imageUrls[index];
+                                    return Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Image.asset(
+                                        intPlaceholderImage,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                // ✅ Multiple Images Overlay Icon
+                                if (imageUrls.length > 1)
+                                  const Positioned(
+                                    top: 15,
+                                    right: 15,
+                                    child: Icon(
+                                      Icons.content_copy,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                   ),
-                                );
-                              },
+                              ],
                             ),
                     );
                   },
@@ -225,13 +293,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
                             // Favorite Icon with Toggle
                             GestureDetector(
-                              onTap: _toggleFavorite,
+                              onTap: toggleLikePost,
                               child: Icon(
-                                _isFavorited
+                                isLiked
                                     ? Icons.favorite
                                     : Icons.favorite_border,
-                                color: _isFavorited ? kRed : null,
+                                color: isLiked ? kRed : null,
                               ),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              "$likesCount",
                             ),
 
                             const SizedBox(width: 36),

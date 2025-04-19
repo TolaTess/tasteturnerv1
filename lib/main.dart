@@ -9,7 +9,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'constants.dart';
 import 'data_models/message_screen_data.dart';
 import 'data_models/profilescreen_data.dart';
-import 'data_models/dummy.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
 import 'service/chat_controller.dart';

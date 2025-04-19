@@ -3,30 +3,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Post {
   final String id;
   final String userId;
-  final String? subtitle;
-  final String? mediaType;
-  final List<String> mediaPaths;
-  final String? title;
+  final String? name;
   String? avatar;
   String? username;
-  final Timestamp timestamp;
-  final List<String> numLikes;
-  int numComments;
-  bool isPremium;
+  bool? isPremium;
+  final List<String> mediaPaths;
+  final String? category;
+  final List<String> favorites;
 
   Post({
     required this.id,
     required this.userId,
-    this.subtitle,
-    this.mediaType = '',
-    required this.mediaPaths,
-    this.title,
     this.avatar,
     this.username,
-    required this.timestamp,
-    this.numLikes = const [],
-    this.numComments = 0,
-    this.isPremium = false,
+    this.isPremium,
+    this.name,
+    required this.mediaPaths,
+    this.category,
+    this.favorites = const [],
   });
 
   // Factory method to create Post instance from Firestore document
@@ -35,16 +29,10 @@ class Post {
     return Post(
       id: doc.id,
       userId: data['userId'] ?? '',
-      subtitle: data['subtitle'] ?? '',
-      mediaType: data['mediaType'] ?? 'image',
       mediaPaths: List<String>.from(data['mediaPaths'] ?? []),
-      title: data['title'] ?? '',
-      avatar: data['avatar'] ?? '',
-      username: data['username'] ?? '',
-      timestamp: data['timestamp'] ?? Timestamp.now(),
-      numLikes: List<String>.from(data['numLikes'] ?? []),
-      numComments: data['numComments'] ?? 0,
-      isPremium: data['isPremium'] ?? false,
+      name: data['name'] ?? '',
+      category: data['category'] ?? '',
+      favorites: List<String>.from(data['favorites'] ?? []),
     );
   }
 
@@ -53,16 +41,10 @@ class Post {
     return Post(
       id: docid,
       userId: data['userId'] ?? '',
-      subtitle: data['subtitle'] ?? '',
-      mediaType: data['mediaType'] ?? 'image',
       mediaPaths: List<String>.from(data['mediaPaths'] ?? []),
-      title: data['title'] ?? '',
-      avatar: data['avatar'] ?? '',
-      username: data['username'] ?? '',
-      timestamp: data['timestamp'] ?? Timestamp.now(),
-      numLikes: List<String>.from(data['numLikes'] ?? []),
-      numComments: data['numComments'] ?? 0,
-      isPremium: data['isPremium'] ?? false,
+      name: data['name'] ?? '',
+      category: data['category'] ?? '',
+      favorites: List<String>.from(data['favorites'] ?? []),
     );
   }
 
@@ -71,32 +53,28 @@ class Post {
     return {
       'id': id,
       'userId': userId,
-      'subtitle': subtitle,
-      'mediaType': mediaType,
       'mediaPaths': mediaPaths,
-      'title': title,
-      'avatar': avatar,
-      'username': username,
-      'timestamp': timestamp,
-      'numLikes': numLikes,
-      'numComments': numComments,
-      'isPremium': isPremium,
+      'name': name,
+      'category': category,
+      'favorites': favorites,
     };
   }
 
   Post copyWith({
     String? id,
     String? userId,
-    String? title,
+    String? name,
     List<String>? mediaPaths,
-    Timestamp? timestamp,
+    String? category,
+    List<String>? favorites,
   }) {
     return Post(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      title: title ?? this.title,
       mediaPaths: mediaPaths ?? this.mediaPaths,
-      timestamp: timestamp ?? this.timestamp,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      favorites: favorites ?? this.favorites,
     );
   }
 }
