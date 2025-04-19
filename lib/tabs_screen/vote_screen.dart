@@ -46,20 +46,18 @@ class _VoteScreenState extends State<VoteScreen> {
   /// **Fetch candidates based on `category` from Firestore**
   void _fetchCandidates(String category) async {
     try {
-      String categoryFilter = category;
       QuerySnapshot snapshot = await firestore
           .collection('battles')
-          .where('category', isEqualTo: categoryFilter.toLowerCase())
+          .where('category', isEqualTo: category.toLowerCase())
           .get();
 
       List<Map<String, dynamic>> fetchedCandidates = [];
 
       for (var doc in snapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
         // Get current date's battle data
         final dates = data['dates'] as Map<String, dynamic>;
-        final currentDate = DateTime.now().toString().substring(0, 10);
+        final currentDate = dates.keys.first;
         final currentBattle = dates[currentDate];
 
         if (currentBattle != null) {
@@ -106,10 +104,13 @@ class _VoteScreenState extends State<VoteScreen> {
       // Sort candidates by vote percentage in descending order
       candidatesWithPercentages.sort((a, b) => (b['votePercentage'] as double)
           .compareTo(a['votePercentage'] as double));
+      print('candidatesWithPercentages: ${candidatesWithPercentages.length}');
+      print('candatate data: ${candidatesWithPercentages.first}');
 
       if (mounted) {
         setState(() {
           candidates = candidatesWithPercentages;
+          print('candidates: ${candidates.length}');
         });
       }
     } catch (e) {
@@ -274,13 +275,15 @@ class _VoteScreenState extends State<VoteScreen> {
                 accentColor: kAccent,
                 darkModeAccentColor: kDarkModeAccent,
               ),
-              candidates.isEmpty
+              candidates.isEmpty || candidates.length <= 1
                   ? const SizedBox(height: 60)
                   : const SizedBox(height: 25),
-              if (candidates.isEmpty)
+              if (candidates.length <= 1)
                 noItemTastyWidget(
-                  "No candidates yet",
-                  "",
+                  candidates.length == 1
+                      ? "Waiting for more users to join..."
+                      : "No candidates yet",
+                  '',
                   context,
                   false,
                 )
@@ -296,6 +299,7 @@ class _VoteScreenState extends State<VoteScreen> {
                             builder: (context, snapshot) {
                               final double votePercentage =
                                   snapshot.data ?? 0.0;
+                              print('votePercentage: $votePercentage');
                               return VoteItemCard(
                                 item: candidates[i],
                                 votePercentage: votePercentage,
@@ -387,9 +391,7 @@ class VoteItemCard extends StatelessWidget {
             child: Container(
               margin: EdgeInsets.symmetric(horizontal: isLarge ? 8 : 4),
               decoration: BoxDecoration(
-                color: isDarkMode
-                    ? kDarkModeAccent.withOpacity(0.1)
-                    : kWhite,
+                color: isDarkMode ? kDarkModeAccent.withOpacity(0.1) : kWhite,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Stack(
@@ -425,16 +427,16 @@ class VoteItemCard extends StatelessWidget {
                                   item['image'],
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
-                              return Image.asset(
-                                getAssetImageForItem(item['image']),
-                                fit: BoxFit.cover,
-                                  );
-                                },
-                              )
-                            : Image.asset(
-                                getAssetImageForItem(item['image']),
-                                fit: BoxFit.cover,
-                              ),
+                                    return Image.asset(
+                                      getAssetImageForItem(item['image']),
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  getAssetImageForItem(item['image']),
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                       ),
                       SizedBox(height: isLarge ? 16 : 8),

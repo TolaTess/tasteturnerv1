@@ -373,39 +373,43 @@ class BattleService extends GetxController {
           .where('category', isEqualTo: category.toLowerCase())
           .get();
 
-      int totalVotes = 0;
-      int userVotes = 0;
-      final currentDate = DateTime.now().toString().substring(0, 10);
+      int totalVotesInCategory = 0;
+      int userVotesReceived = 0;
 
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         if (!data.containsKey('dates')) continue;
 
         final dates = data['dates'] as Map<String, dynamic>;
-        if (!dates.containsKey(currentDate)) continue;
+        if (dates.isEmpty) continue;
 
-        final currentBattle = dates[currentDate] as Map<String, dynamic>;
+        // Get the first date entry (current battle)
+        final firstDateKey = dates.keys.first;
+        final battleData = dates[firstDateKey] as Map<String, dynamic>;
         final participants =
-            currentBattle['participants'] as Map<String, dynamic>?;
+            battleData['participants'] as Map<String, dynamic>?;
         if (participants == null) continue;
 
         // Calculate total votes in this battle
+        int battleTotalVotes = 0;
         for (var participant in participants.values) {
+          if (participant is! Map<String, dynamic>) continue;
           final votes = List<String>.from(participant['votes'] ?? []);
-          totalVotes += votes.length;
+          battleTotalVotes += votes.length;
         }
+        totalVotesInCategory += battleTotalVotes;
 
-        // Get this user's votes in this battle
+        // Get votes received by this user
         if (participants.containsKey(userId)) {
-          final userParticipant = participants[userId];
+          final userParticipant = participants[userId] as Map<String, dynamic>;
           final votes = List<String>.from(userParticipant['votes'] ?? []);
-          userVotes += votes.length;
+          userVotesReceived += votes.length;
         }
       }
 
-      return totalVotes == 0
-          ? 0.0
-          : ((userVotes / totalVotes) * 100).clamp(0.0, 100.0);
+      // Calculate percentage
+      if (totalVotesInCategory == 0) return 0.0;
+      return (userVotesReceived / totalVotesInCategory * 100).clamp(0.0, 100.0);
     } catch (e) {
       print('Error calculating vote percentage: $e');
       return 0.0;
