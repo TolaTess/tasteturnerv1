@@ -166,7 +166,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
       if (widget.isMainPost) {
         // Move battle from ongoing to voted for the user
-        print(selectedCategory);
         final post = Post(
           id: '',
           userId: userService.userId ?? '',

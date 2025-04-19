@@ -135,14 +135,16 @@ class _ShoppingListViewState extends State<ShoppingListView> {
           child: ListTile(
             leading: CircleAvatar(
               radius: 25,
-              backgroundImage: AssetImage(getAssetImageForItem(item.mediaPaths.first)),
+              backgroundImage: item.mediaPaths.first.startsWith('http')
+                  ? NetworkImage(item.mediaPaths.first) as ImageProvider
+                  : AssetImage(getAssetImageForItem(item.mediaPaths.first)),
             ),
             title: Text(
               capitalizeFirstLetter(item.title),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.white : Colors.black,
+                color: isSelected ? kAccent : isDarkMode ? Colors.white : Colors.black,
                 decoration: isSelected ? TextDecoration.lineThrough : null,
               ),
             ),

@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
@@ -48,6 +49,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       StreamController<int>.broadcast(); // For SpinWheelWidget control
   late AudioPlayer _audioPlayer;
   bool _isMuted = false;
+  String selectedCategoryMeal = 'all';
+  String selectedCategoryIdMeal = '';
 
   @override
   void initState() {
@@ -141,8 +144,34 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     });
   }
 
+  void _updateCategoryData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryIdMeal = categoryId;
+      selectedCategoryMeal = category;
+      _updateMealList(category);
+    });
+  }
+
+  Future<void> _updateMealList(String category) async {
+    try {
+      final newMealList = await mealManager.fetchMealsByCategory(category);
+      if (!mounted) return;
+      setState(() {
+        _mealList = newMealList.map((meal) => meal.title).toList();
+      });
+    } catch (e) {
+      print("Error updating meal list: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update meals')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final categoryDatas = helperController.headers;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
@@ -175,7 +204,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           // Ingredient Spin Tab
           _buildIngredientSpinView(isDarkMode),
           // Meal Spin Tab
-          _buildMealSpinView(isDarkMode),
+          _buildMealSpinView(isDarkMode, categoryDatas),
         ],
       ),
     );
@@ -296,10 +325,22 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     );
   }
 
-  Widget _buildMealSpinView(bool isDarkMode) {
+  Widget _buildMealSpinView(
+      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
         const SizedBox(height: 20),
+
+        //category options
+        CategorySelector(
+          categories: categoryDatas,
+          selectedCategoryId: selectedCategoryIdMeal,
+          onCategorySelected: _updateCategoryData,
+          isDarkMode: isDarkMode,
+          accentColor: kAccent,
+          darkModeAccentColor: kDarkModeAccent,
+        ),
+
         Expanded(
           child: Center(
             child: _mealList.isEmpty

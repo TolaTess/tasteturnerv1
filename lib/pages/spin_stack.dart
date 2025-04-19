@@ -1,14 +1,14 @@
 import 'dart:async';
 
+import 'package:fit_hify/widgets/ingredient_features.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
-import '../widgets/circle_image.dart';
-import '../widgets/search_button.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/spinning_math.dart';
 
@@ -303,13 +303,6 @@ class AcceptedItemsList extends StatefulWidget {
 }
 
 class _AcceptedItemsListState extends State<AcceptedItemsList> {
-  bool isEdit = false;
-
-  void _toggleEdit() {
-    setState(() {
-      isEdit = !isEdit;
-    });
-  }
 
   void removeItem(int index) {
     setState(() {
@@ -379,16 +372,21 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
             children: [
               GestureDetector(
                 onTap: () {
-                  // Convert the items to the appropriate type before passing to ShoppingListScreen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ShoppingListScreen(
-                        shoppingList: processedItems,
+                  if (widget.isMealSpin) {
+                    // Convert the items to the appropriate type before passing to ShoppingListScreen
+                    Get.to(
+                      () => MealSpinList(
+                        mealList: processedItems,
                         isMealSpin: isMealSpin,
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    Get.to(
+                      () => IngredientFeatures(
+                        items: displayedItems,
+                      ),
+                    );
+                  }
                 },
                 child: Center(
                   child: Container(
