@@ -46,6 +46,26 @@ class BattleService extends GetxController {
     }
   }
 
+  // Get current battle date data
+  Map<String, dynamic>? _getCurrentBattleData(DocumentSnapshot battleDoc) {
+    // Step 1: Extract data and dates
+    final data = battleDoc.data() as Map<String, dynamic>;
+    if (!data.containsKey('dates')) return null;
+
+    final dates = data['dates'] as Map<String, dynamic>;
+
+    // Step 2: Check if dates is empty
+    if (dates.isEmpty) {
+      print('No date data available.');
+      return null;
+    }
+    // Step 3: Get the first date key
+    final firstDateKey = dates.keys.first;
+    if (!dates.containsKey(firstDateKey)) return null;
+
+    return dates[firstDateKey] as Map<String, dynamic>;
+  }
+
   // Join a battle
   Future<void> joinBattle({
     required String battleId,
@@ -58,17 +78,10 @@ class BattleService extends GetxController {
       if (!battleDoc.exists) throw Exception('Battle not found');
 
       final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
-
-      // Get current week's date key
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
-
-      if (currentBattle == null) throw Exception('No active battle found');
-
+      final firstDateKey = data['dates'].keys.first;
       // Update participants for current week
       await battlesRef.doc(battleId).update({
-        'dates.$currentDate.participants.$userId': {
+        'dates.$firstDateKey.participants.$userId': {
           'name': userName,
           'image': userImage,
           'votes': []
@@ -76,9 +89,11 @@ class BattleService extends GetxController {
       });
 
       // Update user's battles
-      await firestore.collection('users').doc(userId).set({
-        'battles': {
-          'ongoing': FieldValue.arrayUnion([battleId])
+      await firestore.collection('userBattles').doc(userId).set({
+        'dates': {
+          firstDateKey: {
+            'ongoing': FieldValue.arrayUnion([battleId])
+          }
         }
       }, SetOptions(merge: true));
     } catch (e) {
@@ -98,25 +113,18 @@ class BattleService extends GetxController {
       if (!battleDoc.exists) throw Exception('Battle not found');
 
       final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
-
-      // Get current week's date key
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
-
-      if (currentBattle == null) throw Exception('No active battle found');
+      final firstDateKey = data['dates'].keys.first;
 
       // Update voted array and participant's votes
       await battlesRef.doc(battleId).update({
-        'dates.$currentDate.voted': FieldValue.arrayUnion([voterId]),
-        'dates.$currentDate.participants.$votedForUserId.votes':
+        'dates.$firstDateKey.voted': FieldValue.arrayUnion([voterId]),
+        'dates.$firstDateKey.participants.$votedForUserId.votes':
             FieldValue.arrayUnion([voterId])
       });
-
       // Update user's battle status
-      await firestore.collection('users').doc(voterId).update({
-        'battles.ongoing': FieldValue.arrayRemove([battleId]),
-        'battles.voted': FieldValue.arrayUnion([battleId])
+      await firestore.collection('userBattles').doc(voterId).update({
+        'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId]),
+        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
       });
     } catch (e) {
       print('Error casting vote: $e');
@@ -129,23 +137,41 @@ class BattleService extends GetxController {
     try {
       final snapshot = await battlesRef.get();
       final List<Map<String, dynamic>> activeBattles = [];
-
-      final currentDate = DateTime.now().toString().substring(0, 10);
+      final now = DateTime.now();
 
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final dates = data['dates'] as Map<String, dynamic>;
+        if (!data.containsKey('dates')) continue;
 
-        if (dates.containsKey(currentDate)) {
-          final currentBattle = dates[currentDate];
-          if (currentBattle['status'] == 'active') {
-            activeBattles.add({
-              'id': doc.id,
-              'category': data['category'],
-              'currentBattle': currentBattle,
-            });
-          }
+        final dates = data['dates'] as Map<String, dynamic>;
+        if (dates.isEmpty) continue;
+
+        // Get the first date entry
+        final firstDateKey = dates.keys.first;
+        final battleData = dates[firstDateKey] as Map<String, dynamic>;
+
+        // Check if battle is active and not ended
+        if (battleData['status'] != 'active') continue;
+
+        // Parse and check end date
+        final endedAtRaw = battleData['ended_at'];
+        DateTime? endDate;
+
+        if (endedAtRaw is Timestamp) {
+          endDate = endedAtRaw.toDate();
+        } else if (endedAtRaw is String) {
+          endDate = DateTime.parse(endedAtRaw);
         }
+
+        if (endDate == null || endDate.isBefore(now)) continue;
+
+        // Battle is active and not ended
+        final currentBattle = dates[firstDateKey] as Map<String, dynamic>;
+        activeBattles.add({
+          'id': doc.id,
+          'category': data['category'], // Category at root level
+          'currentBattle': currentBattle
+        });
       }
 
       return activeBattles;
@@ -182,12 +208,7 @@ class BattleService extends GetxController {
       final battleDoc = await battlesRef.doc(battleId).get();
       if (!battleDoc.exists) return false;
 
-      final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
-
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
-
+      final currentBattle = _getCurrentBattleData(battleDoc);
       if (currentBattle == null) return false;
 
       final voted = List<String>.from(currentBattle['voted'] ?? []);
@@ -204,15 +225,9 @@ class BattleService extends GetxController {
       final battleDoc = await battlesRef.doc(battleId).get();
       if (!battleDoc.exists) return false;
 
-      final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
-
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
-
+      final currentBattle = _getCurrentBattleData(battleDoc);
       if (currentBattle == null) return false;
 
-      // Check if user is in participants map
       final participants =
           currentBattle['participants'] as Map<String, dynamic>?;
       return participants != null && participants.containsKey(userId);
@@ -226,21 +241,39 @@ class BattleService extends GetxController {
   Future<List<Map<String, dynamic>>> getUserOngoingBattles(
       String userId) async {
     try {
-      final userDoc = await firestore.collection('users').doc(userId).get();
+      final userDoc =
+          await firestore.collection('userBattles').doc(userId).get();
       if (!userDoc.exists) return [];
 
       final userData = userDoc.data() as Map<String, dynamic>;
-      final ongoingBattles =
-          List<String>.from(userData['battles']?['ongoing'] ?? []);
+      if (!userData.containsKey('dates')) return [];
 
+      final dates = userData['dates'] as Map<String, dynamic>;
       final List<Map<String, dynamic>> battleDetails = [];
-      for (String battleId in ongoingBattles) {
-        final battleDoc = await battlesRef.doc(battleId).get();
-        if (battleDoc.exists) {
+
+      // Iterate through each date entry
+      for (var dateKey in dates.keys) {
+        final dateData = dates[dateKey] as Map<String, dynamic>;
+        if (!dateData.containsKey('ongoing')) continue;
+
+        final ongoingBattles = List<String>.from(dateData['ongoing'] ?? []);
+
+        // Get details for each ongoing battle
+        for (String battleId in ongoingBattles) {
+          final battleDoc = await battlesRef.doc(battleId).get();
+          if (!battleDoc.exists) continue;
+
           final data = battleDoc.data() as Map<String, dynamic>;
+          if (!data.containsKey('dates')) continue;
+
+          final battleDates = data['dates'] as Map<String, dynamic>;
+          if (!battleDates.containsKey(dateKey)) continue;
+
+          final battleData = battleDates[dateKey];
           battleDetails.add({
             'id': battleId,
-            ...data,
+            'category': data['category'],
+            'currentBattle': battleData,
           });
         }
       }
@@ -257,23 +290,18 @@ class BattleService extends GetxController {
     try {
       final battleDoc = await battlesRef.doc(battleId).get();
       if (!battleDoc.exists) throw Exception('Battle not found');
-
       final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
-
-      // Get current week's date key
-      final currentDate = DateTime.now().toString().substring(0, 10);
-      final currentBattle = dates[currentDate];
-
+      final currentBattle = _getCurrentBattleData(battleDoc);
       if (currentBattle == null) throw Exception('No active battle found');
 
+      final firstDateKey = data['dates'].keys.first;
       // Remove user from participants
       await battlesRef.doc(battleId).update(
-          {'dates.$currentDate.participants.$userId': FieldValue.delete()});
+          {'dates.$firstDateKey.participants.$userId': FieldValue.delete()});
 
       // Remove battle from user's ongoing battles
-      await firestore.collection('users').doc(userId).update({
-        'battles.ongoing': FieldValue.arrayRemove([battleId])
+      await firestore.collection('userBattles').doc(userId).update({
+        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
       });
     } catch (e) {
       print('Error removing user from battle: $e');
@@ -290,54 +318,27 @@ class BattleService extends GetxController {
     try {
       final battleDoc = await battlesRef.doc(battleId).get();
       if (!battleDoc.exists) throw Exception('Battle not found');
-
-
-      // Step 1: Extract data and dates
       final data = battleDoc.data() as Map<String, dynamic>;
-      final dates = data['dates'] as Map<String, dynamic>;
 
-      // Step 2: Check if dates is empty
-      if (dates.isEmpty) {
-        print('No date data available.');
-        return;
-      }
-      // Step 3: Get the first date key
-      final firstDateKey =
-          dates.keys.first; // Gets the first key (e.g., "2025-04-14")
+      final currentBattle = _getCurrentBattleData(battleDoc);
+      if (currentBattle == null) throw Exception('No active battle found');
 
-      final dateData = dates[firstDateKey] as Map<String, dynamic>;
-
-      // Step 4: Access ended_at
-      final endedAtRaw = dateData['ended_at'];
-
-      // Step 5: Convert ended_at to DateTime
-      DateTime endedAt;
-      if (endedAtRaw is Timestamp) {
-        endedAt = endedAtRaw.toDate();
-      } else if (endedAtRaw is String) {
-        endedAt = DateTime.parse(endedAtRaw);
-      } else {
-        throw Exception('Invalid ended_at format');
-      }
-      if (endedAt.isBefore(DateTime.now())) {
-        throw Exception('Battle has ended');
-      }
-
+      final firstDateKey = data['dates'].keys.first;
       // Update participant's media in the battle
       await battlesRef.doc(battleId).update(
           {'dates.$firstDateKey.participants.$userId.mediaPaths': imageUrls});
 
       // Move battle from ongoing to voted for the user
-      await firestore.collection('users').doc(userId).update({
-        'battles.ongoing': FieldValue.arrayRemove([battleId]),
-        'battles.voted': FieldValue.arrayUnion([battleId])
+      await firestore.collection('userBattles').doc(userId).update({
+        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId]),
+        'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId])
       });
 
       // Create or update battle post
       await firestore.collection('battle_post').doc(battleId).set({
         'mediaPaths': imageUrls,
         'category': data['category'],
-        'name': dateData['participants'][userId]['name'] ?? 'Unknown',
+        'name': currentBattle['participants'][userId]['name'] ?? 'Unknown',
         'favorites': [],
       }, SetOptions(merge: true));
     } catch (e) {
@@ -378,25 +379,27 @@ class BattleService extends GetxController {
 
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        if (!data.containsKey('dates')) continue;
+
         final dates = data['dates'] as Map<String, dynamic>;
+        if (!dates.containsKey(currentDate)) continue;
 
-        if (dates.containsKey(currentDate)) {
-          final currentBattle = dates[currentDate];
-          final participants =
-              currentBattle['participants'] as Map<String, dynamic>;
+        final currentBattle = dates[currentDate] as Map<String, dynamic>;
+        final participants =
+            currentBattle['participants'] as Map<String, dynamic>?;
+        if (participants == null) continue;
 
-          // Calculate total votes in this battle
-          for (var participant in participants.values) {
-            final votes = List<String>.from(participant['votes'] ?? []);
-            totalVotes += votes.length;
-          }
+        // Calculate total votes in this battle
+        for (var participant in participants.values) {
+          final votes = List<String>.from(participant['votes'] ?? []);
+          totalVotes += votes.length;
+        }
 
-          // Get this user's votes in this battle
-          if (participants.containsKey(userId)) {
-            final userParticipant = participants[userId];
-            final votes = List<String>.from(userParticipant['votes'] ?? []);
-            userVotes += votes.length;
-          }
+        // Get this user's votes in this battle
+        if (participants.containsKey(userId)) {
+          final userParticipant = participants[userId];
+          final votes = List<String>.from(userParticipant['votes'] ?? []);
+          userVotes += votes.length;
         }
       }
 

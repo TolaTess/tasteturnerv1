@@ -21,8 +21,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   String selectedCategory = 'all';
   String selectedCategoryId = '';
   List<Map<String, dynamic>> battleList = [];
-  String dueDate = '';
-  DateTime targetDate = DateTime(2025, 1, 1, 12, 0, 0);
   Timer? _tastyPopupTimer;
 
   @override
@@ -103,6 +101,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 iconColor: kAccent,
                 textColor: kAccent,
                 collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                initiallyExpanded: true,
                 title: const Text(
                   ingredientBattle,
                   style: TextStyle(
@@ -199,7 +198,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                 ),
                         ),
 
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 20),
 
                         //join now button
                         Center(
@@ -367,8 +366,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                       onPressed: () =>
                                                           Navigator.of(context)
                                                               .pop(false),
-                                                      child:
-                                                          const Text('Cancel'),
+                                                      child: Text(
+                                                        'Cancel',
+                                                        style: TextStyle(
+                                                            color: isDarkMode
+                                                                ? kWhite
+                                                                : kDarkGrey),
+                                                      ),
                                                     ),
                                                     ElevatedButton(
                                                       onPressed: () =>
@@ -468,11 +472,17 @@ class DetailItem extends StatelessWidget {
           onTap: onTap,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: Image.asset(
-              getAssetImageForItem(dataSrc['image']),
-              fit: BoxFit.cover,
-              height: 160,
-            ),
+            child: dataSrc['image'].startsWith('http')
+                ? Image.network(
+                    dataSrc['image'],
+                    fit: BoxFit.cover,
+                    height: 160,
+                  )
+                : Image.asset(
+                    getAssetImageForItem(dataSrc['image']),
+                    fit: BoxFit.cover,
+                    height: 160,
+                  ),
           ),
         ),
         const SizedBox(height: 10),

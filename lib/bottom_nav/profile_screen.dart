@@ -120,7 +120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final battleDetails =
           await BattleService.instance.getUserOngoingBattles(userId);
-
       // Transform battle data to match the expected format
       final formattedBattles = battleDetails
           .map((battle) => {
@@ -422,58 +421,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       .toList();
 
                   if (myBadge.isEmpty) return const SizedBox.shrink();
-                  return ExpansionTile(
-                    collapsedIconColor: kAccent,
-                    iconColor: kAccent,
-                    textColor: kAccent,
-                    collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          badges,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Get.to(() => BadgesScreen()),
-                          child: const Text(
-                            seeAll,
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: ExpansionTile(
+                      collapsedIconColor: kAccent,
+                      iconColor: kAccent,
+                      textColor: kAccent,
+                      collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            badges,
                             style: TextStyle(
-                              color: kAccent,
-                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
                             ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Get.to(() => BadgesScreen()),
+                            child: const Text(
+                              seeAll,
+                              style: TextStyle(
+                                color: kAccent,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      children: [
+                        SizedBox(
+                          height: 100,
+                          child: ListView.builder(
+                            itemCount:
+                                (myBadge.length > 2 ? 2 : myBadge.length) + 1,
+                            padding: const EdgeInsets.only(right: 10),
+                            scrollDirection: Axis.horizontal,
+                            itemBuilder: (context, index) {
+                              if (index < 2 && index < myBadge.length) {
+                                // Show badges for the first 2 items
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 10),
+                                  child: StorySlider(
+                                    dataSrc: myBadge[index],
+                                    press: () {
+                                      //todo
+                                    },
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         ),
                       ],
                     ),
-                    children: [
-                      SizedBox(
-                        height: 100,
-                        child: ListView.builder(
-                          itemCount:
-                              (myBadge.length > 2 ? 2 : myBadge.length) + 1,
-                          padding: const EdgeInsets.only(right: 10),
-                          scrollDirection: Axis.horizontal,
-                          itemBuilder: (context, index) {
-                            if (index < 2 && index < myBadge.length) {
-                              // Show badges for the first 2 items
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 10),
-                                child: StorySlider(
-                                  dataSrc: myBadge[index],
-                                  press: () {
-                                    //todo
-                                  },
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
                   );
                 }),
                 if (!shouldShowGoals)
@@ -574,6 +576,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
                 // Battles Section
+
                 ExpansionTile(
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
@@ -586,7 +589,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontSize: 18,
                     ),
                   ),
-                  initiallyExpanded: true,
                   tilePadding: const EdgeInsets.only(left: 20, right: 20),
                   childrenPadding: EdgeInsets.zero,
                   children: [
@@ -598,14 +600,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: kAccent,
                             ))
                           : ongoingBattles.isEmpty
-                              ? Center(
-                                  child: Text(
-                                  "No ongoing battles found",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDarkMode ? kLightGrey : kAccent,
-                                  ),
-                                ))
+                              ? GestureDetector(
+                                  onTap: () => Get.to(() => const BottomNavSec(
+                                        selectedIndex: 3,
+                                      )),
+                                  child: Center(
+                                      child: Text(
+                                    "No ongoing battles, join a battle now!",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDarkMode ? kLightGrey : kAccent,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  )),
+                                )
                               : ListView.builder(
                                   itemCount: ongoingBattles.length,
                                   padding: const EdgeInsets.symmetric(
@@ -695,9 +703,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   ? kDarkGrey
                                                                   : kWhite,
                                                           title: const Text(
-                                                              'Leave Battle?'),
-                                                          content: const Text(
-                                                              'Are you sure you want to leave this battle?'),
+                                                            'Leave Battle?',
+                                                            style: TextStyle(
+                                                                color: kAccent),
+                                                          ),
+                                                          content: Text(
+                                                            'Are you sure you want to leave this battle?',
+                                                            style: TextStyle(
+                                                                color: isDarkMode
+                                                                    ? kWhite
+                                                                    : kDarkGrey),
+                                                          ),
                                                           actions: [
                                                             TextButton(
                                                               onPressed: () =>
@@ -706,7 +722,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                       .pop(
                                                                           false),
                                                               child: const Text(
-                                                                  'Cancel'),
+                                                                'Cancel',
+                                                                style: TextStyle(
+                                                                    color:
+                                                                        kAccent),
+                                                              ),
                                                             ),
                                                             TextButton(
                                                               onPressed: () =>
@@ -800,7 +820,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => ChallengeDetailScreen(
+                                      builder: (context) =>
+                                          ChallengeDetailScreen(
                                         dataSrc: data.toFirestore(),
                                         screen: 'myPost',
                                       ),
