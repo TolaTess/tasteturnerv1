@@ -9,12 +9,14 @@ class HelperController extends GetxController {
   final RxList<Map<String, dynamic>> plans = RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> category =
       RxList<Map<String, dynamic>>([]);
+  final RxList<Map<String, dynamic>> headers = RxList<Map<String, dynamic>>([]);
 
   @override
   void onInit() {
     super.onInit();
     fetchPlans();
     fetchCategorys();
+    fetchHeaders();
   }
 
 // Fetch plans from Firestore
@@ -47,6 +49,35 @@ class HelperController extends GetxController {
     } catch (e) {
       print('Error fetching plans: $e');
       plans.value = [];
+    }
+  }
+
+  Future<void> fetchHeaders() async {
+    try {
+      final snapshot = await firestore.collection('headers').get();
+      if (snapshot.docs.isEmpty) {
+        headers.value = [];
+        return;
+      }
+
+      headers.value = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'name': data['name'] as String? ?? '',
+              };
+            } catch (e) {
+              print('Error parsing header data: $e');
+              return null;
+            }
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (e) {
+      print('Error fetching headers: $e');
+      headers.value = [];
     }
   }
 

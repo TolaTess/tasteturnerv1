@@ -20,24 +20,118 @@ class ChooseDietScreen extends StatefulWidget {
 
 class _ChooseDietScreenState extends State<ChooseDietScreen> {
   String selectedDiet = demoDietData[0].title; // First element is "None"
-  final Set<String> selectedAllergies = {};
+  Set<String> selectedAllergies = {};
   int proteinDishes = 2;
   int grainDishes = 2;
   int vegDishes = 3;
   String selectedCuisine = 'Balanced';
 
-  final List<String> cuisineTypes = [
-    'Balanced',
-    'Italian',
-    'Chinese',
-    'Indian',
-    'Mexican',
-    'Japanese',
-    'Mediterranean',
-    'Thai',
-    'French',
-    'Korean'
-  ];
+  List<Map<String, dynamic>> cuisineTypes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    cuisineTypes = helperController.headers;
+    if (!widget.isOnboarding) {
+      _checkExistingPreferences();
+    }
+  }
+
+  Future<void> _checkExistingPreferences() async {
+    final userId = userService.userId;
+    if (userId == null) return;
+
+    final hasPreferences = await _fetchUserPreferences(userId);
+    if (hasPreferences && mounted) {
+      _showExistingPreferencesDialog();
+    }
+  }
+
+  void _showExistingPreferencesDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          backgroundColor:
+              getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Existing Preferences Found',
+            style: TextStyle(
+              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You already have the following preferences:',
+                style: TextStyle(
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Diet: $selectedDiet',
+                style: TextStyle(
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                ),
+              ),
+              if (selectedAllergies.isNotEmpty)
+                Text(
+                  'Allergies: ${selectedAllergies.join(", ")}',
+                  style: TextStyle(
+                    color: getThemeProvider(context).isDarkMode
+                        ? kWhite
+                        : kDarkGrey,
+                  ),
+                ),
+              Text(
+                'Cuisine Type: $selectedCuisine',
+                style: TextStyle(
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+              },
+              child: Text(
+                'Update Preferences',
+                style: TextStyle(
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccentLight,
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                _showMealPlanOptionsDialog(); // Show meal plan options directly
+              },
+              child: const Text(
+                'Generate Plan',
+                style: TextStyle(
+                  color: kWhite,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showMealPlanOptionsDialog() {
     showDialog(
@@ -96,11 +190,11 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                 : kDarkGrey,
                           ),
                         ),
-                        items: cuisineTypes.map((String cuisine) {
+                        items: cuisineTypes.map((Map<String, dynamic> cuisine) {
                           return DropdownMenuItem<String>(
-                            value: cuisine,
+                            value: cuisine['name'],
                             child: Text(
-                              cuisine,
+                              cuisine['name'],
                               style: TextStyle(
                                 color: getThemeProvider(context).isDarkMode
                                     ? kWhite
@@ -154,7 +248,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                             const Icon(Icons.remove, size: 20),
                                         onPressed: () {
                                           setState(() {
-                                            if (proteinDishes > 1)
+                                            if (proteinDishes > 0)
                                               proteinDishes--;
                                           });
                                         },
@@ -208,7 +302,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                             const Icon(Icons.remove, size: 20),
                                         onPressed: () {
                                           setState(() {
-                                            if (grainDishes > 1) grainDishes--;
+                                            if (grainDishes > 0) grainDishes--;
                                           });
                                         },
                                       ),
@@ -261,7 +355,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                             const Icon(Icons.remove, size: 20),
                                         onPressed: () {
                                           setState(() {
-                                            if (vegDishes > 1) vegDishes--;
+                                            if (vegDishes > 0) vegDishes--;
                                           });
                                         },
                                       ),
@@ -467,7 +561,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   @override
   void dispose() {
-    if (!widget.isOnboarding) {
+    if (widget.isOnboarding) {
       _updateUserPreferences(userService.userId ?? '');
     }
     super.dispose();
@@ -546,6 +640,32 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     });
   }
 
+  Future<bool> _fetchUserPreferences(String userId) async {
+    final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final doc = await docRef.get();
+
+    if (doc.exists && doc.data()?['preferences'] != null) {
+      final data = doc.data() as Map<String, dynamic>;
+      final preferences = data['preferences'] as Map<String, dynamic>;
+
+      if (preferences != null) {
+        setState(() {
+          selectedDiet = preferences['diet'] as String? ?? '';
+          // Convert List<dynamic> to Set<String>
+          final allergiesList =
+              preferences['allergies'] as List<dynamic>? ?? [];
+          selectedAllergies = allergiesList.map((e) => e.toString()).toSet();
+          selectedCuisine = preferences['cuisineType'] as String? ?? '';
+          proteinDishes = preferences['proteinDishes'] as int? ?? 2;
+          grainDishes = preferences['grainDishes'] as int? ?? 2;
+          vegDishes = preferences['vegDishes'] as int? ?? 3;
+        });
+        return true; // Return true if preferences exist
+      }
+    }
+    return false; // Return false if no preferences found
+  }
+
 // Handle errors
   void _handleError(dynamic e) {
     if (mounted) {
@@ -585,11 +705,11 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     }
   }
 
-  // Helper methods for safe type conversion
-  int _parseIntOrDefault(dynamic value, int defaultValue) {
-    if (value == null) return defaultValue;
-    return int.tryParse(value.toString()) ?? defaultValue;
-  }
+  // // Helper methods for safe type conversion
+  // int _parseIntOrDefault(dynamic value, int defaultValue) {
+  //   if (value == null) return defaultValue;
+  //   return int.tryParse(value.toString()) ?? defaultValue;
+  // }
 
   String _parseStringOrDefault(dynamic value, String defaultValue) {
     if (value == null) return defaultValue;
@@ -632,35 +752,35 @@ Include:
     }
   }
 
-  Map<String, dynamic> _calculateNutritionalSummary(
-      Map<String, dynamic> mealPlan) {
-    // Basic implementation - this could be replaced with an actual call to geminiService if that method exists
-    int totalCalories = 0;
-    int totalProtein = 0;
-    int totalCarbs = 0;
-    int totalFat = 0;
+  // Map<String, dynamic> _calculateNutritionalSummary(
+  //     Map<String, dynamic> mealPlan) {
+  //   // Basic implementation - this could be replaced with an actual call to geminiService if that method exists
+  //   int totalCalories = 0;
+  //   int totalProtein = 0;
+  //   int totalCarbs = 0;
+  //   int totalFat = 0;
 
-    for (final mealType in ['breakfast', 'lunch', 'dinner', 'snacks']) {
-      if (mealPlan[mealType] != null) {
-        totalCalories +=
-            int.tryParse(mealPlan[mealType]['calories']?.toString() ?? '0') ??
-                0;
-        totalProtein +=
-            int.tryParse(mealPlan[mealType]['protein']?.toString() ?? '0') ?? 0;
-        totalCarbs +=
-            int.tryParse(mealPlan[mealType]['carbs']?.toString() ?? '0') ?? 0;
-        totalFat +=
-            int.tryParse(mealPlan[mealType]['fat']?.toString() ?? '0') ?? 0;
-      }
-    }
+  //   for (final mealType in ['breakfast', 'lunch', 'dinner', 'snacks']) {
+  //     if (mealPlan[mealType] != null) {
+  //       totalCalories +=
+  //           int.tryParse(mealPlan[mealType]['calories']?.toString() ?? '0') ??
+  //               0;
+  //       totalProtein +=
+  //           int.tryParse(mealPlan[mealType]['protein']?.toString() ?? '0') ?? 0;
+  //       totalCarbs +=
+  //           int.tryParse(mealPlan[mealType]['carbs']?.toString() ?? '0') ?? 0;
+  //       totalFat +=
+  //           int.tryParse(mealPlan[mealType]['fat']?.toString() ?? '0') ?? 0;
+  //     }
+  //   }
 
-    return {
-      'calories': totalCalories,
-      'protein': totalProtein,
-      'carbs': totalCarbs,
-      'fat': totalFat,
-    };
-  }
+  //   return {
+  //     'calories': totalCalories,
+  //     'protein': totalProtein,
+  //     'carbs': totalCarbs,
+  //     'fat': totalFat,
+  //   };
+  // }
 
   // Add this helper method for nutritional info validation
   bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {

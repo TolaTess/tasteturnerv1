@@ -9,18 +9,16 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
-import '../pages/dietary_choose_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/ingredient_features.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/shopping_list_view.dart';
 import '../screens/favorite_screen.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
-import 'dart:ui' as ui;
 import 'buddy_tab.dart';
 
-import '../screens/shopping_list.dart';
 
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -43,6 +41,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   // Cache for buddy tab data
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   int get _tabCount => 3;
+  bool isPremium = userService.currentUser?.isPremium ?? false;
 
   @override
   void initState() {
@@ -90,6 +89,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
       _tabController.addListener(_handleTabIndex);
     }
+    setState(() {
+      isPremium = userService.currentUser?.isPremium ?? false;
+    });
   }
 
   void _handleTabIndex() {
@@ -207,6 +209,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: const SizedBox(width: 10),
         title: Column(
           children: [
             // Date Header
@@ -275,7 +278,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         children: [
           _buildCalendarTab(),
           _buildShoppingListTab(),
-          if (userService.currentUser?.isPremium == true)
+          if (isPremium)
             const BuddyTab()
           else
             _buildDefaultView(context)
@@ -289,9 +292,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     String tastyMessage = "$appNameBuddy, at your service";
     String tastyMessage2 =
         "Your AI-powered food coach, crafting the perfect plan for a fitter you.";
-    if (userService.currentUser?.isPremium != true) {
-      tastyMessage = "$appNameBuddy, here to help";
-    }
 
     return Center(
       child: Column(
@@ -340,93 +340,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
           ),
           const SizedBox(height: 20),
-          if (userService.currentUser?.isPremium == true)
-            SecondaryButton(
-              text: 'Get Meal Plan',
-              press: () => _checkAndNavigateToGenerate(context),
-            )
-          else
-            SecondaryButton(
-              text: goPremium,
-              press: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PremiumScreen(),
-                ),
+          SecondaryButton(
+            text: goPremium,
+            press: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PremiumScreen(),
               ),
             ),
+          ),
           const SizedBox(height: 100),
         ],
       ),
     );
-  }
-
-  Future<void> _checkAndNavigateToGenerate(BuildContext context) async {
-    try {
-      // Get the start of the current week (Monday)
-      final now = DateTime.now();
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final startOfWeek = DateTime(monday.year, monday.month, monday.day);
-
-      // Query generations for this week
-      final generations = await FirebaseFirestore.instance
-          .collection('mealPlans')
-          .doc(userService.userId)
-          .collection('buddy')
-          .where('timestamp', isGreaterThanOrEqualTo: startOfWeek)
-          .get();
-
-      if (generations.docs.length >= 5) {
-        if (!mounted) return;
-
-        // Show limit reached dialog
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            backgroundColor:
-                getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-            title: const Text('Generation Limit Reached'),
-            content: const Text(
-              'You have reached your limit of 2 meal plan generations per week. Try again next week!',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        // Navigate to generate new meal plan
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ChooseDietScreen(),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error checking generation limit: $e');
-      // Show error dialog
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('$appNameBuddy tips'),
-          content: const Text('Something went wrong. Please try again later.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
   }
 
   Widget _buildCalendarTab() {
@@ -605,10 +531,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ShoppingListScreen(
-                      shoppingList:
-                          shoppingList.map((item) => item.toJson()).toList(),
-                      isMealSpin: false,
+                    builder: (context) => IngredientFeatures(
+                      items: macroManager.ingredient,
                     ),
                   ),
                 );
@@ -1036,39 +960,24 @@ class MealCategoryItem extends StatelessWidget {
     this.icon = Icons.favorite,
     this.size = 40,
     this.image = intPlaceholderImage,
-    this.isHome = false,
   });
 
   final String title, image;
   final VoidCallback press;
   final IconData icon;
   final double size;
-  final bool isHome;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: press,
       child: Column(
         children: [
-          isHome
-              ? Container(
-                  height: size,
-                  width: size,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Image.asset(
-                    image,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              : IconCircleButton(
-                  h: size,
-                  w: size,
-                  icon: icon,
-                  isRemoveContainer: false,
-                ),
+          IconCircleButton(
+            h: size,
+            w: size,
+            icon: icon,
+            isRemoveContainer: false,
+          ),
           const SizedBox(
             height: 5,
           ),

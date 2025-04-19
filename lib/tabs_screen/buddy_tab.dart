@@ -20,6 +20,7 @@ class BuddyTab extends StatefulWidget {
 
 class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
+  bool isPremium = userService.currentUser?.isPremium ?? false;
 
   @override
   void initState() {
@@ -27,11 +28,20 @@ class _BuddyTabState extends State<BuddyTab> {
     _initializeBuddyData();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    setState(() {
+      isPremium = userService.currentUser?.isPremium ?? false;
+    });
+    _initializeBuddyData();
+  }
+
   void _initializeBuddyData() {
     final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    final thirtyDaysAgo = now.subtract(const Duration(days: 31));
     final dateFormat = DateFormat('yyyy-MM-dd');
-    final lowerBound = dateFormat.format(sevenDaysAgo);
+    final lowerBound = dateFormat.format(thirtyDaysAgo);
     final upperBound = dateFormat.format(now);
 
     _buddyDataFuture = FirebaseFirestore.instance
@@ -40,6 +50,8 @@ class _BuddyTabState extends State<BuddyTab> {
         .collection('buddy')
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
         .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
+        .orderBy(FieldPath.documentId, descending: true)
+        .limit(1)
         .get();
   }
 
@@ -110,17 +122,16 @@ class _BuddyTabState extends State<BuddyTab> {
   Future<void> _checkAndNavigateToGenerate(BuildContext context) async {
     try {
       final now = DateTime.now();
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final startOfWeek = DateTime(monday.year, monday.month, monday.day);
+      final startOfMonth = DateTime(now.year, now.month, 1);
 
       final generations = await FirebaseFirestore.instance
           .collection('mealPlans')
           .doc(userService.userId)
           .collection('buddy')
-          .where('timestamp', isGreaterThanOrEqualTo: startOfWeek)
+          .where('timestamp', isGreaterThanOrEqualTo: startOfMonth)
           .get();
 
-      if (generations.docs.length >= 2) {
+      if (generations.docs.length >= 5) {
         if (!mounted) return;
 
         showDialog(
@@ -133,7 +144,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
             title: const Text('Generation Limit Reached'),
             content: const Text(
-              'You have reached your limit of 2 meal plan generations per week. Try again next week!',
+              'You have reached your limit of 5 meal plan generations per month. Try again next week!',
             ),
             actions: [
               TextButton(
@@ -147,7 +158,7 @@ class _BuddyTabState extends State<BuddyTab> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const ChooseDietScreen(),
+            builder: (context) => const ChooseDietScreen(isOnboarding: false),
           ),
         );
       }
@@ -171,12 +182,9 @@ class _BuddyTabState extends State<BuddyTab> {
   }
 
   Widget _buildDefaultView(BuildContext context) {
-    String tastyMessage = "$appNameBuddy, at your service";
+    String tastyMessage = "It's $appNameBuddy Time!";
     String tastyMessage2 =
-        "Your AI-powered food coach, crafting the perfect plan for a fitter you.";
-    if (userService.currentUser?.isPremium != true) {
-      tastyMessage = "$appNameBuddy, here to help";
-    }
+        "Let's craft a perfect meal plan for a healthier you.";
 
     return Center(
       child: Column(
@@ -225,7 +233,7 @@ class _BuddyTabState extends State<BuddyTab> {
             ),
           ),
           const SizedBox(height: 20),
-          if (userService.currentUser?.isPremium == true)
+          if (isPremium)
             SecondaryButton(
               text: 'Get Meal Plan',
               press: () => _checkAndNavigateToGenerate(context),
@@ -280,7 +288,8 @@ class _BuddyTabState extends State<BuddyTab> {
           return _buildDefaultView(context);
         }
 
-        final selectedGeneration = generations[0];
+        final selectedGeneration =
+            generations[generations.length - 1]; // Get last generation
         final mealsFuture = _fetchMealsFromIds(selectedGeneration['mealIds']);
 
         return FutureBuilder<List<Map<String, dynamic>>>(
@@ -346,7 +355,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                       onPressed: () => _checkAndNavigateToGenerate(context),
                       child: Text(
-                        'Generate more',
+                        'Generate New Plan',  
                         style: TextStyle(color: isDarkMode ? kWhite : kBlack),
                       ),
                     ),
@@ -570,7 +579,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 110),
+                  const SizedBox(height: 130),
                 ],
               ),
             );

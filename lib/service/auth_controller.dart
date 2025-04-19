@@ -337,11 +337,19 @@ class AuthController extends GetxController {
       }
 
       // Notify user of success
-      Get.snackbar(
-        'Success',
-        'Premium status updated successfully!',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (isPremium) {
+        Get.snackbar(
+          'Success',
+          'Premium status updated successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } else {
+        Get.snackbar(
+          'Sorry to see you go',
+          'You will no longer have access to $appNameBuddy',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     } catch (e) {
       print("Error updating premium status: $e");
       Get.snackbar(
