@@ -320,11 +320,9 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? kDarkGrey.withOpacity(0.75) : kWhite,
+        color: kAccent.withOpacity(0.5),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(

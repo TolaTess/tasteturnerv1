@@ -1,6 +1,8 @@
 // lib/widgets/safe_text_field.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Add this import for TextInputFormatter
+import 'package:flutter/services.dart';
+
+import '../constants.dart'; // Add this import for TextInputFormatter
 
 class SafeTextField extends StatefulWidget {
   final TextEditingController? controller;
@@ -64,6 +66,7 @@ class _SafeTextFieldState extends State<SafeTextField> {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      cursorColor: kAccent,
       controller: widget.controller,
       decoration: widget.decoration,
       style: widget.style,

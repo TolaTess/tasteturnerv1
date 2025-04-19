@@ -392,32 +392,47 @@ class NutritionController extends GetxController {
 
   /// ✅ Update the correct meal type calories
   void _updateMealTypeCalories(String mealType, int totalCalories) {
-    // Ensure we don't divide by zero and handle edge cases
-    double progressPercentage = targetCalories.value <= 0
-        ? 0.0
-        : (totalCalories / targetCalories.value) * 100;
-
-    // Clamp the progress value to prevent NaN or Infinity
-    double safeProgressValue =
-        progressPercentage.isNaN || progressPercentage.isInfinite
-            ? 0.0
-            : progressPercentage.clamp(0.0, 100.0);
-
     switch (mealType) {
       case 'Breakfast':
         breakfastCalories.value = totalCalories;
         breakfastTarget.value = (targetCalories.value * 0.30).toInt();
-        breakfastNotifier.value = safeProgressValue;
+        
+        // Calculate progress percentage for breakfast
+        double breakfastProgress = breakfastTarget.value <= 0
+            ? 0.0 
+            : (totalCalories / breakfastTarget.value) * 100;
+            
+        breakfastNotifier.value = breakfastProgress.isNaN || breakfastProgress.isInfinite
+            ? 0.0
+            : breakfastProgress.clamp(0.0, 100.0);
         break;
+
       case 'Lunch':
         lunchCalories.value = totalCalories;
         lunchTarget.value = (targetCalories.value * 0.35).toInt();
-        lunchNotifier.value = safeProgressValue;
+        
+        // Calculate progress percentage for lunch
+        double lunchProgress = lunchTarget.value <= 0
+            ? 0.0
+            : (totalCalories / lunchTarget.value) * 100;
+            
+        lunchNotifier.value = lunchProgress.isNaN || lunchProgress.isInfinite
+            ? 0.0
+            : lunchProgress.clamp(0.0, 100.0);
         break;
+
       case 'Dinner':
         dinnerCalories.value = totalCalories;
         dinnerTarget.value = (targetCalories.value * 0.35).toInt();
-        dinnerNotifier.value = safeProgressValue;
+        
+        // Calculate progress percentage for dinner
+        double dinnerProgress = dinnerTarget.value <= 0
+            ? 0.0
+            : (totalCalories / dinnerTarget.value) * 100;
+            
+        dinnerNotifier.value = dinnerProgress.isNaN || dinnerProgress.isInfinite
+            ? 0.0
+            : dinnerProgress.clamp(0.0, 100.0);
         break;
     }
   }
@@ -614,7 +629,8 @@ class NutritionController extends GetxController {
   }
 
   // Fetch all meal types
-  Future<void> fetchAllMealData(String userId, Map<String, String> userSettings) async {
+  Future<void> fetchAllMealData(
+      String userId, Map<String, String> userSettings) async {
     loadSettings(userSettings);
     await fetchUserDailyMetrics(userId);
     await fetchCaloriesForDate(userId);

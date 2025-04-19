@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fit_hify/constants.dart';
 import '../data_models/routine_item.dart';
 
 class RoutineService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static RoutineService? _instance;
 
   RoutineService._();
@@ -15,7 +13,7 @@ class RoutineService {
 
   Future<List<RoutineItem>> getRoutineItems(String userId) async {
     try {
-      final snapshot = await _firestore
+      final snapshot = await firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')
@@ -98,7 +96,7 @@ class RoutineService {
 
     // Save default items to Firestore
     for (var item in defaultItems) {
-      await _firestore
+      await firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')
@@ -111,7 +109,7 @@ class RoutineService {
 
   Future<void> updateRoutineItem(String userId, RoutineItem item) async {
     try {
-      await _firestore
+      await   firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')
@@ -124,7 +122,7 @@ class RoutineService {
 
   Future<void> toggleRoutineItem(String userId, RoutineItem item) async {
     try {
-      await _firestore
+      await firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')
@@ -137,7 +135,7 @@ class RoutineService {
 
   Future<void> addRoutineItem(String userId, RoutineItem item) async {
     try {
-      await _firestore
+      await firestore
           .collection('userMeals')
           .doc(userId)
           .collection('routine')

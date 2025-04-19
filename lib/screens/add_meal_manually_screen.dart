@@ -35,11 +35,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
     'g',
     'ml',
     'cup',
-    'tbsp',
-    'tsp',
-    'oz',
-    'piece',
-    'slice'
+    'servings',
   ];
   String selectedServing = 'g';
   String _selectedMealType = '';
@@ -296,16 +292,16 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: const Color(0xFFF3F3F3),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
+                    enabledBorder: outlineInputBorder(10),
+                    focusedBorder: outlineInputBorder(10),
+                    border: outlineInputBorder(10),
                     hintStyle: const TextStyle(color: kLightGrey),
                     hintText: 'Enter meal name',
-                    contentPadding: const EdgeInsets.all(16),
+                    contentPadding: const EdgeInsets.all(8),
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
 
                 // Quantity and Units Row
                 Row(
@@ -331,19 +327,19 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: const Color(0xFFF3F3F3),
-                              enabledBorder: outlineInputBorder(20),
-                              focusedBorder: outlineInputBorder(20),
-                              border: outlineInputBorder(20),
+                              enabledBorder: outlineInputBorder(10),
+                              focusedBorder: outlineInputBorder(10),
+                              border: outlineInputBorder(10),
                               hintStyle: const TextStyle(color: kLightGrey),
                               hintText: '1',
-                              contentPadding: const EdgeInsets.all(16),
+                              contentPadding: const EdgeInsets.all(8),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 15),
 
                     // Serving Unit
                     Expanded(
@@ -363,11 +359,13 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                             value: selectedServing,
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: const Color(0xFFF3F3F3),
-                              enabledBorder: outlineInputBorder(20),
-                              focusedBorder: outlineInputBorder(20),
-                              border: outlineInputBorder(20),
-                              contentPadding: const EdgeInsets.all(16),
+                              fillColor: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.9)
+                                  : kWhite.withValues(alpha: 0.2),
+                              enabledBorder: outlineInputBorder(10),
+                              focusedBorder: outlineInputBorder(10),
+                              border: outlineInputBorder(10),
+                              contentPadding: const EdgeInsets.all(8),
                             ),
                             items: servingOptions.map((String value) {
                               return DropdownMenuItem<String>(
@@ -382,6 +380,8 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                                 });
                               }
                             },
+                            dropdownColor: kWhite,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ],
                       ),
@@ -389,7 +389,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
 
                 // Calories
                 const Text(
@@ -409,17 +409,17 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: const Color(0xFFF3F3F3),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
+                    enabledBorder: outlineInputBorder(10),
+                    focusedBorder: outlineInputBorder(10),
+                    border: outlineInputBorder(10),
                     hintStyle: const TextStyle(color: kLightGrey),
                     hintText: 'Enter calories',
-                    contentPadding: const EdgeInsets.all(16),
+                    contentPadding: const EdgeInsets.all(8),
                     suffixText: 'kcal',
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 Column(
                   children: [
@@ -484,7 +484,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // Add Image (Optional)
                 const Text(
@@ -495,7 +495,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 Center(
                   child: InkWell(

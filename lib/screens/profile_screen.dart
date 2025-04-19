@@ -62,6 +62,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fetchOngoingBattles(userId);
+    dailyDataController.fetchPointsAchieved(userId);
+  }
+
   Future<Map<String, dynamic>> fetchChartData(String userid) async {
     final caloriesByDate =
         await dailyDataController.fetchCaloriesByDate(userid);
@@ -483,9 +490,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (context) {
                     final fitnessGoal =
                         userService.currentUser?.settings['fitnessGoal'] ?? '';
-                    final shouldShowGoals = ![
-                      'Improve health & track activities',
-                      'AI guidance & communities',
+                    final shouldShowGoals = [
+                      "Improve Health & Track Activities",
+                      "AI Guidance & Communities"
                     ].contains(fitnessGoal);
 
                     return ExpansionTile(

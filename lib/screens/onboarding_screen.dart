@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fit_hify/pages/dietary_choose_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -226,6 +227,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildNamePage(),
                     _buildGoalsPage(),
+                    _buildPreferencePage(),
                     _buildMeasurementsPage(),
                     _buildSettingsPage(),
                     _buildFeatureTourPage(),
@@ -274,6 +276,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description:
           'Let\'s personalize your experience! Start by telling us your name.',
     );
+  }
+
+  Widget _buildPreferencePage() {
+    return const ChooseDietScreen();
   }
 
   /// Feature Tour Page
@@ -830,7 +836,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   void _nextPage() {
     if (_isNextEnabled) {
-      if (_currentPage < 4) {
+      if (_currentPage < 5) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
@@ -855,7 +861,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 4 ? "Finish" : "Next",
+          _currentPage == 5 ? "Finish" : "Next",
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

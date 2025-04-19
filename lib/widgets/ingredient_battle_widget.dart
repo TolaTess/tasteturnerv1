@@ -339,147 +339,156 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  ingredientBattle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (_showBadge.value)
-                  GestureDetector(
-                    onTap: () {
-                      Get.to(() => BadgesScreen());
-                    },
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: kAccent.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.emoji_events,
-                              size: 16, color: kAccent),
-                          const SizedBox(width: 4),
-                          Text(
-                            _badgeTitle.value,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: kAccent,
-                            ),
-                          ),
-                        ],
-                      ),
+            ExpansionTile(
+              collapsedIconColor: kAccent,
+              iconColor: kAccent,
+              textColor: kAccent,
+              collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+              tilePadding: EdgeInsets.zero,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    ingredientBattle,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 15),
-
-            // Battle visualization
-            Row(
-              children: [
-                Expanded(
-                  flex: (percent1 * 100).round(),
-                  child: Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: kAccent,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(10),
-                        bottomLeft: const Radius.circular(10),
-                        topRight: percent2 < 0.05
-                            ? const Radius.circular(10)
-                            : Radius.zero,
-                        bottomRight: percent2 < 0.05
-                            ? const Radius.circular(10)
-                            : Radius.zero,
+                  if (_showBadge.value)
+                    GestureDetector(
+                      onTap: () {
+                        Get.to(() => BadgesScreen());
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: kAccent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.emoji_events,
+                                size: 16, color: kAccent),
+                            const SizedBox(width: 4),
+                            Text(
+                              _badgeTitle.value,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: kAccent,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _topIngredient1.value,
-                            style: const TextStyle(
-                              color: kWhite,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            '${_count1.value} times',
-                            style: const TextStyle(
-                              color: kWhite,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: (percent2 * 100).round(),
-                  child: Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: kAccentLight,
-                      borderRadius: BorderRadius.only(
-                        topRight: const Radius.circular(10),
-                        bottomRight: const Radius.circular(10),
-                        topLeft: percent1 < 0.05
-                            ? const Radius.circular(10)
-                            : Radius.zero,
-                        bottomLeft: percent1 < 0.05
-                            ? const Radius.circular(10)
-                            : Radius.zero,
-                      ),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _topIngredient2.value,
-                            style: const TextStyle(
-                              color: kWhite,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            '${_count2.value} times',
-                            style: const TextStyle(
-                              color: kWhite,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 15),
-            Text(
-              'Based on your meal plans from this week',
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: isDarkMode ? kLightGrey : kDarkGrey,
+                ],
               ),
+              children: [
+                const SizedBox(height: 15),
+
+                // Battle visualization
+                Row(
+                  children: [
+                    Expanded(
+                      flex: (percent1 * 100).round(),
+                      child: Container(
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: kAccent,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(10),
+                            bottomLeft: const Radius.circular(10),
+                            topRight: percent2 < 0.05
+                                ? const Radius.circular(10)
+                                : Radius.zero,
+                            bottomRight: percent2 < 0.05
+                                ? const Radius.circular(10)
+                                : Radius.zero,
+                          ),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _topIngredient1.value,
+                                style: const TextStyle(
+                                  color: kWhite,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '${_count1.value} times',
+                                style: const TextStyle(
+                                  color: kWhite,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: (percent2 * 100).round(),
+                      child: Container(
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: kAccentLight,
+                          borderRadius: BorderRadius.only(
+                            topRight: const Radius.circular(10),
+                            bottomRight: const Radius.circular(10),
+                            topLeft: percent1 < 0.05
+                                ? const Radius.circular(10)
+                                : Radius.zero,
+                            bottomLeft: percent1 < 0.05
+                                ? const Radius.circular(10)
+                                : Radius.zero,
+                          ),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _topIngredient2.value,
+                                style: const TextStyle(
+                                  color: kWhite,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '${_count2.value} times',
+                                style: const TextStyle(
+                                  color: kWhite,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 15),
+                Text(
+                  'Based on your meal plans from this week',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -69,18 +69,21 @@ class SearchButton2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return SafeTextField(
+      style: TextStyle(color: isDarkMode ? kWhite : kBlack),
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: kText,
-        prefixIcon: const Icon(Icons.search),
+        hintStyle: TextStyle(color: isDarkMode ? kBlack : kWhite),
+        prefixIcon: Icon(Icons.search, color: isDarkMode ? kBlack : kWhite),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: Theme.of(context).cardColor,
+        fillColor: isDarkMode ? kWhite : kDarkGrey,
       ),
     );
   }
