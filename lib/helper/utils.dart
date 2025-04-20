@@ -49,7 +49,8 @@ List<String> extractSlashedItems(String messageContent) {
 
 String removeDashWithSpace(String messageContent) {
   List<String> words = messageContent.split('_');
-  List<String> capitalizedWords = words.map((word) => capitalizeFirstLetter(word.trim())).toList();
+  List<String> capitalizedWords =
+      words.map((word) => capitalizeFirstLetter(word.trim())).toList();
   return capitalizedWords.join(' ');
 }
 
@@ -202,6 +203,14 @@ String featureCheck(String featureName) {
   }
 }
 
+// Helper method to get current week number
+int getCurrentWeek() {
+  final now = DateTime.now();
+  final firstDayOfYear = DateTime(now.year, 1, 1);
+  final days = now.difference(firstDayOfYear).inDays;
+  return (days / 7).ceil();
+}
+
 String getRandomBio(List<String> type) {
   // Generate a random index
   final random = Random();
@@ -249,21 +258,20 @@ Color checkRainbowGroup(String rainbow) {
 
 Color checkSeason(String season) {
   switch (season.toLowerCase()) {
-    case 'winter':
+    case 'fall':
       return kBlue;
-
+    case 'fall-winter':
+      return kBlue;
+    case 'spring-summer':
+      return kAccent.withOpacity(kOpacity);
     case 'spring':
       return kAccent.withOpacity(kOpacity);
-
     case 'summer':
       return kOrange.withOpacity(kOpacity);
-
     case 'autumn':
-      return kRed.withBlue(20);
-
-    case 'year round':
-      return kGreen;
-
+      return kRed.withOpacity(kOpacity);
+    case 'all-year':
+      return kGreen.withOpacity(kOpacity);
     default:
       return kWhite;
   }

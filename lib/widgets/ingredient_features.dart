@@ -106,8 +106,21 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     await Future.delayed(const Duration(milliseconds: 500));
 
     setState(() {
-      _displayedItemCount += 10;
-      _filteredItems = widget.items.take(_displayedItemCount).toList();
+      final nextBatch = _displayedItemCount + 10;
+      if (_searchController.text.isEmpty) {
+        // If no search query, load from widget.items
+        _displayedItemCount = nextBatch;
+        _filteredItems = widget.items.take(_displayedItemCount).toList();
+      } else {
+        // If there's a search query, load more from filtered results
+        _displayedItemCount = nextBatch;
+        _filteredItems = widget.items
+            .where((item) => item.title
+                .toLowerCase()
+                .contains(_searchController.text.toLowerCase()))
+            .take(_displayedItemCount)
+            .toList();
+      }
       _isLoading = false;
     });
   }
@@ -156,7 +169,15 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     final sortedItems = List<MacroData>.from(_filteredItems)
       ..sort((a, b) => a.title.compareTo(b.title));
 
-    final hasMoreItems = widget.items.length > _filteredItems.length;
+    // Update hasMoreItems condition to check against the appropriate list
+    final hasMoreItems = _searchController.text.isEmpty
+        ? widget.items.length > _filteredItems.length
+        : widget.items
+                .where((item) => item.title
+                    .toLowerCase()
+                    .contains(_searchController.text.toLowerCase()))
+                .length >
+            _filteredItems.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -209,6 +230,54 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             ),
           ),
 
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 15),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Ingredients',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                if (hasMoreItems)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _loadMore,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kAccent,
+                        foregroundColor: kWhite,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(kWhite),
+                              ),
+                            )
+                          : const Text(
+                              'See More',
+                              style: TextStyle(color: kWhite),
+                            ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
           // Table
           Expanded(
             child: SingleChildScrollView(
@@ -222,7 +291,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                       columns: [
                         DataColumn(
                           label: Text(
-                            'Shopping',
+                            'Add to list',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,
@@ -311,8 +380,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                       //todo - cell item page
                                     },
                                     child: Center(
-                                      child: header.toLowerCase() ==
-                                              "rainbow_group"
+                                      child: header.toLowerCase() == "rainbow"
                                           ? CircleAvatar(
                                               radius: 10,
                                               backgroundColor:
@@ -334,8 +402,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                           featureValue
                                                               .toString())),
                                                 )
-                                              : header.toLowerCase() ==
-                                                      "water content"
+                                              : header.toLowerCase() == "water"
                                                   ? Row(
                                                       crossAxisAlignment:
                                                           CrossAxisAlignment
@@ -355,8 +422,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                       0) /
                                                                   100,
                                                               backgroundColor:
-                                                                  Colors.grey[
-                                                                      300],
+                                                                  kBlue.withOpacity(
+                                                                      kOpacity),
                                                               color: kBlue
                                                                   .withOpacity(
                                                                       kOpacity),
@@ -403,36 +470,6 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                         );
                       }).toList(),
                     ),
-                    if (hasMoreItems)
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _loadMore,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kAccent,
-                            foregroundColor: kWhite,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(kWhite),
-                                  ),
-                                )
-                              : const Text(
-                                  'See More',
-                                  style: TextStyle(color: kWhite),
-                                ),
-                        ),
-                      ),
                   ],
                 ),
               ),

@@ -221,6 +221,9 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 isEdit: false,
                 onRemoveItem: (int) {},
               ),
+               const SizedBox(
+                height: 10,
+              ),
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
               const SizedBox(

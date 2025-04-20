@@ -24,14 +24,16 @@ class TitleSection extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
+          Flexible(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
           ),
           const SizedBox(
             width: 6,

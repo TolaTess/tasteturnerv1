@@ -192,6 +192,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           labelColor: isDarkMode ? kWhite : kBlack,
           unselectedLabelColor: kLightGrey,
           indicatorColor: isDarkMode ? kWhite : kBlack,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Ingredient Spin'),
             Tab(text: 'Meal Spin'),

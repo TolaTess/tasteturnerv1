@@ -3,7 +3,7 @@ class MacroData {
   final String title, type;
   final List<String> mediaPaths;
   final int calories;
-  final Map<String, double> macros;
+  final Map<String, dynamic> macros;
   final List<String> categories;
   final Map<String, dynamic> features;
   final List<String> techniques;
@@ -54,7 +54,7 @@ class MacroData {
       title: json['title'] as String, // Ensure title is String
       type: json['type'] as String, // Ensure type is String
       calories: json['calories'] as int? ?? 0,
-      macros: Map<String, double>.from(json['macros'] as Map<dynamic, dynamic>),
+      macros: Map<String, dynamic>.from(json['macros'] as Map<dynamic, dynamic>),
       categories: (json['categories'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

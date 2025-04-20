@@ -19,7 +19,6 @@ import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'buddy_tab.dart';
 
-
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
   const MealDesignScreen({super.key, this.initialTabIndex = 0});
@@ -50,8 +49,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
     _loadMealPlans();
+    // _loadCurrentWeekShoppingList();
     shoppingList = macroManager.ingredient;
-    macroManager.fetchShoppingList(userService.userId ?? '');
+    final currentWeek = getCurrentWeek();
+    macroManager.fetchShoppingList(
+        userService.userId ?? '', currentWeek, false);
     // Initialize buddy data cache if needed
     if (widget.initialTabIndex == 2) {
       _initializeBuddyData();
@@ -103,6 +105,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   @override
   void dispose() {
+    // _saveCurrentShoppingList();
     _tabController.removeListener(_handleTabIndex);
     _tabController.dispose();
     super.dispose();
@@ -268,7 +271,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             Tab(text: '$appNameBuddy'),
           ],
           labelColor: isDarkMode ? kWhite : kBlack,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w900),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           unselectedLabelColor: kLightGrey,
           indicatorColor: isDarkMode ? kWhite : kBlack,
         ),
@@ -278,10 +281,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         children: [
           _buildCalendarTab(),
           _buildShoppingListTab(),
-          if (isPremium)
-            const BuddyTab()
-          else
-            _buildDefaultView(context)
+          if (isPremium) const BuddyTab() else _buildDefaultView(context)
         ],
       ),
     );
@@ -508,7 +508,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     return Column(
       children: [
         // Action buttons row
-        const SizedBox(height: 20),
+        const SizedBox(height: 30),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -541,12 +541,27 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
           ],
         ),
+        if (macroManager.shoppingList.isEmpty) const SizedBox(height: 30),
+        if (macroManager.shoppingList.isEmpty)
+          const Center(
+            child: Text(
+              'Last week\'s list:',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: kAccent,
+              ),
+            ),
+          ),
         const SizedBox(height: 20),
 
         // Shopping list
         Expanded(
           child: Obx(() {
-            if (macroManager.shoppingList.isEmpty) {
+            if (macroManager.shoppingList.isEmpty &&
+                macroManager.previousShoppingList.isEmpty) {
+              macroManager.fetchShoppingList(
+                  userService.userId ?? '', getCurrentWeek() - 1, true);
               return noItemTastyWidget(
                 'No items in shopping list',
                 '',
@@ -556,7 +571,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             }
 
             return ShoppingListView(
-              items: macroManager.shoppingList,
+              items: macroManager.shoppingList.isNotEmpty
+                  ? macroManager.shoppingList
+                  : macroManager.previousShoppingList,
               selectedItems: selectedShoppingItems,
               onToggle: (item) {
                 setState(() {

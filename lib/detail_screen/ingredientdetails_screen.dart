@@ -26,8 +26,9 @@ class IngredientDetailsScreen extends StatefulWidget {
 }
 
 class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
-  bool isFullList = false;
-  bool isHideList = false;
+  bool isHideList = true;
+  bool isHideStorage = true;
+  bool isHideTechniques = true;
   List<Meal> demoMealsPlanData = [];
   bool? isPremium = false;
   bool isInShoppingList = false;
@@ -132,7 +133,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.1),
+                      color: kAccent.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
@@ -142,10 +143,33 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                               '${entry.key.toUpperCase()}: ${entry.value}g')
                           .join(', '),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                       ),
                     ),
                   ),
+                const SizedBox(
+                  height: 15,
+                ),
+
+                //Techniques
+                if (widget.item.techniques.isNotEmpty)
+                  SizedBox(
+                    height: getPercentageWidth(8, context),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(5),
+                      shrinkWrap: true,
+                      itemCount: widget.item.techniques.length,
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        final featureKey = widget.item.techniques[index];
+                        return TopFeatures(
+                          dataSrc: {featureKey: featureKey},
+                          isTechniqie: true,
+                        );
+                      },
+                    ),
+                  ),
+
                 if (widget.item.macros.isNotEmpty)
                   const SizedBox(
                     height: 10,
@@ -170,7 +194,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   title:
                       "Recipes with ${capitalizeFirstLetter(widget.item.title)}",
                   press: () {
-                    Navigator.push( 
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => RecipeListCategory(
@@ -208,16 +232,13 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   Column(
                     children: [
                       TitleSection(
-                        title: isFullList
-                            ? "All Components"
-                            : "${capitalizeFirstLetter(widget.item.title)}'s Components",
+                        title: "Main Components",
                         press: () {
                           setState(() {
-                            isFullList = !isFullList;
                             isHideList = !isHideList;
                           });
                         }, // Toggle full features
-                        more: isFullList ? seeAll : 'Less',
+                        more: isHideList ? seeAll : 'Less',
                       ),
                       const SizedBox(height: 10),
                       AnimatedCrossFade(
@@ -253,12 +274,69 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ],
                   ),
                 const SizedBox(
-                  height: 10,
-                ),
-                Divider(color: isDarkMode ? kWhite : kDarkGrey),
- const SizedBox(
                   height: 5,
                 ),
+                Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                const SizedBox(
+                  height: 5,
+                ),
+
+                //Storage
+                // Only show this Column if features are not empty
+                if (widget.item.storageOptions.isNotEmpty)
+                  Column(
+                    children: [
+                      TitleSection(
+                        title: "Storage Options",
+                        press: () {
+                          setState(() {
+                            isHideStorage = !isHideStorage;
+                          });
+                        }, // Toggle full features
+                        more: isHideStorage ? seeAll : 'Less',
+                      ),
+                      const SizedBox(height: 10),
+                      AnimatedCrossFade(
+                        duration: const Duration(milliseconds: 300),
+                        crossFadeState: isHideStorage
+                            ? CrossFadeState.showSecond
+                            : CrossFadeState.showFirst,
+                        firstChild: Column(
+                          children: [
+                            const SizedBox(height: 2.8),
+                            // Avatar list
+                            SizedBox(
+                              height: getPercentageWidth(10, context),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: widget.item.storageOptions.length,
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (context, index) {
+                                  final featureKey = widget
+                                      .item.storageOptions.keys
+                                      .elementAt(index);
+                                  final featureValue =
+                                      widget.item.storageOptions[featureKey];
+                                  return TopFeatures(
+                                    dataSrc: {featureKey: featureValue},
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        secondChild: const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                const SizedBox(
+                  height: 5,
+                ),
+                Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                const SizedBox(
+                  height: 5,
+                ),
+
 // ------------------------------------Premium------------------------------------
 
                 isPremium ?? userService.currentUser?.isPremium ?? false
@@ -279,13 +357,13 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 // ------------------------------------Premium------------------------------------
 
                 widget.isRefresh
-                    ? const SizedBox(height: 20)
+                    ? const SizedBox(height: 10)
                     : const SizedBox.shrink(),
                 //more ingredients
                 widget.isRefresh
                     ? Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: 20,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -305,13 +383,14 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 3,
+                                  horizontal: 5,
+                                  vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
                                     color: isDarkMode
                                         ? kLightGrey.withOpacity(0.4)
-                                        : kAccent.withOpacity(0.4),
-                                    borderRadius: BorderRadius.circular(20)),
+                                        : kLightGrey.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(10)),
                                 child: Row(
                                   children: [
                                     Text(
@@ -350,8 +429,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             crossAxisSpacing: 15,
                             childAspectRatio: 0.55,
                           ),
-                          itemCount: widget.ingredientItems.length > 6
-                              ? 6
+                          itemCount: widget.ingredientItems.length > 3
+                              ? 3
                               : widget.ingredientItems.length,
                           itemBuilder: (BuildContext ctx, index) {
                             return RecomendationItem(
@@ -451,22 +530,30 @@ class TopFeatures extends StatelessWidget {
   const TopFeatures({
     super.key,
     required this.dataSrc,
+    this.isTechniqie = false,
   });
 
   final Map<String, dynamic> dataSrc;
+  final bool isTechniqie;
 
   String _getFeatureDescription(String key, dynamic value) {
     switch (key.toLowerCase()) {
       case 'season':
         return 'Best harvested and consumed during $value season.\nThis is when the ingredient is at its peak freshness and flavor.';
-      case 'water_content':
+      case 'water':
         return 'Contains $value water content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
-      case 'rainbow_group':
+      case 'rainbow':
         return 'Natural color: $value\nColor indicates presence of different phytonutrients and antioxidants.';
-      case 'average_weight':
-        return 'Average weight: $value\nTypical weight of a single unit, useful for portion control and recipe planning.';
-      case 'glycemic_index':
+      case 'fiber':
+        return 'Contains $value fiber content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
+      case 'g_i':
         return 'Glycemic Index: $value\nGlycemic index measures how quickly a food raises blood sugar levels.';
+      case 'freezer':
+        return 'Store in freezer at $value°F.\nThis helps preserve the ingredient\'s freshness and flavor.';
+      case 'fridge':
+        return 'Store in refrigerator at $value°F.\nThis helps preserve the ingredient\'s freshness and flavor.';
+      case 'countertop':
+        return 'Store at room temperature.\nThis helps preserve the ingredient\'s freshness and flavor.';
       default:
         return '$key: $value';
     }
@@ -476,14 +563,20 @@ class TopFeatures extends StatelessWidget {
     switch (key.toLowerCase()) {
       case 'season':
         return '🌱';
-      case 'water_content':
+      case 'water':
         return '💧';
-      case 'rainbow_group':
+      case 'rainbow':
         return '🎨';
-      case 'average_weight':
+      case 'fiber':
         return '⚖️';
-      case 'glycemic_index':
+      case 'g_i':
         return '🍬';
+      case 'freezer':
+        return '🧊';
+      case 'fridge':
+        return '❄️';
+      case 'countertop':
+        return '🍽️';
       default:
         return '📌';
     }
@@ -492,7 +585,23 @@ class TopFeatures extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entry = dataSrc.entries.first;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    if (isTechniqie) {
+      return Row(
+        children: [
+          Text(
+            capitalizeFirstLetter(entry.value),
+            style: TextStyle(
+              fontWeight: FontWeight.w400,
+              color: isDarkMode ? kWhite : kBlack,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(width: 20),
+        ],
+      );
+    }
 
     return GestureDetector(
       onTap: () {
@@ -513,7 +622,7 @@ class TopFeatures extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     entry.key.toUpperCase(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kAccent,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -548,7 +657,7 @@ class TopFeatures extends StatelessWidget {
               margin: const EdgeInsets.only(right: 10),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: kAccent.withOpacity(kMidOpacity),
+                color: kAccent.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Row(
@@ -563,9 +672,9 @@ class TopFeatures extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${capitalizeFirstLetter(entry.key)}: ${capitalizeFirstLetter(entry.value)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: kWhite,
+                      color: isDarkMode ? kWhite : kBlack,
                     ),
                   ),
                 ],

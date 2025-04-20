@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../data_models/macro_data.dart';
 import '../constants.dart';
+import '../helper/utils.dart';
 import 'meal_api_service.dart';
 import 'battle_service.dart';
 
@@ -17,7 +18,7 @@ class MacroManager extends GetxController {
   List<MacroData> get ingredient => _demoIngredientData;
   List<Map<String, dynamic>> get ingredientBattle => _ingredientBattle;
   final RxList<MacroData> shoppingList = <MacroData>[].obs;
-
+  final RxList<MacroData> previousShoppingList = <MacroData>[].obs;
   Future<void> fetchIngredients() async {
     try {
       final snapshot = await firestore.collection('ingredients').get();
@@ -65,14 +66,6 @@ class MacroManager extends GetxController {
         .map((macro) => macro.title)
         .where((title) => title.isNotEmpty)
         .toList();
-  }
-
-  // Helper method to get current week number
-  int getCurrentWeek() {
-    final now = DateTime.now();
-    final firstDayOfYear = DateTime(now.year, 1, 1);
-    final days = now.difference(firstDayOfYear).inDays;
-    return (days / 7).ceil();
   }
 
   Future<void> saveShoppingList(
@@ -180,8 +173,7 @@ class MacroManager extends GetxController {
   }
 
   /// Fetch shopping list and listen for real-time updates
-  void fetchShoppingList(String userId) {
-    final currentWeek = getCurrentWeek();
+  void fetchShoppingList(String userId, int currentWeek, bool isPreviousList) {
     firestore
         .collection('userMeals')
         .doc(userId)
@@ -193,9 +185,9 @@ class MacroManager extends GetxController {
         final data = docSnapshot.data();
         if (data != null && data['itemIds'] != null) {
           final List<String> itemIds = List<String>.from(data['itemIds']);
-
           if (itemIds.isEmpty) {
             shoppingList.clear();
+            previousShoppingList.clear();
             return;
           }
 
@@ -221,16 +213,23 @@ class MacroManager extends GetxController {
               }));
             }
 
-            shoppingList.assignAll(items);
+            if (isPreviousList) {
+              previousShoppingList.assignAll(items);
+            } else {
+              shoppingList.assignAll(items);
+            }
           } catch (e) {
             print("Error fetching shopping list items: $e");
             shoppingList.clear();
+            previousShoppingList.clear();
           }
         } else {
           shoppingList.clear();
+          previousShoppingList.clear();
         }
       } else {
         shoppingList.clear();
+        previousShoppingList.clear();
       }
     }, onError: (e) {
       print("Error fetching shopping list: $e");

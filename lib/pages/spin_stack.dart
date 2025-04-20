@@ -115,19 +115,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             fullMealList.map((meal) => meal.title).take(10).toList();
       } else if (widget.customLabels != null &&
           widget.customLabels!.isNotEmpty) {
-        print('widget.customLabels 2: ${widget.customLabels?.length}');
         availableLabels = widget.customLabels!.toSet().toList();
       } else {
-        print('widget.labels 2: ${widget.labels.length}');
         fullLabelsList = widget.labels
             .where((item) => item.type.toLowerCase() == macro.toLowerCase())
             .toList();
-        print('widget.fullLabelsList 2: ${fullLabelsList.length}');
         isMacroEmpty = fullLabelsList.isEmpty;
         availableLabels =
             fullLabelsList.map((macroData) => macroData.title).take(10).toList();
-        print('widget.availableLabels 2: ${availableLabels.length}');
-        // _maintainAvailableLabels();
       }
 
       // Ensure we don't have empty labels
