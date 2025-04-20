@@ -72,16 +72,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
-        title: Center(
-          child: Text(
-            "Ingredients and Recipes",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w400,
-              color: isDarkMode ? Colors.white : Colors.black,
-            ),
+        automaticallyImplyLeading: false,
+        title: Text(
+          "Ingredients and Recipes",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w400,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

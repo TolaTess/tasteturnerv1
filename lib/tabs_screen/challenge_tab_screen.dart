@@ -40,22 +40,21 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(
+          challenges,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w400,
+            color: themeProvider.isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(
-              height: 15,
-            ),
-            const Text(
-              challenges,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
             // TabBar at the top
             TabBar(
               controller: _tabController,
@@ -79,8 +78,7 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
                   ),
                 ),
               ],
-              indicatorColor:
-                  themeProvider.isDarkMode ? kWhite : kBlack,
+              indicatorColor: themeProvider.isDarkMode ? kWhite : kBlack,
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
@@ -93,7 +91,7 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children:  [
+                children: [
                   const FoodChallengeScreen(), // Chats tab content
                   VoteScreen(
                     isDarkMode: themeProvider.isDarkMode,
@@ -104,9 +102,6 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
           ],
         ),
       ),
-
-      // Floating action button changes based on the selected tab
-      // floatingActionButton: _buildFAB(),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../data_models/meal_model.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/ingredient_features.dart';
+import '../widgets/premium_widget.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/shopping_list_view.dart';
 import '../screens/favorite_screen.dart';
@@ -234,10 +235,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ),
                   Text(
                     DateFormat('d MMMM').format(DateTime.now()),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w400,
-                      color: Colors.amber[700],
+                      color: kAccentLight,
                     ),
                   ),
                 ],
@@ -541,6 +542,30 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
           ],
         ),
+
+        // ------------------------------------Premium / Ads------------------------------------
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : const SizedBox(height: 15),
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : PremiumSection(
+                isPremium: userService.currentUser?.isPremium ?? false,
+                titleOne: joinChallenges,
+                titleTwo: premium,
+                isDiv: false,
+              ),
+
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : const SizedBox(height: 10),
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : Divider(
+                color:
+                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey),
+        // ------------------------------------Premium / Ads-------------------------------------
+
         if (macroManager.shoppingList.isEmpty) const SizedBox(height: 30),
         if (macroManager.shoppingList.isEmpty)
           const Center(

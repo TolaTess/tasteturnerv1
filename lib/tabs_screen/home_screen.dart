@@ -186,133 +186,138 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       drawer: const CustomDrawer(),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(75),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Avatar and Greeting Section
-                  Row(
-                    children: [
-                      Builder(builder: (context) {
-                        return GestureDetector(
-                          onTap: () {
-                            Scaffold.of(context).openDrawer();
-                          },
-                          child: CircleAvatar(
-                            radius: 25,
-                            backgroundColor: kAccent.withOpacity(kOpacity),
-                            child: CircleAvatar(
-                              backgroundImage: _getAvatarImage(avatarUrl),
-                              radius: 23,
-                            ),
-                          ),
-                        );
-                      }),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$greeting ${currentUser.displayName}!',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            inspiration,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: kLightGrey,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  // Message Section
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? kDarkModeAccent.withOpacity(kLowOpacity)
-                          : kBackgroundColor,
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: Row(
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? kLightGrey.withOpacity(0.1) : kBackgroundColor,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Avatar and Greeting Section
+                    Row(
                       children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MessageScreen(),
+                        Builder(builder: (context) {
+                          return GestureDetector(
+                            onTap: () {
+                              Scaffold.of(context).openDrawer();
+                            },
+                            child: CircleAvatar(
+                              radius: 25,
+                              backgroundColor: kAccent.withOpacity(kOpacity),
+                              child: CircleAvatar(
+                                backgroundImage: _getAvatarImage(avatarUrl),
+                                radius: 23,
                               ),
-                            );
-                          },
-                          child: Icon(Icons.message,
-                              size: 30, color: kAccent.withOpacity(0.6)),
-                        ),
-                        const SizedBox(width: 5),
-
-                        // Unread Count Badge
-                        Obx(() {
-                          final nonBuddyChats = chatController.userChats
-                              .where((chat) => !(chat['participants'] as List)
-                                  .contains('buddy'))
-                              .toList();
-
-                          if (nonBuddyChats.isEmpty) {
-                            return const SizedBox
-                                .shrink(); // Hide badge if no chats
-                          }
-
-                          // Calculate total unread count across all non-buddy chats
-                          final int unreadCount = nonBuddyChats.fold<int>(
-                            0,
-                            (sum, chat) =>
-                                sum + (chat['unreadCount'] as int? ?? 0),
+                            ),
                           );
-
-                          // Handle notifications
-                          _handleUnreadNotifications(unreadCount);
-
-                          if (unreadCount >= 1) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: kRed,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                unreadCount.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            );
-                          } else {
-                            return const SizedBox
-                                .shrink(); // Hide badge if unreadCount is 0
-                          }
                         }),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$greeting ${currentUser.displayName}!',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
+                            ),
+                            Text(
+                              inspiration,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: kLightGrey,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  )
-                ],
+                    // Message Section
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? kDarkModeAccent.withOpacity(kLowOpacity)
+                            : kBackgroundColor,
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MessageScreen(),
+                                ),
+                              );
+                            },
+                            child: Icon(Icons.message,
+                                size: 30, color: kAccent.withOpacity(0.6)),
+                          ),
+                          const SizedBox(width: 5),
+
+                          // Unread Count Badge
+                          Obx(() {
+                            final nonBuddyChats = chatController.userChats
+                                .where((chat) => !(chat['participants'] as List)
+                                    .contains('buddy'))
+                                .toList();
+
+                            if (nonBuddyChats.isEmpty) {
+                              return const SizedBox
+                                  .shrink(); // Hide badge if no chats
+                            }
+
+                            // Calculate total unread count across all non-buddy chats
+                            final int unreadCount = nonBuddyChats.fold<int>(
+                              0,
+                              (sum, chat) =>
+                                  sum + (chat['unreadCount'] as int? ?? 0),
+                            );
+
+                            // Handle notifications
+                            _handleUnreadNotifications(unreadCount);
+
+                            if (unreadCount >= 1) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: kRed,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  unreadCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return const SizedBox
+                                  .shrink(); // Hide badge if unreadCount is 0
+                            }
+                          }),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: SafeArea(

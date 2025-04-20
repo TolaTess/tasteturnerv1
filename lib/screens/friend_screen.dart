@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -48,12 +49,12 @@ class _FriendScreenState extends State<FriendScreen> {
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(16.0),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, // Adjust based on your preference
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.85, // Adjust for the image and text ratio
+            crossAxisCount: 4,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 24,
+            childAspectRatio: 0.75,
           ),
           itemCount: friendController.friendsMap.length,
           itemBuilder: (context, index) {
@@ -76,13 +77,7 @@ class _FriendScreenState extends State<FriendScreen> {
               },
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage:
-                        friend.profileImage?.contains('http') ?? false
-                            ? NetworkImage(friend.profileImage!)
-                            : AssetImage(intPlaceholderImage) as ImageProvider,
-                  ),
+                  buildFriendAvatar(friend.profileImage),
                   const SizedBox(height: 8),
                   Text(
                     friend.displayName ?? '',

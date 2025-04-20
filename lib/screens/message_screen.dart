@@ -342,24 +342,7 @@ class _MessageItemState extends State<MessageItem> {
           child: Row(
             children: [
               // Avatar
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: kPrimaryColor,
-                child: CircleAvatar(
-                  radius: 27,
-                  backgroundColor: kAccent.withOpacity(0.35),
-                  child: CircleAvatar(
-                    radius: 25,
-                    backgroundImage: (friend != null &&
-                            friend.profileImage != null &&
-                            friend.profileImage!.isNotEmpty &&
-                            friend.profileImage!.contains('http'))
-                        ? NetworkImage(friend.profileImage!)
-                        : const AssetImage(intPlaceholderImage)
-                            as ImageProvider,
-                  ),
-                ),
-              ),
+              buildFriendAvatar(friend?.profileImage),
               const SizedBox(width: 16),
 
               // Name and Last Message

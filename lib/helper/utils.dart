@@ -581,3 +581,91 @@ ThemeData getDatePickerTheme(BuildContext context, bool isDarkMode) {
     );
   }
 }
+
+class HexagonClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final double radius = size.width / 2;
+    final double centerX = size.width / 2;
+    final double centerY = size.height / 2;
+    final double rotationAngle = 30 * (3.14159 / 180); // 30 degrees in radians
+    final double curveRadius = radius * 0.1; // Radius for curved corners
+
+    // Calculate main corner points for the hexagon
+    List<Offset> corners = [];
+    for (int i = 0; i < 6; i++) {
+      double angle = (i * 60) * (3.14159 / 180);
+      corners.add(Offset(
+        centerX + radius * cos(angle + rotationAngle),
+        centerY + radius * sin(angle + rotationAngle),
+      ));
+    }
+
+    // Helper function to get point at given percentage between two points
+    Offset getPointBetween(Offset start, Offset end, double percent) {
+      return Offset(
+        start.dx + (end.dx - start.dx) * percent,
+        start.dy + (end.dy - start.dy) * percent,
+      );
+    }
+
+    // Start the path
+    path.moveTo(
+      getPointBetween(corners[0], corners[1], curveRadius / radius).dx,
+      getPointBetween(corners[0], corners[1], curveRadius / radius).dy,
+    );
+
+    // Draw each side with curved corners
+    for (int i = 0; i < 6; i++) {
+      final currentCorner = corners[i];
+      final nextCorner = corners[(i + 1) % 6];
+
+      // End point of current line (start of curve)
+      final lineEnd =
+          getPointBetween(currentCorner, nextCorner, 1 - curveRadius / radius);
+
+      // Draw straight line
+      path.lineTo(lineEnd.dx, lineEnd.dy);
+
+      // Calculate control points for the curve
+      final nextLineStart =
+          getPointBetween(nextCorner, currentCorner, curveRadius / radius);
+
+      // Draw the curved corner
+      path.quadraticBezierTo(
+        nextCorner.dx,
+        nextCorner.dy,
+        nextLineStart.dx,
+        nextLineStart.dy,
+      );
+    }
+
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+Widget buildFriendAvatar(String? profileImage) {
+  return Container(
+    width: 65,
+    height: 65,
+    child: ClipPath(
+      clipper: HexagonClipper(),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          image: DecorationImage(
+            image: profileImage?.contains('http') ?? false
+                ? NetworkImage(profileImage!)
+                : AssetImage(intPlaceholderImage) as ImageProvider,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    ),
+  );
+}
