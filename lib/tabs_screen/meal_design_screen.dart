@@ -49,16 +49,24 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     _tabController = TabController(
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
-    _loadMealPlans();
-    // _loadCurrentWeekShoppingList();
-    shoppingList = macroManager.ingredient;
-    final currentWeek = getCurrentWeek();
-    macroManager.fetchShoppingList(
-        userService.userId ?? '', currentWeek, false);
+    _setupDataListeners();
     // Initialize buddy data cache if needed
     if (widget.initialTabIndex == 2) {
       _initializeBuddyData();
     }
+  }
+
+  void _setupDataListeners() {
+    _onRefresh();
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadMealPlans();
+    shoppingList = macroManager.ingredient;
+    final currentWeek = getCurrentWeek();
+    
+    macroManager.fetchShoppingList(
+        userService.userId ?? '', currentWeek, false);
   }
 
   void _initializeBuddyData() {
@@ -277,13 +285,16 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           indicatorColor: isDarkMode ? kWhite : kBlack,
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildCalendarTab(),
-          _buildShoppingListTab(),
-          if (isPremium) const BuddyTab() else _buildDefaultView(context)
-        ],
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildCalendarTab(),
+            _buildShoppingListTab(),
+            if (isPremium) const BuddyTab() else _buildDefaultView(context)
+          ],
+        ),
       ),
     );
   }

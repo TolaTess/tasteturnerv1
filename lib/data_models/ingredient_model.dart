@@ -60,28 +60,28 @@ List<MealsData> demoMealsData = [
   ),
   MealsData(
     image: 'assets/images/paleo.jpg',
-    title: "Paleo",
-    subtitle: "Delicious appetizers to start your meal",
+    title: "Lunch",
+    subtitle: "Delicious lunch options to keep you going",
   ),
   MealsData(
     image: 'assets/images/pescatarian.jpg',
-    title: "Seafood",
-    subtitle: "Delicious seafood dishes for a healthy and sustainable diet",
+    title: "Korean",
+    subtitle: "Delicious Korean dishes for a healthy and sustainable diet",
   ),
   MealsData(
     image: 'assets/images/vegetarian.jpg',
-    title: "Vegetarian",
-    subtitle: "Enjoy a plant-based diet for a healthier lifestyle",
+    title: "Italian",
+    subtitle: "Delicious Italian dishes for a healthy and sustainable diet",
   ),
   MealsData(
     image: 'assets/images/vegan.jpg',
-    title: "Vegan",
-    subtitle: "Vegan meals for a healthy and sustainable diet",
+    title: "Japanese",
+    subtitle: "Delicious Japanese dishes for a healthy and sustainable diet",
   ),
   MealsData(
     image: 'assets/images/dessert.jpg',
-    title: "Dessert",
-    subtitle: "Get your sweet fix with these decadent desserts",
+    title: "African",
+    subtitle: "Delicious African dishes for a healthy and sustainable diet",
   ),
 ];
 

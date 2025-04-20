@@ -50,6 +50,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final Map<String, List<UserMeal>> lunchList = {};
   final Map<String, List<UserMeal>> dinnerList = {};
 
+  // Add this as a class field at the top of the class
+  List<UserMeal> _pendingMacroItems = [];
+
   @override
   void initState() {
     super.initState();
@@ -293,13 +296,137 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     int selectedNumber = 0;
     int selectedUnit = 0;
 
+    if (result is Meal) {
+    } else if (result is MacroData) {
+    } else if (result is IngredientData) {}
+
     String itemName = result is Meal
         ? result.title
         : result is MacroData
-            ? capitalizeFirstLetter(result.title)
+            ? result.title
             : result is IngredientData
-                ? capitalizeFirstLetter(result.title)
+                ? result.title
                 : 'Unknown Item';
+
+    // Helper function to calculate calories based on selected number and unit
+    int calculateAdjustedCalories() {
+      if (result is Meal) {
+        return result.calories; // Meals use their base calories
+      }
+
+      // Base calories (per serving)
+      int baseCalories = result is MacroData
+          ? result.calories
+          : (result as IngredientData).getCalories().toInt();
+
+      // Get the base unit from the data
+      String baseUnit = '';
+      if (result is MacroData) {
+        // Assuming MacroData has a standard serving size, default to 'serving'
+        baseUnit = 'serving';
+      } else if (result is IngredientData) {
+        baseUnit = result.servingSize.toLowerCase();
+      }
+
+      // Selected unit from picker
+      String selectedUnitStr = unitOptions[selectedUnit].toLowerCase();
+
+      // Convert everything to grams for calculation
+      double baseAmount = 1.0; // Default to 1 unit
+      double selectedAmount = selectedNumber.toDouble();
+
+      // Conversion factors to grams
+      const Map<String, double> toGrams = {
+        'g': 1.0,
+        'gram': 1.0,
+        'grams': 1.0,
+        'kg': 1000.0,
+        'kilogram': 1000.0,
+        'kilograms': 1000.0,
+        'oz': 28.35,
+        'ounce': 28.35,
+        'ounces': 28.35,
+        'lb': 453.59,
+        'pound': 453.59,
+        'pounds': 453.59,
+        'cup': 128.0,
+        'cups': 128.0,
+        'tbsp': 15.0,
+        'tablespoon': 15.0,
+        'tablespoons': 15.0,
+        'tsp': 5.0,
+        'teaspoon': 5.0,
+        'teaspoons': 5.0,
+        'ml': 1.0,
+        'milliliter': 1.0,
+        'milliliters': 1.0,
+        'l': 1000.0,
+        'liter': 1000.0,
+        'liters': 1000.0,
+        'serving': 1.0,
+        'servings': 1.0,
+        'piece': 1.0,
+        'pieces': 1.0,
+      };
+
+      // Extract numeric value and unit from base serving size
+      if (result is IngredientData) {
+        RegExp regex = RegExp(r'(\d*\.?\d+)\s*([a-zA-Z]+)');
+        Match? match = regex.firstMatch(baseUnit);
+        if (match != null) {
+          baseAmount = double.tryParse(match.group(1) ?? '1') ?? 1.0;
+          baseUnit = match.group(2)?.toLowerCase() ?? 'serving';
+        }
+      }
+
+      // Convert both amounts to grams
+      double baseInGrams = baseAmount * (toGrams[baseUnit] ?? 1.0);
+      double selectedInGrams =
+          selectedAmount * (toGrams[selectedUnitStr] ?? 1.0);
+
+      // Calculate ratio and adjust calories
+      double ratio = selectedInGrams / baseInGrams;
+      int adjustedCalories = (baseCalories * ratio).round();
+
+      return adjustedCalories;
+    }
+
+    // Helper function to create UserMeal from any type
+    UserMeal createUserMeal() {
+      // Calculate adjusted calories
+      int adjustedCalories = calculateAdjustedCalories();
+
+      if (result is Meal) {
+        final meal = UserMeal(
+          name: result.title,
+          quantity: '$selectedNumber',
+          servings: '${unitOptions[selectedUnit]}',
+          calories: result.calories,
+          mealId: result.mealId,
+        );
+        return meal;
+      } else if (result is MacroData) {
+        final meal = UserMeal(
+          name: result.title,
+          quantity: '$selectedNumber',
+          servings: '${unitOptions[selectedUnit]}',
+          calories: adjustedCalories,
+          mealId: result.id ?? result.title,
+        );
+        return meal;
+      } else if (result is IngredientData) {
+        final meal = UserMeal(
+          name: result.title,
+          quantity: '$selectedNumber',
+          servings: '${unitOptions[selectedUnit]}',
+          calories: adjustedCalories,
+          mealId: result.title,
+        );
+        return meal;
+      } else {
+        throw Exception('Invalid item type: ${result.runtimeType}');
+      }
+    }
 
     showDialog(
       context: context,
@@ -352,7 +479,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _pendingMacroItems.clear();
+                  },
                   child: Text(
                     'Cancel',
                     style: TextStyle(
@@ -361,66 +491,82 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 ),
                 TextButton(
-                  onPressed: () async {
-                    final userMeal = UserMeal(
-                      name: itemName,
-                      quantity: '$selectedNumber',
-                      servings: '${unitOptions[selectedUnit]}',
-                      calories: result is Meal
-                          ? result.calories
-                          : result is MacroData
-                              ? result.calories
-                              : 0,
-                      mealId: result is Meal ? result.mealId : itemName,
-                    );
-
+                  onPressed: () {
                     try {
-                      // Add meal to Firestore using nutritionController
-                      await dailyDataController.addUserMeal(
-                        userService.userId ?? '',
-                        mealType, // Using the meal type (Breakfast/Lunch/Dinner)
-                        userMeal,
-                      );
-
-                      if (mounted) {
-                        showTastySnackbar(
-                          'Success',
-                          'Added ${userMeal.name} to $mealType',
-                          context,
-                        );
-                      }
-
-                      // Update local state
-                      setState(() {
-                        switch (mealType) {
-                          case 'Breakfast':
-                            breakfastList[widget.title] ??= [];
-                            breakfastList[widget.title]!.add(userMeal);
-                            break;
-                          case 'Lunch':
-                            lunchList[widget.title] ??= [];
-                            lunchList[widget.title]!.add(userMeal);
-                            break;
-                          case 'Dinner':
-                            dinnerList[widget.title] ??= [];
-                            dinnerList[widget.title]!.add(userMeal);
-                            break;
-                        }
-                      });
-
+                      final newItem = createUserMeal();
+                      _pendingMacroItems.add(newItem);
                       Navigator.pop(context);
+                      _showSearchResults(context, mealType);
                     } catch (e) {
                       if (mounted) {
                         showTastySnackbar(
-                          'Please try again.',
-                          'Failed to add meal: $e',
+                          'Error',
+                          'Failed to add item: $e',
                           context,
+                          backgroundColor: kRed,
                         );
                       }
                     }
                   },
                   child: Text(
-                    'Add',
+                    'Add Another',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kAccent,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      // Create and add the current item if no items are pending
+                      if (_pendingMacroItems.isEmpty) {
+                        try {
+                          final newItem = createUserMeal();
+                          _pendingMacroItems.add(newItem);
+                        } catch (e) {
+                          if (mounted) {
+                            showTastySnackbar(
+                              'Error',
+                              'Failed to create item: $e',
+                              context,
+                              backgroundColor: kRed,
+                            );
+                          }
+                          return;
+                        }
+                      }
+    
+                      // Save all pending items
+                      for (var item in _pendingMacroItems) {
+                        await dailyDataController.addUserMeal(
+                          userId ?? '',
+                          mealType,
+                          item,
+                        );
+                      }
+
+                      if (mounted) {
+                        showTastySnackbar(
+                          'Success',
+                          'Added ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType',
+                          context,
+                        );
+                      }
+                      _pendingMacroItems.clear();
+                      Navigator.pop(context);
+                    } catch (e) {
+                      if (mounted) {
+                        showTastySnackbar(
+                          'Error',
+                          'Failed to save items: $e',
+                          context,
+                          backgroundColor: kRed,
+                        );
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Save All',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
                     ),
@@ -877,6 +1023,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   );
                 }),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

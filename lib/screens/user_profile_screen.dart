@@ -146,12 +146,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               color: kPrimaryColor,
                               borderRadius: BorderRadius.circular(20),
                               image: DecorationImage(
-                                image: user?.profileImage != null &&
-                                        user!.profileImage!.isNotEmpty &&
-                                        user!.profileImage!.contains('http')
-                                    ? NetworkImage(user!.profileImage!)
-                                    : const AssetImage(intPlaceholderImage)
-                                        as ImageProvider,
+                                image: getImageProvider(user?.profileImage),
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -274,8 +269,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           radius: 52,
                           backgroundColor: kBackgroundColor,
                           child: CircleAvatar(
-                            backgroundImage: NetworkImage(
-                                user?.profileImage ?? intPlaceholderImage),
+                            backgroundImage: getImageProvider(
+                                user?.profileImage),
                             radius: 50,
                           ),
                         ),

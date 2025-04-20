@@ -149,7 +149,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         );
       }
     } catch (e) {
-      debugPrint('Error saving to shopping list: $e');
+      debugPrint('Error saving to shopping list: $e');  
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

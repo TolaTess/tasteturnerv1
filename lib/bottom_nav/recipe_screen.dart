@@ -69,6 +69,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final headers = helperController.category;
+    final customHeaders = helperController.headers;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(

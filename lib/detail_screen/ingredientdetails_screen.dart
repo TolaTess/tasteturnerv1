@@ -137,20 +137,25 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
-                      // Convert the map into a formatted string
-                      widget.item.macros.entries
-                          .map((entry) =>
-                              '${entry.key.toUpperCase()}: ${entry.value}g')
-                          .join(', '),
+                      // Convert the map into a formatted string and add calories
+                      '${widget.item.macros.entries.map((entry) => '${entry.key.toUpperCase()}: ${entry.value}g').join(', ')}${widget.item.calories != null ? ', KCAL: ${widget.item.calories}' : ''}',
                       style: const TextStyle(
                         fontSize: 13,
                       ),
                     ),
                   ),
+
+                //Grams message
+                const Text(
+                  'per 100 grams',
+                  style: TextStyle(
+                    fontSize: 11,
+                  ),
+                ),
+
                 const SizedBox(
                   height: 15,
                 ),
-
                 //Techniques
                 if (widget.item.techniques.isNotEmpty)
                   SizedBox(

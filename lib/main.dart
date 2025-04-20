@@ -11,6 +11,7 @@ import 'data_models/message_screen_data.dart';
 import 'data_models/profilescreen_data.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
+import 'service/battle_management.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
@@ -61,7 +62,7 @@ void main() async {
   });
   // await addDummyPosts();
   await macroManager.getIngredientsByCategory("All");
-
+  BattleManagement.instance.startBattleManagement();
   // Initialize notification service
   final notificationService = NotificationService();
   await notificationService.initNotification();
