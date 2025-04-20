@@ -3,11 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
 import '../constants.dart';
-import '../data_models/user_data_model.dart';
 
 class FirebaseService extends GetxController {
   static FirebaseService instance = Get.find();
-
+  final RxMap<String, dynamic> generalData = <String, dynamic>{}.obs;
   Future<List<Map<String, dynamic>>> fetchPlans() async {
     try {
       final snapshot = await firestore.collection('plans').get();
@@ -84,15 +83,22 @@ class FirebaseService extends GetxController {
 
   // --------------------------ADD to DB-------------------------------------
 
-  Future<void> addUsers(UserModel user) async {
+  Future<void> fetchGeneralData() async {
     try {
-      // Create a new document reference with an auto-generated ID
-      DocumentReference postRef = firestore.collection('users').doc();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('general')
+          .doc('data')
+          .get();
 
-      // Set the post data with the auto-generated ID
-      await postRef.set(user.toMap());
+      if (docSnapshot.exists) {
+        generalData.value = docSnapshot.data() ?? {};
+      } else {
+        print('General data document does not exist');
+        generalData.value = {};
+      }
     } catch (e) {
-      print("Error adding user: $e");
+      print('Error fetching general data: $e');
+      generalData.value = {};
     }
   }
 }
