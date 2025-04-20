@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
+import 'battle_management.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -84,7 +85,7 @@ class NutritionController extends GetxController {
 
     final data = docSnapshot.data();
 
-    pointsAchieved.value = data?['point'] ?? 0;
+    pointsAchieved.value = data?['points'] ?? 0;
   }
 
   Future<void> fetchStreakDays(String userId) async {
@@ -299,9 +300,11 @@ class NutritionController extends GetxController {
         await notificationService.showNotification(
           id: 101,
           title: "Water Goal Achieved! 💧",
-          body: "Congratulations! You've reached your daily water intake goal!",
+          body: "Congratulations! You've reached your daily water intake goal! 10 points awarded! ",
         );
       }
+      await BattleManagement.instance
+          .updateUserPoints(userService.userId ?? '', 10);
     } catch (e) {
       print("Error updating current water: $e");
       throw Exception("Failed to update current water");
@@ -334,9 +337,11 @@ class NutritionController extends GetxController {
         await notificationService.showNotification(
           id: 101,
           title: "Steps Goal Achieved! 💧",
-          body: "Congratulations! You've reached your daily steps goal!",
+          body: "Congratulations! You've reached your daily steps goal! 10 points awarded!",
         );
       }
+      await BattleManagement.instance
+          .updateUserPoints(userService.userId ?? '', 10);
     } catch (e) {
       print("Error updating current steps: $e");
       throw Exception("Failed to update current steps");
@@ -446,7 +451,6 @@ class NutritionController extends GetxController {
 
   void updateCalories(double newCalories, double targetCalories) {
     eatenCalories.value = newCalories.toInt();
-    print('eatenCalories updateCalories: $eatenCalories');
 
     // Prevent division by zero and handle edge cases
     double progressPercentage =
@@ -460,7 +464,6 @@ class NutritionController extends GetxController {
 
     // ✅ Update ValueNotifier to trigger animation with a valid value
     dailyValueNotifier.value = safeProgressValue;
-    print('dailyValueNotifier updateCalories: $dailyValueNotifier');
   }
 
   Future<List<Map<String, dynamic>>> getMyChallenges(String userid) async {

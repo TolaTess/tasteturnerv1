@@ -46,6 +46,7 @@ class _VoteScreenState extends State<VoteScreen> {
   /// **Fetch candidates based on `category` from Firestore**
   void _fetchCandidates(String category) async {
     try {
+      await firebaseService.fetchGeneralData();
       QuerySnapshot snapshot = await firestore
           .collection('battles')
           .where('category', isEqualTo: category.toLowerCase())
@@ -57,8 +58,9 @@ class _VoteScreenState extends State<VoteScreen> {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         // Get current date's battle data
         final dates = data['dates'] as Map<String, dynamic>;
-        final currentDate = dates.keys.first;
-        final currentBattle = dates[currentDate];
+        // final endedAt = dates.keys.first;
+        final endedAt = firebaseService.generalData['currentBattle'];
+        final currentBattle = dates[endedAt];
 
         if (currentBattle != null) {
           final participants =
@@ -104,13 +106,10 @@ class _VoteScreenState extends State<VoteScreen> {
       // Sort candidates by vote percentage in descending order
       candidatesWithPercentages.sort((a, b) => (b['votePercentage'] as double)
           .compareTo(a['votePercentage'] as double));
-      print('candidatesWithPercentages: ${candidatesWithPercentages.length}');
-      print('candatate data: ${candidatesWithPercentages.first}');
 
       if (mounted) {
         setState(() {
           candidates = candidatesWithPercentages;
-          print('candidates: ${candidates.length}');
         });
       }
     } catch (e) {
@@ -198,7 +197,7 @@ class _VoteScreenState extends State<VoteScreen> {
         if (mounted) {
           showTastySnackbar(
             'Please try again.',
-            'Please sign in to vote',
+            '',
             context,
           );
         }
@@ -259,6 +258,8 @@ class _VoteScreenState extends State<VoteScreen> {
   Widget build(BuildContext context) {
     final categoryDatas = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final dateInPast = DateTime.now()
+        .isAfter(DateTime.parse(firebaseService.generalData['currentBattle']));
 
     return Scaffold(
       body: SafeArea(
@@ -275,10 +276,16 @@ class _VoteScreenState extends State<VoteScreen> {
                 accentColor: kAccent,
                 darkModeAccentColor: kDarkModeAccent,
               ),
-              candidates.isEmpty || candidates.length <= 1
-                  ? const SizedBox(height: 60)
-                  : const SizedBox(height: 25),
-              if (candidates.length <= 1)
+              if (dateInPast) ...[
+                const SizedBox(height: 60),
+                noItemTastyWidget(
+                  "Previous Battle Has Ended",
+                  "The next battle will start soon. Stay tuned!",
+                  context,
+                  false,
+                ),
+              ] else if (candidates.isEmpty || candidates.length <= 1) ...[
+                const SizedBox(height: 60),
                 noItemTastyWidget(
                   candidates.length == 1
                       ? "Waiting for more users to join..."
@@ -286,8 +293,9 @@ class _VoteScreenState extends State<VoteScreen> {
                   '',
                   context,
                   false,
-                )
-              else ...[
+                ),
+              ] else ...[
+                const SizedBox(height: 25),
                 if (candidates.length >= 2)
                   Row(
                     children: [
@@ -299,7 +307,6 @@ class _VoteScreenState extends State<VoteScreen> {
                             builder: (context, snapshot) {
                               final double votePercentage =
                                   snapshot.data ?? 0.0;
-                              print('votePercentage: $votePercentage');
                               return VoteItemCard(
                                 item: candidates[i],
                                 votePercentage: votePercentage,

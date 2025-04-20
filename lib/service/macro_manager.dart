@@ -461,6 +461,7 @@ class MacroManager extends GetxController {
   Future<List<Map<String, dynamic>>> getIngredientsBattle(
       String category) async {
     try {
+      final currentBattle1 = firebaseService.generalData['currentBattle'];
       final battles = await _battleService.getBattlesByCategory(category);
       if (battles.isEmpty) return [];
 
@@ -470,7 +471,7 @@ class MacroManager extends GetxController {
         return dates.values.any((dateData) =>
             dateData is Map<String, dynamic> &&
             dateData['status'] == 'active' &&
-            !DateTime.now().isAfter(DateTime.parse(dateData['ended_at'])));
+            !DateTime.now().isAfter(DateTime.parse(currentBattle1)));
       }).toList();
 
       if (activeBattles.isEmpty) return [];

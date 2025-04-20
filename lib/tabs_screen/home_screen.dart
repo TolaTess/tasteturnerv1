@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/message_screen.dart';
+import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
 import '../widgets/bottom_model.dart';
@@ -79,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-
   @override
   void initState() {
     super.initState();
@@ -92,26 +92,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       }
     });
-    _initializeMealData();
-    chatController.loadUserChats(userService.userId ?? '');
+
+    _setupDataListeners();
+  }
+
+  void _setupDataListeners() {
     // Show Tasty popup after a short delay
     _tastyPopupTimer = Timer(const Duration(milliseconds: 4000), () {
       if (mounted) {
         tastyPopupService.showTastyPopup(context, 'home', [], []);
       }
     });
+    _onRefresh();
+  }
+
+  Future<void> _onRefresh() async {
+    _initializeMealData();
+    chatController.loadUserChats(userService.userId ?? '');
+    await helperController.fetchWinners();
+    await firebaseService.fetchGeneralData();
+    if (mounted) setState(() {});
   }
 
   void _initializeMealData() async {
     await dailyDataController.fetchAllMealData(
         userService.userId!, userService.currentUser!.settings, DateTime.now());
+    await firebaseService.fetchGeneralData();
   }
 
   void _initializeMealDataByDate() async {
     await dailyDataController.fetchAllMealDataByDate(
         userService.userId!, userService.currentUser!.settings, currentDate);
   }
-
 
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -167,7 +179,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-
+    final winners = helperController.winners;
+    final announceDate =
+        DateTime.parse(firebaseService.generalData['isAnnounceDate']);
+    final isAnnounceShow = isDateTodayAfterTime(announceDate);
     // Safely access user data with null checks
     final currentUser = userService.currentUser;
     if (currentUser == null) {
@@ -194,7 +209,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -320,255 +336,271 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        final DateTime sevenDaysAgo =
-                            DateTime.now().subtract(const Duration(days: 7));
-                        if (currentDate.isAfter(sevenDaysAgo)) {
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          final DateTime sevenDaysAgo =
+                              DateTime.now().subtract(const Duration(days: 7));
+                          if (currentDate.isAfter(sevenDaysAgo)) {
+                            setState(() {
+                              currentDate = DateTime(
+                                currentDate.year,
+                                currentDate.month,
+                                currentDate.day,
+                              ).subtract(const Duration(days: 1));
+                            });
+                            _initializeMealDataByDate(); // Fetch data for new date
+                            // _initializeRoutineDataByDate();
+                          }
+                        },
+                        icon: Icon(
+                          Icons.arrow_back_ios_new,
+                          size: 20,
+                          color: currentDate.isBefore(DateTime.now()
+                                  .subtract(const Duration(days: 7)))
+                              ? isDarkMode
+                                  ? kLightGrey.withOpacity(0.5)
+                                  : kDarkGrey.withOpacity(0.1)
+                              : null,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('EEEE').format(currentDate),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('d MMMM').format(currentDate),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.amber[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          final DateTime now = DateTime.now();
+                          final DateTime nextDate = DateTime(
+                            currentDate.year,
+                            currentDate.month,
+                            currentDate.day,
+                          ).add(const Duration(days: 1));
+
                           setState(() {
-                            currentDate = DateTime(
-                              currentDate.year,
-                              currentDate.month,
-                              currentDate.day,
-                            ).subtract(const Duration(days: 1));
+                            if (!nextDate.isAfter(
+                                DateTime(now.year, now.month, now.day))) {
+                              currentDate = nextDate;
+                            } else {
+                              currentDate =
+                                  DateTime(now.year, now.month, now.day);
+                            }
                           });
                           _initializeMealDataByDate(); // Fetch data for new date
-                          // _initializeRoutineDataByDate();
-                        }
-                      },
-                      icon: Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 20,
-                        color: currentDate.isBefore(DateTime.now()
-                                .subtract(const Duration(days: 7)))
-                            ? isDarkMode
-                                ? kLightGrey.withOpacity(0.5)
-                                : kDarkGrey.withOpacity(0.1)
-                            : null,
+                        },
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          size: 20,
+                          color: getCurrentDate(currentDate)
+                              ? isDarkMode
+                                  ? kLightGrey.withOpacity(0.5)
+                                  : kDarkGrey.withOpacity(0.1)
+                              : null,
+                        ),
                       ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          DateFormat('EEEE').format(currentDate),
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          DateFormat('d MMMM').format(currentDate),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.amber[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        final DateTime now = DateTime.now();
-                        final DateTime nextDate = DateTime(
-                          currentDate.year,
-                          currentDate.month,
-                          currentDate.day,
-                        ).add(const Duration(days: 1));
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
 
-                        setState(() {
-                          if (!nextDate.isAfter(
-                              DateTime(now.year, now.month, now.day))) {
-                            currentDate = nextDate;
-                          } else {
-                            currentDate =
-                                DateTime(now.year, now.month, now.day);
+                // Add Horizontal Routine List
+                if (!allDisabled)
+                  DailyRoutineListHorizontal(
+                      userId: userService.userId!, date: currentDate),
+                if (!allDisabled) const SizedBox(height: 15),
+                if (!allDisabled)
+                  Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                if (!allDisabled) const SizedBox(height: 5),
+
+                if (winners.isNotEmpty && isAnnounceShow)
+                  AnnouncementWidget(
+                    title: '🏆 Winners of the week 🏆',
+                    announcements: winners,
+                    height: 50, // Optional, defaults to 90
+                    onTap: () {
+                      // Handle tap
+                    },
+                  ),
+                if (winners.isNotEmpty && isAnnounceShow)
+                  const SizedBox(height: 10),
+
+                // Nutrition Overview
+                SizedBox(
+                  height: 180,
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (value) => setState(() {
+                      currentPage = value;
+                    }),
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (getCurrentDate(currentDate)) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddFoodScreen(),
+                              ),
+                            );
                           }
-                        });
-                        _initializeMealDataByDate(); // Fetch data for new date
-                      },
-                      icon: Icon(
-                        Icons.arrow_forward_ios,
-                        size: 20,
-                        color: getCurrentDate(currentDate)
-                            ? isDarkMode
-                                ? kLightGrey.withOpacity(0.5)
-                                : kDarkGrey.withOpacity(0.1)
-                            : null,
+                        },
+                        child: DailyNutritionOverview(
+                          settings: userService.currentUser!.settings,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 15),
+                const SizedBox(height: 10),
+                Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                const SizedBox(height: 10),
 
-              // Add Horizontal Routine List
-              if (!allDisabled)
-                DailyRoutineListHorizontal(
-                    userId: userService.userId!, date: currentDate),
-              if (!allDisabled) const SizedBox(height: 15),
-              if (!allDisabled) Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              if (!allDisabled) const SizedBox(height: 10),
+                // Weekly Ingredients Battle Widget
+                const WeeklyIngredientBattle(),
 
-              // Nutrition Overview
-              SizedBox(
-                height: 180,
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (value) => setState(() {
-                    currentPage = value;
-                  }),
+                const SizedBox(height: 15),
+                Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                const SizedBox(height: 8),
+
+                // Icons Navigation
+
+                // ------------------------------------Premium / Ads------------------------------------
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : PremiumSection(
+                        isPremium: userService.currentUser?.isPremium ?? false,
+                        titleOne: joinChallenges,
+                        titleTwo: premium,
+                        isDiv: false,
+                      ),
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 10),
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+
+                // ------------------------------------Premium / Ads-------------------------------------
+                const SizedBox(height: 20),
+
+                // Water and Activity status widgets
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (getCurrentDate(currentDate)) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AddFoodScreen(),
-                            ),
-                          );
-                        }
-                      },
-                      child: DailyNutritionOverview(
-                        settings: userService.currentUser!.settings,
-                      ),
-                    ),
+                    Obx(() {
+                      final settings = userService.currentUser!.settings;
+                      final double waterTotal = settings['waterIntake'] != null
+                          ? double.tryParse(
+                                  settings['waterIntake'].toString()) ??
+                              0.0
+                          : 0.0;
+                      final double currentWater =
+                          dailyDataController.currentWater.value.toDouble();
+
+                      return StatusWidgetBox(
+                        title: water,
+                        total: waterTotal,
+                        current: currentWater,
+                        sym: ml,
+                        isSquare: true,
+                        upperColor: kBlue,
+                        isWater: true,
+                        press: () {
+                          if (getCurrentDate(currentDate)) {
+                            _openDailyFoodPage(
+                              context,
+                              waterTotal,
+                              currentWater,
+                              "Water Tracker",
+                              true,
+                            );
+                          }
+                        },
+                      );
+                    }),
+                    const SizedBox(width: 35),
+                    Obx(() {
+                      final healthService = Get.find<HealthService>();
+                      final settings = userService.currentUser!.settings;
+
+                      // Get steps from health service if synced, otherwise from settings
+                      int currentSteps;
+                      if (healthService.isAuthorized.value) {
+                        currentSteps = healthService.steps.value;
+                      } else {
+                        currentSteps =
+                            dailyDataController.currentSteps.value.toInt();
+                      }
+
+                      // Get target steps from settings, default to 10000 if not set
+                      final int targetSteps = int.tryParse(
+                              settings['targetSteps']?.toString() ?? '10000') ??
+                          10000;
+
+                      // Check if current steps meet or exceed target steps and notify user
+                      if (currentSteps >= targetSteps && targetSteps > 0) {
+                        // Use SharedPreferences to check if we've already sent a notification today
+                        checkAndSendStepGoalNotification(
+                            currentSteps, targetSteps);
+                      }
+
+                      return StatusWidgetBox(
+                        current: currentSteps.toDouble(),
+                        title: "Steps",
+                        total: targetSteps.toDouble(),
+                        sym: "steps",
+                        isSquare: true,
+                        upperColor: kAccent,
+                        press: () {
+                          if (getCurrentDate(currentDate)) {
+                            _openStepsUpdatePage(
+                              context,
+                              targetSteps.toDouble(),
+                              currentSteps.toDouble(),
+                              "Steps Tracker",
+                              healthService.isAuthorized.value,
+                            );
+                          }
+                        },
+                      );
+                    }),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 10),
-              Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              const SizedBox(height: 10),
-
-              // Weekly Ingredients Battle Widget
-              const WeeklyIngredientBattle(),
-
-              const SizedBox(height: 15),
-              Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              const SizedBox(height: 8),
-
-              // Icons Navigation
-
-              // ------------------------------------Premium / Ads------------------------------------
-
-              userService.currentUser?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : PremiumSection(
-                      isPremium: userService.currentUser?.isPremium ?? false,
-                      titleOne: joinChallenges,
-                      titleTwo: premium,
-                      isDiv: false,
-                    ),
-
-              userService.currentUser?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : const SizedBox(height: 10),
-              userService.currentUser?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
-              // ------------------------------------Premium / Ads-------------------------------------
-              const SizedBox(height: 20),
-
-              // Water and Activity status widgets
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Obx(() {
-                    final settings = userService.currentUser!.settings;
-                    final double waterTotal = settings['waterIntake'] != null
-                        ? double.tryParse(settings['waterIntake'].toString()) ??
-                            0.0
-                        : 0.0;
-                    final double currentWater =
-                        dailyDataController.currentWater.value.toDouble();
-
-                    return StatusWidgetBox(
-                      title: water,
-                      total: waterTotal,
-                      current: currentWater,
-                      sym: ml,
-                      isSquare: true,
-                      upperColor: kBlue,
-                      isWater: true,
-                      press: () {
-                        if (getCurrentDate(currentDate)) {
-                          _openDailyFoodPage(
-                            context,
-                            waterTotal,
-                            currentWater,
-                            "Water Tracker",
-                            true,
-                          );
-                        }
-                      },
-                    );
-                  }),
-                  const SizedBox(width: 35),
-                  Obx(() {
-                    final healthService = Get.find<HealthService>();
-                    final settings = userService.currentUser!.settings;
-
-                    // Get steps from health service if synced, otherwise from settings
-                    int currentSteps;
-                    if (healthService.isAuthorized.value) {
-                      currentSteps = healthService.steps.value;
-                    } else {
-                      currentSteps =
-                          dailyDataController.currentSteps.value.toInt();
-                    }
-
-                    // Get target steps from settings, default to 10000 if not set
-                    final int targetSteps = int.tryParse(
-                            settings['targetSteps']?.toString() ?? '10000') ??
-                        10000;
-
-                    // Check if current steps meet or exceed target steps and notify user
-                    if (currentSteps >= targetSteps && targetSteps > 0) {
-                      // Use SharedPreferences to check if we've already sent a notification today
-                      checkAndSendStepGoalNotification(
-                          currentSteps, targetSteps);
-                    }
-
-                    return StatusWidgetBox(
-                      current: currentSteps.toDouble(),
-                      title: "Steps",
-                      total: targetSteps.toDouble(),
-                      sym: "steps",
-                      isSquare: true,
-                      upperColor: kAccent,
-                      press: () {
-                        if (getCurrentDate(currentDate)) {
-                          _openStepsUpdatePage(
-                            context,
-                            targetSteps.toDouble(),
-                            currentSteps.toDouble(),
-                            "Steps Tracker",
-                            healthService.isAuthorized.value,
-                          );
-                        }
-                      },
-                    );
-                  }),
-                ],
-              ),
-
-              const SizedBox(height: 72),
-            ],
+                const SizedBox(height: 72),
+              ],
+            ),
           ),
         ),
       ),

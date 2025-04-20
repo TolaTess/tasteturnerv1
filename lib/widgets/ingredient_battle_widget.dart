@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../data_models/profilescreen_data.dart';
+import '../service/battle_management.dart';
 
 class WeeklyIngredientBattle extends StatefulWidget {
   const WeeklyIngredientBattle({super.key});
@@ -38,8 +39,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       final prefs = await SharedPreferences.getInstance();
       final shouldUpdate = prefs.getBool('ingredient_battle_new_week') ?? true;
 
-      if (shouldUpdate &&
-          DateTime.now().hour == 12) {
+      if (shouldUpdate && DateTime.now().hour == 12) {
         // It's time to update the data
         await _loadIngredientData();
 
@@ -133,8 +133,10 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
             id: 2001,
             title: 'Weekly Ingredient Battle Results! 🏆',
             body:
-                '${_topIngredient1.value} wins this week with ${_count1.value} uses! Runner up: ${_topIngredient2.value} with ${_count2.value} uses.',
+                '${_topIngredient1.value} wins this week with ${_count1.value} uses! Runner up: ${_topIngredient2.value} with ${_count2.value} uses. 10 points awarded!',
           );
+          await BattleManagement.instance
+              .updateUserPoints(userService.userId ?? '', 10);
         }
       }
     } catch (e) {

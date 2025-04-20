@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fit_hify/constants.dart';
 import 'package:flutter/material.dart';
 
 import '../helper/utils.dart';
+import '../screens/user_profile_screen.dart';
+import '../widgets/announcement.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -11,52 +14,70 @@ class LeaderboardScreen extends StatefulWidget {
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends State<LeaderboardScreen> {
+class _LeaderboardScreenState extends State<LeaderboardScreen>
+    with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> leaderboardData = [];
   Map<String, dynamic>? currentUserRank;
   bool isLoading = true;
+  StreamSubscription? _subscription;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _fetchLeaderboard();
+    _setupDataListeners();
   }
 
-  Future<void> _fetchLeaderboard() async {
+  void _setupDataListeners() {
+    // Listen to points collection changes
+    _subscription = firestore
+        .collection('points')
+        .where('points', isGreaterThan: 0)
+        .orderBy('points', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snapshot) {
+      _updateLeaderboardData(snapshot);
+    });
+
+    // Initial fetch of winners and general data
+    _refreshData();
+  }
+
+  Future<void> _refreshData() async {
+    await helperController.fetchWinners();
+    await firebaseService.fetchGeneralData();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _updateLeaderboardData(QuerySnapshot snapshot) async {
     try {
-      setState(() => isLoading = true);
-
       final userId = userService.userId;
-      final QuerySnapshot pointsSnapshot = await firestore
-          .collection('points')
-          .where('point', isGreaterThan: 0)
-          .orderBy('point', descending: true)
-          .limit(50)
-          .get();
-
       final List<Map<String, dynamic>> data = [];
       int userRank = 0;
 
-      for (var i = 0; i < pointsSnapshot.docs.length; i++) {
-        final pointsDoc = pointsSnapshot.docs[i];
+      for (var i = 0; i < snapshot.docs.length; i++) {
+        final pointsDoc = snapshot.docs[i];
         final pointsData = pointsDoc.data() as Map<String, dynamic>?;
         final docUserId = pointsDoc.id;
 
-
-        // Fetch user details using the user ID from points collection
-        final userDoc = await firestore
-            .collection('users')
-            .doc(docUserId)
-            .get();
+        // Fetch user details
+        final userDoc =
+            await firestore.collection('users').doc(docUserId).get();
         final userData = userDoc.data() as Map<String, dynamic>?;
 
         final userMap = {
           'id': docUserId,
           'displayName': userData?['displayName'] ?? 'Unknown',
-          'profileImage': userData?['profileImage'] ?? intPlaceholderImage,
-          'points': pointsData?['point'] ?? 0,
+          'profileImage':
+              userData?['profileImage']?.toString().isNotEmpty == true
+                  ? userData!['profileImage']
+                  : intPlaceholderImage,
+          'points': pointsData?['points'] ?? 0,
           'rank': i + 1,
-          'subtitle': userData?['subtitle'] ?? 'ENERGY FAN',
+          'subtitle': userData?['subtitle'] ?? 'TASTY FAN',
         };
 
         data.add(userMap);
@@ -67,18 +88,67 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         }
       }
 
-      setState(() {
-        leaderboardData = data;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          leaderboardData = data;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      print('Error fetching leaderboard: $e');
-      setState(() => isLoading = false);
+      print('Error updating leaderboard: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    try {
+      setState(() => isLoading = true);
+
+      // Refresh winners data
+      await helperController.fetchWinners();
+
+      // Refresh general data (for announce date)
+      await firebaseService.fetchGeneralData();
+
+      // Manually trigger a refresh of leaderboard data
+      final snapshot = await firestore
+          .collection('points')
+          .where('points', isGreaterThan: 0)
+          .orderBy('points', descending: true)
+          .limit(50)
+          .get();
+
+      await _updateLeaderboardData(snapshot);
+
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print('Error refreshing data: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
+    final winners = helperController.winners;
+    final announceDate = DateTime.parse(
+        firebaseService.generalData['isAnnounceDate'] ??
+            DateTime.now().toString());
+    final isAnnounceShow = isDateTodayAfterTime(announceDate);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -88,44 +158,34 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _onRefresh,
+          ),
+        ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: kAccent))
-          : leaderboardData.isEmpty
-              ? const Center(child: Text("No users on leaderboard"))
-              : Column(
-                  children: [
-                    if (currentUserRank != null)
-                      Container(
-                        margin: const EdgeInsets.all(16),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: kAccent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              "#${currentUserRank!['rank']}",
-                              style: TextStyle(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kWhite
-                                    : kBlack,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundImage: NetworkImage(
-                                  currentUserRank!['profileImage']),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                currentUserRank!['displayName'],
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator(color: kAccent))
+            : leaderboardData.isEmpty
+                ? const Center(child: Text("No users on leaderboard"))
+                : Column(
+                    children: [
+                      if (currentUserRank != null)
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: kAccent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                "#${currentUserRank!['rank']}",
                                 style: TextStyle(
                                   color: getThemeProvider(context).isDarkMode
                                       ? kWhite
@@ -134,38 +194,76 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                            Text(
-                              "${currentUserRank!['points']}",
-                              style: TextStyle(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kWhite
-                                    : kBlack,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(width: 12),
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundImage: _getImageProvider(
+                                    currentUserRank!['profileImage']),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  currentUserRank!['displayName'],
+                                  style: TextStyle(
+                                    color: getThemeProvider(context).isDarkMode
+                                        ? kWhite
+                                        : kBlack,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "${currentUserRank!['points']}",
+                                style: TextStyle(
+                                  color: getThemeProvider(context).isDarkMode
+                                      ? kWhite
+                                      : kBlack,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (winners.isNotEmpty && isAnnounceShow) ...[
+                        AnnouncementWidget(
+                          title: '🏆 Winners of the week 🏆',
+                          announcements: winners,
+                          height: 50,
+                          onTap: () {
+                            // Handle tap
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: leaderboardData.length,
+                          itemBuilder: (context, index) {
+                            final user = leaderboardData[index];
+                            return LeaderboardItem(
+                              rank: index + 1,
+                              name: user['displayName'],
+                              subtitle: user['subtitle'],
+                              imageUrl: user['profileImage'],
+                              points: user['points'],
+                              id: user['id'],
+                            );
+                          },
                         ),
                       ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: leaderboardData.length,
-                        itemBuilder: (context, index) {
-                          final user = leaderboardData[index];
-                          return LeaderboardItem(
-                            rank: index + 1,
-                            name: user['displayName'],
-                            subtitle: user['subtitle'],
-                            imageUrl: user['profileImage'],
-                            points: user['points'],
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+      ),
     );
+  }
+
+  ImageProvider _getImageProvider(String? imageUrl) {
+    if (imageUrl != null && imageUrl.startsWith('http')) {
+      return NetworkImage(imageUrl);
+    }
+    return AssetImage(intPlaceholderImage);
   }
 }
 
@@ -175,6 +273,7 @@ class LeaderboardItem extends StatelessWidget {
   final String subtitle;
   final String imageUrl;
   final int points;
+  final String id;
 
   const LeaderboardItem({
     super.key,
@@ -183,15 +282,33 @@ class LeaderboardItem extends StatelessWidget {
     required this.subtitle,
     required this.imageUrl,
     required this.points,
+    required this.id,
   });
 
   Widget _buildRankWidget(BuildContext context) {
     if (rank == 1) {
-      return Image.asset('assets/images/tasty.png', width: 24, height: 24);
+      return const Text(
+        '🥇',
+        style: TextStyle(
+          fontSize: 30,
+         
+        ),
+      );
     } else if (rank == 2) {
-      return Image.asset('assets/images/tasty.png', width: 24, height: 24);
+      return const Text(
+        '🥈',
+        style: TextStyle(
+          fontSize: 30,
+         
+        ),
+      );
     } else if (rank == 3) {
-      return Image.asset('assets/images/tasty.png', width: 24, height: 24);
+      return const Text(
+        '🥉',
+        style: TextStyle(
+          fontSize: 30,
+        ),
+      );
     } else {
       return Text(
         "#$rank",
@@ -215,9 +332,19 @@ class LeaderboardItem extends StatelessWidget {
             child: _buildRankWidget(context),
           ),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: NetworkImage(imageUrl),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(userId: id),
+                ),
+              );
+            },
+            child: CircleAvatar(
+              radius: 20,
+              backgroundImage: getImageProvider(imageUrl),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

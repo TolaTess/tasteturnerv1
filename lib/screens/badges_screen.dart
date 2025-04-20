@@ -2,9 +2,11 @@ import 'package:fit_hify/helper/utils.dart';
 import 'package:fit_hify/widgets/icon_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/exceptions/exceptions.dart';
 
 import '../constants.dart';
 import '../data_models/profilescreen_data.dart';
+import '../service/battle_management.dart';
 
 class BadgesScreen extends StatefulWidget {
   BadgesScreen({Key? key}) : super(key: key) {}
@@ -130,13 +132,16 @@ class _BadgesScreenState extends State<BadgesScreen> {
                         ),
                       ),
                       if (dailyDataController.streakDays > 0)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 8.0),
                           child: Text(
                             "This is the longest Streak days you've ever had!",
                             style: TextStyle(
                               fontSize: 11,
-                              color: kAccent,
+                              color: getThemeProvider(context).isDarkMode
+                                  ? kWhite
+                                  : kDarkGrey,
+                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ),
@@ -162,31 +167,12 @@ class _BadgesScreenState extends State<BadgesScreen> {
                             margin: const EdgeInsets.only(right: 12),
                             child: Column(
                               children: [
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: isDarkMode
-                                        ? Colors.grey[800]
-                                        : Colors.grey[200],
-                                    shape: BoxShape.circle,
+                                // Background Image
+                                const CircleAvatar(
+                                  radius: 60 / 2,
+                                  backgroundImage: const AssetImage(
+                                    'assets/images/vegetable_stamp.jpg',
                                   ),
-                                  child: Center(
-                                      child:
-                                          // badge.image.isEmpty
-                                          //     ?
-                                          Image.asset(
-                                    'assets/images/tasty.png',
-                                    width: 40,
-                                    height: 40,
-                                  )
-                                      // :
-                                      // Image.asset(
-                                      //     badge.image,
-                                      //     width: 40,
-                                      //     height: 40,
-                                      //   ),
-                                      ),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -226,30 +212,15 @@ class _BadgesScreenState extends State<BadgesScreen> {
                           margin: const EdgeInsets.only(right: 12),
                           child: Column(
                             children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: isDarkMode
-                                      ? Colors.grey[800]
-                                      : Colors.grey[200],
-                                  shape: BoxShape.circle,
+                              // Background Image
+                              const Opacity(
+                                opacity: kMidOpacity,
+                                child: CircleAvatar(
+                                  radius: 60 / 2,
+                                  backgroundImage: const AssetImage(
+                                    'assets/images/vegetable_stamp.jpg',
+                                  ),
                                 ),
-                                child: Center(
-                                    child:
-                                        // category.image.isEmpty
-                                        //     ?
-                                        Image.asset(
-                                  'assets/images/tasty.png',
-                                  width: 40,
-                                  height: 40,
-                                )
-                                    // : Image.asset(
-                                    //     category.image,
-                                    //     width: 40,
-                                    //     height: 40,
-                                    //   ),
-                                    ),
                               ),
                               const SizedBox(height: 10),
                               Text(
@@ -283,8 +254,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
           Text(
             label,
             style: TextStyle(
-             fontSize: 18,
-                      fontWeight: FontWeight.w600,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 10),
@@ -306,7 +277,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
     notificationService.showNotification(
       id: 3001,
       title: "New Badge Earned! 🏆",
-      body: "Congratulations! You've earned the ${badge.title} badge!",
+      body: "Congratulations! You've earned the ${badge.title} badge! 10 points awarded!",
     );
+    BattleManagement.instance.updateUserPoints(userService.userId ?? '', 10);
   }
 }

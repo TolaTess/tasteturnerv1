@@ -31,13 +31,6 @@ class _BottomNavSecState extends State<BottomNavSec> {
     _currentTabIndex = widget.foodScreenTabIndex;
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-      _currentTabIndex = 0;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);

@@ -305,7 +305,7 @@ ThemeProvider getThemeProvider(BuildContext context) {
 }
 
 // Unit options
-List<String> unitOptions = ['servings', 'cup'];
+List<String> unitOptions = ['servings', 'cup', 'grams'];
 
 Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
     Function(int) onChanged,
@@ -532,11 +532,16 @@ Widget noItemTastyWidget(
             },
             child: Text(
               subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: kBlue,
-                decoration: TextDecoration.underline,
+                color: isLinked
+                    ? kBlue
+                    : themeProvider.isDarkMode
+                        ? kWhite
+                        : kBlack,
+                decoration:
+                    isLinked ? TextDecoration.underline : TextDecoration.none,
               ),
               textAlign: TextAlign.center,
             ),
@@ -546,9 +551,11 @@ Widget noItemTastyWidget(
   );
 }
 
-getCurrentDate(DateTime date) {
-  return date.isAtSameMomentAs(
-      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day));
+bool getCurrentDate(DateTime date) {
+  final today = DateTime.now();
+  return date.year == today.year &&
+      date.month == today.month &&
+      date.day == today.day;
 }
 
 ThemeData getDatePickerTheme(BuildContext context, bool isDarkMode) {
@@ -668,4 +675,27 @@ Widget buildFriendAvatar(String? profileImage) {
       ),
     ),
   );
+}
+
+bool isDateTodayAfterTime(DateTime date, {int hour = 22}) {
+  final now = DateTime.now();
+
+  // Create dates without time for proper comparison
+  final todayDate = DateTime(now.year, now.month, now.day);
+  final inputDate = DateTime(date.year, date.month, date.day);
+
+  // If the date is in the past or future, return false
+  if (inputDate.isBefore(todayDate) || inputDate.isAfter(todayDate)) {
+    return false;
+  }
+
+  // If we get here, the date is today, so check if before 22:00
+  return now.hour < hour;
+}
+
+ImageProvider getImageProvider(String? imageUrl) {
+  if (imageUrl != null && imageUrl.startsWith('http')) {
+    return NetworkImage(imageUrl);
+  }
+  return const AssetImage(intPlaceholderImage);
 }

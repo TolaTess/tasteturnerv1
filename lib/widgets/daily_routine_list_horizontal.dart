@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../service/battle_management.dart';
 import '../service/routine_service.dart';
 
 class DailyRoutineListHorizontal extends StatefulWidget {
@@ -112,8 +113,10 @@ class _DailyRoutineListHorizontalState
           id: 2003,
           title: '🏆 Daily Routine Champion!',
           body:
-              'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work!',
+              'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
         );
+        await BattleManagement.instance
+            .updateUserPoints(widget.userId, 10);
       }
 
       // Mark notification as shown for today

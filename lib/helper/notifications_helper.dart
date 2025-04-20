@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
+import '../service/battle_management.dart';
 
 void checkAndSendStepGoalNotification(int currentSteps, int targetSteps) async {
   try {
@@ -13,15 +14,16 @@ void checkAndSendStepGoalNotification(int currentSteps, int targetSteps) async {
 
     // Check if we've already sent a notification today
     final bool alreadySentToday = prefs.getBool(stepNotificationKey) ?? false;
-
     if (!alreadySentToday) {
       // Send notification
       await notificationService.showNotification(
         id: 2002, // Unique ID for step goal notification
         title: 'Daily Step Goal Achieved! 🏃‍♂️',
         body:
-            'Congratulations! You reached your goal of $targetSteps steps today. Keep moving!',
+            'Congratulations! You reached your goal of $targetSteps steps today. Keep moving! 10 points awarded!',
       );
+      await BattleManagement.instance.updateUserPoints(
+          userService.userId ?? '', 10);
 
       // Mark that we've sent a notification today
       await prefs.setBool(stepNotificationKey, true);
