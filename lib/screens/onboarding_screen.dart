@@ -63,12 +63,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
+  bool isProfane(String text) {
+    final profaneWords = [
+      'fuck',
+      'shit',
+      'asshole',
+      'bitch',
+      'cunt',
+      'dick',
+      'faggot',
+      'nigga',
+      'nigger',
+    ];
+    return profaneWords.any(text.toLowerCase().contains);
+  }
+
   /// ✅ Check if all required fields are filled before enabling "Next"
   void _validateInputs() {
     setState(() {
       switch (_currentPage) {
         case 0:
-          _isNextEnabled = nameController.text.trim().isNotEmpty;
+          final name = nameController.text.trim();
+          _isNextEnabled = name.isNotEmpty && !isProfane(name);
           break;
         case 1:
           _isNextEnabled = true; // Feature tour page - always enabled
