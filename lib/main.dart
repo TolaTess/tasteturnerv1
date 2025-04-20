@@ -59,11 +59,6 @@ void main() async {
     Get.lazyPut(() => BadgeController());
     Get.lazyPut(() => FriendController());
   });
-
-  // Create test battles
-  // await TestBattleData.createTestBattles(BattleService.instance);
-  // await TestBadgeData.initializeBadgeCategories();
-
   // await addDummyPosts();
   await macroManager.getIngredientsByCategory("All");
 

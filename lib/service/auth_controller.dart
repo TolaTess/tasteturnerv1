@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -76,7 +75,7 @@ class AuthController extends GetxController {
         } catch (e) {
           print("Failed to load user data: $e");
           // Handle the error appropriately - maybe show an error screen
-          Get.snackbar( 
+          Get.snackbar(
             'Please try again',
             'Failed to load user data. Please try again.',
             backgroundColor: Colors.red,
@@ -145,7 +144,6 @@ class AuthController extends GetxController {
         userService.setUser(user);
         userService.setUserId(userId);
         _currentUser.value = user;
-
       } else {
         print("User not found in Firestore.");
       }
@@ -315,7 +313,11 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> updateIsPremiumStatus(String userId, bool isPremium) async {
+  Future<void> updateIsPremiumStatus(
+      String userId, bool isPremium, String plan) async {
+    print('userId: $userId');
+    print('isPremium: $isPremium');
+    print('plan: $plan');
     try {
       if (userId.isEmpty) {
         throw Exception("User ID is invalid or empty.");
@@ -324,6 +326,7 @@ class AuthController extends GetxController {
       // Update Firestore
       await firestore.collection('users').doc(userId).update({
         'isPremium': isPremium,
+        'premiumPlan': plan,
       });
 
       // Update local user model in UserService
@@ -331,6 +334,7 @@ class AuthController extends GetxController {
         final updatedUser = UserModel.fromMap({
           ...userService.currentUser!.toMap(),
           'isPremium': isPremium,
+          'premiumPlan': plan,
         });
         userService.setUser(updatedUser);
         _currentUser.value = updatedUser;
@@ -355,31 +359,6 @@ class AuthController extends GetxController {
       Get.snackbar(
         'Error',
         'Failed to update premium status: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
-  }
-
-  /// Add user to the selected premium plan in Firestore
-  Future<void> addUserToPlan(String userId, int planMonths) async {
-    try {
-      if (userId.isEmpty || planMonths <= 0) {
-        throw Exception("Invalid user ID or plan duration.");
-      }
-
-      // Reference the specific premium plan document
-      final planRef =
-          firestore.collection('premiumPlans').doc('plan_${planMonths}Months');
-
-      // Add the user ID to the subscribers array
-      await planRef.set({
-        'subscribers': FieldValue.arrayUnion([userId]),
-      }, SetOptions(merge: true)); // Merge to avoid overwriting existing data
-    } catch (e) {
-      print("Error adding user to premium plan: $e");
-      Get.snackbar(
-        'Error',
-        'Failed to add user to the premium plan: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
