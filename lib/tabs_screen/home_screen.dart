@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/message_screen.dart';
+import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
@@ -36,7 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
   DateTime currentDate = DateTime.now();
-
+  final GlobalKey _addMealButtonKey = GlobalKey();
+  final GlobalKey _addProfileButtonKey = GlobalKey();
   void _openDailyFoodPage(
     BuildContext context,
     double total,
@@ -94,15 +96,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
 
     _setupDataListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddMealTutorial();
+    });
+  }
+
+  void _showAddMealTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_meal_button',
+          message: 'Tap here to add your meal!',
+          targetKey: _addMealButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_profile_button',
+          message: 'Tap here to view your profile!',
+          targetKey: _addProfileButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+      ],
+    );
   }
 
   void _setupDataListeners() {
     // Show Tasty popup after a short delay
-    _tastyPopupTimer = Timer(const Duration(milliseconds: 4000), () {
-      if (mounted) {
-        tastyPopupService.showTastyPopup(context, 'home', [], []);
-      }
-    });
     _onRefresh();
   }
 
@@ -223,6 +247,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               Scaffold.of(context).openDrawer();
                             },
                             child: CircleAvatar(
+                              key: _addProfileButtonKey,
                               radius: 25,
                               backgroundColor: kAccent.withOpacity(kOpacity),
                               child: CircleAvatar(
@@ -474,6 +499,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         child: DailyNutritionOverview(
                           settings: userService.currentUser!.settings,
+                          key: _addMealButtonKey,
                         ),
                       ),
                     ],

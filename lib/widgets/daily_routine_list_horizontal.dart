@@ -1,5 +1,7 @@
+import 'package:fit_hify/pages/edit_goal.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
@@ -115,8 +117,7 @@ class _DailyRoutineListHorizontalState
           body:
               'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
         );
-        await BattleManagement.instance
-            .updateUserPoints(widget.userId, 10);
+        await BattleManagement.instance.updateUserPoints(widget.userId, 10);
       }
 
       // Mark notification as shown for today
@@ -259,45 +260,61 @@ class _DailyRoutineListHorizontalState
           ),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      !_badgeAwarded ? 'Daily Routine' : 'Routine',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          !_badgeAwarded ? 'Daily Routine' : 'Routine',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          iconSize: 20,
+                          color: kAccent,
+                          onPressed: () {
+                            Get.to(() => const NutritionSettingsPage());
+                          },
+                          icon: const Icon(Icons.edit),
+                        ),
+                      ],
+                    ),
+                  ),
+                 
+                  if (_badgeAwarded)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          if (_badgeAwarded)
+                            Icon(Icons.emoji_events, color: Colors.amber[600]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(yesterday))}',
+                            style: const TextStyle(
+                              color: kAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (_badgeAwarded)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: kAccent.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            if (_badgeAwarded)
-                              Icon(Icons.emoji_events,
-                                  color: Colors.amber[600]),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(yesterday))}',
-                              style: const TextStyle(
-                                color: kAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
+              const SizedBox(height: 10),
               SizedBox(
                 height: 40,
                 child: ListView.builder(

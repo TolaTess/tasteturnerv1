@@ -187,11 +187,11 @@ class BattleManagement {
   int _calculatePoints(int position) {
     switch (position) {
       case 0: // 1st place
-        return 100;
-      case 1: // 2nd place
         return 50;
+      case 1: // 2nd place
+        return 30;
       case 2: // 3rd place
-        return 25;
+        return 20;
       default:
         return 0;
     }

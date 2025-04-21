@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
+import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
@@ -26,8 +25,9 @@ class MessageScreen extends StatefulWidget {
 class _MessageScreenState extends State<MessageScreen>
     with TickerProviderStateMixin {
   int currentPage = 0;
-  Timer? _tastyPopupTimer;
   late ScrollController _scrollController;
+  final GlobalKey _addBuddyKey = GlobalKey();
+  final GlobalKey _addFriendButtonKey = GlobalKey();
 
   bool lastStatus = true;
 
@@ -50,18 +50,38 @@ class _MessageScreenState extends State<MessageScreen>
     _scrollController.addListener(_scrollListener);
     chatController.loadUserChats(userService.userId ?? '');
     friendController.getAllFriendData(userService.userId ?? '');
-
-    _tastyPopupTimer = Timer(const Duration(milliseconds: 8000), () {
-      if (mounted) {
-        tastyPopupService.showTastyPopup(context, 'message', [], []);
-      }
-    });
     super.initState();
+    // Show tutorial popup after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddFriendTutorial();
+    });
+  }
+
+  void _showAddFriendTutorial() {
+// In your widget build or initState:
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_buddy_button',
+          message: 'Tap here to speak to your AI buddy Tasty!',
+          targetKey: _addBuddyKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.RIGHT,
+        ),
+        TutorialStep(
+          tutorialId: 'add_friend_button',
+          message: 'Tap here to add friends and start sharing your food journey together!',
+          targetKey: _addFriendButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.RIGHT,
+        ),
+      ],
+    );
   }
 
   @override
   void dispose() {
-    _tastyPopupTimer?.cancel();
     _scrollController.removeListener(_scrollListener);
     super.dispose();
   }
@@ -111,6 +131,7 @@ class _MessageScreenState extends State<MessageScreen>
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
+                        key: _addFriendButtonKey,
                         icon: const Icon(Icons.add, size: 28),
                         onPressed: () {
                           Navigator.push(
@@ -123,6 +144,7 @@ class _MessageScreenState extends State<MessageScreen>
                       ),
                     ),
                   ),
+                  // Show tutorial for this button
                 ],
               ),
               SliverToBoxAdapter(
@@ -212,6 +234,7 @@ class _MessageScreenState extends State<MessageScreen>
           ),
         ),
         floatingActionButton: FloatingActionButton(
+          key: _addBuddyKey,
           onPressed: () {
             if (userService.currentUser?.isPremium ?? false) {
               Navigator.push(

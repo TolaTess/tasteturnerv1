@@ -22,17 +22,27 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   String selectedCategoryId = '';
   List<Map<String, dynamic>> battleList = [];
   Timer? _tastyPopupTimer;
-
+  final GlobalKey _addJoinButtonKey = GlobalKey();
   @override
   void initState() {
     super.initState();
     _setupDataListeners();
     // Show Tasty popup after a short delay
-    _tastyPopupTimer = Timer(const Duration(milliseconds: 6000), () {
-      if (mounted) {
-        tastyPopupService.showTastyPopup(context, 'food_challenge', [], []);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddJoinTutorial();
     });
+  }
+
+  void _showAddJoinTutorial() {
+    tastyPopupService.showTutorialPopup(
+      context: context,
+      tutorialId: 'add_join_button',
+      message: 'Tap here to join our weekly food battle!',
+      targetKey: _addJoinButtonKey,
+      onComplete: () {
+        // Optional: Add any actions to perform after the tutorial is completed
+      },
+    );
   }
 
   void _setupDataListeners() {
@@ -89,9 +99,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(
-                  height: 50,
+                  height: 30,
                 ),
-        
+
                 //category options
                 CategorySelector(
                   categories: categoryDatas,
@@ -101,11 +111,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   accentColor: kAccent,
                   darkModeAccentColor: kDarkModeAccent,
                 ),
-        
+
                 const SizedBox(
                   height: 20,
                 ),
-        
+
                 //Challenge
                 ExpansionTile(
                   collapsedIconColor: kAccent,
@@ -152,7 +162,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
-        
+
                           // GridView for discount data
                           SizedBox(
                             height: 185,
@@ -164,7 +174,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                     false,
                                   )
                                 : GridView.builder(
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     gridDelegate:
                                         const SliverGridDelegateWithMaxCrossAxisExtent(
                                       maxCrossAxisExtent: 270,
@@ -180,8 +191,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                               battleList[index]['id'];
                                           final ingredientData =
                                               await macroManager
-                                                  .fetchIngredient(ingredientId);
-        
+                                                  .fetchIngredient(
+                                                      ingredientId);
+
                                           if (ingredientData != null) {
                                             Navigator.push(
                                               context,
@@ -208,9 +220,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                     },
                                   ),
                           ),
-        
+
                           const SizedBox(height: 20),
-        
+
                           //join now button
                           Center(
                             child: battleList.isEmpty
@@ -225,9 +237,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                           color: kAccent,
                                         );
                                       }
-        
+
                                       bool isJoined = snapshot.data ?? false;
-        
+
                                       return Builder(
                                         builder: (context) {
                                           final DateTime deadline =
@@ -236,7 +248,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                       '');
                                           final bool isDeadlineOver =
                                               deadline.isBefore(DateTime.now());
-        
+
                                           // Case 1: Deadline is over
                                           if (isDeadlineOver) {
                                             return const Text(
@@ -248,7 +260,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                               ),
                                             );
                                           }
-        
+
                                           // Case 2: User has already joined
                                           if (isJoined) {
                                             return GestureDetector(
@@ -271,18 +283,20 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                               ),
                                             );
                                           }
-        
+
                                           // Case 3: Deadline not over and user hasn't joined
                                           return SecondaryButton(
+                                            key: _addJoinButtonKey,
                                             text: "Join Now",
                                             press: () async {
                                               String userId =
                                                   userService.userId ?? '';
-                                              String battleId = battleList
-                                                      .isNotEmpty
-                                                  ? battleList.first['categoryId']
-                                                  : '';
-        
+                                              String battleId =
+                                                  battleList.isNotEmpty
+                                                      ? battleList
+                                                          .first['categoryId']
+                                                      : '';
+
                                               if (userId.isEmpty ||
                                                   battleId.isEmpty) {
                                                 if (!mounted) return;
@@ -293,15 +307,17 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                 );
                                                 return;
                                               }
-        
+
                                               // Show instructions dialog before joining
                                               if (!mounted) return;
                                               bool? shouldJoin =
                                                   await showDialog<bool>(
                                                 context: context,
-                                                builder: (BuildContext context) {
+                                                builder:
+                                                    (BuildContext context) {
                                                   return AlertDialog(
-                                                    shape: RoundedRectangleBorder(
+                                                    shape:
+                                                        RoundedRectangleBorder(
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               10),
@@ -330,7 +346,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             '🎨 Create a Masterpiece!',
                                                             style: TextStyle(
                                                               fontWeight:
-                                                                  FontWeight.bold,
+                                                                  FontWeight
+                                                                      .bold,
                                                               fontSize: 16,
                                                               color: isDarkMode
                                                                   ? kWhite
@@ -343,7 +360,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             'Rules of the Battle:',
                                                             style: TextStyle(
                                                               fontWeight:
-                                                                  FontWeight.w600,
+                                                                  FontWeight
+                                                                      .w600,
                                                               color: isDarkMode
                                                                   ? kWhite
                                                                   : kBlack,
@@ -375,7 +393,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     actions: [
                                                       TextButton(
                                                         onPressed: () =>
-                                                            Navigator.of(context)
+                                                            Navigator.of(
+                                                                    context)
                                                                 .pop(false),
                                                         child: Text(
                                                           'Cancel',
@@ -387,7 +406,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                       ),
                                                       ElevatedButton(
                                                         onPressed: () =>
-                                                            Navigator.of(context)
+                                                            Navigator.of(
+                                                                    context)
                                                                 .pop(true),
                                                         style: ElevatedButton
                                                             .styleFrom(
@@ -405,8 +425,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                   );
                                                 },
                                               );
-        
-                                              if (shouldJoin == true && mounted) {
+
+                                              if (shouldJoin == true &&
+                                                  mounted) {
                                                 try {
                                                   final user =
                                                       userService.currentUser;
@@ -443,7 +464,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ],
                 ),
                 const SizedBox(height: 15),
-        
+
                 //food challenge
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 5.0),
@@ -453,7 +474,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     selectedCategory: selectedCategory,
                   ),
                 ),
-        
+
                 const SizedBox(
                   height: 40,
                 ),

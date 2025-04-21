@@ -30,6 +30,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   List<Meal> mealList = [];
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
+  final GlobalKey _addSpinButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -37,12 +38,23 @@ class _RecipeScreenState extends State<RecipeScreen> {
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
     // Show Tasty popup after a short delay
-    _tastyPopupTimer = Timer(const Duration(milliseconds: 5000), () {
-      if (mounted) {
-        tastyPopupService.showTastyPopup(
-            context, 'recipe', fullLabelsList, mealList);
-      }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddSpinTutorial();
     });
+  }
+
+  void _showAddSpinTutorial() {
+    tastyPopupService.showTutorialPopup(
+      context: context,
+      tutorialId: 'add_spin_button',
+      message:
+          'Tap here to spin the wheel for get a spontaneous meal!',
+      targetKey: _addSpinButtonKey,
+      onComplete: () {
+        // Optional: Add any actions to perform after the tutorial is completed
+      },
+    );
   }
 
   Future<void> _updateIngredientList(String category) async {
@@ -69,7 +81,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final headers = helperController.category;
-    final customHeaders = helperController.headers;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
@@ -125,6 +136,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 child: SizedBox(
                   height: getPercentageHeight(20, context),
                   child: GridView.builder(
+                    key: _addSpinButtonKey,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -222,7 +234,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 isEdit: false,
                 onRemoveItem: (int) {},
               ),
-               const SizedBox(
+              const SizedBox(
                 height: 10,
               ),
               Divider(color: isDarkMode ? kWhite : kDarkGrey),

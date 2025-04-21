@@ -34,12 +34,22 @@ class _SearchResultGridState extends State<SearchResultGrid> {
   final RxList<Meal> _apiMeals = <Meal>[].obs;
   final RxBool _isLoading = false.obs;
   final RxBool _hasMore = true.obs;
+  final RxInt _localMealsDisplayed = 0.obs;
   String _lastSearchQuery = '';
+  static const int _localPageSize = 15;
+  static const int _apiPageSize = 20;
 
   @override
   void initState() {
     super.initState();
-    _loadMoreMealsIfNeeded();
+    // Initialize with exactly 15 local meals
+    _localMealsDisplayed.value = _localPageSize;
+    _hasMore.value = mealManager.meals.length > _localPageSize;
+
+    // If there's an initial search query, perform search
+    if (widget.search.isNotEmpty) {
+      _performSearch();
+    }
   }
 
   @override
@@ -56,24 +66,54 @@ class _SearchResultGridState extends State<SearchResultGrid> {
     if (_isLoading.value) return;
 
     _isLoading.value = true;
-    _apiMeals.clear(); // Clear previous API results
+    _apiMeals.clear();
     _hasMore.value = true;
+    _localMealsDisplayed.value = _localPageSize;
 
     try {
-      final newMeals = await _apiService.fetchMeals(
-        limit: 20,
-        searchQuery: widget.search,
-        screen: widget.screen,
-      );
+      if (widget.search.isNotEmpty) {
+        // Get filtered local meals
+        final localMeals = mealManager.meals;
+        List<Meal> filteredLocalMeals = [];
 
-      final localMeals = mealManager.meals;
-      // Filter out duplicates based on mealId
-      final existingIds = localMeals.map((m) => m.mealId).toList();
-      final uniqueNewMeals =
-          newMeals.where((meal) => !existingIds.contains(meal.mealId)).toList();
+        if (widget.screen == 'ingredient') {
+          filteredLocalMeals = localMeals
+              .where((meal) => meal.ingredients.keys.any((ingredient) =>
+                  ingredient
+                      .toLowerCase()
+                      .contains(widget.search.toLowerCase())))
+              .toList();
+        } else {
+          filteredLocalMeals = localMeals
+              .where((meal) => meal.categories.any((category) =>
+                  category.toLowerCase().contains(widget.search.toLowerCase())))
+              .toList();
+        }
 
-      _apiMeals.addAll(uniqueNewMeals);
-      _hasMore.value = uniqueNewMeals.isNotEmpty;
+        // Search in API
+        final newMeals = await _apiService.fetchMeals(
+          limit: _apiPageSize,
+          searchQuery: widget.search,
+          screen: widget.screen,
+        );
+
+        // Filter out duplicates based on mealId
+        final existingIds = filteredLocalMeals.map((m) => m.mealId).toList();
+        final uniqueNewMeals = newMeals
+            .where((meal) => !existingIds.contains(meal.mealId))
+            .toList();
+
+        _apiMeals.addAll(uniqueNewMeals);
+
+        // Set hasMore to false since we've loaded all search results
+        _hasMore.value = false;
+
+        // Update localMealsDisplayed to show all filtered local meals
+        _localMealsDisplayed.value = filteredLocalMeals.length;
+      } else {
+        _apiMeals.clear();
+        _hasMore.value = mealManager.meals.length > _localPageSize;
+      }
     } catch (e) {
       print('Error searching meals: $e');
     } finally {
@@ -81,30 +121,72 @@ class _SearchResultGridState extends State<SearchResultGrid> {
     }
   }
 
+  List<Meal> _getFilteredMeals() {
+    final localMeals = mealManager.meals;
+    List<Meal> filteredLocalMeals;
+
+    if (widget.search.isNotEmpty) {
+      // For search queries, filter local meals
+      if (widget.screen == 'ingredient') {
+        filteredLocalMeals = localMeals
+            .where((meal) => meal.ingredients.keys.any((ingredient) =>
+                ingredient.toLowerCase().contains(widget.search.toLowerCase())))
+            .toList();
+      } else {
+        filteredLocalMeals = localMeals
+            .where((meal) => meal.categories.any((category) =>
+                category.toLowerCase().contains(widget.search.toLowerCase())))
+            .toList();
+      }
+    } else {
+      // For normal browsing, take exactly the specified number of meals
+      filteredLocalMeals = localMeals.take(_localMealsDisplayed.value).toList();
+    }
+
+    // Combine local and API meals
+    return [...filteredLocalMeals, ..._apiMeals];
+  }
+
   Future<void> _loadMoreMealsIfNeeded() async {
-    if (_isLoading.value || !_hasMore.value) return;
+    if (_isLoading.value) return;
 
     final localMeals = mealManager.meals;
-    if (localMeals.length + _apiMeals.length >= 50 && _apiMeals.isEmpty) return;
 
+    // Set loading state before any operation
     _isLoading.value = true;
+
     try {
-      final newMeals = await _apiService.fetchMeals(
-        limit: widget.search.isEmpty ? 10 : 20,
-        searchQuery: widget.search,
-        screen: widget.screen,
-      );
+      // If we still have local meals to show
+      if (_localMealsDisplayed.value < localMeals.length) {
+        // Add a small delay to show loading state
+        await Future.delayed(const Duration(milliseconds: 300));
+        _localMealsDisplayed.value += _localPageSize;
+        _hasMore.value = _localMealsDisplayed.value < localMeals.length ||
+            widget.search.isEmpty;
+        return;
+      }
 
-      // Filter out duplicates based on mealId
-      final existingIds = [
-        ...localMeals.map((m) => m.mealId),
-        ..._apiMeals.map((m) => m.mealId)
-      ];
-      final uniqueNewMeals =
-          newMeals.where((meal) => !existingIds.contains(meal.mealId)).toList();
+      // If we've shown all local meals and search is empty, start fetching from API
+      if (widget.search.isEmpty &&
+          _localMealsDisplayed.value >= localMeals.length) {
+        final newMeals = await _apiService.fetchMeals(
+          limit: _apiPageSize,
+          searchQuery: widget.search,
+          screen: widget.screen,
+        );
 
-      _apiMeals.addAll(uniqueNewMeals);
-      _hasMore.value = uniqueNewMeals.isNotEmpty;
+        // Filter out duplicates
+        final existingIds = [
+          ...localMeals.map((m) => m.mealId),
+          ..._apiMeals.map((m) => m.mealId)
+        ];
+        final uniqueNewMeals = newMeals
+            .where((meal) => !existingIds.contains(meal.mealId))
+            .toList();
+
+        _apiMeals.addAll(uniqueNewMeals);
+        _hasMore.value = uniqueNewMeals.isNotEmpty;
+      }
     } catch (e) {
       print('Error loading more meals: $e');
     } finally {
@@ -114,27 +196,8 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
   @override
   Widget build(BuildContext context) {
-
     return Obx(() {
-      final localMeals = mealManager.meals;
-      List<Meal> displayedMeals = [...localMeals, ..._apiMeals];
-
-      // Filter meals by search keyword
-      if (widget.search.isNotEmpty) {
-        if (widget.screen == 'ingredient') {
-          displayedMeals = displayedMeals
-              .where((meal) => meal.ingredients.keys.any((ingredient) =>
-                  ingredient
-                      .toLowerCase()
-                      .contains(widget.search.toLowerCase())))
-              .toList();
-        } else {
-          displayedMeals = displayedMeals
-              .where((meal) => meal.categories.any((category) =>
-                  category.toLowerCase().contains(widget.search.toLowerCase())))
-              .toList();
-        }
-      }
+      final displayedMeals = _getFilteredMeals();
 
       if (displayedMeals.isEmpty && !_isLoading.value) {
         return SliverFillRemaining(
@@ -156,16 +219,40 @@ class _SearchResultGridState extends State<SearchResultGrid> {
           delegate: SliverChildBuilderDelegate(
             (context, index) {
               if (index == displayedMeals.length) {
+                if (!_hasMore.value) return null;
+
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: _isLoading.value
-                        ? const CircularProgressIndicator(
-                            color: kAccent,
+                        ? Container(
+                            padding: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              color: kAccent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const CircularProgressIndicator(
+                              color: kAccent,
+                              strokeWidth: 3,
+                            ),
                           )
                         : TextButton(
                             onPressed: _loadMoreMealsIfNeeded,
-                            child: const Text('See More'),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              backgroundColor: kAccent.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'See More',
+                              style: TextStyle(
+                                color: kAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                   ),
                 );
@@ -199,7 +286,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
             crossAxisCount: 2,
             mainAxisExtent: getPercentageHeight(25, context),
             crossAxisSpacing: getPercentageWidth(2, context),
-              mainAxisSpacing: getPercentageHeight(2, context),
+            mainAxisSpacing: getPercentageHeight(2, context),
           ),
         ),
       );
