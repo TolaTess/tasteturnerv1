@@ -16,7 +16,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final List<String> words = ["Health", "Goals", "Cook"];
+  final List<String> words = ["Health", "Goals", "Cook", "Taste"];
 
   int _index = 0;
   Timer? _timer;
@@ -148,40 +148,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 24),
 
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       // sign up with google
-                      Flexible(
+                      Expanded(
                         child: InkWell(
                           onTap: authController.signInWithGoogle,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(9, context),
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(
-                                50,
-                              ),
-                            ),
-                            child: SvgPicture.asset(
-                              "assets/images/google.svg",
-                              height: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                  
-                      // sign up with facebook
-                      Flexible(
-                        child: InkWell(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const EmailSignupScreen(),
-                            ),
-                          ),
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
@@ -193,9 +165,32 @@ class _SignupScreenState extends State<SignupScreen> {
                                 50,
                               ),
                             ),
-                            child: const Icon(
-                              Icons.email,
+                            child: SvgPicture.asset(
+                              "assets/images/svg/google.svg",
+                              height: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                  
+                      // sign up with Apple
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => authController.signInWithApple,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(9, context),
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
                               color: kWhite,
+                              borderRadius: BorderRadius.circular(
+                                50,
+                              ),
+                            ),
+                            child: SvgPicture.asset(
+                              "assets/images/svg/apple.svg",
+                              height: 24,
                             ),
                           ),
                         ),
@@ -204,17 +199,52 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  //sign up with email
+                 //sign up with email
 
                   EmailButton(
-                    text: "Already have an account? ",
-                    text2: "Log In",
+                    text: "Sign Up with email",
                     press: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const EmailSigninScreen(),
+                        builder: (context) => const EmailSignupScreen(),
                       ),
                     ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Already have an account? ",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+
+                      //Send user to sign in screen
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EmailSigninScreen(), // go to sign up screen
+                          ),
+                        ),
+                        child: const Text(
+                          "Log in",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      )
+                    ],
                   ),
 
                   const SizedBox(height: 75),

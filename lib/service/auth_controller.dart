@@ -9,6 +9,7 @@ import '../helper/utils.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/splash_screen.dart';
 import '../widgets/bottom_nav.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthController extends GetxController {
   static AuthController instance = Get.find();
@@ -217,6 +218,49 @@ class AuthController extends GetxController {
       Get.snackbar(
         'Error',
         'Failed to sign in with Google. Please try again.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  /// ✅ Apple Sign-In Function
+  Future<void> signInWithApple() async {
+    try {
+      // Begin sign in process
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // Create OAuthCredential for Firebase
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Sign in to Firebase with the Apple credentials
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+
+      // If this is a new user, update their profile with the name from Apple
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        final displayName =
+            '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'
+                .trim();
+        if (displayName.isNotEmpty) {
+          await userCredential.user?.updateDisplayName(displayName);
+        }
+      }
+
+      // The auth state listener will handle the rest via _handleAuthState
+    } catch (e) {
+      print("Error signing in with Apple: $e");
+      Get.snackbar(
+        'Error',
+        'Failed to sign in with Apple. Please try again.',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );

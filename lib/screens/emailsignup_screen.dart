@@ -100,6 +100,24 @@ class SignUpForm extends StatefulWidget {
 class _SignUpFormState extends State<SignUpForm> {
   bool remember1 = false;
   bool remember2 = false;
+  bool showTermsError = false;
+  bool showPasswordError = false;
+
+  void _handleSignUp() {
+    setState(() {
+      showTermsError = !remember2;
+      showPasswordError = widget.passwordController.text !=
+          widget.confirmPasswordController.text;
+    });
+
+    if (!remember2 || showPasswordError) {
+      return;
+    }
+
+    authController.registerUser(context, widget.userNameController.text,
+        widget.emailController.text, widget.passwordController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -151,55 +169,91 @@ class _SignUpFormState extends State<SignUpForm> {
             padding: const EdgeInsets.symmetric(
               horizontal: 20,
             ),
-            child: PasswordField(
-              kHint: "Confirm Password",
-              themeProvider: isDarkMode,
-              controller: widget.confirmPasswordController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PasswordField(
+                  kHint: "Confirm Password",
+                  themeProvider: isDarkMode,
+                  controller: widget.confirmPasswordController,
+                ),
+                if (showPasswordError)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      "Passwords do not match",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 40),
 
           //TOR
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Theme(
-                data: Theme.of(context).copyWith(
-                  unselectedWidgetColor: isDarkMode ? kPrimaryColor : kBlack,
-                ),
-                child: Checkbox(
-                    value: remember2,
-                    activeColor: kAccent,
-                    onChanged: (value) {
-                      setState(() {
-                        remember2 = value!;
-                      });
-                    }),
-              ),
-              Flexible(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TermsOfServiceScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: "I agree to "),
-                        TextSpan(
-                          text: "term of service and privacy policy",
-                          style: TextStyle(
-                            decoration: TextDecoration.underline,
+              Row(
+                children: [
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      unselectedWidgetColor:
+                          isDarkMode ? kPrimaryColor : kBlack,
+                    ),
+                    child: Checkbox(
+                        value: remember2,
+                        activeColor: kAccent,
+                        onChanged: (value) {
+                          setState(() {
+                            remember2 = value!;
+                            if (remember2) {
+                              showTermsError = false;
+                            }
+                          });
+                        }),
+                  ),
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TermsOfServiceScreen(),
                           ),
-                        )
-                      ],
+                        );
+                      },
+                      child: const Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: "I agree to "),
+                            TextSpan(
+                              text: "term of service and privacy policy",
+                              style: TextStyle(
+                                decoration: TextDecoration.underline,
+                              ),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (showTermsError)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12.0, top: 4.0),
+                  child: Text(
+                    "Please accept the terms and conditions to continue",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
                     ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -211,11 +265,7 @@ class _SignUpFormState extends State<SignUpForm> {
             ),
             child: PrimaryButton(
               text: "Sign Up",
-              press: () => authController.registerUser(
-                  context,
-                  widget.userNameController.text,
-                  widget.emailController.text,
-                  widget.passwordController.text),
+              press: _handleSignUp,
             ),
           ),
 
@@ -252,16 +302,19 @@ class TermsOfServiceScreen extends StatelessWidget {
                 "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice."),
             SizedBox(height: 8),
             Text(
-                "2. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate."),
+                "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice."),
             SizedBox(height: 8),
             Text(
-                "3. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent."),
+                "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate."),
             SizedBox(height: 8),
             Text(
-                "4. You are responsible for maintaining the confidentiality of your account information."),
+                "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent."),
             SizedBox(height: 8),
             Text(
-                "5. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes."),
+                "5. You are responsible for maintaining the confidentiality of your account information."),
+            SizedBox(height: 8),
+            Text(
+                "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes."),
             SizedBox(height: 16),
             Text(
               "Last updated: 2025",

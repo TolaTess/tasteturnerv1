@@ -124,7 +124,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
         ),
         child: _selectedIndex == activeIdx
             ? SvgPicture.asset(
-                "assets/images/$iconActive",
+                "assets/images/svg/$iconActive",
                 height: 25,
                 colorFilter: ColorFilter.mode(
                   kAccent.withOpacity(0.85),
@@ -133,7 +133,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 ),
               )
             : SvgPicture.asset(
-                "assets/images/$iconInactive",
+                "assets/images/svg/$iconInactive",
                 height: 25,
                 colorFilter: ColorFilter.mode(
                   Provider.of<ThemeProvider>(context).isDarkMode

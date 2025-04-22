@@ -39,7 +39,7 @@ class EditProfileForm extends StatelessWidget {
                   color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon:
-                  const CustomSuffixIcon(svgIcon: "assets/images/person.svg"),
+                  const CustomSuffixIcon(svgIcon: "assets/images/svg/person.svg"),
               enabledBorder: outlineInputBorder(20),
               focusedBorder: outlineInputBorder(20),
               border: outlineInputBorder(20),
@@ -59,7 +59,7 @@ class EditProfileForm extends StatelessWidget {
               hintStyle: const TextStyle(color: kLightGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
-                  svgIcon: "assets/images/heart.svg"),
+                  svgIcon: "assets/images/svg/heart.svg"),
               enabledBorder: outlineInputBorder(20),
               focusedBorder: outlineInputBorder(20),
               border: outlineInputBorder(20),
