@@ -64,7 +64,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     await _loadMealPlans();
     shoppingList = macroManager.ingredient;
     final currentWeek = getCurrentWeek();
-    
+
     macroManager.fetchShoppingList(
         userService.userId ?? '', currentWeek, false);
   }
@@ -323,9 +323,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               width: 200,
               height: 200,
               decoration: const BoxDecoration(
+                color: kAccentLight,
                 shape: BoxShape.circle,
                 image: DecorationImage(
-                  image: AssetImage(tastyWithName),
+                  image: AssetImage(tastyImage),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -410,7 +411,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
               // Calendar Grid
               SizedBox(
-                height: 270,
+                height: getPercentageHeight(27, context),
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -520,7 +521,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     return Column(
       children: [
         // Action buttons row
-        const SizedBox(height: 30),
+        const SizedBox(height: 15),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -577,8 +578,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey),
         // ------------------------------------Premium / Ads-------------------------------------
 
-        if (macroManager.shoppingList.isEmpty) const SizedBox(height: 30),
-        if (macroManager.shoppingList.isEmpty)
+        if (macroManager.shoppingList.isEmpty &&
+            macroManager.previousShoppingList.isNotEmpty)
+          const SizedBox(height: 30),
+        if (macroManager.shoppingList.isEmpty &&
+            macroManager.previousShoppingList.isNotEmpty)
           const Center(
             child: Text(
               'Last week\'s list:',
@@ -589,7 +593,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
             ),
           ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
 
         // Shopping list
         Expanded(
@@ -620,9 +624,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   }
                 });
               },
+              isCurrentWeek: macroManager.shoppingList.isNotEmpty,
             );
           }),
         ),
+        const SizedBox(height: 70),
       ],
     );
   }

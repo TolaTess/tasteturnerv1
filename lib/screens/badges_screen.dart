@@ -1,12 +1,13 @@
-import 'package:fit_hify/helper/utils.dart';
-import 'package:fit_hify/widgets/icon_widget.dart';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_connect/http/src/exceptions/exceptions.dart';
 
 import '../constants.dart';
 import '../data_models/profilescreen_data.dart';
+import '../helper/utils.dart';
 import '../service/battle_management.dart';
+import '../widgets/icon_widget.dart';
 
 class BadgesScreen extends StatefulWidget {
   BadgesScreen({Key? key}) : super(key: key) {}

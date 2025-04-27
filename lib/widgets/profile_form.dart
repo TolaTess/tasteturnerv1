@@ -1,10 +1,11 @@
-import 'package:fit_hify/themes/theme_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
+import '../themes/theme_provider.dart';
 import 'email_button.dart';
 import 'primary_button.dart';
 

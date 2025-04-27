@@ -223,8 +223,9 @@ class _TastyScreenState extends State<TastyScreen> {
                       title: Row(
                         children: [
                           const CircleAvatar(
+                            backgroundColor: kAccentLight,
                             backgroundImage: AssetImage(
-                              'assets/images/tasty_cheerful.jpg', // Adjust the path to your tasty image
+                              tastyImage, // Adjust the path to your tasty image
                             ),
                             radius: 20,
                           ),

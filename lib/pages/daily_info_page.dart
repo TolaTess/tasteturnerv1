@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -28,6 +27,7 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
   double squareSize = 80;
   double squareW = 100;
   bool fillType = false;
+  double fillPercentage = 0;
 
   @override
   void initState() {
@@ -39,14 +39,19 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
     if (!isAnimating) {
       isAnimating = true;
       currentWaterLevelNotifier.value += 250;
-      fillType = true;
+      fillType = false;
 
       // Trigger animation delay
-      Future.delayed(const Duration(milliseconds: 200), () {
+      Future.delayed(const Duration(milliseconds: 200), () async {
         setState(() {
           isAnimating = false;
         });
         widget.currentNotifier.value = currentWaterLevelNotifier.value;
+        // Update Firestore
+        await dailyDataController.updateCurrentWater(
+          userService.userId ?? '',
+          currentWaterLevelNotifier.value,
+        );
       });
     }
   }
@@ -55,194 +60,132 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
     if (!isAnimating && currentWaterLevelNotifier.value > 0) {
       isAnimating = true;
       currentWaterLevelNotifier.value -= 250;
-      fillType = false;
+      fillType = true;
 
       // Trigger animation delay
-      Future.delayed(const Duration(milliseconds: 200), () {
+      Future.delayed(const Duration(milliseconds: 200), () async {
         setState(() {
           isAnimating = false;
         });
         widget.currentNotifier.value = currentWaterLevelNotifier.value;
+        // Update Firestore
+        await dailyDataController.updateCurrentWater(
+          userService.userId ?? '',
+          currentWaterLevelNotifier.value,
+        );
       });
     }
+  }
+
+  void checkPercentage(double value) {
+    fillPercentage = value / widget.total;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 40),
-            // Save Button
-            ElevatedButton(
-              onPressed: () {
-                dailyDataController.updateCurrentWater(
-                    userService.userId ?? '', currentWaterLevelNotifier.value);
+      body: Row(
+        children: [
+          const SizedBox(width: 20),
 
-                showTastySnackbar(
-                  'Success',
-                  'Your water was updated successfully!',
-                  context,
-                );
-
-                Navigator.pop(context); // Close the modal
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDarkMode ? kDarkGrey : kAccent,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // 250ml Cup
+          Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              // Lower square (background)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: squareW,
+                  height: squareSize,
+                  color: isDarkMode ? kDarkGrey.withOpacity(kOpacity) : kWhite,
                 ),
               ),
-              child: const Text(
-                'Save',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 40),
 
-            // Row for 250ml Cup with + and - buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Minus Button
-                GestureDetector(
-                  onTap: removeWater,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade300,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: const Icon(Icons.remove, color: Colors.white),
-                  ),
+              // Filling animation
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
                 ),
-                const SizedBox(width: 20),
-
-                // 250ml Cup
-                Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    // Lower square (background)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: squareW,
-                        height: squareSize,
-                        color: isDarkMode
-                            ? kDarkGrey.withOpacity(kOpacity)
-                            : kWhite,
-                      ),
-                    ),
-
-                    // Filling animation
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(12),
-                        bottomRight: Radius.circular(12),
-                      ),
-                      child: ValueListenableBuilder<double>(
-                        valueListenable: currentWaterLevelNotifier,
-                        builder: (context, value, child) {
-                          // unique key to force rebuild
-                          final animationKey = Key(value.toString());
-
-                          return TweenAnimationBuilder<double>(
-                            key: animationKey,
-                            tween: Tween(
-                              begin: fillType ? 1.0 : 0.1,
-                              end: fillType ? 0.1 : 1.0,
-                            ),
-                            duration: const Duration(milliseconds: 1200),
-                            builder: (context, animationValue, child) {
-                              return SizedBox(
-                                width: squareW,
-                                height: squareSize,
-                                child: CustomPaint(
-                                  painter:
-                                      WavePainter(animationValue, kBlue, 3),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    // 250ml Label
-                    ValueListenableBuilder<double>(
-                      valueListenable: currentWaterLevelNotifier,
-                      builder: (context, currentValue, child) {
-                        double value = currentValue - widget.current;
-                        if (value <= 0.0) {
-                          value = 0;
-                        }
-                        return Text(
-                          '${value.toInt()} ml',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w200,
-                            color: Colors.black,
+                child: ValueListenableBuilder<double>(
+                  valueListenable: currentWaterLevelNotifier,
+                  builder: (context, value, child) {
+                    checkPercentage(value);
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(
+                          begin: 0.0, end: fillPercentage.clamp(0.0, 1.0)),
+                      duration: const Duration(seconds: 1),
+                      builder: (context, animationValue, child) {
+                        return SizedBox(
+                          width: squareW,
+                          height: squareSize * animationValue,
+                          child: CustomPaint(
+                            painter: WavePainter(animationValue, kBlue, 4),
                           ),
                         );
                       },
-                    ),
-                  ],
+                    );
+                  },
                 ),
-
-                const SizedBox(width: 20),
-
-                // Plus Button
-                GestureDetector(
-                  onTap: addWater,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade300,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            // Main water bucket
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ValueListenableBuilder<double>(
+              ),
+              // 250ml Label
+              ValueListenableBuilder<double>(
                 valueListenable: currentWaterLevelNotifier,
                 builder: (context, currentValue, child) {
-                  return FillingSquare(
-                    current: currentWaterLevelNotifier,
-                    upperColor: kBlue,
-                    isWater: true,
-                    widgetName: 'Water Intake',
-                    total: widget.total,
-                    sym: 'ml',
+                  return Text(
+                    '${currentValue.toInt()} ml',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w200,
+                      color: Colors.black,
+                    ),
                   );
                 },
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+
+          const SizedBox(width: 20),
+          // Minus Button
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Plus Button
+              GestureDetector(
+                onTap: addWater,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: kAccent,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Minus Button
+              GestureDetector(
+                onTap: removeWater,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: kAccentLight,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: const Icon(Icons.remove, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 20),
+        ],
       ),
     );
   }

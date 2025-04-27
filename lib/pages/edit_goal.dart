@@ -221,7 +221,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
-                        constraints: const BoxConstraints(maxHeight: 300), // Control height
+                        constraints: const BoxConstraints(
+                            maxHeight: 300), // Control height
                         builder: (context) => Container(
                           color: isDarkMode ? kDarkGrey : kWhite,
                           child: ListView.builder(
@@ -337,7 +338,10 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               ),
               const SizedBox(height: 15),
 
-              DailyRoutineList(userId: userService.currentUser!.userId ?? ''),
+              DailyRoutineList(
+                userId:
+                    userService.currentUser?.userId ?? userService.userId ?? '',
+              ),
 
               const SizedBox(height: 30),
 

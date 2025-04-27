@@ -9,6 +9,7 @@ class UserModel {
   List<String> following;
 
   Map<String, String> settings;
+  Map<String, dynamic> preferences;
   String? userType;
   bool isPremium;
   bool? syncHealth;
@@ -23,6 +24,7 @@ class UserModel {
     this.followers = const [],
     this.following = const [],
     this.settings = const {},
+    this.preferences = const {},
     this.userType = 'user',
     required this.isPremium,
     this.syncHealth,
@@ -41,6 +43,12 @@ class UserModel {
           (key, value) => MapEntry(key.toString(), value?.toString() ?? ''));
     }
 
+    // Safely convert preferences map
+    Map<String, dynamic> preferences = {};
+    if (data['preferences'] != null && data['preferences'] is Map) {
+      preferences = Map<String, dynamic>.from(data['preferences']);
+    }
+
     return UserModel(
       userId: snapshot.id,
       displayName: data['displayName']?.toString() ?? '',
@@ -49,6 +57,7 @@ class UserModel {
       followers: List<String>.from(data['followers'] ?? []),
       following: List<String>.from(data['following'] ?? []),
       settings: settings,
+      preferences: preferences,
       userType: data['userType']?.toString() ?? 'user',
       isPremium: data['isPremium'] as bool? ?? false,
     );
@@ -63,9 +72,27 @@ class UserModel {
       'followers': followers,
       'following': following,
       'settings': settings,
+      'preferences': preferences,
       'userType': userType,
       'isPremium': isPremium,
     };
+  }
+
+  // Convert to JSON-safe map for SharedPreferences
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = toMap();
+
+    // Convert preferences map to be JSON-safe
+    if (data['preferences'] != null) {
+      final prefs = Map<String, dynamic>.from(data['preferences']);
+      // Convert FieldValue to current timestamp string if present
+      if (prefs['lastUpdated'] != null && prefs['lastUpdated'] is FieldValue) {
+        prefs['lastUpdated'] = DateTime.now().toIso8601String();
+      }
+      data['preferences'] = prefs;
+    }
+
+    return data;
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -77,6 +104,12 @@ class UserModel {
           (key, value) => MapEntry(key.toString(), value?.toString() ?? ''));
     }
 
+    // Safely convert preferences map
+    Map<String, dynamic> preferences = {};
+    if (map['preferences'] != null && map['preferences'] is Map) {
+      preferences = Map<String, dynamic>.from(map['preferences']);
+    }
+
     return UserModel(
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
@@ -84,6 +117,7 @@ class UserModel {
       followers: List<String>.from(map['followers'] ?? []),
       following: List<String>.from(map['following'] ?? []),
       settings: settings,
+      preferences: preferences,
       userType: map['userType']?.toString() ?? 'user',
       isPremium: map['isPremium'] as bool? ?? false,
     );

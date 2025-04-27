@@ -7,7 +7,6 @@ import 'package:simple_circular_progress_bar/simple_circular_progress_bar.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../screens/add_food_screen.dart';
 
 class FillingSquare extends StatefulWidget {
   final ValueNotifier<double> current;
@@ -322,6 +321,8 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Obx(() {
                   double eatenCalories =
@@ -479,6 +480,8 @@ class MacroNutritionOverview extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 CustomCircularProgressBar(
                   valueNotifier: proteinDailyValueNotifier,

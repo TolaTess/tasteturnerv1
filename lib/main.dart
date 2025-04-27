@@ -1,4 +1,3 @@
-import 'package:fit_hify/service/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,8 +14,8 @@ import 'service/battle_management.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
-import 'service/health_service.dart';
 import 'service/meal_manager.dart';
+import 'service/notification_service.dart';
 import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
 import 'service/helper_controller.dart';
@@ -49,7 +48,7 @@ void main() async {
     Get.put(AuthController());
     Get.put(HelperController());
     Get.put(FirebaseService());
-    Get.put(HealthService());
+    // Get.put(HealthService());
     Get.put(BattleService());
 
     Get.lazyPut(() => MealManager());

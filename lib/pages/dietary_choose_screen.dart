@@ -1,4 +1,3 @@
-import 'package:fit_hify/widgets/secondary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -9,10 +8,18 @@ import 'package:intl/intl.dart';
 
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/secondary_button.dart';
 
 class ChooseDietScreen extends StatefulWidget {
-  const ChooseDietScreen({super.key, this.isOnboarding = false});
+  const ChooseDietScreen({
+    super.key,
+    this.isOnboarding = false,
+    this.onPreferencesSelected,
+  });
+
   final bool isOnboarding;
+  final Function(String diet, Set<String> allergies, String cuisineType)?
+      onPreferencesSelected;
 
   @override
   State<ChooseDietScreen> createState() => _ChooseDietScreenState();
@@ -507,7 +514,10 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       // Process data
       final ingredients = _convertToStringMap(mealData['ingredients'] ?? []);
       final steps = _convertToStringList(mealData['instructions'] ?? []);
-      final categories = [..._convertToStringList(mealData['categories'] ?? []), selectedCuisine];
+      final categories = [
+        ..._convertToStringList(mealData['categories'] ?? []),
+        selectedCuisine
+      ];
       final type = _parseStringOrDefault(mealData['type'], '');
 
       final processedNutritionalInfo = {
@@ -557,11 +567,15 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return mealIds;
   }
 
+  void _updatePreferences() {
+    if (widget.isOnboarding && widget.onPreferencesSelected != null) {
+      widget.onPreferencesSelected!(
+          selectedDiet, selectedAllergies, selectedCuisine);
+    }
+  }
+
   @override
   void dispose() {
-    if (widget.isOnboarding) {
-      _updateUserPreferences(userService.userId ?? '');
-    }
     super.dispose();
   }
 
@@ -780,7 +794,7 @@ Include:
 
                 const Text(
                   textAlign: TextAlign.center,
-                  "Tell me your dietary preferences?",
+                  "Tell us your dietary preferences?",
                   style: TextStyle(
                     fontSize: 20,
                     overflow: TextOverflow.ellipsis,
@@ -790,7 +804,7 @@ Include:
                 const SizedBox(height: 16),
                 const Text(
                   textAlign: TextAlign.center,
-                  "I'll exclusively display recipes aligned with your chosen diet.",
+                  "We'll exclusively display recipes aligned with your chosen diet.",
                   style: TextStyle(
                     fontSize: 14,
                   ),
@@ -819,6 +833,7 @@ Include:
                           } else {
                             selectedDiet = title;
                           }
+                          _updatePreferences();
                         });
                       },
                     );
@@ -851,6 +866,7 @@ Include:
                           } else {
                             selectedAllergies.add(allergy);
                           }
+                          _updatePreferences();
                         });
                       },
                     ),

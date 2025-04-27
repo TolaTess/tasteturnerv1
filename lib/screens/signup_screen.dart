@@ -83,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       // ✅ Actual Image
                       SizedBox(
                         child: Image.asset(
-                          'assets/images/tasty.png',
+                          tastyImage,
                           width: getPercentageWidth(30, context),
                         ),
                       ),
@@ -124,7 +124,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 words[_index],
                                 key: ValueKey<String>(words[_index]),
                                 style: const TextStyle(
-                                  fontSize: 22,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.w600,
                                   color: kDarkGrey,
                                 ),
@@ -136,7 +136,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         const Text(
                           "with Confidence",
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -153,7 +153,30 @@ class _SignupScreenState extends State<SignupScreen> {
                       // sign up with google
                       Expanded(
                         child: InkWell(
-                          onTap: authController.signInWithGoogle,
+                          onTap: authController.signInWithApple,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(9, context),
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                                color: kWhite,
+                              borderRadius: BorderRadius.circular(
+                                50,
+                              ),
+                            ),
+                            child: SvgPicture.asset(
+                              "assets/images/svg/apple.svg",
+                              height: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                  
+                      // sign up with Apple
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => authController.signInWithGoogle(),
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
@@ -167,29 +190,6 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             child: SvgPicture.asset(
                               "assets/images/svg/google.svg",
-                              height: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                  
-                      // sign up with Apple
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => authController.signInWithApple,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(9, context),
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: kWhite,
-                              borderRadius: BorderRadius.circular(
-                                50,
-                              ),
-                            ),
-                            child: SvgPicture.asset(
-                              "assets/images/svg/apple.svg",
                               height: 24,
                             ),
                           ),

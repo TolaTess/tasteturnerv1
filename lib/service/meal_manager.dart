@@ -41,7 +41,6 @@ class MealManager extends GetxController {
           .whereType<Meal>()
           .toList();
     } catch (e) {
-      print('Error fetching meals: $e');
       _meals.value = [];
     }
   }
@@ -144,7 +143,6 @@ class MealManager extends GetxController {
 
       return completeList;
     } catch (e) {
-      print("Error fetching meals: $e");
       return [];
     }
   }
@@ -165,7 +163,6 @@ class MealManager extends GetxController {
 
       return meals; // ✅ Return the list of meals
     } catch (e) {
-      print('Error fetching meals: $e');
       return [];
     }
   }
@@ -269,7 +266,6 @@ class MealManager extends GetxController {
 
       return meals;
     } catch (e) {
-      print('Error fetching meals: $e');
       return [];
     }
   }

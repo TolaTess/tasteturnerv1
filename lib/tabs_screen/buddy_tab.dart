@@ -65,7 +65,6 @@ class _BuddyTabState extends State<BuddyTab> {
       final meals = await MealManager.instance.getMealsByMealIds(stringMealIds);
       return meals.map((meal) => meal.toJson()).toList();
     } catch (e) {
-      print('Error fetching meals: $e');
       return [];
     }
   }
@@ -204,9 +203,10 @@ class _BuddyTabState extends State<BuddyTab> {
               width: 200,
               height: 200,
               decoration: const BoxDecoration(
+                color: kAccentLight,
                 shape: BoxShape.circle,
                 image: DecorationImage(
-                  image: AssetImage(tastyWithName),
+                  image: AssetImage(tastyImage),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -334,8 +334,8 @@ class _BuddyTabState extends State<BuddyTab> {
                             builder: (context) => const TastyScreen()),
                       ),
                       child: const CircleAvatar(
-                        backgroundImage:
-                            AssetImage('assets/images/tasty_cheerful.jpg'),
+                        backgroundColor: kAccentLight,
+                        backgroundImage: AssetImage(tastyImage),
                         radius: 22,
                       ),
                     ),

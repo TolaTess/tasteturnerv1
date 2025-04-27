@@ -144,6 +144,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: 5),
 
                 //Grams message
                 const Text(
@@ -177,7 +178,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
 
                 if (widget.item.macros.isNotEmpty)
                   const SizedBox(
-                    height: 10,
+                    height: 15,
                   ),
                 if (widget.item.macros.isNotEmpty)
                   Padding(

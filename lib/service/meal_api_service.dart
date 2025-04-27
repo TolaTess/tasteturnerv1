@@ -78,7 +78,6 @@ class MealApiService {
       }
       return allMeals;
     } catch (e, stackTrace) {
-      print('Error fetching meals: $e');
       print('Stack trace: $stackTrace');
       return [];
     }

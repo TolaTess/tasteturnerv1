@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../pages/daily_info_page.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
@@ -506,12 +507,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-                const SizedBox(height: 10),
-                Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                const SizedBox(height: 10),
+                // const SizedBox(height: 10),
+                // Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                // const SizedBox(height: 10),
 
-                // Weekly Ingredients Battle Widget
-                const WeeklyIngredientBattle(),
+                // // Weekly Ingredients Battle Widget
+                // const WeeklyIngredientBattle(),
 
                 const SizedBox(height: 15),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
@@ -540,89 +541,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // ------------------------------------Premium / Ads-------------------------------------
                 const SizedBox(height: 20),
 
-                // Water and Activity status widgets
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Obx(() {
-                      final settings = userService.currentUser!.settings;
-                      final double waterTotal = settings['waterIntake'] != null
-                          ? double.tryParse(
-                                  settings['waterIntake'].toString()) ??
-                              0.0
-                          : 0.0;
-                      final double currentWater =
-                          dailyDataController.currentWater.value.toDouble();
-
-                      return StatusWidgetBox(
-                        title: water,
-                        total: waterTotal,
-                        current: currentWater,
-                        sym: ml,
-                        isSquare: true,
-                        upperColor: kBlue,
-                        isWater: true,
-                        press: () {
-                          if (getCurrentDate(currentDate)) {
-                            _openDailyFoodPage(
-                              context,
-                              waterTotal,
-                              currentWater,
-                              "Water Tracker",
-                              true,
-                            );
-                          }
-                        },
-                      );
-                    }),
-                    const SizedBox(width: 35),
-                    Obx(() {
-                      final healthService = Get.find<HealthService>();
-                      final settings = userService.currentUser!.settings;
-
-                      // Get steps from health service if synced, otherwise from settings
-                      int currentSteps;
-                      if (healthService.isAuthorized.value) {
-                        currentSteps = healthService.steps.value;
-                      } else {
-                        currentSteps =
-                            dailyDataController.currentSteps.value.toInt();
-                      }
-
-                      // Get target steps from settings, default to 10000 if not set
-                      final int targetSteps = int.tryParse(
-                              settings['targetSteps']?.toString() ?? '10000') ??
-                          10000;
-
-                      // Check if current steps meet or exceed target steps and notify user
-                      if (currentSteps >= targetSteps && targetSteps > 0) {
-                        // Use SharedPreferences to check if we've already sent a notification today
-                        checkAndSendStepGoalNotification(
-                            currentSteps, targetSteps);
-                      }
-
-                      return StatusWidgetBox(
-                        current: currentSteps.toDouble(),
-                        title: "Steps",
-                        total: targetSteps.toDouble(),
-                        sym: "steps",
-                        isSquare: true,
-                        upperColor: kAccent,
-                        press: () {
-                          if (getCurrentDate(currentDate)) {
-                            _openStepsUpdatePage(
-                              context,
-                              targetSteps.toDouble(),
-                              currentSteps.toDouble(),
-                              "Steps Tracker",
-                              healthService.isAuthorized.value,
-                            );
-                          }
-                        },
-                      );
-                    }),
-                  ],
-                ),
+                // Water widgets
+                Obx(() {
+                  final settings = userService.currentUser!.settings;
+                  final double waterTotal = settings['waterIntake'] != null
+                      ? double.tryParse(
+                              settings['waterIntake'].toString()) ??
+                          0.0
+                      : 0.0;
+                  final double currentWater =
+                      dailyDataController.currentWater.value.toDouble();
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 250,
+                    child: DailyFoodPage(
+                      total: waterTotal,
+                      current: currentWater,
+                      currentNotifier: currentNotifier,
+                      title: 'Update Water',
+                    ),
+                  );
+                }),
 
                 const SizedBox(height: 72),
               ],

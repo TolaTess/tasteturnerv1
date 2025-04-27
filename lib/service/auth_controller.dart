@@ -11,6 +11,8 @@ import '../screens/splash_screen.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import 'tasty_popup_service.dart';
+
 class AuthController extends GetxController {
   static AuthController instance = Get.find();
 
@@ -227,6 +229,7 @@ class AuthController extends GetxController {
   /// ✅ Apple Sign-In Function
   Future<void> signInWithApple() async {
     try {
+      print('Apple');
       // Begin sign in process
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
@@ -234,6 +237,7 @@ class AuthController extends GetxController {
           AppleIDAuthorizationScopes.fullName,
         ],
       );
+      print('Apple Credential: $appleCredential');
 
       // Create OAuthCredential for Firebase
       final oauthCredential = OAuthProvider("apple.com").credential(
@@ -333,6 +337,7 @@ class AuthController extends GetxController {
       await FirebaseAuth.instance.signOut();
       await _setLoggedIn(false);
       userService.clearUser();
+      await TutorialPopupService().isFirstTimeUser();
       Get.offAll(() => const SplashScreen());
     } catch (e) {
       print("Error signing out: $e");
@@ -359,9 +364,6 @@ class AuthController extends GetxController {
 
   Future<void> updateIsPremiumStatus(
       String userId, bool isPremium, String plan) async {
-    print('userId: $userId');
-    print('isPremium: $isPremium');
-    print('plan: $plan');
     try {
       if (userId.isEmpty) {
         throw Exception("User ID is invalid or empty.");

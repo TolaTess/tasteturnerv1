@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:fit_hify/widgets/ingredient_features.dart';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -9,6 +9,7 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
+import '../widgets/ingredient_features.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/spinning_math.dart';
 

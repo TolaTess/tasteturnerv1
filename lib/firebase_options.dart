@@ -59,11 +59,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBhCjA94ZgIRMQpY-D4mpKH-W_7iKa9B9k',
-    appId: '1:1047279372959:ios:b74e8b7f2c9ba5938330aa',
+    appId: '1:1047279372959:ios:3d57c46ecf6309048330aa',
     messagingSenderId: '1047279372959',
     projectId: 'fithify',
     storageBucket: 'fithify.firebasestorage.app',
-    iosBundleId: 'com.example.fitHify',
+    iosBundleId: 'com.tasteturner.fitHify',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -72,7 +72,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1047279372959',
     projectId: 'fithify',
     storageBucket: 'fithify.firebasestorage.app',
-    iosBundleId: 'com.example.fitHify',
+    iosBundleId: 'com.tasteturner.fitHify',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

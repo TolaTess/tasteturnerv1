@@ -121,11 +121,28 @@ class BattleService extends GetxController {
         'dates.$firstDateKey.participants.$votedForUserId.votes':
             FieldValue.arrayUnion([voterId])
       });
-      // Update user's battle status
-      await firestore.collection('userBattles').doc(voterId).update({
-        'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId]),
-        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
-      });
+
+      // Check if userBattles document exists
+      final userBattlesRef = firestore.collection('userBattles').doc(voterId);
+      final userBattleDoc = await userBattlesRef.get();
+
+      if (!userBattleDoc.exists) {
+        // Create the document with initial data
+        await userBattlesRef.set({
+          'dates': {
+            firstDateKey: {
+              'voted': [battleId],
+              'ongoing': []
+            }
+          }
+        });
+      } else {
+        // Update existing document
+        await userBattlesRef.update({
+          'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId]),
+          'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
+        });
+      }
     } catch (e) {
       print('Error casting vote: $e');
       throw Exception('Failed to cast vote');

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:fit_hify/themes/theme_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,6 +14,7 @@ import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/photo_manager.dart';
+import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 
 int currentPage = 0;
@@ -312,17 +312,15 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
     [List<String>? labels]) {
   final isDarkMode = getThemeProvider(context).isDarkMode;
 
-  return Expanded(
-    child: CupertinoPicker(
-      scrollController: FixedExtentScrollController(initialItem: selectedValue),
-      itemExtent: 40,
-      onSelectedItemChanged: onChanged,
-      children: List.generate(
-        itemCount,
-        (index) => Text(
-          labels != null ? labels[index] : index.toString(),
-          style: TextStyle(color: isDarkMode ? kWhite : kBlack),
-        ),
+  return CupertinoPicker(
+    scrollController: FixedExtentScrollController(initialItem: selectedValue),
+    itemExtent: 40,
+    onSelectedItemChanged: onChanged,
+    children: List.generate(
+      itemCount,
+      (index) => Text(
+        labels != null ? labels[index] : index.toString(),
+        style: TextStyle(color: isDarkMode ? kWhite : kBlack),
       ),
     ),
   );
@@ -499,8 +497,9 @@ Widget noItemTastyWidget(
             return Transform.translate(
               offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
               child: const CircleAvatar(
+                backgroundColor: kAccentLight,
                 radius: 18,
-                backgroundImage: AssetImage('assets/images/tasty_cheerful.jpg'),
+                backgroundImage: AssetImage(tastyImage),
               ),
             );
           },

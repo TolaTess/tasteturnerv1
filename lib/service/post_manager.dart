@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 import '../constants.dart';
 import '../data_models/post_model.dart';
@@ -92,111 +94,181 @@ class PostController extends GetxController {
   bool isFileSizeValid(String filePath, int maxSizeInMB) {
     final file = File(filePath);
     final fileSizeInBytes = file.lengthSync();
-    final maxSizeInBytes = 20 * 1024; // 20kb in bytes
+    final maxSizeInBytes = maxSizeInMB * 1024 * 1024; // Convert MB to bytes
     return fileSizeInBytes <= maxSizeInBytes;
   }
 
   Future<String> _compressAndResizeImage(String imagePath) async {
-    // Read the image file
     final File imageFile = File(imagePath);
+    final bool isLargeFile = await imageFile.length() > 5 * 1024 * 1024; // 5MB
+
+    // First pass: Decode and analyze the image
     final List<int> bytes = await imageFile.readAsBytes();
     final Uint8List uint8Bytes = Uint8List.fromList(bytes);
-    final img.Image? image = img.decodeImage(uint8Bytes);
+    final img.Image? originalImage = img.decodeImage(uint8Bytes);
 
-    if (image == null) throw Exception('Failed to decode image');
+    if (originalImage == null) throw Exception('Failed to decode image');
 
-    // Calculate new dimensions while maintaining aspect ratio
-    const int maxDimension = 1200; // Maximum dimension for posts
-    final double aspectRatio = image.width / image.height;
-    int newWidth = image.width;
-    int newHeight = image.height;
+    // Calculate optimal dimensions based on the device
+    final (int targetWidth, int targetHeight) =
+        await _calculateOptimalDimensions(
+      originalImage.width,
+      originalImage.height,
+    );
 
-    if (image.width > maxDimension || image.height > maxDimension) {
-      if (aspectRatio > 1) {
-        newWidth = maxDimension;
-        newHeight = (maxDimension / aspectRatio).round();
-      } else {
-        newHeight = maxDimension;
-        newWidth = (maxDimension * aspectRatio).round();
+    // First compression pass using flutter_image_compress for better quality
+    final String firstPassPath = await _performFirstCompressionPass(
+      imagePath,
+      targetWidth,
+      targetHeight,
+      isLargeFile,
+    );
+
+    // Check if the first pass achieved desired file size
+    final File firstPassFile = File(firstPassPath);
+    final bool needsSecondPass =
+        await firstPassFile.length() > 1 * 1024 * 1024; // 1MB
+
+    if (needsSecondPass) {
+      return await _performSecondCompressionPass(
+        firstPassPath,
+        targetWidth,
+        targetHeight,
+      );
+    }
+
+    return firstPassPath;
+  }
+
+  Future<(int, int)> _calculateOptimalDimensions(
+      int originalWidth, int originalHeight) async {
+    const int maxDimension = 1200;
+    final double aspectRatio = originalWidth / originalHeight;
+
+    // Check if we're on iOS for device-specific optimizations
+    if (Platform.isIOS) {
+      final deviceInfo = await DeviceInfoPlugin().iosInfo;
+      final bool isModernDevice =
+          int.parse(deviceInfo.systemVersion.split('.')[0]) >= 13;
+
+      // Modern iOS devices can handle larger images better
+      if (isModernDevice) {
+        const int iosMaxDimension = 1600;
+        if (aspectRatio > 1) {
+          return (iosMaxDimension, (iosMaxDimension / aspectRatio).round());
+        } else {
+          return ((iosMaxDimension * aspectRatio).round(), iosMaxDimension);
+        }
       }
     }
 
-    // Resize the image
-    final img.Image resized = img.copyResize(
-      image,
-      width: newWidth,
-      height: newHeight,
+    // Default dimensions for other devices
+    if (aspectRatio > 1) {
+      return (maxDimension, (maxDimension / aspectRatio).round());
+    } else {
+      return ((maxDimension * aspectRatio).round(), maxDimension);
+    }
+  }
+
+  Future<String> _performFirstCompressionPass(
+    String imagePath,
+    int targetWidth,
+    int targetHeight,
+    bool isLargeFile,
+  ) async {
+    final tempDir = await getTemporaryDirectory();
+    final String outputPath =
+        '${tempDir.path}/compressed_1st_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    await FlutterImageCompress.compressAndGetFile(
+      imagePath,
+      outputPath,
+      minWidth: targetWidth,
+      minHeight: targetHeight,
+      quality: isLargeFile ? 80 : 90,
+      format: CompressFormat.jpeg,
+      keepExif: false,
+      autoCorrectionAngle: true,
     );
 
-    // Compress the image
-    final List<int> compressed = img.encodeJpg(resized, quality: 85);
-    final Uint8List compressedBytes = Uint8List.fromList(compressed);
+    return outputPath;
+  }
 
-    // Save to temporary file
+  Future<String> _performSecondCompressionPass(
+    String inputPath,
+    int targetWidth,
+    int targetHeight,
+  ) async {
     final tempDir = await getTemporaryDirectory();
-    final String tempPath =
-        '${tempDir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await File(tempPath).writeAsBytes(compressedBytes);
+    final String outputPath =
+        '${tempDir.path}/compressed_2nd_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    return tempPath;
+    await FlutterImageCompress.compressAndGetFile(
+      inputPath,
+      outputPath,
+      minWidth: (targetWidth * 0.8).round(), // Reduce dimensions by 20%
+      minHeight: (targetHeight * 0.8).round(),
+      quality: 70,
+      format: CompressFormat.jpeg,
+      keepExif: false,
+    );
+
+    // Clean up first pass file
+    await File(inputPath).delete();
+    return outputPath;
   }
 
   Future<void> uploadPost(
       Post post, String userId, List<String> imagePaths) async {
     try {
-      // Create a reference for the new post document
       final postRef = firestore.collection('posts').doc();
-
-      // Upload images to Firebase Storage
       List<String> downloadUrls = [];
+
       for (String imagePath in imagePaths) {
-        // Check if the path is already a URL
         if (imagePath.startsWith('http')) {
           downloadUrls.add(imagePath);
           continue;
         }
 
-        // Handle local file
         if (!File(imagePath).existsSync()) {
           print('File does not exist at path: $imagePath');
           continue;
         }
 
-        // Compress and resize image before upload
-        final String compressedPath = await _compressAndResizeImage(imagePath);
+        // Validate file size before processing
+        if (!isFileSizeValid(imagePath, 20)) {
+          // 20MB max input size
+          print('File too large: $imagePath');
+          continue;
+        }
 
+        final String compressedPath = await _compressAndResizeImage(imagePath);
         final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
         final storageRef = firebaseStorage.ref().child('post_images/$fileName');
 
-        final uploadTask = storageRef.putFile(File(compressedPath));
-        final snapshot = await uploadTask.whenComplete(() => null);
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-        downloadUrls.add(downloadUrl);
-
-        // Clean up temporary file
-        await File(compressedPath).delete();
+        try {
+          final uploadTask = storageRef.putFile(File(compressedPath));
+          final snapshot = await uploadTask.whenComplete(() => null);
+          final downloadUrl = await snapshot.ref.getDownloadURL();
+          downloadUrls.add(downloadUrl);
+        } finally {
+          // Ensure cleanup of temporary files
+          await File(compressedPath)
+              .delete()
+              .catchError((e) => print('Error cleaning up: $e'));
+        }
       }
 
       if (downloadUrls.isEmpty) {
         throw Exception('No valid images to upload');
       }
 
-      // Create a new Post object with the download URLs
       final updatedPost = post.copyWith(mediaPaths: downloadUrls);
-
-      // Start a batch operation
       WriteBatch batch = firestore.batch();
-
-      // Add the post to the 'posts' collection
       batch.set(postRef, updatedPost.toFirestore());
-
-      // Add the post ID to the user's 'posts' field
-      final userRef = firestore.collection('users').doc(userId);
-      batch.update(userRef, {
+      batch.update(firestore.collection('users').doc(userId), {
         'posts': FieldValue.arrayUnion([postRef.id]),
       });
-
-      // Commit the batch
       await batch.commit();
     } catch (e) {
       print('Error uploading post: $e');

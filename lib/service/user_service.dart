@@ -1,4 +1,5 @@
-import 'package:fit_hify/data_models/user_data_model.dart';
+
+import '../data_models/user_data_model.dart';
 
 class UserService {
   static final UserService _instance = UserService._internal();

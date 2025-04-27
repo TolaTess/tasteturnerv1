@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fit_hify/constants.dart';
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/user_profile_screen.dart';
 import '../widgets/announcement.dart';

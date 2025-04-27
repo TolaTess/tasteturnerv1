@@ -8,12 +8,14 @@ class ShoppingListView extends StatefulWidget {
   final List<MacroData> items;
   final Set<String> selectedItems;
   final Function(String) onToggle;
+  final bool isCurrentWeek;
 
   const ShoppingListView({
     Key? key,
     required this.items,
     required this.selectedItems,
     required this.onToggle,
+    this.isCurrentWeek = true,
   }) : super(key: key);
 
   @override
@@ -105,20 +107,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
         final item = widget.items[index];
         final isSelected = item.id != null && selectedItems.contains(item.id);
 
-        return Dismissible(
-          key: Key(item.id ?? '${index}_${item.title}'),
-          background: Container(
-            color: kRed.withOpacity(kMidOpacity),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(
-              Icons.delete,
-              color: Colors.white,
-            ),
-          ),
-          direction: DismissDirection.endToStart,
-          onDismissed: (direction) => _removeItem(item),
-          child: Container(
+        Widget listItem = Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white,
@@ -144,7 +133,11 @@ class _ShoppingListViewState extends State<ShoppingListView> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: isSelected ? kAccent : isDarkMode ? Colors.white : Colors.black,
+                color: isSelected
+                    ? kAccent
+                    : isDarkMode
+                        ? Colors.white
+                        : Colors.black,
                 decoration: isSelected ? TextDecoration.lineThrough : null,
               ),
             ),
@@ -154,14 +147,35 @@ class _ShoppingListViewState extends State<ShoppingListView> {
               ),
               child: Checkbox(
                 value: isSelected,
-                onChanged: (_) => _toggleItem(item),
+                onChanged: (bool? value) {
+                  if (item.id != null) {
+                    _toggleItem(item);
+                  }
+                },
                 activeColor: kAccent,
                 checkColor: kWhite,
-              ),
               ),
             ),
           ),
         );
+
+        return widget.isCurrentWeek
+            ? Dismissible(
+                key: Key(item.id ?? '${index}_${item.title}'),
+                background: Container(
+                  color: kRed.withOpacity(kMidOpacity),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(
+                    Icons.delete,
+                    color: Colors.white,
+                  ),
+                ),
+                direction: DismissDirection.endToStart,
+                onDismissed: (direction) => _removeItem(item),
+                child: listItem,
+              )
+            : listItem;
       },
     );
   }

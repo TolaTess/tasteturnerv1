@@ -537,7 +537,7 @@ class NutritionController extends GetxController {
       userMealList.assignAll(parsedMeals);
       await fetchCalories(userId, 'Add Food', mDate);
     } catch (e) {
-      print('Error fetching meals: $e');
+      return;
     }
   }
 

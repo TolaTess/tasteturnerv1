@@ -71,7 +71,8 @@ class _MessageScreenState extends State<MessageScreen>
         ),
         TutorialStep(
           tutorialId: 'add_friend_button',
-          message: 'Tap here to add friends and start sharing your food journey together!',
+          message:
+              'Tap here to add friends and start sharing your food journey together!',
           targetKey: _addFriendButtonKey,
           autoCloseDuration: const Duration(seconds: 5),
           arrowDirection: ArrowDirection.RIGHT,
@@ -152,6 +153,7 @@ class _MessageScreenState extends State<MessageScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Message List
+
                     Obx(() {
                       final nonBuddyChats = chatController.userChats
                           .where((chat) =>
@@ -161,7 +163,7 @@ class _MessageScreenState extends State<MessageScreen>
                       if (nonBuddyChats.isEmpty) {
                         return noItemTastyWidget(
                           "No messages yet.",
-                          "Start a conversation with your friends.",
+                          "click add to start a conversation with a friend.",
                           context,
                           false,
                         );
@@ -297,6 +299,7 @@ class _MessageScreenState extends State<MessageScreen>
             width: 56,
             height: 56,
             decoration: const BoxDecoration(
+              color: kAccentLight,
               shape: BoxShape.circle,
               image: DecorationImage(
                 image: AssetImage(tastyImage),

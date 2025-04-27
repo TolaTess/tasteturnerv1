@@ -31,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // finish at 5 it's original size
     _zoomAnimation =
-        Tween<double>(begin: 1.0, end: widget.isUser ? 10.0 : 20.0).animate(
+        Tween<double>(begin: 1.0, end: widget.isUser ? 7.0 : 10.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOut, // Smooth zoom effect
@@ -102,18 +102,18 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Transform.scale(
                         scale: _zoomAnimation.value,
                         child: Image.asset(
-                          'assets/images/tasty.png',
+                          'assets/images/tasty/tasty_splash.png',
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
                   ),
-                  Opacity(
-                    opacity: _fadeAnimation.value,
-                    child: Container(
-                      color: isDarkMode ? kDarkGrey : kWhite,
-                    ),
-                  ),
+                  // Opacity(
+                  //   opacity: _fadeAnimation.value,
+                  //   child: Container(
+                  //     color: isDarkMode ? kDarkGrey : kWhite,
+                  //   ),
+                  // ),
                 ],
               );
             },

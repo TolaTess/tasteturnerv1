@@ -34,6 +34,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final Size screenSize = MediaQuery.of(context).size;
+
     List<Widget> pages = [
       const HomeScreen(),
       const RecipeScreen(),
@@ -66,48 +68,58 @@ class _BottomNavSecState extends State<BottomNavSec> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
+      bottomNavigationBar: Container(
+        height: screenSize.height * 0.1, // Responsive height
+        child: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 6,
           clipBehavior: Clip.antiAlias,
           color: themeProvider.isDarkMode ? kDarkGrey : kWhite,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              createIcon(
+              Expanded(
+                  child: createIcon(
                 iconActive: "home.svg",
                 iconInactive: "home-outline.svg",
                 activeIdx: 0,
-              ),
-              createIcon(
+              )),
+              Expanded(
+                  child: createIcon(
                 iconActive: "book.svg",
                 iconInactive: "book-outline.svg",
                 activeIdx: 1,
+              )),
+              SizedBox(
+                width:
+                    screenSize.width * 0.15, // Responsive width for center gap
               ),
-              const SizedBox(
-                width: 60,
-              ),
-              createIcon(
+              Expanded(
+                  child: createIcon(
                 iconActive: "target.svg",
                 iconInactive: "target-outline.svg",
                 activeIdx: 3,
-              ),
-              createIcon(
+              )),
+              Expanded(
+                  child: createIcon(
                 iconActive: "cal.svg",
                 iconInactive: "cal-outline.svg",
                 activeIdx: 4,
-              ),
+              )),
             ],
-          )),
+          ),
+        ),
+      ),
       body: pages[_selectedIndex],
     );
   }
 
-//Method to build bottom navigation icon
-  GestureDetector createIcon(
-      {required String iconActive,
-      required String iconInactive,
-      required int activeIdx}) {
+  //Method to build bottom navigation icon
+  Widget createIcon({
+    required String iconActive,
+    required String iconInactive,
+    required int activeIdx,
+  }) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
@@ -117,10 +129,10 @@ class _BottomNavSecState extends State<BottomNavSec> {
         });
       },
       child: Container(
-        //color: Colors.amber,
-        padding: const EdgeInsets.symmetric(
-          vertical: 15,
-          horizontal: 30,
+        alignment: Alignment.center,
+        padding: EdgeInsets.symmetric(
+          vertical: MediaQuery.of(context).size.height * 0.015,
+          horizontal: MediaQuery.of(context).size.width * 0.02,
         ),
         child: _selectedIndex == activeIdx
             ? SvgPicture.asset(
@@ -128,8 +140,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 height: 25,
                 colorFilter: ColorFilter.mode(
                   kAccent.withOpacity(0.85),
-                  BlendMode
-                      .srcIn, // Ensures that the color is applied correctly
+                  BlendMode.srcIn,
                 ),
               )
             : SvgPicture.asset(
@@ -139,8 +150,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                   Provider.of<ThemeProvider>(context).isDarkMode
                       ? kWhite.withOpacity(0.70)
                       : kBlack.withOpacity(0.70),
-                  BlendMode
-                      .srcIn, // Ensures that the color is applied correctly
+                  BlendMode.srcIn,
                 ),
               ),
       ),

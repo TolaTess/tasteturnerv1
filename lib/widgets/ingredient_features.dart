@@ -1,5 +1,5 @@
-import 'package:fit_hify/widgets/bottom_nav.dart';
-import 'package:fit_hify/widgets/search_button.dart';
+import '../widgets/bottom_nav.dart';
+import '../widgets/search_button.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -149,7 +149,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         );
       }
     } catch (e) {
-      debugPrint('Error saving to shopping list: $e');  
+      debugPrint('Error saving to shopping list: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

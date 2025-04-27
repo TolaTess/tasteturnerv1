@@ -1,9 +1,10 @@
-import 'package:fit_hify/widgets/icon_widget.dart';
+
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/circle_image.dart';
+import '../widgets/icon_widget.dart';
 
 class MealSpinList extends StatefulWidget {
   const MealSpinList({

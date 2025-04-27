@@ -1,5 +1,7 @@
-import 'package:fit_hify/constants.dart';
+
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
 
 //this widget can be used in several screen that show list of recipe, in this template, RecipeCard will are being used in home_screen and search_results_screen. RecipeCard uses several argument, ie recipe, press, width, height.
 

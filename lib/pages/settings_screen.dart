@@ -211,95 +211,95 @@ class _SettingCategoryState extends State<SettingCategory> {
                               Provider.of<ThemeProvider>(context, listen: false)
                                   .toggleTheme(),
                         ),
-                      if (widget.setting.category == 'Health Sync')
-                        CupertinoSwitch(
-                          value: userService.currentUser?.syncHealth ?? false,
-                          onChanged: (value) async {
-                            if (value) {
-                              try {
-                                final healthService = Get.put(HealthService());
-                                final isAvailable =
-                                    await healthService.isHealthDataAvailable();
+                      // if (widget.setting.category == 'Health Sync')
+                      //   CupertinoSwitch(
+                      //     value: userService.currentUser?.syncHealth ?? false,
+                      //     onChanged: (value) async {
+                      //       if (value) {
+                      //         try {
+                      //           final healthService = Get.put(HealthService());
+                      //           final isAvailable =
+                      //               await healthService.isHealthDataAvailable();
 
-                                if (isAvailable) {
-                                  final granted =
-                                      await healthService.initializeHealth();
-                                  setState(() {
-                                    final updatedSettings = {
-                                      'settings': {
-                                        'syncHealth': granted,
-                                      }
-                                    };
-                                    // Update the user's settings in Firestore
-                                    try {
-                                      authController
-                                          .updateUserData(updatedSettings);
-                                    } catch (e) {
-                                      showTastySnackbar(
-                                        'Error',
-                                        'Failed to update settings. Please try again.',
-                                        context,
-                                      );
-                                    }
-                                  });
+                      //           if (isAvailable) {
+                      //             final granted =
+                      //                 await healthService.initializeHealth();
+                      //             setState(() {
+                      //               final updatedSettings = {
+                      //                 'settings': {
+                      //                   'syncHealth': granted,
+                      //                 }
+                      //               };
+                      //               // Update the user's settings in Firestore
+                      //               try {
+                      //                 authController
+                      //                     .updateUserData(updatedSettings);
+                      //               } catch (e) {
+                      //                 showTastySnackbar(
+                      //                   'Error',
+                      //                   'Failed to update settings. Please try again.',
+                      //                   context,
+                      //                 );
+                      //               }
+                      //             });
 
-                                  if (!granted) {
-                                    showTastySnackbar(
-                                      'Permission Required',
-                                      'Please allow access to health data to enable syncing.',
-                                      context,
-                                    );
-                                  }
-                                } else {
-                                  showTastySnackbar(
-                                    'Not Available',
-                                    'Health tracking is not available on your device.',
-                                    context,
-                                    backgroundColor: kRed,
-                                  );
-                                  setState(() {
-                                    // Update user settings to reflect health sync is off
-                                    final updatedSettings = {
-                                      'settings': {
-                                        'syncHealth': false,
-                                      }
-                                    };
-                                    authController
-                                        .updateUserData(updatedSettings);
-                                  });
-                                }
-                              } catch (e) {
-                                print("Error initializing health sync: $e");
-                                showTastySnackbar(
-                                  'Please try again.',
-                                  'Failed to initialize health sync. Please try again.',
-                                  context,
-                                  backgroundColor: kRed,
-                                );
-                                setState(() {
-                                  // Update user settings to reflect health sync is off
-                                  final updatedSettings = {
-                                    'settings': {
-                                      'syncHealth': false,
-                                    }
-                                  };
-                                  authController
-                                      .updateUserData(updatedSettings);
-                                });
-                              }
-                            } else {
-                              setState(() {
-                                // Update user settings to reflect health sync is off
-                                final updatedSettings = {
-                                  'settings': {
-                                    'syncHealth': false,
-                                  }
-                                };
-                                authController.updateUserData(updatedSettings);
-                              });
-                            }
-                          },
-                        ),
+                      //             if (!granted) {
+                      //               showTastySnackbar(
+                      //                 'Permission Required',
+                      //                 'Please allow access to health data to enable syncing.',
+                      //                 context,
+                      //               );
+                      //             }
+                      //           } else {
+                      //             showTastySnackbar(
+                      //               'Not Available',
+                      //               'Health tracking is not available on your device.',
+                      //               context,
+                      //               backgroundColor: kRed,
+                      //             );
+                      //             setState(() {
+                      //               // Update user settings to reflect health sync is off
+                      //               final updatedSettings = {
+                      //                 'settings': {
+                      //                   'syncHealth': false,
+                      //                 }
+                      //               };
+                      //               authController
+                      //                   .updateUserData(updatedSettings);
+                      //             });
+                      //           }
+                      //         } catch (e) {
+                      //           print("Error initializing health sync: $e");
+                      //           showTastySnackbar(
+                      //             'Please try again.',
+                      //             'Failed to initialize health sync. Please try again.',
+                      //             context,
+                      //             backgroundColor: kRed,
+                      //           );
+                      //           setState(() {
+                      //             // Update user settings to reflect health sync is off
+                      //             final updatedSettings = {
+                      //               'settings': {
+                      //                 'syncHealth': false,
+                      //               }
+                      //             };
+                      //             authController
+                      //                 .updateUserData(updatedSettings);
+                      //           });
+                      //         }
+                      //       } else {
+                      //         setState(() {
+                      //           // Update user settings to reflect health sync is off
+                      //           final updatedSettings = {
+                      //             'settings': {
+                      //               'syncHealth': false,
+                      //             }
+                      //           };
+                      //           authController.updateUserData(updatedSettings);
+                      //         });
+                      //       }
+                      //     },
+                      //   ),
                     ],
                   )
                 : Row(

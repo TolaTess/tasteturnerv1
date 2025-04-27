@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -442,40 +441,62 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   color: isDarkMode ? kWhite : kBlack,
                 ),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    itemName,
-                    style: TextStyle(
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
+              content: SingleChildScrollView(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.95,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
                   ),
-                  const SizedBox(height: 15),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.3,
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        buildPicker(
-                          context,
-                          21,
-                          selectedNumber,
-                          (index) =>
-                              setModalState(() => selectedNumber = index),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        itemName,
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
                         ),
-                        buildPicker(
-                          context,
-                          unitOptions.length,
-                          selectedUnit,
-                          (index) => setModalState(() => selectedUnit = index),
-                          unitOptions,
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.25,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Flexible(
+                              flex: 1,
+                              child: Container(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.25,
+                                child: buildPicker(
+                                  context,
+                                  21,
+                                  selectedNumber,
+                                  (index) => setModalState(
+                                      () => selectedNumber = index),
+                                ),
+                              ),
+                            ),
+                            Flexible(
+                              flex: 1,
+                              child: Container(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.25,
+                                child: buildPicker(
+                                  context,
+                                  unitOptions.length,
+                                  selectedUnit,
+                                  (index) =>
+                                      setModalState(() => selectedUnit = index),
+                                  unitOptions,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -535,7 +556,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           return;
                         }
                       }
-    
+
                       // Save all pending items
                       for (var item in _pendingMacroItems) {
                         await dailyDataController.addUserMeal(
@@ -633,9 +654,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               Align(
                 alignment: Alignment.topRight,
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.3,
+                  width: MediaQuery.of(context).size.width * 0.35,
                   padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                  margin: const EdgeInsets.only(top: 12, bottom: 12, right: 14),
+                  margin: const EdgeInsets.only(top: 12, bottom: 9, right: 18),
                   decoration: BoxDecoration(
                     color: isDarkMode ? kDarkGrey : kWhite,
                     borderRadius: BorderRadius.circular(15),

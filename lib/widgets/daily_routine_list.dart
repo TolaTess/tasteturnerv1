@@ -1,8 +1,8 @@
-import 'package:fit_hify/helper/utils.dart';
 import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../data_models/routine_item.dart';
 import '../service/routine_service.dart';
+import '../helper/utils.dart';
 
 class DailyRoutineList extends StatefulWidget {
   final String userId;
@@ -20,7 +20,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
   @override
   void initState() {
     super.initState();
-    _routineItems = _routineService.getRoutineItems(widget.userId);
+    _routineItems = _routineService.getRoutineItems(userService.userId ?? '');
   }
 
   Future<void> _showEditDialog(RoutineItem? item) async {

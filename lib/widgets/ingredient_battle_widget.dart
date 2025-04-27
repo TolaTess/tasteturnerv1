@@ -1,4 +1,4 @@
-import 'package:fit_hify/screens/badges_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../data_models/profilescreen_data.dart';
+import '../screens/badges_screen.dart';
 import '../service/battle_management.dart';
 
 class WeeklyIngredientBattle extends StatefulWidget {
@@ -199,7 +200,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         title: title,
         description: description,
         userids: [userId],
-        image: 'assets/images/tasty.png',
+        image: tastyImage,
       );
       await _badgeController.addBadge(newBadge);
     } else if (checkUserExists) {
@@ -212,7 +213,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
           title: badge.title,
           description: badge.description,
           userids: updatedUserIds,
-          image: 'assets/images/tasty.png',
+          image: tastyImage,
         );
         await _badgeController.addBadge(updatedBadge);
       }

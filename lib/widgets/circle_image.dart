@@ -1,7 +1,7 @@
-import 'package:fit_hify/data_models/macro_data.dart';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
+import '../data_models/macro_data.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 

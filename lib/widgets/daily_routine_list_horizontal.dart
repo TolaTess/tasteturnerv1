@@ -1,4 +1,4 @@
-import 'package:fit_hify/pages/edit_goal.dart';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../pages/edit_goal.dart';
 import '../service/battle_management.dart';
 import '../service/routine_service.dart';
 

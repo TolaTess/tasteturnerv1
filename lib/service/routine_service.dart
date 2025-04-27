@@ -1,5 +1,5 @@
-import 'package:fit_hify/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../constants.dart';
 import '../data_models/routine_item.dart';
 
 class RoutineService {
@@ -12,17 +12,22 @@ class RoutineService {
     return _instance!;
   }
 
-  Future<List<RoutineItem>> getRoutineItems(String userId) async {
+  Future<List<RoutineItem>> getRoutineItems(String? userId) async {
     try {
+      final String effectiveUserId = userId ?? userService.userId ?? '';
+      if (effectiveUserId.isEmpty) {
+        return [];
+      }
+
       final snapshot = await firestore
           .collection('userMeals')
-          .doc(userId)
+          .doc(effectiveUserId)
           .collection('routine')
           .get();
 
       if (snapshot.docs.isEmpty) {
         // Return default routine items if none exist
-        return await _createDefaultRoutine(userId);
+        return await _createDefaultRoutine(effectiveUserId);
       }
 
       return snapshot.docs

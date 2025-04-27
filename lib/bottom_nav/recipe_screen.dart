@@ -134,7 +134,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: 20),
                 child: SizedBox(
-                  height: getPercentageHeight(20, context),
+                  height: getPercentageHeight(22, context),
                   child: GridView.builder(
                     key: _addSpinButtonKey,
                     physics: const NeverScrollableScrollPhysics(),

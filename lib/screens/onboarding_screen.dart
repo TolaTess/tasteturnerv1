@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fit_hify/pages/dietary_choose_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -10,10 +9,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
+import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
-import '../service/health_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final String userId;
@@ -44,6 +43,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool enableAITrial = false;
   bool syncHealthData = false;
   bool _isNextEnabled = false;
+
+  // Add dietary preferences
+  String selectedDiet = '';
+  Set<String> selectedAllergies = {};
+  String selectedCuisineType = '';
 
   // Add this to your state variables
   bool _isTextVisible = false;
@@ -93,9 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _isNextEnabled = selectedGoals.isNotEmpty;
           break;
         case 3:
-          _isNextEnabled = heightController.text.trim().isNotEmpty &&
-              weightController.text.trim().isNotEmpty &&
-              targetWeightController.text.trim().isNotEmpty;
+          _isNextEnabled = true;
           break;
         case 4:
           _isNextEnabled = true; // Settings page - always enabled
@@ -146,12 +148,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               : 'General Fitness',
           'targetSteps': '10000',
           'dailySteps': '0',
-          'dietPreference': 'Balanced',
+          'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
+        },
+        preferences: {
+          'diet': selectedDiet,
+          'allergies': selectedAllergies.toList(),
+          'cuisineType':
+              selectedCuisineType.isNotEmpty ? selectedCuisineType : 'Balanced',
+          'proteinDishes': 2,
+          'grainDishes': 2,
+          'vegDishes': 3,
+          'lastUpdated': FieldValue.serverTimestamp(),
         },
       );
 
       try {
-        // Save user data
+        // Save user data to Firestore
         await firestore.collection('users').doc(widget.userId).set(
               newUser.toMap(),
               SetOptions(merge: true),
@@ -161,9 +173,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         userService.currentUser = newUser;
         userService.userId = widget.userId;
 
-        // Save to local storage
+        // Save to local storage using toJson()
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userData', jsonEncode(newUser.toMap()));
+        await prefs.setString('userData', jsonEncode(newUser.toJson()));
 
         // Create buddy chat
         final String buddyChatId =
@@ -295,12 +307,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child2: const SizedBox.shrink(),
       child3: const SizedBox.shrink(),
       description:
-          'Let\'s personalize your experience! Start by telling us your name.',
+          'Let\'s personalize your experience with us by telling us your name.',
     );
   }
 
   Widget _buildPreferencePage() {
-    return const ChooseDietScreen(isOnboarding: true);
+    return ChooseDietScreen(
+      isOnboarding: true,
+      onPreferencesSelected: (diet, allergies, cuisineType) {
+        setState(() {
+          selectedDiet = diet;
+          selectedAllergies = allergies;
+          selectedCuisineType = cuisineType;
+        });
+      },
+    );
   }
 
   /// Feature Tour Page
@@ -326,7 +347,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       title: "Key Features",
-      description: "Here's what you can do with $appName:",
+      description: "Here's are some of the features you can use with $appName:",
       child1: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
@@ -422,7 +443,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return _buildPage(
       title: "Your Body Measurements",
       description:
-          "Enter your height and weight details to help us personalize your experience.",
+          "Enter your height and weight details to keep track of your progress (optional).",
       child1: Column(
         children: [
           Container(
@@ -589,7 +610,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               subtitle: const Text(
-                "Go Premium to get personalized guidance and chat support - 7 days free trial",
+                "Go Premium to get personalized guidance and chat support - 14 days free trial",
                 style: TextStyle(
                   color: kWhite,
                   fontSize: 12,
@@ -608,81 +629,81 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               inactiveThumbColor:
                   getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
             ),
-            const Divider(color: kWhite, height: 32),
-            SwitchListTile(
-              title: const Text(
-                "Sync with Health App",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              subtitle: const Text(
-                "Auto-track data with iOS/Android Health",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: 12,
-                ),
-              ),
-              value: syncHealthData,
-              onChanged: (value) async {
-                if (value) {
-                  try {
-                    final healthService = Get.put(HealthService());
-                    final isAvailable =
-                        await healthService.isHealthDataAvailable();
+            // const Divider(color: kWhite, height: 32),
+            // SwitchListTile(
+            //   title: const Text(
+            //     "Sync with Health App",
+            //     style: TextStyle(
+            //       color: kWhite,
+            //       fontSize: 16,
+            //       fontWeight: FontWeight.w500,
+            //     ),
+            //   ),
+            //   subtitle: const Text(
+            //     "Auto-track data with iOS/Android Health",
+            //     style: TextStyle(
+            //       color: kWhite,
+            //       fontSize: 12,
+            //     ),
+            //   ),
+            //   value: syncHealthData,
+            //   onChanged: (value) async {
+            //     if (value) {
+            //       try {
+            //         final healthService = Get.put(HealthService());
+            //         final isAvailable =
+            //             await healthService.isHealthDataAvailable();
 
-                    if (isAvailable) {
-                      final granted = await healthService.initializeHealth();
-                      setState(() {
-                        syncHealthData = granted;
-                      });
+            //         if (isAvailable) {
+            //           final granted = await healthService.initializeHealth();
+            //           setState(() {
+            //             syncHealthData = granted;
+            //           });
 
-                      if (!granted) {
-                        Get.snackbar(
-                          'Permission Required',
-                          'Please allow access to health data to enable syncing.',
-                          backgroundColor: Colors.red,
-                          colorText: Colors.white,
-                        );
-                      }
-                    } else {
-                      Get.snackbar(
-                        'Not Available',
-                        'Health tracking is not available on your device.',
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
-                      setState(() {
-                        syncHealthData = false;
-                      });
-                    }
-                  } catch (e) {
-                    print("Error initializing health sync: $e");
-                    Get.snackbar(
-                      'Error',
-                      'Failed to initialize health sync. Please try again.',
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                    );
-                    setState(() {
-                      syncHealthData = false;
-                    });
-                  }
-                } else {
-                  setState(() {
-                    syncHealthData = false;
-                  });
-                }
-                _validateInputs();
-              },
-              activeColor: kAccentLight,
-              inactiveTrackColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-              inactiveThumbColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-            ),
+            //           if (!granted) {
+            //             Get.snackbar(
+            //               'Permission Required',
+            //               'Please allow access to health data to enable syncing.',
+            //               backgroundColor: Colors.red,
+            //               colorText: Colors.white,
+            //             );
+            //           }
+            //         } else {
+            //           Get.snackbar(
+            //             'Not Available',
+            //             'Health tracking is not available on your device.',
+            //             backgroundColor: Colors.red,
+            //             colorText: Colors.white,
+            //           );
+            //           setState(() {
+            //             syncHealthData = false;
+            //           });
+            //         }
+            //       } catch (e) {
+            //         print("Error initializing health sync: $e");
+            //         Get.snackbar(
+            //           'Error',
+            //           'Failed to initialize health sync. Please try again.',
+            //           backgroundColor: Colors.red,
+            //           colorText: Colors.white,
+            //         );
+            //         setState(() {
+            //           syncHealthData = false;
+            //         });
+            //       }
+            //     } else {
+            //       setState(() {
+            //         syncHealthData = false;
+            //       });
+            //     }
+            //     _validateInputs();
+            //   },
+            //   activeColor: kAccentLight,
+            //   inactiveTrackColor:
+            //       getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
+            //   inactiveThumbColor:
+            //       getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
+            // ),
           ],
         ),
       ),
@@ -761,9 +782,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         );
                       },
                       child: const CircleAvatar(
+                        backgroundColor: kAccentLight,
                         radius: 100,
-                        backgroundImage:
-                            AssetImage("assets/images/tasty_cheerful.jpg"),
+                        backgroundImage: AssetImage(
+                          'assets/images/tasty/tasty_splash.png',
+                        ),
                       ),
                     ),
                   );

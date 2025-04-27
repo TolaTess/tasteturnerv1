@@ -76,6 +76,7 @@ class TutorialPopupService {
             // Don't mark sequence complete until the last tutorial
             if (i == tutorials.length - 1) {
               _isShowingSequence = false;
+              markTutorialComplete();
             }
           },
           autoCloseDuration: tutorial.autoCloseDuration,
@@ -129,6 +130,7 @@ class TutorialPopupService {
             child: GestureDetector(
               onTap: () {
                 removeCurrentOverlay();
+                markTutorialComplete();
                 onComplete();
               },
               child: Container(
@@ -269,8 +271,9 @@ class TutorialPopupService {
           Row(
             children: [
               const CircleAvatar(
+                backgroundColor: kAccentLight,
                 radius: 15,
-                backgroundImage: AssetImage('assets/images/tasty_cheerful.jpg'),
+                backgroundImage: AssetImage(tastyImage),
               ),
               const SizedBox(width: 8),
               Expanded(
