@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import '../bottom_nav/profile_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../screens/createrecipe_screen.dart';
+import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import 'recipe_screen.dart';
 import 'spin_screen.dart';
@@ -21,6 +20,7 @@ class RecipeTabScreen extends StatefulWidget {
 class _RecipeTabScreenState extends State<RecipeTabScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -43,31 +43,45 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
 
   @override
   Widget build(BuildContext context) {
+    final avatarUrl =
+        userService.currentUser?.profileImage ?? intPlaceholderImage;
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const CustomDrawer(),
       appBar: AppBar(
-          leading: GestureDetector(
-          onTap: () => Get.to(() => const ProfileScreen()),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 15),
-            child: buildProfileAvatar(
-              imageUrl: userService.currentUser!.profileImage ??
-                  intPlaceholderImage,
-              outerRadius: 20,
-              innerRadius: 18,
-              imageSize: 20,
+        automaticallyImplyLeading: false,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            // Profile image that opens drawer
+            GestureDetector(
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: kAccent.withOpacity(kOpacity),
+                child: CircleAvatar(
+                  backgroundImage: getAvatarImage(avatarUrl),
+                  radius: 18,
+                ),
+              ),
             ),
-          ),
+
+            Flexible(
+              child: Center(
+                child: Text(
+                  'Food and Recipes',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    color:
+                        themeProvider.isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        title: Text(
-          'Food and Recipes',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w400,
-            color: themeProvider.isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
-        centerTitle: true,
         actions: [
           // Add new recipe button
           Padding(

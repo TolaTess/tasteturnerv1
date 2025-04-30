@@ -104,27 +104,36 @@ class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
   }
 }
 
-
-  Widget buildProfileAvatar({
-    required String imageUrl,
-    double outerRadius = 38,
-    double innerRadius = 35,
-    double imageSize = 70,
-    Color? backgroundColor,
-  }) {
-    return CircleAvatar(
-      radius: outerRadius,
-      backgroundColor: backgroundColor ?? kAccent.withOpacity(kOpacity),
-      child: CircleAvatar(
-        radius: innerRadius,
-        child: ClipOval(
-          child: OptimizedImage(
-            imageUrl: imageUrl,
-            width: imageSize,
-            height: imageSize,
-            isProfileImage: true,
-          ),
+Widget buildProfileAvatar({
+  required String imageUrl,
+  double outerRadius = 38,
+  double innerRadius = 35,
+  double imageSize = 70,
+  Color? backgroundColor,
+}) {
+  return CircleAvatar(
+    radius: outerRadius,
+    backgroundColor: backgroundColor ?? kAccent.withOpacity(kOpacity),
+    child: CircleAvatar(
+      radius: innerRadius,
+      child: ClipOval(
+        child: OptimizedImage(
+          imageUrl: imageUrl,
+          width: imageSize,
+          height: imageSize,
+          isProfileImage: true,
         ),
       ),
-    );
+    ),
+  );
+}
+
+ImageProvider getAvatarImage(String? imageUrl) {
+  if (imageUrl != null &&
+      imageUrl.isNotEmpty &&
+      imageUrl.startsWith("http") &&
+      imageUrl != "null") {
+    return NetworkImage(imageUrl);
   }
+  return const AssetImage(intPlaceholderImage);
+}

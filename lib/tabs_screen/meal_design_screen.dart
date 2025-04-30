@@ -12,6 +12,7 @@ import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../screens/premium_screen.dart';
+import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
@@ -40,6 +41,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   List<MacroData> shoppingList = [];
   List<MacroData> myShoppingList = [];
   Set<String> selectedShoppingItems = {};
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   // Cache for buddy tab data
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   int get _tabCount => 3;
@@ -220,50 +222,56 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final avatarUrl =
+        userService.currentUser?.profileImage ?? intPlaceholderImage;
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const CustomDrawer(),
       appBar: AppBar(
-         leading: GestureDetector(
-          onTap: () => Get.to(() => const ProfileScreen()),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 15),
-            child: buildProfileAvatar(
-              imageUrl: userService.currentUser!.profileImage ??
-                  intPlaceholderImage,
-              outerRadius: 20,
-              innerRadius: 18,
-              imageSize: 20,
-            ),
-          ),
-        ),
-        title: Column(
+        automaticallyImplyLeading: false,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Date Header
-            const SizedBox(height: 20),
+            // Profile image that opens drawer
+            GestureDetector(
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: kAccent.withOpacity(kOpacity),
+                child: CircleAvatar(
+                  backgroundImage: getAvatarImage(avatarUrl),
+                  radius: 18,
+                ),
+              ),
+            ),
+          
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${DateFormat('EEEE').format(DateTime.now())}, ',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w400,
-                      color: getThemeProvider(context).isDarkMode
-                          ? Colors.white
-                          : Colors.black,
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${DateFormat('EEEE').format(DateTime.now())}, ',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        color: getThemeProvider(context).isDarkMode
+                            ? Colors.white
+                            : Colors.black,
+                      ),
                     ),
-                  ),
-                  Text(
-                    DateFormat('d MMMM').format(DateTime.now()),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w400,
-                      color: kAccentLight,
+                    Text(
+                      DateFormat('d MMMM').format(DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        color: kAccentLight,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),

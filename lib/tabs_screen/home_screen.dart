@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
-import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../pages/daily_info_page.dart';
 import '../screens/message_screen.dart';
@@ -14,13 +13,8 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
-import '../widgets/bottom_model.dart';
-import '../widgets/home_widget.dart';
 import '../screens/add_food_screen.dart';
 import '../widgets/premium_widget.dart';
-import '../service/health_service.dart';
-import '../pages/update_steps.dart';
-import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -39,51 +33,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
   DateTime currentDate = DateTime.now();
-    final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
-  void _openDailyFoodPage(
-    BuildContext context,
-    double total,
-    double current,
-    String text,
-    bool isWater,
-  ) {
-    showModel(
-      context,
-      text,
-      total,
-      current,
-      isWater,
-      currentNotifier,
-    );
-  }
-
-  void _openStepsUpdatePage(
-    BuildContext context,
-    double total,
-    double current,
-    String title,
-    bool isHealthSynced,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: UpdateStepsModal(
-          total: total,
-          current: current,
-          title: title,
-          isHealthSynced: isHealthSynced,
-          currentNotifier: currentStepsNotifier,
-        ),
-      ),
-    );
-  }
 
   @override
   void initState() {
@@ -179,16 +130,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastUnreadCount = unreadCount; // Update last unread count
   }
 
-  ImageProvider _getAvatarImage(String? imageUrl) {
-    if (imageUrl != null &&
-        imageUrl.isNotEmpty &&
-        imageUrl.startsWith("http") &&
-        imageUrl != "null") {
-      return NetworkImage(imageUrl);
-    }
-    return const AssetImage(intPlaceholderImage);
-  }
-
   // Add this helper method to check if date is today
   bool getCurrentDate(DateTime date) {
     final now = DateTime.now();
@@ -254,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               radius: 25,
                               backgroundColor: kAccent.withOpacity(kOpacity),
                               child: CircleAvatar(
-                                backgroundImage: _getAvatarImage(avatarUrl),
+                                backgroundImage: getAvatarImage(avatarUrl),
                                 radius: 23,
                               ),
                             ),
@@ -567,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       );
-                    }),   
+                    }),
 
                     // Water widgets
                     Obx(() {
@@ -595,15 +536,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
 
-                
-
                 const SizedBox(height: 72),
               ],
             ),
           ),
         ),
       ),
-    
     );
   }
 }
