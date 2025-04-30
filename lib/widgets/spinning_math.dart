@@ -18,6 +18,7 @@ class WidgetSpinningWheel extends StatefulWidget {
   final TextStyle? textStyle;
   final bool shouldVibrate;
   final VoidCallback playSound;
+  final VoidCallback stopSound;
 
   const WidgetSpinningWheel({
     super.key,
@@ -29,6 +30,7 @@ class WidgetSpinningWheel extends StatefulWidget {
     this.textStyle,
     this.shouldVibrate = true,
     required this.playSound,
+    required this.stopSound,
   });
 
   @override
@@ -56,6 +58,9 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
     _generateLabelLimits();
     previousLabel = _getCurrentLabel();
     _audioPlayer = AudioPlayer();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      widget.stopSound();
+    });
   }
 
   @override
@@ -64,9 +69,9 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
     super.dispose();
   }
 
-  /// Gets a random spin duration between 1 - 7 seconds
+  /// Gets a random spin duration between 1 - 5 seconds
   Duration _getRandomSpinDuration() {
-    int randomSeconds = 1 + _random.nextInt(6);
+    int randomSeconds = 1 + _random.nextInt(5);
     return Duration(seconds: randomSeconds);
   }
 
@@ -139,12 +144,14 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
 
         widget.onSpinComplete(latestLabel);
         timer.cancel();
+        widget.stopSound();
       }
 
       if (mounted) {
         setState(() {});
       } else {
         timer.cancel();
+        widget.stopSound();
       }
     });
   }
@@ -158,13 +165,16 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
         onDoubleTap: () {
           spin(withSpeed: 0.01);
         },
-        onVerticalDragEnd: (details) {
-          double velocity = details.velocity.pixelsPerSecond.dy.abs() / 5000;
-          spin(withSpeed: velocity);
-        },
-        onHorizontalDragEnd: (details) {
-          double velocity = details.velocity.pixelsPerSecond.dx.abs() / 5000;
-          spin(withSpeed: velocity);
+        onTap: () {
+          // Stop the spinning animation
+          if (timer != null) {
+            String latestLabel = _getCurrentLabel();
+            widget.onSpinComplete(latestLabel);
+            timer?.cancel();
+            currentSpeed = 0;
+            widget.stopSound();
+            setState(() {});
+          }
         },
         child: PieChart(
           key: needsImageUpdate ? UniqueKey() : null,
@@ -174,6 +184,7 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
           radius: 1000,
           textStyle: widget.textStyle ?? const TextStyle(),
           isDarkMode: getThemeProvider(context).isDarkMode,
+          isSpinning: currentSpeed > 0,
           onImagesLoaded: () {
             if (needsImageUpdate) {
               setState(() {
@@ -192,10 +203,10 @@ class PieChart extends StatefulWidget {
   final List<String> labels;
   final double angleOffset;
   final double radius;
-
   final TextStyle textStyle;
   final bool isDarkMode;
   final Function() onImagesLoaded;
+  final bool isSpinning;
 
   const PieChart({
     super.key,
@@ -206,6 +217,7 @@ class PieChart extends StatefulWidget {
     this.angleOffset = 0,
     this.radius = 100,
     this.isDarkMode = false,
+    this.isSpinning = false,
   });
 
   @override
@@ -337,6 +349,7 @@ class _PieChartState extends State<PieChart> {
         widget.textStyle,
         widget.isDarkMode,
         loadedImages,
+        widget.isSpinning,
       ),
       size: Size.fromRadius(widget.radius),
     );
@@ -351,6 +364,7 @@ class _PieChartPainter extends CustomPainter {
   final TextStyle textStyle;
   final bool isDarkMode;
   final Map<String, ui.Image> loadedImages;
+  final bool isSpinning;
 
   _PieChartPainter(
     this.data,
@@ -360,6 +374,7 @@ class _PieChartPainter extends CustomPainter {
     this.textStyle,
     this.isDarkMode,
     this.loadedImages,
+    this.isSpinning,
   );
 
   @override
@@ -470,6 +485,41 @@ class _PieChartPainter extends CustomPainter {
       radius,
       outerBorderPaint,
     );
+
+    // Draw center circle
+    final centerCirclePaint = Paint()
+      ..color =
+          isDarkMode ? kDarkGrey.withOpacity(0.8) : kWhite.withOpacity(0.8)
+      ..style = PaintingStyle.fill;
+
+    final centerBorderPaint = Paint()
+      ..color = kAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final centerRadius = radius * 0.15; // Adjust size as needed
+    canvas.drawCircle(center, centerRadius, centerCirclePaint);
+    canvas.drawCircle(center, centerRadius, centerBorderPaint);
+
+    // Draw text in center
+    final textSpan = TextSpan(
+      text: isSpinning ? 'Tap' : 'Double\nTap',
+      style: TextStyle(
+        color: kAccent,
+        fontSize: centerRadius * 0.4,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    final textX = center.dx - (textPainter.width / 2);
+    final textY = center.dy - (textPainter.height / 2);
+    textPainter.paint(canvas, Offset(textX, textY));
   }
 
   @override

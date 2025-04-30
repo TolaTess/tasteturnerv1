@@ -19,6 +19,7 @@ class SpinWheelWidget extends StatefulWidget {
   final StreamController<int>? spinController;
   final bool isMealSpin;
   final VoidCallback playSound;
+  final VoidCallback stopSound;
 
   SpinWheelWidget({
     super.key,
@@ -28,6 +29,7 @@ class SpinWheelWidget extends StatefulWidget {
     this.mealList,
     this.isMealSpin = false,
     required this.playSound,
+    required this.stopSound,
   });
 
   @override
@@ -164,6 +166,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
               WidgetSpinningWheel(
                 key: _spinningWheelKey,
                 playSound: widget.playSound,
+                stopSound: widget.stopSound,
                 labels: availableLabels,
                 defaultSpeed: 0.05,
                 textStyle: TextStyle(

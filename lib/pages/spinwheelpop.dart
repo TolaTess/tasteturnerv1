@@ -97,6 +97,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     }
   }
 
+  void _stopSound() async {
+    await _audioPlayer.stop();
+  }
+
   void _toggleMute() {
     setState(() {
       _isMuted = !_isMuted;
@@ -307,6 +311,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             // macro: currentMacro,
             isMealSpin: false,
             playSound: _playSound,
+            stopSound: _stopSound,
           ),
         ),
       ],
@@ -346,6 +351,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     customLabels: _mealList,
                     isMealSpin: true,
                     playSound: _playSound,
+                    stopSound: _stopSound,
                   ),
           ),
         ),
