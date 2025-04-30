@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tasteturner/widgets/title_section.dart';
 import 'dart:async';
 
 import '../constants.dart';
@@ -124,8 +123,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ExpansionTile(
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
-                  textColor: kAccent,
-                  collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                  textColor: isDarkMode ? kWhite : kDarkGrey,
+                  collapsedTextColor: kAccent,
                   initiallyExpanded: false,
                   title: const Text(
                     ingredientBattle,

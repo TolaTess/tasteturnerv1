@@ -763,12 +763,18 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               },
             ),
           ),
+        const SizedBox(height: 30),
         if (meals.isEmpty)
-          noItemTastyWidget(
-            'No meals planned for this day',
-            '',
-            context,
-            false,
+          Center(
+            child: Text(
+              textAlign: TextAlign.center,
+              'No meals planned for this day, \n Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedSelectedDate]?.replaceAll('_', ' ') ?? 'regular day')}!',
+              style: const TextStyle(
+                fontSize: 16,
+                color: kAccent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
       ],
     );

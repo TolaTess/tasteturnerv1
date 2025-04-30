@@ -7,7 +7,6 @@ import '../screens/createrecipe_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import 'recipe_screen.dart';
-import 'spin_screen.dart';
 import '../themes/theme_provider.dart';
 
 class FoodTabScreen extends StatefulWidget {

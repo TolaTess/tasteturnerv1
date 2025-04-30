@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/tabs_screen/spin_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../screens/createrecipe_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
-import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 import '../themes/theme_provider.dart';
 
@@ -70,7 +70,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             Flexible(
               child: Center(
                 child: Text(
-                  'Food and Recipes',
+                  'Spin and Shop',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w400,
@@ -82,26 +82,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             ),
           ],
         ),
-        actions: [
-          // Add new recipe button
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: InkWell(
-              onTap: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateRecipeScreen(
-                    screenType: recipes,
-                  ),
-                ),
-              ),
-              child: const IconCircleButton(
-                icon: Icons.add,
-                isRemoveContainer: false,
-              ),
-            ),
-          ),
-        ],
+       
       ),
       body: SafeArea(
         child: Column(
@@ -114,7 +95,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Recipes'),
+                      Text(spin),
                       SizedBox(width: 8),
                     ],
                   ),
@@ -142,9 +123,9 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: const [
-                        RecipeScreen(), // Calls tab content
-                  ShoppingTab(), // Chats tab content
+                children: [
+                        SpinScreen(), // Calls tab content
+                  const ShoppingTab(), // Chats tab content
             
                 ],
               ),

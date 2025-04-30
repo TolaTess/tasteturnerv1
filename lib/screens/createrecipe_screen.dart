@@ -10,7 +10,7 @@ import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
-import '../tabs_screen/recipe_tab_screen.dart';
+import '../tabs_screen/spin_tab_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
@@ -178,6 +178,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               } else {
                 Get.to(() => const BottomNavSec(
                       selectedIndex: 1,
+                      foodScreenTabIndex: 1,
                     ));
               }
             },

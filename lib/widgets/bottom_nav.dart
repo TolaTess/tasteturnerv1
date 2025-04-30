@@ -4,8 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
 import '../tabs_screen/food_tab_screen.dart';
-import '../tabs_screen/recipe_tab_screen.dart';
-import '../tabs_screen/food_challenge_screen.dart';
+import '../tabs_screen/spin_tab_screen.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
 import '../themes/theme_provider.dart';
@@ -39,9 +38,9 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     List<Widget> pages = [
       const HomeScreen(),
-      RecipeTabScreen(initialTabIndex: _currentTabIndex),
-      const TastyScreen(),
       FoodTabScreen(initialTabIndex: _currentTabIndex),
+      const TastyScreen(),
+      RecipeTabScreen(initialTabIndex: _currentTabIndex),
       MealDesignScreen(
         initialTabIndex: _currentTabIndex,
       ),
