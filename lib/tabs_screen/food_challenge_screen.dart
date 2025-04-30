@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'dart:async';
 
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../bottom_nav/profile_screen.dart';
+import '../pages/upload_battle.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/secondary_button.dart';
@@ -92,15 +95,47 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title:  Text(
-          'Food Battle',
+        leading: GestureDetector(
+          onTap: () => Get.to(() => const ProfileScreen()),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: buildProfileAvatar(
+              imageUrl: userService.currentUser!.profileImage ??
+                  intPlaceholderImage,
+              outerRadius: 20,
+              innerRadius: 18,
+              imageSize: 20,
+            ),
+          ),
+        ),
+        title: Text(
+          'Food Inspiration',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w400,
             color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
-        
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDarkMode ? Colors.white24 : Colors.black12,
+              ),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => Get.to(
+                () => const UploadBattleImageScreen(
+                  battleId: battleIdConstant,
+                  isMainPost: true,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,

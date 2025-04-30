@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import '../bottom_nav/profile_screen.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
+import '../screens/createrecipe_screen.dart';
+import '../widgets/icon_widget.dart';
 import 'recipe_screen.dart';
 import 'spin_screen.dart';
 import '../themes/theme_provider.dart';
@@ -41,7 +46,19 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+          leading: GestureDetector(
+          onTap: () => Get.to(() => const ProfileScreen()),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: buildProfileAvatar(
+              imageUrl: userService.currentUser!.profileImage ??
+                  intPlaceholderImage,
+              outerRadius: 20,
+              innerRadius: 18,
+              imageSize: 20,
+            ),
+          ),
+        ),
         title: Text(
           'Food and Recipes',
           style: TextStyle(
@@ -51,6 +68,26 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
           ),
         ),
         centerTitle: true,
+        actions: [
+          // Add new recipe button
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: InkWell(
+              onTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateRecipeScreen(
+                    screenType: recipes,
+                  ),
+                ),
+              ),
+              child: const IconCircleButton(
+                icon: Icons.add,
+                isRemoveContainer: false,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(

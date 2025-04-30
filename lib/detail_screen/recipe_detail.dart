@@ -276,7 +276,9 @@ class RecipePopMenu extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const CreateRecipeScreen(),
+              builder: (context) => const CreateRecipeScreen(
+                screenType: 'details',
+              ),
             ),
           );
         } else if (value == 3) {

@@ -48,8 +48,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
     tastyPopupService.showTutorialPopup(
       context: context,
       tutorialId: 'add_spin_button',
-      message:
-          'Tap here to spin the wheel for get a spontaneous meal!',
+      message: 'Tap here to spin the wheel for get a spontaneous meal!',
       targetKey: _addSpinButtonKey,
       onComplete: () {
         // Optional: Add any actions to perform after the tutorial is completed
@@ -104,79 +103,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
               const SizedBox(
                 height: 20,
               ),
-
-              // const Center(
-              //   child: Text(
-              //     searchSpinning,
-              //     style: TextStyle(
-              //       fontSize: 18,
-              //       fontWeight: FontWeight.w600,
-              //     ),
-              //   ),
-              // ),
-              // const SizedBox(
-              //   height: 15,
-              // ),
-
-              // //Spin the wheel options
-              // Padding(
-              //   padding: const EdgeInsets.only(right: 20),
-              //   child: SizedBox(
-              //     height: getPercentageHeight(22, context),
-              //     child: GridView.builder(
-              //       key: _addSpinButtonKey,
-              //       physics: const NeverScrollableScrollPhysics(),
-              //       gridDelegate:
-              //           const SliverGridDelegateWithMaxCrossAxisExtent(
-              //         maxCrossAxisExtent: 150,
-              //         mainAxisExtent: 212,
-              //         crossAxisSpacing: 10,
-              //       ),
-              //       itemCount: demoMacroData.length,
-              //       itemBuilder: (BuildContext ctx, index) {
-              //         return Padding(
-              //           padding: EdgeInsets.only(
-              //               left: getPercentageWidth(4.5, context)),
-              //           child: InkWell(
-              //             onTap: () async {
-              //               final isPresent =
-              //                   await macroManager.isMacroTypePresent(
-              //                       fullLabelsList, demoMacroData[index].title);
-              //               if (isPresent) {
-              //                 final uniqueTypes = await macroManager
-              //                     .getUniqueTypes(fullLabelsList);
-              //                 showSpinWheel(
-              //                   context,
-              //                   demoMacroData[index].title,
-              //                   fullLabelsList,
-              //                   mealList,
-              //                   uniqueTypes,
-              //                   selectedCategory,
-              //                   false,
-              //                 );
-              //               } else {
-              //                 if (mounted) {
-              //                   showTastySnackbar(
-              //                     'Please try again.',
-              //                     "${demoMacroData[index].title} not applicable to the $selectedCategory",
-              //                     context,
-              //                   );
-              //                 }
-              //               }
-              //             },
-              //             child: MacroItemWidget(
-              //               dataSrc: demoMacroData[index],
-              //             ),
-              //           ),
-              //         );
-              //       },
-              //     ),
-              //   ),
-              // ),
-
-              // const SizedBox(height: 10),
-              // Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              // const SizedBox(height: 5),
 
               // ------------------------------------Premium / Ads------------------------------------
 

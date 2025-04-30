@@ -3,17 +3,23 @@ import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
+import '../tabs_screen/recipe_tab_screen.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 import '../constants.dart';
+import 'recipes_list_category_screen.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
-  const CreateRecipeScreen({super.key});
+  final String screenType;
+  const CreateRecipeScreen({super.key, this.screenType = recipes});
 
   @override
   State<CreateRecipeScreen> createState() => _CreateRecipeScreenState();
@@ -157,6 +163,28 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
+      appBar: AppBar(
+          title: const Text("Create Recipe"),
+          leading: InkWell(
+            onTap: () {
+              if (widget.screenType == 'list') {
+                Get.to(
+                  () => const RecipeListCategory(
+                    index: 1,
+                    searchIngredient: '',
+                    screen: 'ingredient',
+                  ),
+                );
+              } else {
+                Get.to(() => const BottomNavSec(
+                      selectedIndex: 1,
+                    ));
+              }
+            },
+            child: const IconCircleButton(
+              isRemoveContainer: true,
+            ),
+          )),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -169,16 +197,16 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 const SizedBox(
                   height: 24,
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    //back arrow
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      child: const IconCircleButton(),
-                    ),
-                  ],
-                ),
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                //   children: [
+                //     //back arrow
+                //     InkWell(
+                //       onTap: () => Navigator.pop(context),
+                //       child: const IconCircleButton(),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(
                   height: 20,
                 ),
@@ -469,7 +497,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
 
                 SafeTextFormField(
-                  
                   controller: stepsController,
                   style: const TextStyle(color: kDarkGrey),
                   decoration: InputDecoration(

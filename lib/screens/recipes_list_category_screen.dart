@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
@@ -99,17 +100,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         }
       }
 
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => const BottomNavSec(
-                    selectedIndex: 4,
-                  )),
-        );
-      }
+      Get.to(() => const BottomNavSec(
+            selectedIndex: 1,
+          ));
     } catch (e) {
       print('Error adding meals to meal plan: $e');
     }
@@ -140,18 +133,10 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                           // Back arrow
                           InkWell(
                             onTap: () {
-                              if (Navigator.canPop(context)) {
-                                Navigator.pop(context);
-                              } else {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const BottomNavSec(
-                                      selectedIndex: 4,
-                                    ),
-                                  ),
-                                );
-                              }
+                              Get.to(() => const BottomNavSec(
+                                    selectedIndex: 1,
+                                    foodScreenTabIndex: 1,
+                                  ));
                             },
                             child: const IconCircleButton(),
                           ),
@@ -167,7 +152,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const CreateRecipeScreen(),
+                                    const CreateRecipeScreen(
+                                      screenType: 'list',
+                                    ),
                               ),
                             ),
                             child: const IconCircleButton(

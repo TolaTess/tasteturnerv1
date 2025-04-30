@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../pages/leaderboard.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/favorite_screen.dart';
@@ -20,7 +21,7 @@ class CustomDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-        return Drawer(
+    return Drawer(
       backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
       child: SafeArea(
         child: ListView(
@@ -34,38 +35,25 @@ class CustomDrawer extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 38,
-                    backgroundColor: kAccent.withOpacity(kOpacity),
-                    child: CircleAvatar(
-                      radius: 35,
-                      child: ClipOval(
-                        child: OptimizedImage(
-                          imageUrl: userService.currentUser!.profileImage ??
-                              intPlaceholderImage,
-                          width: 70,
-                          height: 70,
-                          isProfileImage: true,
-                        ),
-                      ),
-                    ),
+                  buildProfileAvatar(
+                    imageUrl: userService.currentUser!.profileImage ??
+                        intPlaceholderImage,
                   ),
                   const SizedBox(
                     width: 12,
                   ),
-                  
-                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          userService.currentUser!.displayName ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userService.currentUser!.displayName ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -96,23 +84,22 @@ class CustomDrawer extends StatelessWidget {
                           0.3), // Color should be inside BoxDecoration
                   borderRadius: BorderRadius.circular(5), // Border radius
                 ),
-                child: 
-                   DrawerItem(
-                    icon: Icons.workspace_premium,
-                    title:
-                        userService.currentUser!.isPremium ? premiumM : premium,
-                    press: () {
-                      Navigator.of(context).pop();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) {
-                            return const PremiumScreen();
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                child: DrawerItem(
+                  icon: Icons.workspace_premium,
+                  title:
+                      userService.currentUser!.isPremium ? premiumM : premium,
+                  press: () {
+                    Navigator.of(context).pop();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) {
+                          return const PremiumScreen();
+                        },
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
 
@@ -134,7 +121,7 @@ class CustomDrawer extends StatelessWidget {
               },
             ),
 
-             DrawerItem(
+            DrawerItem(
               icon: Icons.leaderboard_outlined,
               title: leaderBoard,
               press: () {

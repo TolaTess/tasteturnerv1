@@ -215,7 +215,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : kPrimaryColor,
             ),
             leading: InkWell(
-              onTap: () => Get.to(() => const BottomNavSec()),
+                onTap: () => Navigator.canPop(context)
+                    ? Navigator.pop(context)
+                    : Get.to(() => const BottomNavSec()),
               child: const IconCircleButton(
                 isRemoveContainer: true,
               ),

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
-import '../pages/upload_battle.dart';
+import '../screens/buddy_screen.dart';
 import '../tabs_screen/recipe_tab_screen.dart';
 import '../tabs_screen/food_challenge_screen.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
-import '../tabs_screen/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 
 class BottomNavSec extends StatefulWidget {
@@ -39,11 +38,12 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     List<Widget> pages = [
       const HomeScreen(),
-      const RecipeTabScreen(),
-      const UploadBattleImageScreen(
-        battleId: battleIdConstant,
-        isMainPost: true,
-      ),
+      RecipeTabScreen(initialTabIndex: _currentTabIndex),
+      // const UploadBattleImageScreen(
+      //   battleId: battleIdConstant,
+      //   isMainPost: true,
+      // ),
+      const TastyScreen(),
       const FoodChallengeScreen(),
       MealDesignScreen(
         initialTabIndex: _currentTabIndex,
@@ -64,8 +64,21 @@ class _BottomNavSecState extends State<BottomNavSec> {
               _currentTabIndex = 0;
             });
           },
-          backgroundColor: kAccent.withOpacity(0.85),
-          child: const Icon(Icons.add),
+          // backgroundColor: kAccent.withOpacity(0.85),
+          // child: const Icon(Icons.add),
+          backgroundColor: kPrimaryColor,
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: kAccentLight,
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                image: AssetImage(tastyImage),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

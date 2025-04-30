@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../bottom_nav/profile_screen.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../screens/premium_screen.dart';
@@ -221,7 +223,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     return Scaffold(
       appBar: AppBar(
-        leading: const SizedBox(width: 10),
+         leading: GestureDetector(
+          onTap: () => Get.to(() => const ProfileScreen()),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 15),
+            child: buildProfileAvatar(
+              imageUrl: userService.currentUser!.profileImage ??
+                  intPlaceholderImage,
+              outerRadius: 20,
+              innerRadius: 18,
+              imageSize: 20,
+            ),
+          ),
+        ),
         title: Column(
           children: [
             // Date Header

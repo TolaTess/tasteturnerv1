@@ -4,16 +4,15 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import '../data_models/user_data_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../constants.dart';
-import 'buddy_screen.dart';
 import 'chat_screen.dart';
 import 'friend_screen.dart';
-import 'premium_screen.dart';
 
 class MessageScreen extends StatefulWidget {
   const MessageScreen({super.key});
@@ -91,223 +90,161 @@ class _MessageScreenState extends State<MessageScreen>
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
-        body: SafeArea(
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverAppBar(
-                backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
-                title: Text(
-                  inbox,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: themeProvider.isDarkMode ? kWhite : kBlack,
-                  ),
-                ),
-                pinned: true,
-                leading: Padding(
-                  padding: const EdgeInsets.only(
-                    right: 20,
-                    left: 12,
-                    top: 14,
-                    bottom: 14,
-                  ),
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const BottomNavSec(
-                                selectedIndex: 0,
-                              )),
-                    ),
-                    child: const IconCircleButton(
-                      isRemoveContainer: true,
-                    ),
-                  ),
-                ),
-                actions: [
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        key: _addFriendButtonKey,
-                        icon: const Icon(Icons.add, size: 28),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const FriendScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  // Show tutorial for this button
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Message List
-
-                    Obx(() {
-                      final nonBuddyChats = chatController.userChats
-                          .where((chat) =>
-                              !(chat['participants'] as List).contains('buddy'))
-                          .toList();
-
-                      if (nonBuddyChats.isEmpty) {
-                        return noItemTastyWidget(
-                          "No messages yet.",
-                          "click add to start a conversation with a friend.",
-                          context,
-                          false,
-                        );
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: ListView.builder(
-                            scrollDirection: Axis.vertical,
-                            physics: const NeverScrollableScrollPhysics(),
-                            shrinkWrap: true,
-                            itemCount: nonBuddyChats.length,
-                            itemBuilder: (context, index) {
-                              final chatSummary = nonBuddyChats[index];
-                              final participants = List<String>.from(
-                                  chatSummary['participants'] ?? []);
-                              final friendId = participants.firstWhere(
-                                (id) => id != userService.userId,
-                                orElse: () => '',
-                              );
-
-                              return MessageItem(
-                                dataSrc: chatSummary,
-                                press: () {
-                                  if (friendId.isNotEmpty) {
-                                    // Wait for friend data if not already loaded
-                                    if (_MessageItemState().friendData.value !=
-                                        null) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ChatScreen(
-                                            chatId: chatSummary['chatId'],
-                                            friendId: friendId,
-                                            friend: _MessageItemState()
-                                                .friendData
-                                                .value!,
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      // Load friend data first
-                                      friendController
-                                          .getFriendData(friendId)
-                                          .then((friend) {
-                                        if (friend != null) {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => ChatScreen(
-                                                chatId: chatSummary['chatId'],
-                                                friendId: friendId,
-                                                friend: friend,
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      });
-                                    }
-                                  }
-                                },
-                              );
-                            }),
-                      );
-                    }),
-                  ],
+      body: SafeArea(
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverAppBar(
+              backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
+              title: Text(
+                inbox,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
               ),
-            ],
-          ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          key: _addBuddyKey,
-          onPressed: () {
-            if (userService.currentUser?.isPremium ?? false) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TastyScreen(),
+              pinned: true,
+              leading: Padding(
+                padding: const EdgeInsets.only(
+                  right: 20,
+                  left: 12,
+                  top: 14,
+                  bottom: 14,
                 ),
-              );
-            } else {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const BottomNavSec(
+                              selectedIndex: 0,
+                            )),
                   ),
-                  backgroundColor:
-                      themeProvider.isDarkMode ? kDarkGrey : kWhite,
-                  title: const Text('Premium Feature',
-                      style: TextStyle(
-                        color: kAccent,
-                      )),
-                  content: Text(
-                    'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
-                    style: TextStyle(
-                      color: themeProvider.isDarkMode ? kWhite : kBlack,
-                    ),
+                  child: const IconCircleButton(
+                    isRemoveContainer: true,
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: themeProvider.isDarkMode ? kWhite : kBlack,
-                        ),
-                      ),
-                    ),
-                    TextButton(
+                ),
+              ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      key: _addFriendButtonKey,
+                      icon: const Icon(Icons.add, size: 28),
                       onPressed: () {
-                        Navigator.pop(context); // Close dialog
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const PremiumScreen(),
+                            builder: (context) => const FriendScreen(),
                           ),
                         );
                       },
-                      child: const Text(
-                        'Upgrade',
-                        style: TextStyle(color: kAccentLight),
-                      ),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }
-          },
-          backgroundColor: kPrimaryColor,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: kAccentLight,
-              shape: BoxShape.circle,
-              image: DecorationImage(
-                image: AssetImage(tastyImage),
-                fit: BoxFit.cover,
+                // Show tutorial for this button
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Message List
+
+                  Obx(() {
+                    final nonBuddyChats = chatController.userChats
+                        .where((chat) =>
+                            !(chat['participants'] as List).contains('buddy'))
+                        .toList();
+
+                    if (nonBuddyChats.isEmpty) {
+                      return noItemTastyWidget(
+                        "No messages yet.",
+                        "click add to start a conversation with a friend.",
+                        context,
+                        false,
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: ListView.builder(
+                          scrollDirection: Axis.vertical,
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: nonBuddyChats.length,
+                          itemBuilder: (context, index) {
+                            final chatSummary = nonBuddyChats[index];
+                            final participants = List<String>.from(
+                                chatSummary['participants'] ?? []);
+                            final friendId = participants.firstWhere(
+                              (id) => id != userService.userId,
+                              orElse: () => '',
+                            );
+
+                            return MessageItem(
+                              dataSrc: chatSummary,
+                              press: () {
+                                if (friendId.isNotEmpty) {
+                                  // Wait for friend data if not already loaded
+                                  if (_MessageItemState().friendData.value !=
+                                      null) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatScreen(
+                                          chatId: chatSummary['chatId'],
+                                          friendId: friendId,
+                                          friend: _MessageItemState()
+                                              .friendData
+                                              .value!,
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    // Load friend data first
+                                    friendController
+                                        .getFriendData(friendId)
+                                        .then((friend) {
+                                      if (friend != null) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ChatScreen(
+                                              chatId: chatSummary['chatId'],
+                                              friendId: friendId,
+                                              friend: friend,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    });
+                                  }
+                                }
+                              },
+                            );
+                          }),
+                    );
+                  }),
+                ],
               ),
             ),
-          ),
-        ));
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: const CustomFloatingActionButtonLocation(
+        verticalOffset: 50, // Move up by 50 pixels
+        horizontalOffset: 20, // Move right by 20 pixels
+      ),
+      floatingActionButton: buildTastyFloatingActionButton(
+        context: context,
+        buttonKey: _addBuddyKey,
+        userService: userService,
+        themeProvider: themeProvider,
+      ),
+    );
   }
 }
 

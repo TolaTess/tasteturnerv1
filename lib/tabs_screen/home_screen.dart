@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../pages/daily_info_page.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
   DateTime currentDate = DateTime.now();
+    final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
   void _openDailyFoodPage(
@@ -593,12 +595,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
 
+                
+
                 const SizedBox(height: 72),
               ],
             ),
           ),
         ),
       ),
+    
     );
   }
 }
