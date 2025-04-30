@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
+import '../tabs_screen/food_tab_screen.dart';
 import '../tabs_screen/recipe_tab_screen.dart';
 import '../tabs_screen/food_challenge_screen.dart';
 import '../tabs_screen/home_screen.dart';
@@ -39,16 +40,11 @@ class _BottomNavSecState extends State<BottomNavSec> {
     List<Widget> pages = [
       const HomeScreen(),
       RecipeTabScreen(initialTabIndex: _currentTabIndex),
-      // const UploadBattleImageScreen(
-      //   battleId: battleIdConstant,
-      //   isMainPost: true,
-      // ),
       const TastyScreen(),
-      const FoodChallengeScreen(),
+      FoodTabScreen(initialTabIndex: _currentTabIndex),
       MealDesignScreen(
         initialTabIndex: _currentTabIndex,
       ),
-      // ProfileScreen(uid: authController.user.uid),
     ];
 
     bool keyboardIsOpen = MediaQuery.of(context).viewInsets.bottom != 0;

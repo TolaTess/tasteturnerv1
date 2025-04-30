@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tasteturner/widgets/title_section.dart';
 import 'dart:async';
 
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../bottom_nav/profile_screen.dart';
 import '../pages/upload_battle.dart';
 import '../widgets/countdown.dart';
-import '../widgets/custom_drawer.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/category_selector.dart';
@@ -27,7 +26,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   List<Map<String, dynamic>> battleList = [];
   Timer? _tastyPopupTimer;
   final GlobalKey _addJoinButtonKey = GlobalKey();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -94,64 +93,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   Widget build(BuildContext context) {
     final categoryDatas = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final avatarUrl =
-        userService.currentUser?.profileImage ?? intPlaceholderImage;
 
     return Scaffold(
-      key: _scaffoldKey,
-      drawer: const CustomDrawer(),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Profile image that opens drawer
-            GestureDetector(
-              onTap: () => _scaffoldKey.currentState?.openDrawer(),
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: kAccent.withOpacity(kOpacity),
-                child: CircleAvatar(
-                  backgroundImage: getAvatarImage(avatarUrl),
-                  radius: 18,
-                ),
-              ),
-            ),
-            Flexible(
-              child: Center(
-                child: Text(
-                  'Food Inspiration',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w400,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isDarkMode ? Colors.white24 : Colors.black12,
-              ),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => Get.to(
-                () => const UploadBattleImageScreen(
-                  battleId: battleIdConstant,
-                  isMainPost: true,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: SafeArea(
@@ -183,7 +126,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   iconColor: kAccent,
                   textColor: kAccent,
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                  initiallyExpanded: true,
+                  initiallyExpanded: false,
                   title: const Text(
                     ingredientBattle,
                     style: TextStyle(
@@ -525,6 +468,41 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ],
                 ),
                 const SizedBox(height: 15),
+
+                Padding(
+                  padding: const EdgeInsets.only(left: 15.0, right: 5.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Get.to(
+                          () => const UploadBattleImageScreen(
+                            battleId: battleIdConstant,
+                            isMainPost: true,
+                          ),
+                        ),
+                        child: const Text(
+                          'Get Inspired',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      IconButton(
+                        icon: const Icon(Icons.add, color: kAccent),
+                        onPressed: () => Get.to(
+                          () => const UploadBattleImageScreen(
+                            battleId: battleIdConstant,
+                            isMainPost: true,
+                          ),
+                        ),
+                      ),
+                     
+                    ],
+                  ),
+                ),
 
                 //food challenge
                 Padding(

@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/tabs_screen/food_challenge_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../screens/createrecipe_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import 'recipe_screen.dart';
-import 'shopping_tab.dart';
+import 'spin_screen.dart';
 import '../themes/theme_provider.dart';
 
-class RecipeTabScreen extends StatefulWidget {
+class FoodTabScreen extends StatefulWidget {
   final int initialTabIndex;
-  const RecipeTabScreen({super.key, this.initialTabIndex = 0});
+  const FoodTabScreen({super.key, this.initialTabIndex = 0});
 
   @override
-  State<RecipeTabScreen> createState() => _RecipeTabScreenState();
+  State<FoodTabScreen> createState() => _FoodTabScreenState();
 }
 
-class _RecipeTabScreenState extends State<RecipeTabScreen>
+class _FoodTabScreenState extends State<FoodTabScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -114,7 +115,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Recipes'),
+                      Text('Food Insta'),
                       SizedBox(width: 8),
                     ],
                   ),
@@ -123,7 +124,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Shopping List'),
+                      Text('Recipes'),
                       SizedBox(width: 8),
                     ],
                   ),
@@ -143,9 +144,8 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: const [
-                        RecipeScreen(), // Calls tab content
-                  ShoppingTab(), // Chats tab content
-            
+                  FoodChallengeScreen(), // Chats tab content
+                  RecipeScreen(), // Calls tab content
                 ],
               ),
             ),

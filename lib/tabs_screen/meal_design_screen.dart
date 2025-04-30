@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../bottom_nav/profile_screen.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/helper_functions.dart';
@@ -14,11 +12,7 @@ import '../data_models/meal_model.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
-import '../widgets/ingredient_features.dart';
-import '../widgets/premium_widget.dart';
 import '../widgets/secondary_button.dart';
-import '../widgets/shopping_list_view.dart';
-import '../screens/favorite_screen.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'buddy_tab.dart';
@@ -38,13 +32,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Map<DateTime, bool> specialMealDays = {};
   Map<DateTime, List<Meal>> mealPlans = {};
   Map<DateTime, String> dayTypes = {};
-  List<MacroData> shoppingList = [];
-  List<MacroData> myShoppingList = [];
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   // Cache for buddy tab data
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
-  int get _tabCount => 3;
+  int get _tabCount => 2;
   bool isPremium = userService.currentUser?.isPremium ?? false;
 
   @override
@@ -55,7 +47,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     _tabController.addListener(_handleTabIndex);
     _setupDataListeners();
     // Initialize buddy data cache if needed
-    if (widget.initialTabIndex == 2) {
+    if (widget.initialTabIndex == 1) {
       _initializeBuddyData();
     }
   }
@@ -66,11 +58,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Future<void> _onRefresh() async {
     await _loadMealPlans();
-    shoppingList = macroManager.ingredient;
-    final currentWeek = getCurrentWeek();
-
-    macroManager.fetchShoppingList(
-        userService.userId ?? '', currentWeek, false);
   }
 
   void _initializeBuddyData() {
@@ -110,7 +97,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   void _handleTabIndex() {
-    if (_tabController.index == 2 && _buddyDataFuture == null) {
+    if (_tabController.index == 1 && _buddyDataFuture == null) {
       _initializeBuddyData();
     }
     setState(() {});
@@ -298,7 +285,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             Tab(
               text: 'Calendar',
             ),
-            Tab(text: 'Shopping'),
             Tab(text: '$appNameBuddy'),
           ],
           labelColor: isDarkMode ? kWhite : kBlack,
@@ -313,7 +299,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           controller: _tabController,
           children: [
             _buildCalendarTab(),
-            _buildShoppingListTab(),
             if (isPremium) const BuddyTab() else _buildDefaultView(context)
           ],
         ),
@@ -417,7 +402,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: ['Mon', 'Tue', 'Wed', 'Thr', 'Fri', 'Sat', 'Sun']
+                  children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
                       .map((day) => Text(
                             day,
                             style: TextStyle(
@@ -433,99 +418,124 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
               // Calendar Grid
               SizedBox(
-                height: getPercentageHeight(27, context),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.2,
-                  ),
-                  itemCount: 35,
-                  itemBuilder: (context, index) {
-                    final date = DateTime.now().add(Duration(days: index));
-                    final normalizedDate =
-                        DateTime(date.year, date.month, date.day);
-                    final normalizedSelectedDate = DateTime(selectedDate.year,
-                        selectedDate.month, selectedDate.day);
+                height: getPercentageHeight(26, context),
+                child: PageView.builder(
+                  controller:
+                      PageController(initialPage: 1), // Start at current month
+                  itemBuilder: (context, pageIndex) {
+                    // Calculate the month offset (-1, 0, 1 for prev, current, next)
+                    final monthOffset = pageIndex - 1;
+                    final currentDate = DateTime.now();
+                    final targetDate = DateTime(
+                        currentDate.year, currentDate.month + monthOffset);
 
-                    final hasSpecialMeal =
-                        specialMealDays[normalizedDate] ?? false;
-                    final hasMeal = mealPlans.containsKey(normalizedDate);
-                    final isCurrentMonth = date.month == selectedDate.month;
-                    final isPastDate = normalizedDate.isBefore(
-                        DateTime.now().subtract(const Duration(days: 1)));
+                    // Find the first day of the month
+                    final firstDayOfMonth =
+                        DateTime(targetDate.year, targetDate.month, 1);
+                    // Calculate days to subtract to get to the previous Monday
+                    final daysToSubtract = (firstDayOfMonth.weekday - 1) % 7;
+                    // Get the first Monday
+                    final firstMonday = firstDayOfMonth
+                        .subtract(Duration(days: daysToSubtract));
 
-                    return GestureDetector(
-                      onTap: isPastDate ? null : () => _selectDate(date),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: hasSpecialMeal
-                              ? _getDayTypeColor(
-                                      dayTypes[normalizedDate]
-                                              ?.replaceAll('_', ' ') ??
-                                          'regular_day',
-                                      isDarkMode)
-                                  .withOpacity(0.2)
-                              : hasMeal
-                                  ? kLightGrey.withOpacity(0.3)
-                                  : null,
-                          borderRadius: BorderRadius.circular(8),
-                          border: normalizedDate == normalizedSelectedDate
-                              ? Border.all(color: kAccentLight, width: 2)
-                              : null,
-                        ),
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: Text(
-                                '${date.day}',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: isPastDate
-                                      ? isDarkMode
-                                          ? Colors.white24
-                                          : Colors.black26
-                                      : !isCurrentMonth
-                                          ? isDarkMode
-                                              ? Colors.white38
-                                              : Colors.black38
-                                          : isDarkMode
-                                              ? Colors.white
-                                              : Colors.black,
-                                  fontWeight: normalizedDate ==
-                                          DateTime(
-                                              DateTime.now().year,
-                                              DateTime.now().month,
-                                              DateTime.now().day)
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                            if (hasSpecialMeal)
-                              Positioned(
-                                right: 2,
-                                top: 2,
-                                child: Icon(
-                                  _getDayTypeIcon(dayTypes[normalizedDate]
-                                          ?.replaceAll('_', ' ') ??
-                                      'regular_day'),
-                                  size: 8,
-                                  color: _getDayTypeColor(
-                                      dayTypes[normalizedDate]
-                                              ?.replaceAll('_', ' ') ??
-                                          'regular_day',
-                                      isDarkMode),
-                                ),
-                              ),
-                          ],
-                        ),
+                    return GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 7,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 1.2,
                       ),
+                      itemCount: 42, // 6 weeks × 7 days
+                      itemBuilder: (context, index) {
+                        final date = firstMonday.add(Duration(days: index));
+                        final normalizedDate =
+                            DateTime(date.year, date.month, date.day);
+                        final normalizedSelectedDate = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day);
+
+                        final hasSpecialMeal =
+                            specialMealDays[normalizedDate] ?? false;
+                        final hasMeal = mealPlans.containsKey(normalizedDate);
+                        final isCurrentMonth = date.month == targetDate.month;
+                        final isPastDate = normalizedDate.isBefore(
+                            DateTime.now().subtract(const Duration(days: 1)));
+
+                        return GestureDetector(
+                          onTap: isPastDate ? null : () => _selectDate(date),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: hasSpecialMeal
+                                  ? _getDayTypeColor(
+                                          dayTypes[normalizedDate]
+                                                  ?.replaceAll('_', ' ') ??
+                                              'regular_day',
+                                          isDarkMode)
+                                      .withOpacity(0.2)
+                                  : hasMeal
+                                      ? kLightGrey.withOpacity(0.3)
+                                      : null,
+                              borderRadius: BorderRadius.circular(8),
+                              border: normalizedDate == normalizedSelectedDate
+                                  ? Border.all(color: kAccentLight, width: 2)
+                                  : null,
+                            ),
+                            child: Stack(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    '${date.day}',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: isPastDate
+                                          ? isDarkMode
+                                              ? Colors.white24
+                                              : Colors.black26
+                                          : !isCurrentMonth
+                                              ? isDarkMode
+                                                  ? Colors.white38
+                                                  : Colors.black38
+                                              : isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                      fontWeight: normalizedDate ==
+                                              DateTime(
+                                                  DateTime.now().year,
+                                                  DateTime.now().month,
+                                                  DateTime.now().day)
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                                if (hasSpecialMeal)
+                                  Positioned(
+                                    right: 2,
+                                    top: 2,
+                                    child: Icon(
+                                      _getDayTypeIcon(dayTypes[normalizedDate]
+                                              ?.replaceAll('_', ' ') ??
+                                          'regular_day'),
+                                      size: 8,
+                                      color: _getDayTypeColor(
+                                          dayTypes[normalizedDate]
+                                                  ?.replaceAll('_', ' ') ??
+                                              'regular_day',
+                                          isDarkMode),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
+                  itemCount: 3, // Show 3 months
                 ),
               ),
             ],
@@ -536,122 +546,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           const SizedBox(height: 20),
         ],
       ),
-    );
-  }
-
-  Widget _buildShoppingListTab() {
-    return Column(
-      children: [
-        // Action buttons row
-        const SizedBox(height: 15),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            MealCategoryItem(
-              title: 'Favorite',
-              press: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FavoriteScreen(),
-                  ),
-                );
-              },
-              icon: Icons.favorite,
-            ),
-            MealCategoryItem(
-              title: 'Add to Shopping List',
-              press: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => IngredientFeatures(
-                      items: macroManager.ingredient,
-                    ),
-                  ),
-                );
-              },
-              icon: Icons.shopping_basket,
-            ),
-          ],
-        ),
-
-        // ------------------------------------Premium / Ads------------------------------------
-        userService.currentUser?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : const SizedBox(height: 15),
-        userService.currentUser?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : PremiumSection(
-                isPremium: userService.currentUser?.isPremium ?? false,
-                titleOne: joinChallenges,
-                titleTwo: premium,
-                isDiv: false,
-              ),
-
-        userService.currentUser?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : const SizedBox(height: 10),
-        userService.currentUser?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : Divider(
-                color:
-                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey),
-        // ------------------------------------Premium / Ads-------------------------------------
-
-        if (macroManager.shoppingList.isEmpty &&
-            macroManager.previousShoppingList.isNotEmpty)
-          const SizedBox(height: 30),
-        if (macroManager.shoppingList.isEmpty &&
-            macroManager.previousShoppingList.isNotEmpty)
-          const Center(
-            child: Text(
-              'Last week\'s list:',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: kAccent,
-              ),
-            ),
-          ),
-        const SizedBox(height: 10),
-
-        // Shopping list
-        Expanded(
-          child: Obx(() {
-            if (macroManager.shoppingList.isEmpty &&
-                macroManager.previousShoppingList.isEmpty) {
-              macroManager.fetchShoppingList(
-                  userService.userId ?? '', getCurrentWeek() - 1, true);
-              return noItemTastyWidget(
-                'No items in shopping list',
-                '',
-                context,
-                false,
-              );
-            }
-
-            return ShoppingListView(
-              items: macroManager.shoppingList.isNotEmpty
-                  ? macroManager.shoppingList
-                  : macroManager.previousShoppingList,
-              selectedItems: selectedShoppingItems,
-              onToggle: (item) {
-                setState(() {
-                  if (selectedShoppingItems.contains(item)) {
-                    selectedShoppingItems.remove(item);
-                  } else {
-                    selectedShoppingItems.add(item);
-                  }
-                });
-              },
-              isCurrentWeek: macroManager.shoppingList.isNotEmpty,
-            );
-          }),
-        ),
-        const SizedBox(height: 70),
-      ],
     );
   }
 
