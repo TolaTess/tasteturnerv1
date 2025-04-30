@@ -245,7 +245,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 ),
               ),
             ),
-          
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Center(
@@ -288,7 +288,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
             child: IconButton(
               icon: const Icon(Icons.add),
-              onPressed: () => _addMealPlan(context, isDarkMode),
+              onPressed: () => _addMealPlan(context, isDarkMode, true),
             ),
           ),
         ],
@@ -690,7 +690,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               if (!normalizedSelectedDate.isBefore(DateTime.now())) ...[
                 const SizedBox(height: 8),
                 TextButton.icon(
-                  onPressed: () => _addMealPlan(context, isDarkMode),
+                  onPressed: () => _addMealPlan(context, isDarkMode, false),
                   icon: const Icon(Icons.add),
                   label: const Text('Add Meal'),
                   style: TextButton.styleFrom(
@@ -887,73 +887,120 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     });
   }
 
-  Future<void> _addMealPlan(BuildContext context, bool isDarkMode) async {
+  Future<void> _addMealPlan(
+      BuildContext context, bool isDarkMode, bool needDatePicker) async {
     // Show date picker for future dates
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: getDatePickerTheme(context, isDarkMode),
-          child: child!,
-        );
-      },
-    );
+    DateTime? pickedDate;
+    if (needDatePicker) {
+      pickedDate = await showDatePicker(
+        context: context,
+        initialDate: selectedDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        builder: (context, child) {
+          return Theme(
+            data: getDatePickerTheme(context, isDarkMode),
+            child: child!,
+          );
+        },
+      );
+    } else {
+      pickedDate = selectedDate;
+    }
 
     if (pickedDate == null) return;
 
     setState(() {
-      selectedDate = pickedDate;
+      selectedDate = pickedDate!;
     });
 
     if (!mounted) return;
 
     // Show dialog to mark as special meal
-    final dayType = await showDialog<String>(
+    String selectedDayType = 'regular_day';
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        title: const Text(
-          'Special Day?',
-          style: TextStyle(color: kAccent),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'What type of day is this?',
-              style: TextStyle(
-                color: isDarkMode ? kWhite : kBlack,
-                fontSize: 16,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: const Text(
+            'Special Day?',
+            style: TextStyle(color: kAccent),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'What type of day is this?',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...[
+                'Regular Day',
+                'Cheat Day',
+                'Family Dinner',
+                'Workout Boost',
+                'Special Celebration'
+              ].map(
+                (type) => ListTile(
+                  selected: selectedDayType ==
+                      type.toLowerCase().replaceAll(' ', '_'),
+                  selectedTileColor: kAccentLight.withOpacity(0.1),
+                  title: Text(
+                    type,
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontSize: 16,
+                    ),
+                  ),
+                  leading: Icon(
+                    _getDayTypeIcon(type),
+                    color: _getDayTypeColor(type, isDarkMode),
+                  ),
+                  onTap: () {
+                    setState(() {
+                      selectedDayType = type.toLowerCase().replaceAll(' ', '_');
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            ...[
-              'Regular Day',
-              'Cheat Day',
-              'Family Dinner',
-              'Workout Boost',
-              'Special Celebration'
-            ].map(
-              (type) => ListTile(
-                title: Text(
-                  type,
-                  style: TextStyle(
-                    color: isDarkMode ? kWhite : kBlack,
-                    fontSize: 16,
-                  ),
-                ),
-                leading: Icon(
-                  _getDayTypeIcon(type),
-                  color: _getDayTypeColor(type, isDarkMode),
-                ),
-                onTap: () => Navigator.pop(
-                    context, type.toLowerCase().replaceAll(' ', '_')),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(
+                    context, {'dayType': selectedDayType, 'action': 'save'});
+                await _loadMealPlans();
+              },
+              child: const Text(
+                'Save',
+                style: TextStyle(color: kAccentLight),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context,
+                    {'dayType': selectedDayType, 'action': 'add_meal'});
+              },
+              child: const Text(
+                'Add Meal',
+                style: TextStyle(color: kAccent),
               ),
             ),
           ],
@@ -961,7 +1008,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       ),
     );
 
-    if (dayType == null) return;
+    if (result == null) return;
+
+    final String dayType = result['dayType'];
+    final String action = result['action'];
 
     // Format date as yyyy-MM-dd for Firestore document ID
     final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
@@ -982,23 +1032,25 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       specialMealDays[selectedDate] = dayType != 'regular_day';
     });
 
-    // Navigate to recipe selection
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RecipeListCategory(
-          index: 0,
-          searchIngredient: '',
-          isMealplan: true,
-          mealPlanDate: formattedDate,
-          isSpecial: dayType != 'regular_day',
-          screen: 'ingredient',
+    // Only navigate to recipe selection if "Add Meal" was clicked
+    if (action == 'add_meal') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecipeListCategory(
+            index: 0,
+            searchIngredient: '',
+            isMealplan: true,
+            mealPlanDate: formattedDate,
+            isSpecial: dayType != 'regular_day',
+            screen: 'ingredient',
+          ),
         ),
-      ),
-    ).then((_) {
-      // Refresh meal plans after adding new meals
-      _loadMealPlans();
-    });
+      ).then((_) {
+        // Refresh meal plans after adding new meals
+        _loadMealPlans();
+      });
+    }
   }
 
   IconData _getDayTypeIcon(String type) {

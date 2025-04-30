@@ -137,3 +137,17 @@ ImageProvider getAvatarImage(String? imageUrl) {
   }
   return const AssetImage(intPlaceholderImage);
 }
+
+String getMealTimeOfDay() {
+  final now = DateTime.now();
+  final hour = now.hour;
+
+  if (hour >= 5 && hour < 11) {
+    return 'Breakfast';
+  } else if (hour >= 11 && hour < 16) {
+    return 'Lunch';
+  } else {
+    return 'Dinner'; 
+  }
+}
+

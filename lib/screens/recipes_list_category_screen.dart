@@ -100,9 +100,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         }
       }
 
-      Get.to(() => const BottomNavSec(
-            selectedIndex: 1,
-          ));
+      Get.back();
     } catch (e) {
       print('Error adding meals to meal plan: $e');
     }

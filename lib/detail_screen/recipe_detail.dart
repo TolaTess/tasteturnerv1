@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_data_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../bottom_nav/profile_screen.dart';
 import '../widgets/secondary_button.dart';
@@ -9,6 +10,7 @@ import '../constants.dart';
 import '../widgets/follow_button.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
+import '../data_models/user_meal.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({super.key, required this.mealData});
@@ -309,7 +311,7 @@ class RatingBox extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               rateRecipe,
               style: TextStyle(
                 color: Colors.black,
@@ -321,8 +323,8 @@ class RatingBox extends StatelessWidget {
               height: 20,
             ),
             // star rating
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 80),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 80),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -455,6 +457,49 @@ class _RecipeTittleState extends State<RecipeTittle> {
                             size: 19,
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final userMeal = UserMeal(
+                          name: widget.meal.title,
+                          quantity: '1',
+                          calories: widget.meal.calories,
+                          mealId: widget.meal.mealId,
+                          servings: 'serving',
+                        );
+
+                        try {
+                          await dailyDataController.addUserMeal(
+                            userService.userId ?? '',
+                            getMealTimeOfDay(),
+                            userMeal,
+                          );
+
+                          if (mounted) {
+                            showTastySnackbar(
+                              'Success',
+                              'Added ${widget.meal.title} to today\'s meals',
+                              context,
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            showTastySnackbar(
+                              'Error',
+                              'Failed to add meal: $e',
+                              context,
+                              backgroundColor: kRed,
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.add, size: 19),
+                      label: const Text('Add to Today'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: kAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
                     ),
                   ],
