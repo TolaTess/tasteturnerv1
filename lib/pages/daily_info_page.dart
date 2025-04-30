@@ -172,10 +172,12 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
                 builder: (context, currentValue, child) {
                   return Text(
                     '${currentValue.toInt()} ${widget.title == 'Update Water' ? 'ml' : 'steps'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w200,
-                      color: Colors.black,
+                      color: getThemeProvider(context).isDarkMode
+                          ? kWhite
+                          : kDarkGrey,
                     ),
                   );
                 },

@@ -26,17 +26,8 @@ List<Setting> demoSetting = [
     suffixicon: Icons.navigate_next,
   ),
   Setting(
-    category: "Notifications",
-    prefixicon: Icons.notifications_outlined,
-    suffixicon: Icons.navigate_next,
-  ),
-  Setting(
     category: "Dark Mode",
     prefixicon: Icons.visibility,
-  ),
-  Setting(
-    category: "Health Sync",
-    prefixicon: Icons.sync,
   ),
   Setting(
     category: "Premium",

@@ -45,7 +45,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text("Favorite"),
+        title: const Text(favorite),
         automaticallyImplyLeading: false,
         leading: Padding(
           padding: const EdgeInsets.all(8.0),

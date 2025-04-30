@@ -217,11 +217,11 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
               : "Post Image"),
           leading: InkWell(
-                  onTap: () => Get.back(),
-                  child: const IconCircleButton(
-                    isRemoveContainer: true,
-                  ),
-                )),
+            onTap: () => Get.back(),
+            child: const IconCircleButton(
+              isRemoveContainer: true,
+            ),
+          )),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -277,28 +277,39 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 ),
               ),
             const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () async {
-                List<XFile> pickedImages =
-                    await openMultiImagePickerModal(context: context);
-
-                if (pickedImages.isNotEmpty) {
-                  setState(() {
-                    _selectedImages = pickedImages;
-                    _recentImage = _selectedImages.first;
-                  });
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
-                backgroundColor: isDarkMode
-                    ? kLightGrey.withOpacity(0.5)
-                    : kLightGrey.withOpacity(0.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(50),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () async {
+                    final XFile? photo = await ImagePicker().pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 80,
+                    );
+                    if (photo != null) {
+                      setState(() {
+                        _selectedImages = [photo];
+                        _recentImage = photo;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.camera, size: 30),
                 ),
-              ),
-              child: const Text("Pick Images"),
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: () async {
+                    List<XFile> pickedImages =
+                        await openMultiImagePickerModal(context: context);
+                    if (pickedImages.isNotEmpty) {
+                      setState(() {
+                        _selectedImages = pickedImages;
+                        _recentImage = _selectedImages.first;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.add, size: 30),
+                ),
+              ],
             ),
 
             const SizedBox(height: 20),

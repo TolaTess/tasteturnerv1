@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -177,7 +176,8 @@ class _DailyRoutineListHorizontalState
 
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
-        return Map<String, bool>.from(data);
+        // Convert Timestamp values to boolean based on their existence
+        return data.map((key, value) => MapEntry(key, value != null));
       }
       return {};
     } catch (e) {
@@ -266,7 +266,7 @@ class _DailyRoutineListHorizontalState
                 children: [
                   Flexible(
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Text(
                           !_badgeAwarded ? 'Daily Routine' : 'Routine',
@@ -289,7 +289,6 @@ class _DailyRoutineListHorizontalState
                       ],
                     ),
                   ),
-                 
                   if (_badgeAwarded)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -335,11 +334,15 @@ class _DailyRoutineListHorizontalState
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isDarkMode ? kDarkGrey : kWhite,
+                            color: isCompleted
+                                ? kAccentLight.withOpacity(0.5)
+                                : isDarkMode
+                                    ? kDarkGrey
+                                    : kWhite,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: isCompleted
-                                  ? kAccent
+                                  ? kAccentLight.withOpacity(0.5)
                                   : (isDarkMode ? kLightGrey : kDarkGrey),
                             ),
                           ),
@@ -351,7 +354,7 @@ class _DailyRoutineListHorizontalState
                                 decoration: isCompleted
                                     ? TextDecoration.lineThrough
                                     : null,
-                                decorationColor: kAccent,
+                                decorationColor: kAccentLight,
                                 decorationThickness: 2,
                               ),
                             ),

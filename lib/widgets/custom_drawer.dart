@@ -3,15 +3,14 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../pages/leaderboard.dart';
+import '../pages/settings_screen.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/favorite_screen.dart';
-import '../screens/notifications_screen.dart';
 import '../screens/premium_screen.dart';
 import '../bottom_nav/profile_screen.dart';
 import '../screens/splash_screen.dart';
 import '../themes/theme_provider.dart';
 import '../service/notification_service.dart';
-import '../widgets/optimized_image.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({
@@ -155,15 +154,15 @@ class CustomDrawer extends StatelessWidget {
 
             //Notifications
             DrawerItem(
-              icon: Icons.notifications_outlined,
-              title: notifications,
+              icon: Icons.settings_outlined,
+              title: settings,
               press: () {
                 //close the drawer
                 Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const NotificationsScreen(),
+                    builder: (context) => const SettingsScreen(),
                   ),
                 );
               },

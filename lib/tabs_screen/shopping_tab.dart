@@ -53,7 +53,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               MealCategoryItem(
-                title: 'Favorite',
+                title: favorite,
                 press: () {
                   Navigator.push(
                     context,

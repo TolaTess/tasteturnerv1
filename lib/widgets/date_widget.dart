@@ -203,10 +203,10 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
     return Column(
       children: [
         SizedBox(
-          height: widget.isMain ? 100 : 50,
-          width: widget.isMain ? 100 : 50,
+          height: widget.isMain ? 110 : 50,
+          width: widget.isMain ? 110 : 50,
           child: SimpleCircularProgressBar(
-            size: widget.isMain ? 100 : 50,
+            size: widget.isMain ? 110 : 50,
             valueNotifier: safeValueNotifier, // Use the safe value notifier
             backColor: isDarkMode
                 ? kWhite.withOpacity(kOpacity)
@@ -218,11 +218,11 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
             backStrokeWidth: widget.isMain ? 5 : 3,
             onGetText: (double value) {
               return Text(
-                widget.isMain ? '${validRemainingCalories.toInt()}' : '',
+                '+',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: widget.isMain ? 20 : 14,
-                  fontWeight: FontWeight.bold,
+                  fontSize: widget.isMain ? 30 : 20,
+                  fontWeight: FontWeight.normal,
                 ),
               );
             },
@@ -230,8 +230,19 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
         ),
         widget.isMain ? const SizedBox(height: 12) : const SizedBox.shrink(),
         widget.isMain
-            ? Text(
-                '${widget.title} ${widget.sym}',
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${validRemainingCalories.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    '${widget.title} ${widget.sym}',
+                  ),
+                ],
               )
             : const SizedBox.shrink(),
       ],
