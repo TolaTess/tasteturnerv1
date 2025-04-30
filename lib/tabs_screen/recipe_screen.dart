@@ -83,25 +83,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final headers = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          "Ingredients and Recipes",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w400,
-            color: isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
-        centerTitle: true,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(
-                height: 25,
+                height: 30,
               ),
 
               //category options - here is category widget - chatgpt
@@ -117,78 +105,78 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 height: 20,
               ),
 
-              const Center(
-                child: Text(
-                  searchSpinning,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 15,
-              ),
+              // const Center(
+              //   child: Text(
+              //     searchSpinning,
+              //     style: TextStyle(
+              //       fontSize: 18,
+              //       fontWeight: FontWeight.w600,
+              //     ),
+              //   ),
+              // ),
+              // const SizedBox(
+              //   height: 15,
+              // ),
 
-              //Spin the wheel options
-              Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: SizedBox(
-                  height: getPercentageHeight(22, context),
-                  child: GridView.builder(
-                    key: _addSpinButtonKey,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 150,
-                      mainAxisExtent: 212,
-                      crossAxisSpacing: 10,
-                    ),
-                    itemCount: demoMacroData.length,
-                    itemBuilder: (BuildContext ctx, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                            left: getPercentageWidth(4.5, context)),
-                        child: InkWell(
-                          onTap: () async {
-                            final isPresent =
-                                await macroManager.isMacroTypePresent(
-                                    fullLabelsList, demoMacroData[index].title);
-                            if (isPresent) {
-                              final uniqueTypes = await macroManager
-                                  .getUniqueTypes(fullLabelsList);
-                              showSpinWheel(
-                                context,
-                                demoMacroData[index].title,
-                                fullLabelsList,
-                                mealList,
-                                uniqueTypes,
-                                selectedCategory,
-                                false,
-                              );
-                            } else {
-                              if (mounted) {
-                                showTastySnackbar(
-                                  'Please try again.',
-                                  "${demoMacroData[index].title} not applicable to the $selectedCategory",
-                                  context,
-                                );
-                              }
-                            }
-                          },
-                          child: MacroItemWidget(
-                            dataSrc: demoMacroData[index],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
+              // //Spin the wheel options
+              // Padding(
+              //   padding: const EdgeInsets.only(right: 20),
+              //   child: SizedBox(
+              //     height: getPercentageHeight(22, context),
+              //     child: GridView.builder(
+              //       key: _addSpinButtonKey,
+              //       physics: const NeverScrollableScrollPhysics(),
+              //       gridDelegate:
+              //           const SliverGridDelegateWithMaxCrossAxisExtent(
+              //         maxCrossAxisExtent: 150,
+              //         mainAxisExtent: 212,
+              //         crossAxisSpacing: 10,
+              //       ),
+              //       itemCount: demoMacroData.length,
+              //       itemBuilder: (BuildContext ctx, index) {
+              //         return Padding(
+              //           padding: EdgeInsets.only(
+              //               left: getPercentageWidth(4.5, context)),
+              //           child: InkWell(
+              //             onTap: () async {
+              //               final isPresent =
+              //                   await macroManager.isMacroTypePresent(
+              //                       fullLabelsList, demoMacroData[index].title);
+              //               if (isPresent) {
+              //                 final uniqueTypes = await macroManager
+              //                     .getUniqueTypes(fullLabelsList);
+              //                 showSpinWheel(
+              //                   context,
+              //                   demoMacroData[index].title,
+              //                   fullLabelsList,
+              //                   mealList,
+              //                   uniqueTypes,
+              //                   selectedCategory,
+              //                   false,
+              //                 );
+              //               } else {
+              //                 if (mounted) {
+              //                   showTastySnackbar(
+              //                     'Please try again.',
+              //                     "${demoMacroData[index].title} not applicable to the $selectedCategory",
+              //                     context,
+              //                   );
+              //                 }
+              //               }
+              //             },
+              //             child: MacroItemWidget(
+              //               dataSrc: demoMacroData[index],
+              //             ),
+              //           ),
+              //         );
+              //       },
+              //     ),
+              //   ),
+              // ),
 
-              const SizedBox(height: 10),
-              Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              const SizedBox(height: 5),
+              // const SizedBox(height: 10),
+              // Divider(color: isDarkMode ? kWhite : kDarkGrey),
+              // const SizedBox(height: 5),
 
               // ------------------------------------Premium / Ads------------------------------------
 

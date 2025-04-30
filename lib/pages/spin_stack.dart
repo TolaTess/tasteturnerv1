@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -17,15 +16,13 @@ class SpinWheelWidget extends StatefulWidget {
   final List<MacroData> labels;
   final List<Meal>? mealList;
   final List<String>? customLabels; // Custom ingredient list
-  final String macro;
   final StreamController<int>? spinController;
   final bool isMealSpin;
   final VoidCallback playSound;
 
-  const SpinWheelWidget({
+  SpinWheelWidget({
     super.key,
     required this.labels,
-    required this.macro,
     this.customLabels,
     this.spinController,
     this.mealList,
@@ -52,7 +49,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   @override
   void initState() {
     super.initState();
-    _updateLabelsBasedOnMacro(widget.macro);
+    _updateLabels();
   }
 
   @override
@@ -91,39 +88,39 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   @override
   void didUpdateWidget(covariant SpinWheelWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.macro != widget.macro ||
-        oldWidget.customLabels != widget.customLabels) {
-      _updateLabelsBasedOnMacro(widget.macro);
-      // Force rebuild of spinning wheel with new key
+    if (oldWidget.customLabels != widget.customLabels ||
+        oldWidget.mealList != widget.mealList ||
+        oldWidget.labels != widget.labels) {
+      _updateLabels();
       setState(() {
         _spinningWheelKey = UniqueKey();
       });
     }
   }
 
-  void _updateLabelsBasedOnMacro(String macro) {
+  void _updateLabels() {
     setState(() {
       availableLabels = []; // Clear existing labels first
 
       if (widget.isMealSpin) {
         if (widget.customLabels != null) {
           availableLabels = widget.customLabels!.toSet().toList();
+        } else if (widget.mealList != null && widget.mealList!.isNotEmpty) {
+          fullMealList = widget.mealList!.toList();
+          isMacroEmpty = fullMealList.isEmpty;
+          availableLabels =
+              fullMealList.map((meal) => meal.title).take(10).toList();
         }
-      } else if (widget.mealList != null && widget.mealList!.isNotEmpty) {
-        fullMealList = widget.mealList!.toList();
-        isMacroEmpty = fullMealList.isEmpty;
-        availableLabels =
-            fullMealList.map((meal) => meal.title).take(10).toList();
       } else if (widget.customLabels != null &&
           widget.customLabels!.isNotEmpty) {
         availableLabels = widget.customLabels!.toSet().toList();
       } else {
-        fullLabelsList = widget.labels
-            .where((item) => item.type.toLowerCase() == macro.toLowerCase())
-            .toList();
+        fullLabelsList = widget.labels;
         isMacroEmpty = fullLabelsList.isEmpty;
-        availableLabels =
-            fullLabelsList.map((macroData) => macroData.title).take(10).toList();
+        availableLabels = fullLabelsList
+            .map((macroData) => macroData.title)
+            .take(10)
+            .toList();
       }
 
       // Ensure we don't have empty labels
@@ -149,7 +146,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
     if (availableLabels.isEmpty) {
       return Center(
         child: Text(
-          'No items available for ${widget.macro}',
+          'No items available',
           style: TextStyle(
             color: isDarkMode ? kWhite : kBlack,
             fontSize: 16,
@@ -253,22 +250,6 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         ],
       ),
     );
-  }
-
-  void checkCounter() {
-    switch (widget.macro.toLowerCase()) {
-      case 'protein':
-        proteinCounter++;
-        break;
-      case 'carbs':
-        carbsCounter++;
-        break;
-      case 'fat':
-        fatCounter++;
-        break;
-      default:
-        break;
-    }
   }
 }
 

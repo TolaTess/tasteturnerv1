@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
-import 'vote_screen.dart';
+import 'recipe_screen.dart';
+import 'spin_screen.dart';
 import '../themes/theme_provider.dart';
-import 'food_challenge_screen.dart';
 
-class ChallengeTabScreen extends StatefulWidget {
+class RecipeTabScreen extends StatefulWidget {
   final int initialTabIndex;
-  const ChallengeTabScreen({super.key, this.initialTabIndex = 0});
+  const RecipeTabScreen({super.key, this.initialTabIndex = 0});
 
   @override
-  State<ChallengeTabScreen> createState() => _ChallengeTabScreenState();
+  State<RecipeTabScreen> createState() => _RecipeTabScreenState();
 }
 
-class _ChallengeTabScreenState extends State<ChallengeTabScreen>
+class _RecipeTabScreenState extends State<RecipeTabScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -43,7 +43,7 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
-          challenges,
+          'Food and Recipes',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w400,
@@ -63,7 +63,7 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(food),
+                      Text(spin),
                       SizedBox(width: 8),
                     ],
                   ),
@@ -72,7 +72,7 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(vote),
+                      Text('Recipes'),
                       SizedBox(width: 8),
                     ],
                   ),
@@ -92,10 +92,8 @@ class _ChallengeTabScreenState extends State<ChallengeTabScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  const FoodChallengeScreen(), // Chats tab content
-                  VoteScreen(
-                    isDarkMode: themeProvider.isDarkMode,
-                  ), // Calls tab content
+                  SpinScreen(), // Chats tab content
+                  const RecipeScreen(), // Calls tab content
                 ],
               ),
             ),

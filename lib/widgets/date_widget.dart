@@ -8,145 +8,6 @@ import 'package:simple_circular_progress_bar/simple_circular_progress_bar.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 
-class FillingSquare extends StatefulWidget {
-  final ValueNotifier<double> current;
-  final bool isWater;
-  final String widgetName, sym;
-  final Color upperColor;
-  final double total;
-
-  const FillingSquare({
-    super.key,
-    required this.current,
-    required this.upperColor,
-    required this.isWater,
-    required this.widgetName,
-    required this.total,
-    required this.sym,
-  });
-
-  @override
-  State<FillingSquare> createState() => _FillingSquareState();
-}
-
-class _FillingSquareState extends State<FillingSquare> {
-  double squareSize = 120;
-  double squareW = 150;
-  bool isWater = false;
-  double fillPercentage = 0;
-
-  void checkPercentage(double value) {
-    fillPercentage = value / widget.total;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    checkPercentage(widget.current.value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    return SizedBox(
-      width: squareW,
-      height: squareSize,
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          // Lower square (background)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: squareW,
-              height: squareSize,
-              color: isDarkMode ? kDarkGrey.withOpacity(kOpacity) : kWhite,
-            ),
-          ),
-
-          // Filling animation
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(12),
-              bottomRight: Radius.circular(12),
-            ),
-            child: ValueListenableBuilder<double>(
-              valueListenable: widget.current,
-              builder: (context, value, child) {
-                checkPercentage(value);
-                return TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: fillPercentage.clamp(0.0, 1.0)),
-                  duration: const Duration(seconds: 1),
-                  builder: (context, animationValue, child) {
-                    if (widget.isWater) {
-                      return SizedBox(
-                        width: squareW,
-                        height: squareSize * animationValue,
-                        child: CustomPaint(
-                          painter:
-                              WavePainter(animationValue, widget.upperColor, 4),
-                        ),
-                      );
-                    } else {
-                      return Container(
-                        width: squareW,
-                        height: squareSize * animationValue,
-                        color: widget.upperColor
-                            .withOpacity(animationValue.clamp(0.0, 1.0)),
-                      );
-                    }
-                  },
-                );
-              },
-            ),
-          ),
-
-          // Text widgets
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ValueListenableBuilder<double>(
-              valueListenable: widget.current,
-              builder: (context, value, child) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Widget name
-                    Text(
-                      widget.widgetName,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Current value
-                    Text(
-                      value.toInt().toString(),
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: isDarkMode
-                            ? kWhite.withOpacity(fillPercentage.clamp(0.3, 1.0))
-                            : kBlack
-                                .withOpacity(fillPercentage.clamp(0.3, 1.0)),
-                      ),
-                    ),
-                    // Total value
-                    Text(
-                      "of ${widget.total.toInt()} ${widget.sym}",
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class WavePainter extends CustomPainter {
   final double animationValue; // Fill level
   final Color waveColor;
@@ -175,6 +36,95 @@ class WavePainter extends CustomPainter {
     path.close();
 
     canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class StepsPainter extends CustomPainter {
+  final double animationValue; // Progress value between 0 and 1
+  final Color stepColor;
+  final double stepSize;
+
+  StepsPainter(this.animationValue, this.stepColor, {this.stepSize = 12});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = stepColor.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    final filledPaint = Paint()
+      ..color = stepColor.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    // Calculate dimensions for the zigzag pattern
+    final double segmentWidth = size.width * 0.8; // Width of each zigzag
+    final double margin = (size.width - segmentWidth) / 2; // Horizontal margin
+    final double segmentHeight =
+        size.height / 10; // Height of each zigzag segment
+    final int totalSegments = 10; // Total number of zigzag segments
+
+    Path backgroundPath = Path();
+    Path filledPath = Path();
+
+    // Start from bottom left
+    backgroundPath.moveTo(margin, size.height);
+    filledPath.moveTo(margin, size.height);
+
+    // Create zigzag pattern
+    for (int i = 0; i < totalSegments; i++) {
+      double y = size.height - (i * segmentHeight);
+
+      if (i % 2 == 0) {
+        // Draw line to the right
+        backgroundPath.lineTo(margin + segmentWidth, y);
+      } else {
+        // Draw line to the left
+        backgroundPath.lineTo(margin, y);
+      }
+    }
+
+    // Draw the filled path based on animation value
+    double fillHeight = size.height * (1 - animationValue);
+    for (int i = 0; i < totalSegments; i++) {
+      double y = size.height - (i * segmentHeight);
+
+      if (y < fillHeight) break; // Stop drawing when we reach the fill level
+
+      if (i % 2 == 0) {
+        // Draw line to the right
+        filledPath.lineTo(margin + segmentWidth, y);
+      } else {
+        // Draw line to the left
+        filledPath.lineTo(margin, y);
+      }
+    }
+
+    // Draw the background pattern
+    canvas.drawPath(backgroundPath, paint);
+
+    // Draw the filled pattern
+    canvas.drawPath(filledPath, filledPaint);
+
+    // Add dots at the zigzag points
+    for (int i = 0; i < totalSegments; i++) {
+      double y = size.height - (i * segmentHeight);
+      if (y < fillHeight) break; // Stop drawing when we reach the fill level
+
+      double x = (i % 2 == 0) ? margin : margin + segmentWidth;
+
+      // Draw filled dots
+      canvas.drawCircle(
+          Offset(x, y),
+          5,
+          Paint()
+            ..color = stepColor.withOpacity(0.3)
+            ..style = PaintingStyle.fill);
+    }
   }
 
   @override

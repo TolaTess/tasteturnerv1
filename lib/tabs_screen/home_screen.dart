@@ -542,26 +542,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 20),
 
                 // Water widgets
-                Obx(() {
-                  final settings = userService.currentUser!.settings;
-                  final double waterTotal = settings['waterIntake'] != null
-                      ? double.tryParse(
-                              settings['waterIntake'].toString()) ??
-                          0.0
-                      : 0.0;
-                  final double currentWater =
-                      dailyDataController.currentWater.value.toDouble();
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 250,
-                    child: DailyFoodPage(
-                      total: waterTotal,
-                      current: currentWater,
-                      currentNotifier: currentNotifier,
-                      title: 'Update Water',
-                    ),
-                  );
-                }),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Obx(() {
+                      final settings = userService.currentUser!.settings;
+                      final double waterTotal = settings['waterIntake'] != null
+                          ? double.tryParse(
+                                  settings['waterIntake'].toString()) ??
+                              0.0
+                          : 0.0;
+                      final double currentWater =
+                          dailyDataController.currentWater.value.toDouble();
+                      return Expanded(
+                        child: SizedBox(
+                          height: 250,
+                          child: DailyFoodPage(
+                            total: waterTotal,
+                            current: currentWater,
+                            currentNotifier: currentNotifier,
+                            title: 'Update Water',
+                          ),
+                        ),
+                      );
+                    }),   
+
+                    // Water widgets
+                    Obx(() {
+                      final settings = userService.currentUser!.settings;
+                      final double stepsTotal = settings['targetSteps'] != null
+                          ? double.tryParse(
+                                  settings['targetSteps'].toString()) ??
+                              0.0
+                          : 0.0;
+                      final double currentSteps =
+                          dailyDataController.currentSteps.value.toDouble();
+                      return Expanded(
+                        child: SizedBox(
+                          height: 250,
+                          child: DailyFoodPage(
+                            total: stepsTotal,
+                            current: currentSteps,
+                            currentNotifier: currentStepsNotifier,
+                            title: 'Update Steps',
+                            increment: 1000,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
 
                 const SizedBox(height: 72),
               ],

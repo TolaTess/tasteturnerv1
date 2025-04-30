@@ -317,7 +317,7 @@ class _DailyRoutineListHorizontalState
               ),
               const SizedBox(height: 10),
               SizedBox(
-                height: 40,
+                height: 45,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: items.length,

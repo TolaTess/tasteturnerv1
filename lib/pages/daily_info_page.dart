@@ -8,6 +8,7 @@ class DailyFoodPage extends StatefulWidget {
   final double total, current;
   final ValueNotifier<double> currentNotifier;
   final String title;
+  final double increment;
 
   const DailyFoodPage({
     super.key,
@@ -15,6 +16,7 @@ class DailyFoodPage extends StatefulWidget {
     this.current = 0,
     required this.currentNotifier,
     this.title = 'Update Data',
+    this.increment = 250,
   });
 
   @override
@@ -38,42 +40,74 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
   void addWater() {
     if (!isAnimating) {
       isAnimating = true;
-      currentWaterLevelNotifier.value += 250;
+      currentWaterLevelNotifier.value += widget.increment;
       fillType = false;
 
       // Trigger animation delay
-      Future.delayed(const Duration(milliseconds: 200), () async {
-        setState(() {
-          isAnimating = false;
+      if (widget.title == 'Update Water') {
+        Future.delayed(const Duration(milliseconds: 200), () async {
+          setState(() {
+            isAnimating = false;
+          });
+          widget.currentNotifier.value = currentWaterLevelNotifier.value;
+          // Update Firestore
+          await dailyDataController.updateCurrentWater(
+            userService.userId ?? '',
+            currentWaterLevelNotifier.value,
+          );
         });
-        widget.currentNotifier.value = currentWaterLevelNotifier.value;
-        // Update Firestore
-        await dailyDataController.updateCurrentWater(
-          userService.userId ?? '',
-          currentWaterLevelNotifier.value,
-        );
-      });
+      }
+      if (widget.title == 'Update Steps') {
+        Future.delayed(const Duration(milliseconds: 200), () async {
+          setState(() {
+            isAnimating = false;
+          });
+
+          widget.currentNotifier.value = currentWaterLevelNotifier.value;
+          // Update Firestore
+          await dailyDataController.updateCurrentSteps(
+            userService.userId ?? '',
+            currentWaterLevelNotifier.value,
+          );
+        });
+      }
     }
   }
 
   void removeWater() {
     if (!isAnimating && currentWaterLevelNotifier.value > 0) {
       isAnimating = true;
-      currentWaterLevelNotifier.value -= 250;
+      currentWaterLevelNotifier.value -= widget.increment;
       fillType = true;
 
       // Trigger animation delay
-      Future.delayed(const Duration(milliseconds: 200), () async {
-        setState(() {
-          isAnimating = false;
+      if (widget.title == 'Update Water') {
+        Future.delayed(const Duration(milliseconds: 200), () async {
+          setState(() {
+            isAnimating = false;
         });
         widget.currentNotifier.value = currentWaterLevelNotifier.value;
         // Update Firestore
         await dailyDataController.updateCurrentWater(
           userService.userId ?? '',
-          currentWaterLevelNotifier.value,
-        );
-      });
+            currentWaterLevelNotifier.value,
+          );
+        });
+      }
+      if (widget.title == 'Update Steps') {
+        Future.delayed(const Duration(milliseconds: 200), () async {
+          setState(() {
+            isAnimating = false;
+          });
+
+          widget.currentNotifier.value = currentWaterLevelNotifier.value;
+          // Update Firestore
+          await dailyDataController.updateCurrentSteps(
+            userService.userId ?? '',
+            currentWaterLevelNotifier.value,
+          );
+        });
+      }
     }
   }
 
@@ -122,7 +156,9 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
                           width: squareW,
                           height: squareSize * animationValue,
                           child: CustomPaint(
-                            painter: WavePainter(animationValue, kBlue, 4),
+                            painter: widget.title == 'Update Water'
+                                ? WavePainter(animationValue, kBlue, 4)
+                                : StepsPainter(animationValue, kLightGrey),
                           ),
                         );
                       },
@@ -135,7 +171,7 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
                 valueListenable: currentWaterLevelNotifier,
                 builder: (context, currentValue, child) {
                   return Text(
-                    '${currentValue.toInt()} ml',
+                    '${currentValue.toInt()} ${widget.title == 'Update Water' ? 'ml' : 'steps'}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w200,

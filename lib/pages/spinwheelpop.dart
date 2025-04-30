@@ -16,7 +16,7 @@ import 'spin_stack.dart';
 class SpinWheelPop extends StatefulWidget {
   const SpinWheelPop({
     super.key,
-    required this.macro,
+    // required this.macro,
     required this.ingredientList,
     required this.mealList,
     required this.macroList,
@@ -24,7 +24,7 @@ class SpinWheelPop extends StatefulWidget {
     this.customMacro = false,
   });
 
-  final String macro, selectedCategory;
+  final String selectedCategory;
   final List<MacroData> ingredientList;
   final List<Meal> mealList;
   final List<String> macroList;
@@ -36,28 +36,21 @@ class SpinWheelPop extends StatefulWidget {
 
 class _SpinWheelPopState extends State<SpinWheelPop>
     with SingleTickerProviderStateMixin {
-  late String currentMacro;
-  Color circle1Color = kPrimaryColor;
-  Color circle2Color = kPrimaryColor;
-  Color circle3Color = kPrimaryColor;
   final TextEditingController customController = TextEditingController();
   bool _isExpanded = false;
   List<String> _ingredientList = [];
   List<String> _mealList = [];
-  late TabController _tabController;
-  final _spinController =
-      StreamController<int>.broadcast(); // For SpinWheelWidget control
   late AudioPlayer _audioPlayer;
   bool _isMuted = false;
   String selectedCategoryMeal = 'Balanced';
   String selectedCategoryIdMeal = '';
+  String selectedCategoryIdIngredient = '';
+  String selectedCategoryIngredient = 'all';
+  bool showIngredientSpin = true; // New state to toggle between modes
 
   @override
   void initState() {
     super.initState();
-    currentMacro = widget.macro;
-    colourProvider(currentMacro);
-    _tabController = TabController(length: 2, vsync: this);
     _fetchMeals(); // Load meals for Meal Spin mode
     _audioPlayer = AudioPlayer();
     _loadMuteState();
@@ -79,17 +72,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   @override
   void dispose() {
     customController.dispose();
-    _tabController.dispose();
-    _spinController.close();
     _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _updateMacro(String newMacro) {
-    setState(() {
-      currentMacro = newMacro;
-      colourProvider(newMacro);
-    });
   }
 
   void _updateIngredientList() {
@@ -103,22 +87,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       setState(() {
         _ingredientList = ingredients;
       });
-    }
-  }
-
-  void colourProvider(String newMacro) {
-    if (newMacro == protein) {
-      circle1Color = kAccent.withOpacity(0.65);
-      circle2Color = kPrimaryColor;
-      circle3Color = kPrimaryColor;
-    } else if (newMacro == carbs) {
-      circle1Color = kPrimaryColor;
-      circle2Color = kPrimaryColor;
-      circle3Color = kAccent.withOpacity(0.65);
-    } else if (newMacro == fat) {
-      circle1Color = kPrimaryColor;
-      circle2Color = kAccent.withOpacity(0.65);
-      circle3Color = kPrimaryColor;
     }
   }
 
@@ -145,9 +113,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     });
   }
 
+  void _updateCategoryIngredientData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryIdIngredient = categoryId;
+      selectedCategoryIngredient = category;
+      _updateIngredientListByType();
+    });
+  }
+
   void _updateMealListByType() async {
     if (!mounted) return;
-    
+
     if (selectedCategoryMeal == 'Balanced') {
       setState(() {
         _mealList = widget.mealList.map((meal) => meal.title).take(10).toList();
@@ -167,6 +144,28 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     }
   }
 
+  void _updateIngredientListByType() async {
+    if (!mounted) return;
+
+    if (selectedCategoryIngredient == 'all') {
+      setState(() {
+        _ingredientList = widget.ingredientList.map((ingredient) => ingredient.title).take(10).toList();
+      });
+    } else {
+      final newIngredientList = widget.ingredientList
+          .where((ingredient) => ingredient.categories.contains(selectedCategoryIngredient.toLowerCase()))
+          .toList();
+
+      setState(() {
+        if (newIngredientList.length > 10) {
+          _ingredientList = newIngredientList.map((ingredient) => ingredient.title).take(10).toList();
+        } else {    
+          _ingredientList = newIngredientList.map((ingredient) => ingredient.title).toList();
+        }
+      });
+    } 
+  }
+
   Future<void> _fetchMeals() async {
     final meals =
         await mealManager.fetchMealsByCategory(widget.selectedCategory);
@@ -177,49 +176,72 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   @override
   Widget build(BuildContext context) {
-    final categoryDatas = helperController.headers;
+    final categoryDatasMeal = helperController.headers;
+    final categoryDatasIngredient = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
+
     return Scaffold(
-      appBar: AppBar(
-        leading: InkWell(
-          onTap: () => Navigator.pop(context),
-          child: const IconCircleButton(),
-        ),
-        title: const Text(macroSpinner,
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: isDarkMode ? kWhite : kBlack,
-          unselectedLabelColor: kLightGrey,
-          indicatorColor: isDarkMode ? kWhite : kBlack,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'Ingredient Spin'),
-            Tab(text: 'Meal Spin'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up),
-            onPressed: _toggleMute,
+      body: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
           ),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Ingredient Spin Tab
-          _buildIngredientSpinView(isDarkMode),
-          // Meal Spin Tab
-          _buildMealSpinView(isDarkMode, categoryDatas),
-        ],
+          child: IntrinsicHeight(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          showIngredientSpin = !showIngredientSpin;
+                        });
+                      },
+                      child: Text(
+                        showIngredientSpin
+                            ? 'Switch to Meal Spin'
+                            : 'Switch to Ingredient Spin',
+                        style: TextStyle(
+                            fontSize: 18, color: isDarkMode ? kWhite : kAccent),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up),
+                      onPressed: _toggleMute,
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: showIngredientSpin
+                      ? _buildIngredientSpinView(
+                          isDarkMode, categoryDatasIngredient)
+                      : _buildMealSpinView(isDarkMode, categoryDatasMeal),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildIngredientSpinView(bool isDarkMode) {
+  Widget _buildIngredientSpinView(
+      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
+        const SizedBox(height: 20),
+        //category options
+        CategorySelector(
+          categories: categoryDatas,
+          selectedCategoryId: selectedCategoryIdIngredient,
+          onCategorySelected: _updateCategoryIngredientData,
+          isDarkMode: isDarkMode,
+          accentColor: kAccent,
+          darkModeAccentColor: kDarkModeAccent,
+        ),
+
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -238,6 +260,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             ),
           ),
         ),
+        const SizedBox(width: 10),
         const SizedBox(height: 10),
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -274,56 +297,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               : const SizedBox(),
         ),
         const SizedBox(height: 15),
-        // Macro selectors row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == protein.toLowerCase())
-                  ? _updateMacro(protein)
-                  : snackbar(context, protein, widget.selectedCategory),
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: circle1Color,
-                child: const Text(proteinLabel,
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == carbs.toLowerCase())
-                  ? _updateMacro(carbs)
-                  : snackbar(context, carbs, widget.selectedCategory),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: circle3Color,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Text(carbs,
-                    style: TextStyle(fontSize: 18, color: Colors.white)),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => widget.macroList.any((macro) => macro == fat.toLowerCase())
-                  ? _updateMacro(fat)
-                  : snackbar(context, fat, widget.selectedCategory),
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: circle2Color,
-                child:
-                    const Text(fatLabel, style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
+
         const SizedBox(height: 10),
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
             labels: widget.ingredientList,
             customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
-            macro: currentMacro,
+            // macro: currentMacro,
             isMealSpin: false,
             playSound: _playSound,
           ),
@@ -363,7 +344,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     mealList: widget.mealList,
                     labels: [], // Empty since we use customLabels
                     customLabels: _mealList,
-                    macro: selectedCategoryMeal, // No macro filtering for meals
                     isMealSpin: true,
                     playSound: _playSound,
                   ),

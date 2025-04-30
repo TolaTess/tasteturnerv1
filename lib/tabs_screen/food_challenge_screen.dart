@@ -91,6 +91,17 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
+      appBar: AppBar(
+        title:  Text(
+          'Food Battle',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w400,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        
+      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: SafeArea(
@@ -99,7 +110,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(
-                  height: 30,
+                  height: 15,
                 ),
 
                 //category options

@@ -36,7 +36,7 @@ void showSpinWheel(
               height: MediaQuery.of(context).size.height * 0.90,
               color: Colors.white,
               child: SpinWheelPop(
-                macro: type,
+                // macro: type,
                 ingredientList: ingredientList,
                 mealList: mealList,
                 macroList: macroList,

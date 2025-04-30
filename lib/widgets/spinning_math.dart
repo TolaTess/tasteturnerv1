@@ -418,7 +418,7 @@ class _PieChartPainter extends CustomPainter {
 
       // Draw icon border
       final iconBorderPaint = Paint()
-        ..color = kAccent
+        ..color = kAccent.withOpacity(0.1)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
 

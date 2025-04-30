@@ -3,10 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../pages/upload_battle.dart';
-import '../tabs_screen/challenge_tab_screen.dart';
+import '../tabs_screen/recipe_tab_screen.dart';
+import '../tabs_screen/food_challenge_screen.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
-import '../bottom_nav/recipe_screen.dart';
+import '../tabs_screen/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 
 class BottomNavSec extends StatefulWidget {
@@ -38,12 +39,12 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     List<Widget> pages = [
       const HomeScreen(),
-      const RecipeScreen(),
+      const RecipeTabScreen(),
       const UploadBattleImageScreen(
         battleId: battleIdConstant,
         isMainPost: true,
       ),
-      const ChallengeTabScreen(),
+      const FoodChallengeScreen(),
       MealDesignScreen(
         initialTabIndex: _currentTabIndex,
       ),
