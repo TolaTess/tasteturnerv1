@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,8 @@ import '../widgets/secondary_button.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'buddy_tab.dart';
+import '../helper/calendar_sharing_controller.dart';
+import '../service/calendar_sharing_service.dart';
 
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -35,13 +38,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Map<DateTime, bool> specialMealDays = {};
   Map<DateTime, List<Meal>> mealPlans = {};
   Map<DateTime, String> dayTypes = {};
-  Map<DateTime, List<SharedMealPlan>> sharedMealPlans = {};
+  Map<DateTime, List<Meal>> sharedMealPlans = {};
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   bool showSharedCalendars = false;
   int get _tabCount => 2;
   bool isPremium = userService.currentUser?.isPremium ?? false;
+  final CalendarSharingController sharingController =
+      Get.put(CalendarSharingController());
+  String? selectedSharedCalendarId;
+  bool isPersonalCalendar = false;
+  final CalendarSharingService calendarSharingService =
+      CalendarSharingService();
 
   @override
   void initState() {
@@ -62,7 +71,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Future<void> _onRefresh() async {
     await Future.wait([
       _loadMealPlans(),
-      _loadSharedCalendars(),
+      // _loadMealCalendar(),
     ]);
   }
 
@@ -80,65 +89,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
         .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
         .get();
-  }
-
-  Future<void> _loadSharedCalendars() async {
-    try {
-      final userId = userService.userId;
-      if (userId == null) return;
-
-      // Get all shared calendars for the user
-      final sharedCalendarsQuery = await FirebaseFirestore.instance
-          .collection('shared_calendars')
-          .where('userIds', arrayContains: userId)
-          .get();
-
-      final newSharedMealPlans = <DateTime, List<SharedMealPlan>>{};
-
-      for (var calendarDoc in sharedCalendarsQuery.docs) {
-        // Get all meal plans from the shared calendar
-        final mealPlansQuery = await FirebaseFirestore.instance
-            .collection('shared_calendars')
-            .doc(calendarDoc.id)
-            .collection('date')
-            .get();
-
-        for (var doc in mealPlansQuery.docs) {
-          final dateStr = doc.id; // Use document ID as the date string
-          if (dateStr.isEmpty) continue;
-
-          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          final sharedByUserId = doc.data()['userId'] as String?;
-
-          if (sharedByUserId == userId)
-            continue; // Skip user's own shared meals
-
-          final meals = (doc.data()['meals'] as List<dynamic>?)
-                  ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
-                  .toList() ??
-              [];
-
-          final sharedPlan = SharedMealPlan(
-            userId: sharedByUserId ?? '',
-            meals: meals,
-            isSpecial: doc.data()['isSpecial'] ?? false,
-            dayType: doc.data()['dayType'],
-            sharedBy: sharedByUserId ?? '',
-          );
-
-          if (!newSharedMealPlans.containsKey(date)) {
-            newSharedMealPlans[date] = [];
-          }
-          newSharedMealPlans[date]!.add(sharedPlan);
-        }
-      }
-
-      setState(() {
-        sharedMealPlans = newSharedMealPlans;
-      });
-    } catch (e) {
-      print('Error loading shared calendars: $e');
-    }
   }
 
   @override
@@ -192,13 +142,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         });
         return;
       }
-
-      // Get the user's meal plans
-      final userMealPlansQuery = await FirebaseFirestore.instance
-          .collection('mealPlans')
-          .doc(userId)
-          .collection('date')
-          .get();
+      var userMealPlansQuery;
+      if (showSharedCalendars && selectedSharedCalendarId != null) {
+        isPersonalCalendar = false;
+        userMealPlansQuery = await FirebaseFirestore.instance
+            .collection('shared_calendars')
+            .doc(selectedSharedCalendarId!)
+            .collection('date')
+            .get();
+      } else {
+        isPersonalCalendar = true;
+        userMealPlansQuery = await FirebaseFirestore.instance
+            .collection('mealPlans')
+            .doc(userId)
+            .collection('date')
+            .get();
+      }
 
       if (userMealPlansQuery.docs.isEmpty) {
         setState(() {
@@ -448,6 +407,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 15),
+
           // Collapsible Calendar Section
           ExpansionTile(
             initiallyExpanded: true,
@@ -457,14 +417,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               children: [
                 // Calendar view toggle
                 Text(
-                  'Calendar',
+                  showSharedCalendars ? 'Shared' : 'Personal',
                   style: TextStyle(
                     color: isDarkMode ? Colors.white : Colors.black,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 7),
                 IconButton(
                   icon: Icon(
                     showSharedCalendars
@@ -475,27 +435,65 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   onPressed: () {
                     setState(() {
                       showSharedCalendars = !showSharedCalendars;
+                      _loadMealPlans();
                     });
                   },
                   tooltip: showSharedCalendars
                       ? 'Show Personal Calendar'
                       : 'Show Shared Calendars',
                 ),
-                if (!showSharedCalendars)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.share,
-                      size: 20,
+
+                IconButton(
+                  icon: const Icon(
+                    Icons.share,
+                    size: 18,
+                  ),
+                  onPressed: () => _shareCalendar(),
+                  tooltip: 'Share Calendar',
+                ),
+
+                // Shared calendar selector
+                if (showSharedCalendars)
+                  Expanded(
+                    child: FutureBuilder<List<SharedCalendar>>(
+                      future: calendarSharingService
+                          .fetchSharedCalendarsForUser(userService.userId!),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        }
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return const Text('No shared calendars found');
+                        }
+                        final calendars = snapshot.data!;
+                        return DropdownButton<String>(
+                          iconEnabledColor: kAccent,
+                          value: selectedSharedCalendarId,
+                          hint: const Text('Select Calendar'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: kAccent,
+                          ),
+                          items: calendars
+                              .map((cal) => DropdownMenuItem(
+                                    value: cal.calendarId,
+                                    child: Text(cal.header),
+                                  ))
+                              .toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              selectedSharedCalendarId = val;
+                            });
+                            if (val != null) {
+                              sharingController.selectSharedCalendar(val);
+                              sharingController.selectSharedDate(selectedDate);
+                              _loadMealPlans();
+                            }
+                          },
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      Get.to(() => const FriendScreen(
-                            dataSrc: {
-                              'type': 'calendar_share',
-                              'screen': 'meal_design',
-                            },
-                          ));
-                    },
-                    tooltip: 'Share Calendar',
                   ),
               ],
             ),
@@ -652,24 +650,84 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
+  void _shareCalendar() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final isDarkMode = getThemeProvider(context).isDarkMode;
+        String calendarTitle = '';
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: const Text('Share Calendar'),
+          content: TextField(
+            style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+            decoration: InputDecoration(
+              hintText: 'Enter title',
+              labelText: isPersonalCalendar
+                  ? 'Calendar Title'
+                  : 'Update calendar title',
+              hintStyle: TextStyle(color: isDarkMode ? kWhite : kBlack),
+              labelStyle: const TextStyle(color: kAccent),
+            ),
+            onChanged: (value) {
+              calendarTitle = value;
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                if (calendarTitle.isNotEmpty) {
+                  Navigator.pop(context);
+                  Get.to(() => FriendScreen(
+                        dataSrc: {
+                          'type': 'entire_calendar',
+                          'screen': 'meal_design',
+                          'calendarId': isPersonalCalendar
+                              ? 'personal'
+                              : selectedSharedCalendarId,
+                          'header': calendarTitle,
+                        },
+                      ));
+                }
+              },
+              child: const Text(
+                'Share',
+                style: TextStyle(color: kAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildMealsList() {
     final normalizedSelectedDate = DateTime(
       selectedDate.year,
       selectedDate.month,
       selectedDate.day,
     );
-
-    final personalMeals = mealPlans[normalizedSelectedDate] ?? [];
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     final isPersonalSpecialDay =
         specialMealDays[normalizedSelectedDate] ?? false;
-    final personalDayType = dayTypes[normalizedSelectedDate] ?? 'regular_day';
 
+    // Fallback to personal calendar logic
+    final personalMeals = mealPlans[normalizedSelectedDate] ?? [];
     final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
+    final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final dateStr = DateFormat('yyyy-MM-dd').format(normalizedSelectedDate);
-
-    if (personalMeals.isEmpty && !isPersonalSpecialDay && sharedPlans.isEmpty) {
+    if (!hasMeal && !isPersonalSpecialDay && sharedPlans.isEmpty) {
       return _buildEmptyState(normalizedSelectedDate, isDarkMode);
     }
 
@@ -678,62 +736,45 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildDateHeader(normalizedSelectedDate, isDarkMode, personalMeals),
-
-        // Personal meals section
-        if (!showSharedCalendars && personalMeals.isNotEmpty)
-          _buildMealsRow(personalMeals, isDarkMode),
-
-        // Shared meals section
+        // if (!showSharedCalendars)
+        _buildMealsRow(personalMeals, isDarkMode),
         if (showSharedCalendars && sharedPlans.isNotEmpty)
-          ...sharedPlans
-              .map((sharedPlan) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: kAccent.withOpacity(0.2),
-                              child: const Icon(Icons.people,
-                                  size: 20, color: kAccent),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Shared by ${sharedPlan.sharedBy}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: kAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _buildMealsRow(
-                        sharedPlan.meals
-                            .map((m) => Meal(
-                                  userId: sharedPlan.userId,
-                                  title: m.name ?? '',
-                                  createdAt: DateTime.now(),
-                                  mediaPaths: [],
-                                  serveQty: int.tryParse(m.servings ?? '') ?? 1,
-                                  calories: m.calories,
-                                ))
-                            .toList(),
-                        isDarkMode,
-                      ),
-                    ],
-                  ))
-              .toList(),
-
-        const SizedBox(height: 30),
+          _buildMealsRow(sharedPlans, isDarkMode),
       ],
     );
   }
 
   Widget _buildMealsRow(List<Meal> meals, bool isDarkMode) {
+    if (meals.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            Text(
+              textAlign: TextAlign.center,
+              'No meals planned for this day',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              textAlign: TextAlign.center,
+              'Enjoy your ${capitalizeFirstLetter(dayTypes[selectedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
+              style: TextStyle(
+                color: _getDayTypeColor(
+                    dayTypes[selectedDate]?.replaceAll('_', ' ') ??
+                        'regular_day',
+                    isDarkMode),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return SizedBox(
       height: 150,
       child: ListView.builder(
@@ -836,10 +877,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     setState(() {
       selectedDate = normalizedSelectedDate;
     });
+    if (showSharedCalendars && selectedSharedCalendarId != null) {
+      sharingController.selectSharedDate(normalizedSelectedDate);
+    }
   }
 
   Future<void> _addMealPlan(BuildContext context, bool isDarkMode,
-      bool needDatePicker, String type) async {
+      bool needDatePicker, String typeW) async {
     // Show date picker for future dates
     DateTime? pickedDate;
     if (needDatePicker) {
@@ -869,8 +913,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     // Show dialog to mark as special meal
     String selectedDayType = '';
-    if (type.isNotEmpty) {
-      selectedDayType = type;
+    if (typeW.isNotEmpty) {
+      selectedDayType = typeW;
     } else {
       selectedDayType = 'regular_day';
     }
@@ -931,21 +975,26 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close, size: 20),
               onPressed: () => Navigator.pop(context),
               color: isDarkMode ? kWhite : kBlack,
             ),
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () => Get.to(() => FriendScreen(
-                    dataSrc: {
-                      'type': 'specific_date',
-                      'screen': 'meal_design',
-                      'date': selectedDate.toString(),
-                    },
-                  )),
-              color: isDarkMode ? kWhite : kBlack,
-            ),
+            if (isPersonalCalendar)
+              IconButton(
+                icon: const Icon(Icons.share, size: 18),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  Get.to(() => FriendScreen(
+                        dataSrc: {
+                          'type': 'specific_date',
+                          'screen': 'meal_design',
+                          'date': selectedDate.toString(),
+                        },
+                      ));
+                  await _loadMealPlans();
+                },
+                color: isDarkMode ? kWhite : kBlack,
+              ),
             TextButton(
               onPressed: () async {
                 Navigator.pop(
@@ -985,28 +1034,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       DocumentReference? sharedCalendarRef;
 
       if (showSharedCalendars) {
-        // First try to find an existing shared calendar for this user
-        final existingCalendarsQuery = await firestore
+        sharedCalendarRef = firestore
             .collection('shared_calendars')
-            .where('userIds', arrayContains: userId)
-            .get();
-
-        if (existingCalendarsQuery.docs.isNotEmpty) {
-          // Use the first shared calendar found
-          sharedCalendarRef = existingCalendarsQuery.docs.first.reference;
-        } else {
-          // Create a new shared calendar only if none exists
-          sharedCalendarRef = firestore.collection('shared_calendars').doc();
-          await sharedCalendarRef.set({
-            'userIds': [userId],
-            'createdAt': FieldValue.serverTimestamp(),
-            'createdBy': userId,
-            'type': 'personal',
-          });
-        }
-
-        // Update or create the meal plan document in the date subcollection
-        await sharedCalendarRef.collection('date').doc(formattedDate).set({
+            .doc(selectedSharedCalendarId!)
+            .collection('date')
+            .doc(formattedDate);
+        await sharedCalendarRef!.set({
           'userId': userId,
           'dayType': dayType,
           'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
@@ -1048,15 +1081,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               screen: 'ingredient',
               isSharedCalendar: showSharedCalendars,
               sharedCalendarId:
-                  showSharedCalendars ? sharedCalendarRef?.id : null,
+                  showSharedCalendars ? selectedSharedCalendarId : null,
             ),
           ),
         ).then((_) {
           // Refresh meal plans after adding new meals
           _loadMealPlans();
-          if (showSharedCalendars) {
-            _loadSharedCalendars();
-          }
         });
       }
     } catch (e) {
@@ -1254,6 +1284,7 @@ class MealCategoryItem extends StatelessWidget {
 
 // Add SharedMealPlan class
 class SharedMealPlan {
+  final String date;
   final String userId;
   final List<UserMeal> meals;
   final bool isSpecial;
@@ -1261,6 +1292,7 @@ class SharedMealPlan {
   final String sharedBy;
 
   SharedMealPlan({
+    required this.date,
     required this.userId,
     required this.meals,
     required this.isSpecial,

@@ -11,27 +11,28 @@ class CalendarSharingService extends GetxController {
   final RxList<ShareRequest> shareRequests = <ShareRequest>[].obs;
   final RxList<SharedCalendar> sharedCalendars = <SharedCalendar>[].obs;
 
-  // Get user's meal plans for a specific date
-  Future<MealPlan?> getUserMealPlan(String userId, DateTime date) async {
-    try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
-      final doc = await _firestore
-          .collection('mealPlans')
-          .doc(userId)
-          .collection('date')
-          .doc(dateStr)
-          .get();
+  // // Get user's meal plans for a specific date
+  // Future<MealPlan?> getUserMealPlan(String userId, DateTime date) async {
+  //   try {
+  //     final dateStr = DateFormat('yyyy-MM-dd').format(date);
+  //     final doc = await _firestore
+  //         .collection('mealPlans')
+  //         .doc(userId)
+  //         .collection('date')
+  //         .doc(dateStr)
+  //         .get();
 
-      if (!doc.exists) return null;
-      return MealPlan.fromFirestore(doc);
-    } catch (e) {
-      print('Error getting meal plan: $e');
-      return null;
-    }
-  }
+  //     if (!doc.exists) return null;
+  //     return MealPlan.fromFirestore(doc);
+  //   } catch (e) {
+  //     print('Error getting meal plan: $e');
+  //     return null;
+  //   }
+  // }
 
   // Get shared calendars for user
   Stream<List<SharedCalendar>> getSharedCalendars(String userId) {
+    print('getSharedCalendars: $userId');
     return _firestore
         .collection('shared_calendars')
         .where('userIds', arrayContains: userId)
@@ -41,135 +42,135 @@ class CalendarSharingService extends GetxController {
             .toList());
   }
 
-  // Get pending share requests
-  Stream<List<ShareRequest>> getPendingShareRequests(String userId) {
-    return _firestore
-        .collection('share_requests')
-        .where('recipientId', isEqualTo: userId)
-        .where('status', isEqualTo: 'pending')
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ShareRequest.fromFirestore(doc))
-            .toList());
-  }
+  // // Get pending share requests
+  // Stream<List<ShareRequest>> getPendingShareRequests(String userId) {
+  //   return _firestore
+  //       .collection('share_requests')
+  //       .where('recipientId', isEqualTo: userId)
+  //       .where('status', isEqualTo: 'pending')
+  //       .snapshots()
+  //       .map((snapshot) => snapshot.docs
+  //           .map((doc) => ShareRequest.fromFirestore(doc))
+  //           .toList());
+  // }
 
-  // Send share request
-  Future<void> sendShareRequest({
-    required String senderId,
-    required String recipientId,
-    required String type,
-    String? date,
-  }) async {
-    final batch = _firestore.batch();
+  // // Send share request
+  // Future<void> sendShareRequest({
+  //   required String senderId,
+  //   required String recipientId,
+  //   required String type,
+  //   String? date,
+  // }) async {
+  //   final batch = _firestore.batch();
 
-    // Create request document
-    final requestRef = _firestore.collection('share_requests').doc();
-    final chatRef = _firestore.collection('chats').doc();
+  //   // Create request document
+  //   final requestRef = _firestore.collection('share_requests').doc();
+  //   final chatRef = _firestore.collection('chats').doc();
 
-    final request = {
-      'senderId': senderId,
-      'recipientId': recipientId,
-      'type': type,
-      'date': date,
-      'status': 'pending',
-      'chatId': chatRef.id,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
+  //   final request = {
+  //     'senderId': senderId,
+  //     'recipientId': recipientId,
+  //     'type': type,
+  //     'date': date,
+  //     'status': 'pending',
+  //     'chatId': chatRef.id,
+  //     'timestamp': FieldValue.serverTimestamp(),
+  //   };
 
-    batch.set(requestRef, request);
+  //   batch.set(requestRef, request);
 
-    // Create initial chat message
-    final messageRef = chatRef.collection('messages').doc();
-    final message = {
-      'senderId': senderId,
-      'content':
-          'Want to share my ${type == "entire_calendar" ? "calendar" : "day on $date"}?',
-      'requestId': requestRef.id,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
+  //   // Create initial chat message
+  //   final messageRef = chatRef.collection('messages').doc();
+  //   final message = {
+  //     'senderId': senderId,
+  //     'content':
+  //         'Want to share my ${type == "entire_calendar" ? "calendar" : "day on $date"}?',
+  //     'requestId': requestRef.id,
+  //     'timestamp': FieldValue.serverTimestamp(),
+  //   };
 
-    batch.set(messageRef, message);
+  //   batch.set(messageRef, message);
 
-    await batch.commit();
-  }
+  //   await batch.commit();
+  // }
 
-  // Accept share request
-  Future<void> acceptShareRequest(String requestId) async {
-    final batch = _firestore.batch();
+  // // Accept share request
+  // Future<void> acceptShareRequest(String requestId) async {
+  //   final batch = _firestore.batch();
 
-    final requestDoc =
-        await _firestore.collection('share_requests').doc(requestId).get();
-    if (!requestDoc.exists) throw Exception('Share request not found');
+  //   final requestDoc =
+  //       await _firestore.collection('share_requests').doc(requestId).get();
+  //   if (!requestDoc.exists) throw Exception('Share request not found');
 
-    final request = requestDoc.data()!;
+  //   final request = requestDoc.data()!;
 
-    // Update request status
-    batch.update(requestDoc.reference, {'status': 'accepted'});
+  //   // Update request status
+  //   batch.update(requestDoc.reference, {'status': 'accepted'});
 
-    // Create shared calendar
-    final calendarRef = _firestore.collection('shared_calendars').doc();
-    final calendar = {
-      'userIds': [request['senderId'], request['recipientId']],
-      'type': request['type'],
-      'date': request['date'],
-      'createdAt': FieldValue.serverTimestamp(),
-    };
+  //   // Create shared calendar
+  //   final calendarRef = _firestore.collection('shared_calendars').doc();
+  //   final calendar = {
+  //     'userIds': [request['senderId'], request['recipientId']],
+  //     'type': request['type'],
+  //     'date': request['date'],
+  //     'createdAt': FieldValue.serverTimestamp(),
+  //   };
 
-    batch.set(calendarRef, calendar);
+  //   batch.set(calendarRef, calendar);
 
-    // Add acceptance message to chat
-    final messageRef = _firestore
-        .collection('chats')
-        .doc(request['chatId'])
-        .collection('messages')
-        .doc();
+  //   // Add acceptance message to chat
+  //   final messageRef = _firestore
+  //       .collection('chats')
+  //       .doc(request['chatId'])
+  //       .collection('messages')
+  //       .doc();
 
-    final message = {
-      'senderId': request['recipientId'],
-      'content': 'Accepted your calendar share!',
-      'requestId': requestId,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
+  //   final message = {
+  //     'senderId': request['recipientId'],
+  //     'content': 'Accepted your calendar share!',
+  //     'requestId': requestId,
+  //     'timestamp': FieldValue.serverTimestamp(),
+  //   };
 
-    batch.set(messageRef, message);
+  //   batch.set(messageRef, message);
 
-    await batch.commit();
-  }
+  //   await batch.commit();
+  // }
 
-  // Share calendar with users
-  Future<void> shareCalendarWithUsers({
-    required String ownerId,
-    required List<String> userIds,
-  }) async {
-    try {
-      // Check if owner already has a shared calendar
-      final existingCalendarsQuery = await _firestore
-          .collection('shared_calendars')
-          .where('ownerId', isEqualTo: ownerId)
-          .get();
+  // // Share calendar with users
+  // Future<void> shareCalendarWithUsers({
+  //   required String ownerId,
+  //   required List<String> userIds,
+  // }) async {
+  //   try {
+  //     // Check if owner already has a shared calendar
+  //     final existingCalendarsQuery = await _firestore
+  //         .collection('shared_calendars')
+  //         .where('ownerId', isEqualTo: ownerId)
+  //         .get();
 
-      DocumentReference calendarRef;
+  //     DocumentReference calendarRef;
 
-      if (existingCalendarsQuery.docs.isNotEmpty) {
-        // Update existing calendar
-        calendarRef = existingCalendarsQuery.docs.first.reference;
-        await calendarRef.update({
-          'userIds': FieldValue.arrayUnion(userIds),
-        });
-      } else {
-        // Create new shared calendar
-        calendarRef = _firestore.collection('shared_calendars').doc();
-        await calendarRef.set({
-          'ownerId': ownerId,
-          'userIds': [ownerId, ...userIds],
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      print('Error sharing calendar: $e');
-      throw e;
-    }
-  }
+  //     if (existingCalendarsQuery.docs.isNotEmpty) {
+  //       // Update existing calendar
+  //       calendarRef = existingCalendarsQuery.docs.first.reference;
+  //       await calendarRef.update({
+  //         'userIds': FieldValue.arrayUnion(userIds),
+  //       });
+  //     } else {
+  //       // Create new shared calendar
+  //       calendarRef = _firestore.collection('shared_calendars').doc();
+  //       await calendarRef.set({
+  //         'ownerId': ownerId,
+  //         'userIds': [ownerId, ...userIds],
+  //         'createdAt': FieldValue.serverTimestamp(),
+  //       });
+  //     }
+  //   } catch (e) {
+  //     print('Error sharing calendar: $e');
+  //     throw e;
+  //   }
+  // }
 
   // Add or update meal in shared calendar
   Future<void> addOrUpdateSharedMeal({
@@ -282,5 +283,61 @@ class CalendarSharingService extends GetxController {
   void onClose() {
     // Clean up if needed
     super.onClose();
+  }
+
+  Future<List<SharedCalendar>> fetchSharedCalendarsForUser(
+      String userId) async {
+    final query = await _firestore
+        .collection('shared_calendars')
+        .where('userIds', arrayContains: userId)
+        .get();
+    return query.docs.map((doc) => SharedCalendar.fromFirestore(doc)).toList();
+  }
+
+  Future<Map<String, List<UserMeal>>> fetchSharedMealsForCalendarAndDate(
+      String calendarId, DateTime date) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final doc = await _firestore
+        .collection('shared_calendars')
+        .doc(calendarId)
+        .collection('date')
+        .doc(dateStr)
+        .get();
+    if (!doc.exists) return {};
+    final data = doc.data()!;
+    final userId = data['userId'] ?? '';
+    final meals = (data['meals'] as List<dynamic>?)
+            ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
+            .toList() ??
+        [];
+    return {userId: meals};
+  }
+
+  Future<Map<String, List<UserMeal>>> fetchMealsByDateForCalendar(
+      String calendarId) async {
+    print('fetchMealsByDateForCalendar: $calendarId');
+    final querySnapshot = await _firestore
+        .collection('shared_calendars')
+        .doc(calendarId)
+        .collection('date')
+        .get();
+    print('querySnapshot: ${querySnapshot.docs.length}');
+    if (querySnapshot.docs.isEmpty) return {};
+
+    final result = <String, List<UserMeal>>{};
+
+    for (var doc in querySnapshot.docs) {
+      print('doc: ${doc.id}');
+      final data = doc.data();
+      final meals = (data['meals'] as List<dynamic>?)
+              ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
+              .toList() ??
+          [];
+      result[doc.id] = meals; // doc.id is the date string
+      print('meals: ${meals.length}');
+    }
+    print('result: ${result.length}');
+    print('result: ${result.keys}');
+    return result;
   }
 }

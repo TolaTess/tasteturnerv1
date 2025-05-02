@@ -95,6 +95,7 @@ class SharedCalendar {
   final String type;
   final String? date;
   final DateTime createdAt;
+  final String header;
 
   SharedCalendar({
     required this.calendarId,
@@ -102,6 +103,7 @@ class SharedCalendar {
     required this.type,
     this.date,
     required this.createdAt,
+    required this.header,
   });
 
   factory SharedCalendar.fromFirestore(DocumentSnapshot doc) {
@@ -112,6 +114,7 @@ class SharedCalendar {
       type: data['type'] ?? 'entire_calendar',
       date: data['date'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      header: data['header'] ?? '',
     );
   }
 
@@ -120,5 +123,6 @@ class SharedCalendar {
         'type': type,
         'date': date,
         'createdAt': Timestamp.fromDate(createdAt),
+        'header': header,
       };
 }

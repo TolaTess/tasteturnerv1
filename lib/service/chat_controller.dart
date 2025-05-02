@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 
 class ChatController extends GetxController {
   static ChatController instance = Get.find();
@@ -209,15 +210,46 @@ class ChatController extends GetxController {
       final senderId = messageData['senderId'] as String;
       final type = shareRequest['type'] as String;
       final date = shareRequest['date'] as String?;
+      final header = shareRequest['header'] as String?;
 
-      // Create shared calendar
-      final calendarRef = firestore.collection('shared_calendars').doc();
+      final calendarId = shareRequest['calendarId'] as String?; 
+      if (calendarId == 'personal') {
+        // Create shared calendar
+        final calendarRef = firestore.collection('shared_calendars').doc();
+
       await calendarRef.set({
         'userIds': [senderId, userService.userId],
         'type': type,
         'date': date,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+          'createdAt': FieldValue.serverTimestamp(),
+          'header': header,
+        });
+      } else {
+        // Update existing shared calendar
+        final calendarRef = firestore
+            .collection('shared_calendars')
+            .doc(calendarId);
+
+        // Get current calendar data
+        final calendarDoc = await calendarRef.get();
+        if (!calendarDoc.exists) return;
+
+        final calendarData = calendarDoc.data() as Map<String, dynamic>;
+        final currentUserIds = List<String>.from(calendarData['userIds'] ?? []);
+
+        // Add new user if not already present
+        if (!currentUserIds.contains(userService.userId)) {
+          currentUserIds.add(userService.userId ?? '');
+        }
+        print('header: $header');
+
+        // Update header and merge with existing userIds
+        await calendarRef.update({
+          'header': header,
+          'userIds': FieldValue.arrayUnion([userService.userId ?? '']),
+        });
+       
+      }
 
       // Update message to show accepted status
       await messageDoc.reference.update({
@@ -229,7 +261,7 @@ class ChatController extends GetxController {
         messageContent: 'I accepted your calendar share!',
       );
     } catch (e) {
-      print("Error accepting calendar share: $e");
+      print("Error accepting calendar share 2: $e");
     }
   }
 

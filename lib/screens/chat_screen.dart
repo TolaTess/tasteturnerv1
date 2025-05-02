@@ -106,13 +106,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _handleCalendarShare(Map<String, dynamic> data) {
     final type = data['type'] as String;
-    final date = data['date'] as String?;
+    print('data: $data');
 
+    String date;
     String message;
+    String? calendarId; 
     if (type == 'entire_calendar') {
-      message = 'Would you like to share my entire meal calendar with you?';
+      message = 'I\'d like to share my entire meal calendar with you.';
+      date = DateFormat('MMM d, yyyy').format(DateTime.now());
+      calendarId = data['calendarId'] as String?;
+
     } else {
-      message = 'Would you like to share my meal plan for $date with you?';
+      date = data['date'] as String? ?? 'No date specified';
+      message = 'I\'d like to share my meal plan for $date with you.';
     }
 
     chatController.sendMessage(
@@ -120,6 +126,10 @@ class _ChatScreenState extends State<ChatScreen> {
       shareRequest: {
         'type': type,
         'date': date,
+        'name': userService.currentUser?.displayName,
+        'friendName': widget.friend?.displayName,
+        'calendarId': calendarId ?? 'No calendar ID',
+        'header': data['header'] as String?,
       },
     );
   }

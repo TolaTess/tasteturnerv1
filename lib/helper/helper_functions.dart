@@ -151,3 +151,19 @@ String getMealTimeOfDay() {
   }
 }
 
+String getSharedCalendarHeader(String userName, String friendName) {
+  // Handle null or empty names
+  userName = userName.trim();
+  friendName = friendName.trim();
+  
+  if (userName.isEmpty || friendName.isEmpty) {
+    return 'Shared Calendar';
+  }
+
+  // Get initials from names
+  String userInitial = userName[0].toUpperCase();
+
+  return '$userInitial & $friendName';
+}
+
+
