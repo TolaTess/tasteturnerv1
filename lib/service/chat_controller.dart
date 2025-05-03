@@ -40,7 +40,8 @@ class ChatController extends GetxController {
           messages.value = querySnapshot.docs
               .map((doc) {
                 try {
-                  return ChatScreenData.fromFirestore(doc.data());
+                  return ChatScreenData.fromFirestore(doc.data(),
+                      messageId: doc.id);
                 } catch (e) {
                   print("Error parsing message data: $e");
                   return null;
@@ -149,6 +150,7 @@ class ChatController extends GetxController {
   Future<void> sendMessage({
     String? messageContent,
     List<String>? imageUrls,
+    Map<String, dynamic>? shareRequest,
   }) async {
     try {
       final currentUserId = userService.userId ?? '';
@@ -158,14 +160,23 @@ class ChatController extends GetxController {
 
       final timestamp = FieldValue.serverTimestamp();
 
+      final messageData = {
+        'messageContent': messageContent ?? '',
+        'imageUrls': imageUrls ?? [],
+        'senderId': currentUserId,
+        'timestamp': timestamp,
+        'isRead': false,
+      };
+
+      if (shareRequest != null) {
+        messageData['shareRequest'] = {
+          ...shareRequest,
+          'status': 'pending',
+        };
+      }
+
       await firestore.runTransaction((transaction) async {
-        transaction.set(messageRef, {
-          'messageContent': messageContent ?? '',
-          'imageUrls': imageUrls ?? [],
-          'senderId': currentUserId,
-          'timestamp': timestamp,
-          'isRead': false,
-        });
+        transaction.set(messageRef, messageData);
 
         transaction.update(chatRef, {
           'lastMessage': messageContent?.isNotEmpty == true
@@ -176,6 +187,49 @@ class ChatController extends GetxController {
       });
     } catch (e) {
       print("Error sending message: $e");
+    }
+  }
+
+  // Accept calendar share request
+  Future<void> acceptCalendarShare(String messageId) async {
+    try {
+      final messageDoc = await firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .doc(messageId)
+          .get();
+
+      if (!messageDoc.exists) return;
+
+      final messageData = messageDoc.data()!;
+      final shareRequest = messageData['shareRequest'] as Map<String, dynamic>?;
+      if (shareRequest == null) return;
+
+      final senderId = messageData['senderId'] as String;
+      final type = shareRequest['type'] as String;
+      final date = shareRequest['date'] as String?;
+
+      // Create shared calendar
+      final calendarRef = firestore.collection('shared_calendars').doc();
+      await calendarRef.set({
+        'userIds': [senderId, userService.userId],
+        'type': type,
+        'date': date,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update message to show accepted status
+      await messageDoc.reference.update({
+        'shareRequest.status': 'accepted',
+      });
+
+      // Send acceptance message
+      await sendMessage(
+        messageContent: 'I accepted your calendar share!',
+      );
+    } catch (e) {
+      print("Error accepting calendar share: $e");
     }
   }
 
@@ -220,12 +274,16 @@ class ChatScreenData {
   final List<String> imageUrls;
   final String senderId;
   final Timestamp timestamp;
+  final Map<String, dynamic>? shareRequest;
+  final String messageId;
 
   ChatScreenData({
     required this.messageContent,
     required this.imageUrls,
     required this.senderId,
     required this.timestamp,
+    this.shareRequest,
+    required this.messageId,
   });
 
   Map<String, dynamic> toMap() {
@@ -234,15 +292,20 @@ class ChatScreenData {
       'mediaPaths': imageUrls,
       'senderId': senderId,
       'timestamp': timestamp,
+      'messageId': messageId,
+      if (shareRequest != null) 'shareRequest': shareRequest,
     };
   }
 
-  factory ChatScreenData.fromFirestore(Map<String, dynamic> data) {
+  factory ChatScreenData.fromFirestore(Map<String, dynamic> data,
+      {String? messageId}) {
     return ChatScreenData(
       messageContent: data['messageContent'] ?? '',
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
       senderId: data['senderId'] ?? '',
       timestamp: data['timestamp'] ?? Timestamp.now(),
+      shareRequest: data['shareRequest'] as Map<String, dynamic>?,
+      messageId: messageId ?? '',
     );
   }
 }

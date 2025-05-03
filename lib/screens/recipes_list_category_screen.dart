@@ -17,8 +17,11 @@ class RecipeListCategory extends StatefulWidget {
   final String? mealPlanDate;
   final String screen;
   final bool? isSpecial;
+  final bool isSharedCalendar;
+  final String? sharedCalendarId;
+
   const RecipeListCategory({
-    super.key,
+    Key? key,
     required this.index,
     required this.searchIngredient,
     this.isFilter = false,
@@ -26,7 +29,9 @@ class RecipeListCategory extends StatefulWidget {
     this.mealPlanDate,
     this.screen = 'recipe',
     this.isSpecial,
-  });
+    this.isSharedCalendar = false,
+    this.sharedCalendarId,
+  }) : super(key: key);
 
   @override
   _RecipeListCategoryState createState() => _RecipeListCategoryState();
@@ -67,11 +72,18 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     }
 
     try {
-      final docRef = firestore
-          .collection('mealPlans')
-          .doc(userService.userId!)
-          .collection('date')
-          .doc(mealPlanDate);
+      final userId = userService.userId!;
+      final docRef = widget.isSharedCalendar
+          ? firestore
+              .collection('shared_calendars')
+              .doc(widget.sharedCalendarId ?? '')
+              .collection('date')
+              .doc(mealPlanDate)
+          : firestore
+              .collection('mealPlans')
+              .doc(userId)
+              .collection('date')
+              .doc(mealPlanDate);
 
       // Check if the document exists
       final docSnapshot = await docRef.get();
@@ -82,22 +94,20 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
           'meals': FieldValue.arrayUnion(selectedMealIds),
           'date': mealPlanDate,
           'isSpecial': docSnapshot.data()?['isSpecial'] ?? false,
+          'userId': userId,
+          'timestamp': FieldValue.serverTimestamp(),
         });
       } else {
         // Create a new document for the date
-        if (widget.isSpecial == true) {
-          await docRef.set({
-            'meals': selectedMealIds,
-            'date': mealPlanDate,
-            'isSpecial': true,
-          });
-        } else {
-          await docRef.set({
-            'meals': selectedMealIds,
-            'date': mealPlanDate,
-            'isSpecial': false,
-          });
-        }
+        final data = {
+          'meals': selectedMealIds,
+          'date': mealPlanDate,
+          'isSpecial': widget.isSpecial ?? false,
+          'userId': userId,
+          'timestamp': FieldValue.serverTimestamp(),
+        };
+
+        await docRef.set(data);
       }
 
       Get.back();
@@ -149,10 +159,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                             onTap: () => Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const CreateRecipeScreen(
-                                      screenType: 'list',
-                                    ),
+                                builder: (context) => const CreateRecipeScreen(
+                                  screenType: 'list',
+                                ),
                               ),
                             ),
                             child: const IconCircleButton(

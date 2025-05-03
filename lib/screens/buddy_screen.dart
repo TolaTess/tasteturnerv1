@@ -24,6 +24,7 @@ class _TastyScreenState extends State<TastyScreen> {
   final TextEditingController textController = TextEditingController();
   String? chatId;
   bool get isPremium => userService.currentUser?.isPremium ?? false;
+  late ChatController chatController;
 
   // List of welcome messages
   final List<String> _welcomeMessages = [
@@ -37,6 +38,13 @@ class _TastyScreenState extends State<TastyScreen> {
   @override
   void initState() {
     super.initState();
+    try {
+      chatController = Get.find<ChatController>();
+    } catch (e) {
+      // If controller is not found, initialize it
+      chatController = Get.put(ChatController());
+    }
+
     chatId = userService.buddyId;
     if (isPremium) {
       _initializeChatWithBuddy();
@@ -305,6 +313,7 @@ class _TastyScreenState extends State<TastyScreen> {
                         return ChatItem(
                           dataSrc: message,
                           isMe: message.senderId == userService.userId,
+                          chatController: chatController,
                         );
                       },
                     );
@@ -442,6 +451,7 @@ Greet the user warmly and offer guidance based on:
             senderId: currentUserId,
             timestamp: Timestamp.now(),
             imageUrls: [],
+            messageId: '',
           ));
         });
         _onNewMessage();
@@ -461,6 +471,7 @@ Greet the user warmly and offer guidance based on:
             senderId: 'buddy',
             timestamp: Timestamp.now(),
             imageUrls: [],
+            messageId: '',
           ));
         });
         _onNewMessage();
@@ -499,6 +510,7 @@ Greet the user warmly and offer guidance based on:
           senderId: currentUserId,
           timestamp: Timestamp.now(),
           imageUrls: [],
+          messageId: '',
         ));
       });
       _onNewMessage();
@@ -544,6 +556,7 @@ Greet the user warmly and offer guidance based on:
             senderId: 'buddy',
             timestamp: Timestamp.now(),
             imageUrls: [],
+            messageId: '',
           ));
         });
         _onNewMessage();
@@ -598,6 +611,7 @@ Greet the user warmly and offer guidance based on:
           senderId: 'buddy',
           timestamp: Timestamp.now(),
           imageUrls: [],
+          messageId: '',
         ));
       });
       _onNewMessage();

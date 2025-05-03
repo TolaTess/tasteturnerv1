@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../service/chat_controller.dart';
 import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
@@ -47,7 +48,15 @@ class _MessageScreenState extends State<MessageScreen>
   void initState() {
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
-    chatController.loadUserChats(userService.userId ?? '');
+
+    // Initialize ChatController and load user chats
+    try {
+      Get.find<ChatController>().loadUserChats(userService.userId ?? '');
+    } catch (e) {
+      // If controller is not found, initialize it
+      Get.put(ChatController()).loadUserChats(userService.userId ?? '');
+    }
+
     friendController.getAllFriendData(userService.userId ?? '');
     super.initState();
     // Show tutorial popup after the widget is built

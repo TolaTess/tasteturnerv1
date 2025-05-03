@@ -38,11 +38,20 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController textController = TextEditingController();
+  late final ChatController chatController;
 
   late String? chatId;
   @override
   void initState() {
     super.initState();
+    // Initialize ChatController
+    try {
+      chatController = Get.find<ChatController>();
+    } catch (e) {
+      // If controller is not found, initialize it
+      chatController = Get.put(ChatController());
+    }
+
     chatId = widget.chatId;
 
     if (chatId != null && chatId!.isNotEmpty) {
@@ -51,7 +60,11 @@ class _ChatScreenState extends State<ChatScreen> {
       chatController.markMessagesAsRead(chatId!, widget.friendId!);
 
       if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
-        _shareImage(widget.dataSrc?['mediaPaths'][0]);
+        if (widget.dataSrc?['screen'] == 'meal_design') {
+          _handleCalendarShare(widget.dataSrc!);
+        } else if (widget.dataSrc?['mediaPaths'] != null) {
+          _shareImage(widget.dataSrc?['mediaPaths'][0]);
+        }
       }
     } else if (widget.friendId != null) {
       chatController.initializeChat(widget.friendId!).then((_) {
@@ -60,10 +73,13 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         chatController.markMessagesAsRead(chatId!, widget.friendId!);
 
-        if (widget.dataSrc?['mediaPaths'][0] != null &&
-            widget.dataSrc?['mediaPaths'][0]!.isNotEmpty) {
-          _shareImage(
-              widget.dataSrc?['mediaPaths'][0] ?? widget.dataSrc?['image']);
+        if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
+          if (widget.dataSrc?['screen'] == 'meal_design') {
+            _handleCalendarShare(widget.dataSrc!);
+          } else if (widget.dataSrc?['mediaPaths'] != null) {
+            _shareImage(
+                widget.dataSrc?['mediaPaths'][0] ?? widget.dataSrc?['image']);
+          }
         }
       });
     }
@@ -85,6 +101,26 @@ class _ChatScreenState extends State<ChatScreen> {
     chatController.sendMessage(
       messageContent: message,
       imageUrls: [imageUrl],
+    );
+  }
+
+  void _handleCalendarShare(Map<String, dynamic> data) {
+    final type = data['type'] as String;
+    final date = data['date'] as String?;
+
+    String message;
+    if (type == 'entire_calendar') {
+      message = 'Would you like to share my entire meal calendar with you?';
+    } else {
+      message = 'Would you like to share my meal plan for $date with you?';
+    }
+
+    chatController.sendMessage(
+      messageContent: message,
+      shareRequest: {
+        'type': type,
+        'date': date,
+      },
     );
   }
 
@@ -201,6 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         return ChatItem(
                           dataSrc: message,
                           isMe: message.senderId == userService.userId,
+                          chatController: chatController,
                         );
                       },
                     );
@@ -298,11 +335,13 @@ class _ChatScreenState extends State<ChatScreen> {
 class ChatItem extends StatelessWidget {
   final ChatScreenData dataSrc;
   final bool isMe;
+  final ChatController chatController;
 
   const ChatItem({
     super.key,
     required this.dataSrc,
     required this.isMe,
+    required this.chatController,
   });
 
   @override
@@ -313,24 +352,23 @@ class ChatItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
       child: Align(
-        alignment: isMe ? Alignment.topRight : Alignment.topLeft,
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
-          constraints: BoxConstraints(maxWidth: screenWidth * 0.8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            color: isMe
-                ? (isDarkMode
-                    ? kLightGrey.withOpacity(kMidOpacity)
-                    : kAccent.withOpacity(kMidOpacity))
-                : (isDarkMode
-                    ? kLightGrey.withOpacity(kLowOpacity)
-                    : kDarkGrey.withOpacity(kLowOpacity)),
-          ),
+          constraints: BoxConstraints(maxWidth: screenWidth * 0.7),
           padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isMe
+                ? kAccentLight.withOpacity(0.2)
+                : (isDarkMode
+                    ? Colors.white12
+                    : Colors.black.withOpacity(0.05)),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              // Show Image if Available
+              // Display Images if any
               if (dataSrc.imageUrls.isNotEmpty)
                 Column(
                   children: dataSrc.imageUrls.map((url) {
@@ -386,13 +424,14 @@ class ChatItem extends StatelessWidget {
 
               // Show Text if Available
               if (dataSrc.messageContent.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    getTextBeforeSlash(dataSrc.messageContent),
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                Text(
+                  getTextBeforeSlash(dataSrc.messageContent),
+                  style: const TextStyle(fontSize: 12),
                 ),
+
+              // Show Calendar Share Request if available
+              if (dataSrc.shareRequest != null)
+                _buildShareRequest(context, isDarkMode),
 
               const SizedBox(height: 4),
 
@@ -418,6 +457,94 @@ class ChatItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildShareRequest(BuildContext context, bool isDarkMode) {
+    final shareRequest = dataSrc.shareRequest!;
+    final status = shareRequest['status'] as String;
+    final type = shareRequest['type'] as String;
+    final date = shareRequest['date'] as String?;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              type == 'entire_calendar' ? Icons.calendar_month : Icons.today,
+              size: 16,
+              color: kAccent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              type == 'entire_calendar' ? 'Calendar Share' : 'Day Share',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: kAccent,
+              ),
+            ),
+          ],
+        ),
+        if (date != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Date: $date',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
+            ),
+          ),
+        if (!isMe && status == 'pending')
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    try {
+                      chatController.acceptCalendarShare(dataSrc.messageId);
+                    } catch (e) {
+                      print('Error accepting calendar share: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Failed to accept calendar share. Please try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: kAccent.withOpacity(0.1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  ),
+                  child: const Text(
+                    'Accept',
+                    style: TextStyle(color: kAccent, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (status == 'accepted')
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Accepted',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.green[400],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

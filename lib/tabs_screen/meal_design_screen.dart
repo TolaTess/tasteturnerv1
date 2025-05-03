@@ -6,10 +6,11 @@ import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
-import '../data_models/macro_data.dart';
+import '../data_models/meal_plan_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
+import '../data_models/user_meal.dart';
 import '../screens/friend_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/custom_drawer.dart';
@@ -18,10 +19,6 @@ import '../widgets/secondary_button.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'buddy_tab.dart';
-import '../pages/edit_goal.dart';
-import '../service/battle_management.dart';
-import '../service/routine_service.dart';
-import '../widgets/bottom_nav.dart';
 
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -38,10 +35,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Map<DateTime, bool> specialMealDays = {};
   Map<DateTime, List<Meal>> mealPlans = {};
   Map<DateTime, String> dayTypes = {};
+  Map<DateTime, List<SharedMealPlan>> sharedMealPlans = {};
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  // Cache for buddy tab data
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
+  bool showSharedCalendars = false;
   int get _tabCount => 2;
   bool isPremium = userService.currentUser?.isPremium ?? false;
 
@@ -52,7 +50,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
     _setupDataListeners();
-    // Initialize buddy data cache if needed
     if (widget.initialTabIndex == 1) {
       _initializeBuddyData();
     }
@@ -63,7 +60,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Future<void> _onRefresh() async {
-    await _loadMealPlans();
+    await Future.wait([
+      _loadMealPlans(),
+      _loadSharedCalendars(),
+    ]);
   }
 
   void _initializeBuddyData() {
@@ -80,6 +80,65 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
         .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
         .get();
+  }
+
+  Future<void> _loadSharedCalendars() async {
+    try {
+      final userId = userService.userId;
+      if (userId == null) return;
+
+      // Get all shared calendars for the user
+      final sharedCalendarsQuery = await FirebaseFirestore.instance
+          .collection('shared_calendars')
+          .where('userIds', arrayContains: userId)
+          .get();
+
+      final newSharedMealPlans = <DateTime, List<SharedMealPlan>>{};
+
+      for (var calendarDoc in sharedCalendarsQuery.docs) {
+        // Get all meal plans from the shared calendar
+        final mealPlansQuery = await FirebaseFirestore.instance
+            .collection('shared_calendars')
+            .doc(calendarDoc.id)
+            .collection('date')
+            .get();
+
+        for (var doc in mealPlansQuery.docs) {
+          final dateStr = doc.id; // Use document ID as the date string
+          if (dateStr.isEmpty) continue;
+
+          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
+          final sharedByUserId = doc.data()['userId'] as String?;
+
+          if (sharedByUserId == userId)
+            continue; // Skip user's own shared meals
+
+          final meals = (doc.data()['meals'] as List<dynamic>?)
+                  ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
+                  .toList() ??
+              [];
+
+          final sharedPlan = SharedMealPlan(
+            userId: sharedByUserId ?? '',
+            meals: meals,
+            isSpecial: doc.data()['isSpecial'] ?? false,
+            dayType: doc.data()['dayType'],
+            sharedBy: sharedByUserId ?? '',
+          );
+
+          if (!newSharedMealPlans.containsKey(date)) {
+            newSharedMealPlans[date] = [];
+          }
+          newSharedMealPlans[date]!.add(sharedPlan);
+        }
+      }
+
+      setState(() {
+        sharedMealPlans = newSharedMealPlans;
+      });
+    } catch (e) {
+      print('Error loading shared calendars: $e');
+    }
   }
 
   @override
@@ -122,7 +181,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month, now.day);
       final endDate =
-          startDate.add(const Duration(days: 34)); // 35 days including today
+          startDate.add(const Duration(days: 95)); // 95 days including today
 
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
@@ -281,7 +340,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
             child: IconButton(
               icon: const Icon(Icons.add),
-              onPressed: () => _addMealPlan(context, isDarkMode, true),
+              onPressed: () => _addMealPlan(context, isDarkMode, true, ''),
             ),
           ),
         ],
@@ -394,13 +453,51 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             initiallyExpanded: true,
             iconColor: kAccent,
             collapsedIconColor: kAccent,
-            title: Text(
-              'Calendar',
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+            title: Row(
+              children: [
+                // Calendar view toggle
+                Text(
+                  'Calendar',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: Icon(
+                    showSharedCalendars
+                        ? Icons.people_outline
+                        : Icons.person_outline,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      showSharedCalendars = !showSharedCalendars;
+                    });
+                  },
+                  tooltip: showSharedCalendars
+                      ? 'Show Personal Calendar'
+                      : 'Show Shared Calendars',
+                ),
+                if (!showSharedCalendars)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.share,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      Get.to(() => const FriendScreen(
+                            dataSrc: {
+                              'type': 'calendar_share',
+                              'screen': 'meal_design',
+                            },
+                          ));
+                    },
+                    tooltip: 'Share Calendar',
+                  ),
+              ],
             ),
             children: [
               // Calendar Header
@@ -561,278 +658,176 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       selectedDate.month,
       selectedDate.day,
     );
-    final meals = mealPlans[normalizedSelectedDate] ?? [];
-    final isSpecialDay = specialMealDays[normalizedSelectedDate] ?? false;
 
-    final dayType = dayTypes[normalizedSelectedDate] ?? 'regular_day';
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final personalMeals = mealPlans[normalizedSelectedDate] ?? [];
+    final isPersonalSpecialDay =
+        specialMealDays[normalizedSelectedDate] ?? false;
+    final personalDayType = dayTypes[normalizedSelectedDate] ?? 'regular_day';
 
-    if (meals.isEmpty && !isSpecialDay) {
-      return SizedBox(
-        height: 200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.restaurant,
-                size: 48,
-                color: isDarkMode ? Colors.white24 : Colors.black26,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No meals planned for this day',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white54 : Colors.black54,
-                  fontSize: 16,
-                ),
-              ),
-              if (!normalizedSelectedDate.isBefore(DateTime.now())) ...[
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () => _addMealPlan(context, isDarkMode, false),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Meal'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: kAccent,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
+    final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
+
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final dateStr = DateFormat('yyyy-MM-dd').format(normalizedSelectedDate);
+
+    if (personalMeals.isEmpty && !isPersonalSpecialDay && sharedPlans.isEmpty) {
+      return _buildEmptyState(normalizedSelectedDate, isDarkMode);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateFormat('MMMM d, yyyy').format(selectedDate),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                    ),
-                    if (meals.isNotEmpty)
-                      Text(
-                        '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDarkMode ? Colors.white70 : Colors.black54,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (isSpecialDay &&
-                  dayTypes[normalizedSelectedDate] != 'regular_day')
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-                        title: Text(
-                          'Special Day Options',
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kBlack,
-                          ),
-                        ),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
+        _buildDateHeader(normalizedSelectedDate, isDarkMode, personalMeals),
+
+        // Personal meals section
+        if (!showSharedCalendars && personalMeals.isNotEmpty)
+          _buildMealsRow(personalMeals, isDarkMode),
+
+        // Shared meals section
+        if (showSharedCalendars && sharedPlans.isNotEmpty)
+          ...sharedPlans
+              .map((sharedPlan) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
                           children: [
-                            ListTile(
-                              leading: const Icon(Icons.share, color: kAccent),
-                              title: Text(
-                                'Share',
-                                style: TextStyle(
-                                  color: isDarkMode ? kWhite : kBlack,
-                                ),
-                              ),
-                              onTap: () {
-                                Navigator.pop(context);
-                                Get.to(() => const FriendScreen(
-                                      dataSrc: {
-                                        'meal_design': 'meal_design',
-                                      },
-                                      screen: 'meal_design',
-                                    ));
-                              },
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: kAccent.withOpacity(0.2),
+                              child: const Icon(Icons.people,
+                                  size: 20, color: kAccent),
                             ),
-                            ListTile(
-                              leading: const Icon(Icons.edit, color: kAccent),
-                              title: Text(
-                                'Edit',
-                                style: TextStyle(
-                                  color: isDarkMode ? kWhite : kBlack,
-                                ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Shared by ${sharedPlan.sharedBy}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: kAccent,
                               ),
-                              onTap: () {
-                                Navigator.pop(context);
-                                _addMealPlan(context, isDarkMode, false);
-                              },
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getDayTypeColor(
-                              dayType.replaceAll('_', ' '), isDarkMode)
-                          .withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getDayTypeIcon(dayType.replaceAll('_', ' ')),
-                          size: 16,
-                          color: _getDayTypeColor(
-                              dayType.replaceAll('_', ' '), isDarkMode),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                           capitalizeFirstLetter(dayType.replaceAll('_', ' ')),
-                          style: TextStyle(
-                            color: _getDayTypeColor(
-                              dayType.replaceAll('_', ' '), isDarkMode),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (meals.isNotEmpty)
-          SizedBox(
-            height: 150,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: meals.length,
-              itemBuilder: (context, index) {
-                final meal = meals[index];
-                return Container(
-                  width: 130,
-                  margin: const EdgeInsets.only(right: 16),
-                  child: Card(
-                    color: kAccentLight,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RecipeDetailScreen(
-                              mealData: meal,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: ClipOval(
-                                  child: meal.mediaPaths.isNotEmpty
-                                      ? Image.network(
-                                          meal.mediaPaths.first
-                                                  .startsWith('http')
-                                              ? meal.mediaPaths.first
-                                              : extPlaceholderImage,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[300],
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.restaurant,
-                                              size: 30,
-                                            ),
-                                          ),
-                                        )
-                                      : Image.asset(
-                                          getAssetImageForItem(
-                                              meal.category ?? 'default'),
-                                          fit: BoxFit.cover,
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    meal.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDarkMode ? kBlack : kWhite,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                      _buildMealsRow(
+                        sharedPlan.meals
+                            .map((m) => Meal(
+                                  userId: sharedPlan.userId,
+                                  title: m.name ?? '',
+                                  createdAt: DateTime.now(),
+                                  mediaPaths: [],
+                                  serveQty: int.tryParse(m.servings ?? '') ?? 1,
+                                  calories: m.calories,
+                                ))
+                            .toList(),
+                        isDarkMode,
+                      ),
+                    ],
+                  ))
+              .toList(),
+
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildMealsRow(List<Meal> meals, bool isDarkMode) {
+    return SizedBox(
+      height: 150,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: meals.length,
+        itemBuilder: (context, index) {
+          final meal = meals[index];
+          return Container(
+            width: 130,
+            margin: const EdgeInsets.only(right: 16),
+            child: Card(
+              color: kAccentLight,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeDetailScreen(
+                        mealData: meal,
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-        const SizedBox(height: 30),
-        if (meals.isEmpty)
-          Center(
-            child: Text(
-              textAlign: TextAlign.center,
-              'No meals planned for this day, \n Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedSelectedDate]?.replaceAll('_', ' ') ?? 'regular day')}!',
-              style: const TextStyle(
-                fontSize: 16,
-                color: kAccent,
-                fontWeight: FontWeight.w600,
+                  );
+                },
+                child: Column(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: ClipOval(
+                            child: meal.mediaPaths.isNotEmpty
+                                ? Image.network(
+                                    meal.mediaPaths.first.startsWith('http')
+                                        ? meal.mediaPaths.first
+                                        : extPlaceholderImage,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.restaurant,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  )
+                                : Image.asset(
+                                    getAssetImageForItem(
+                                        meal.category ?? 'default'),
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              meal.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDarkMode ? kBlack : kWhite,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-      ],
+          );
+        },
+      ),
     );
   }
 
@@ -843,8 +838,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     });
   }
 
-  Future<void> _addMealPlan(
-      BuildContext context, bool isDarkMode, bool needDatePicker) async {
+  Future<void> _addMealPlan(BuildContext context, bool isDarkMode,
+      bool needDatePicker, String type) async {
     // Show date picker for future dates
     DateTime? pickedDate;
     if (needDatePicker) {
@@ -873,7 +868,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (!mounted) return;
 
     // Show dialog to mark as special meal
-    String selectedDayType = 'regular_day';
+    String selectedDayType = '';
+    if (type.isNotEmpty) {
+      selectedDayType = type;
+    } else {
+      selectedDayType = 'regular_day';
+    }
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -929,14 +930,21 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ],
           ),
           actions: [
-            TextButton(
+            IconButton(
+              icon: const Icon(Icons.close),
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-              ),
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: () => Get.to(() => FriendScreen(
+                    dataSrc: {
+                      'type': 'specific_date',
+                      'screen': 'meal_design',
+                      'date': selectedDate.toString(),
+                    },
+                  )),
+              color: isDarkMode ? kWhite : kBlack,
             ),
             TextButton(
               onPressed: () async {
@@ -971,41 +979,88 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     // Format date as yyyy-MM-dd for Firestore document ID
     final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final userId = userService.userId!;
 
-    // Update special meal status in Firestore
-    await firestore
-        .collection('mealPlans')
-        .doc(userService.userId!)
-        .collection('date')
-        .doc(formattedDate)
-        .set({
-      'date': formattedDate,
-      'dayType': dayType,
-      'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
-    }, SetOptions(merge: true));
+    try {
+      DocumentReference? sharedCalendarRef;
 
-    setState(() {
-      specialMealDays[selectedDate] = dayType != 'regular_day';
-    });
+      if (showSharedCalendars) {
+        // First try to find an existing shared calendar for this user
+        final existingCalendarsQuery = await firestore
+            .collection('shared_calendars')
+            .where('userIds', arrayContains: userId)
+            .get();
 
-    // Only navigate to recipe selection if "Add Meal" was clicked
-    if (action == 'add_meal') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RecipeListCategory(
-            index: 0,
-            searchIngredient: '',
-            isMealplan: true,
-            mealPlanDate: formattedDate,
-            isSpecial: dayType != 'regular_day',
-            screen: 'ingredient',
-          ),
-        ),
-      ).then((_) {
-        // Refresh meal plans after adding new meals
-        _loadMealPlans();
+        if (existingCalendarsQuery.docs.isNotEmpty) {
+          // Use the first shared calendar found
+          sharedCalendarRef = existingCalendarsQuery.docs.first.reference;
+        } else {
+          // Create a new shared calendar only if none exists
+          sharedCalendarRef = firestore.collection('shared_calendars').doc();
+          await sharedCalendarRef.set({
+            'userIds': [userId],
+            'createdAt': FieldValue.serverTimestamp(),
+            'createdBy': userId,
+            'type': 'personal',
+          });
+        }
+
+        // Update or create the meal plan document in the date subcollection
+        await sharedCalendarRef.collection('date').doc(formattedDate).set({
+          'userId': userId,
+          'dayType': dayType,
+          'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
+          'date': formattedDate,
+          'meals': [], // Initialize empty meals array if it doesn't exist
+        }, SetOptions(merge: true));
+      } else {
+        // For personal calendar
+        await firestore
+            .collection('mealPlans')
+            .doc(userId)
+            .collection('date')
+            .doc(formattedDate)
+            .set({
+          'userId': userId,
+          'dayType': dayType,
+          'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
+          'date': formattedDate,
+          'meals': [], // Initialize empty meals array if it doesn't exist
+        }, SetOptions(merge: true));
+      }
+
+      setState(() {
+        specialMealDays[selectedDate] = dayType != 'regular_day';
+        dayTypes[selectedDate] = dayType;
       });
+
+      // Only navigate to recipe selection if "Add Meal" was clicked
+      if (action == 'add_meal') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeListCategory(
+              index: 0,
+              searchIngredient: '',
+              isMealplan: true,
+              mealPlanDate: formattedDate,
+              isSpecial: dayType != 'regular_day',
+              screen: 'ingredient',
+              isSharedCalendar: showSharedCalendars,
+              sharedCalendarId:
+                  showSharedCalendars ? sharedCalendarRef?.id : null,
+            ),
+          ),
+        ).then((_) {
+          // Refresh meal plans after adding new meals
+          _loadMealPlans();
+          if (showSharedCalendars) {
+            _loadSharedCalendars();
+          }
+        });
+      }
+    } catch (e) {
+      print('Error in _addMealPlan: $e');
     }
   }
 
@@ -1037,6 +1092,122 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       default:
         return isDarkMode ? kWhite : kBlack;
     }
+  }
+
+  Widget _buildEmptyState(DateTime date, bool isDarkMode) {
+    return SizedBox(
+      height: 200,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.restaurant,
+              size: 48,
+              color: isDarkMode ? Colors.white24 : Colors.black26,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No meals planned for this day',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white54 : Colors.black54,
+                fontSize: 16,
+              ),
+            ),
+            if (!date.isBefore(DateTime.now())) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () => _addMealPlan(context, isDarkMode, false, ''),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Meal'),
+                style: TextButton.styleFrom(
+                  foregroundColor: kAccent,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateHeader(DateTime date, bool isDarkMode, List<Meal> meals) {
+    final isSpecialDay = specialMealDays[date] ?? false;
+    final currentDayType = dayTypes[date] ?? 'regular_day';
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('MMMM d, yyyy').format(date),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    if (meals.isNotEmpty)
+                      Text(
+                        '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDarkMode ? Colors.white70 : Colors.black54,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isSpecialDay && currentDayType != 'regular_day')
+                GestureDetector(
+                  onTap: () =>
+                      _addMealPlan(context, isDarkMode, false, currentDayType),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _getDayTypeColor(
+                              currentDayType.replaceAll('_', ' '), isDarkMode)
+                          .withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getDayTypeIcon(currentDayType.replaceAll('_', ' ')),
+                          size: 16,
+                          color: _getDayTypeColor(
+                              currentDayType.replaceAll('_', ' '), isDarkMode),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          capitalizeFirstLetter(
+                              currentDayType.replaceAll('_', ' ')),
+                          style: TextStyle(
+                            color: _getDayTypeColor(
+                                currentDayType.replaceAll('_', ' '),
+                                isDarkMode),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1079,4 +1250,21 @@ class MealCategoryItem extends StatelessWidget {
       ),
     );
   }
+}
+
+// Add SharedMealPlan class
+class SharedMealPlan {
+  final String userId;
+  final List<UserMeal> meals;
+  final bool isSpecial;
+  final String? dayType;
+  final String sharedBy;
+
+  SharedMealPlan({
+    required this.userId,
+    required this.meals,
+    required this.isSpecial,
+    this.dayType,
+    required this.sharedBy,
+  });
 }
