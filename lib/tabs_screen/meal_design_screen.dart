@@ -4,11 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
+import '../screens/friend_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
@@ -16,6 +18,10 @@ import '../widgets/secondary_button.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import 'buddy_tab.dart';
+import '../pages/edit_goal.dart';
+import '../service/battle_management.dart';
+import '../service/routine_service.dart';
+import '../widgets/bottom_nav.dart';
 
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -631,35 +637,85 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
               if (isSpecialDay &&
                   dayTypes[normalizedSelectedDate] != 'regular_day')
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getDayTypeColor(
-                            dayType.replaceAll('_', ' '), isDarkMode)
-                        .withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getDayTypeIcon(dayType.replaceAll('_', ' ')),
-                        size: 16,
-                        color: _getDayTypeColor(
-                            dayType.replaceAll('_', ' '), isDarkMode),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        capitalizeFirstLetter(dayType.replaceAll('_', ' ')),
-                        style: TextStyle(
-                          color: _getDayTypeColor(
-                              dayType.replaceAll('_', ' '), isDarkMode),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                        title: Text(
+                          'Special Day Options',
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.share, color: kAccent),
+                              title: Text(
+                                'Share',
+                                style: TextStyle(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                Get.to(() => const FriendScreen(
+                                      dataSrc: {
+                                        'meal_design': 'meal_design',
+                                      },
+                                      screen: 'meal_design',
+                                    ));
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.edit, color: kAccent),
+                              title: Text(
+                                'Edit',
+                                style: TextStyle(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _addMealPlan(context, isDarkMode, false);
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _getDayTypeColor(
+                              dayType.replaceAll('_', ' '), isDarkMode)
+                          .withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _getDayTypeIcon(dayType.replaceAll('_', ' ')),
+                          size: 16,
+                          color: _getDayTypeColor(
+                              dayType.replaceAll('_', ' '), isDarkMode),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                           capitalizeFirstLetter(dayType.replaceAll('_', ' ')),
+                          style: TextStyle(
+                            color: _getDayTypeColor(
+                              dayType.replaceAll('_', ' '), isDarkMode),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],

@@ -80,8 +80,16 @@ class _DailyRoutineListHorizontalState
       // Calculate yesterday's completion percentage
       final yesterdayItems =
           await _routineService.getRoutineItems(widget.userId);
-      final yesterdayCompletionStatus =
-          Map<String, bool>.from(yesterdayDoc.data() ?? {});
+      final Map<String, dynamic> rawData = yesterdayDoc.data() ?? {};
+      final yesterdayCompletionStatus = rawData.map((key, value) {
+        // Handle different value types:
+        // - Timestamp: treat as completed (true)
+        // - double/num: treat as completed if > 0
+        // - bool: use directly
+        if (value is Timestamp) return MapEntry(key, true);
+        if (value is num) return MapEntry(key, value > 0);
+        return MapEntry(key, value as bool);
+      });
 
       final yesterdayEnabledItems =
           yesterdayItems.where((item) => item.isEnabled).toList();
