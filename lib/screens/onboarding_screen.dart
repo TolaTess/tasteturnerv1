@@ -138,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         userId: widget.userId,
         displayName: nameController.text.trim(),
         bio: getRandomBio(bios),
-        sex: '',
+        dob: dobController.text,
         profileImage: '',
         location: '',
         userType: 'user',
@@ -155,7 +155,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ? selectedGoals.first
               : 'General Fitness',
           'targetSteps': '10000',
-          'dob': dobController.text,
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
         },
         preferences: {
@@ -315,7 +314,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child2: SafeTextFormField(
         controller: dobController,
         style: const TextStyle(color: kDarkGrey),
-        onChanged: (_) => _validateInputs(),
         decoration: InputDecoration(
           filled: true,
           fillColor: const Color(0xFFF3F3F3),
@@ -324,7 +322,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           border: outlineInputBorder(10),
           labelStyle: const TextStyle(color: Color(0xffefefef)),
           hintStyle: const TextStyle(color: kLightGrey),
-          hintText: "Enter your date of birth",
+          hintText: "Enter your date of birth (MM-dd)",
           floatingLabelBehavior: FloatingLabelBehavior.always,
           contentPadding: const EdgeInsets.only(
             top: 16,

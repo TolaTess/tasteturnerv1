@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   String? userId = '';
   String? displayName;
-  String? bio, sex;
+  String? bio, dob;
   String? profileImage;
   List<String> following;
 
@@ -18,7 +18,7 @@ class UserModel {
     this.userId,
     required this.displayName,
     this.bio = 'Today will be Epic!',
-    this.sex = 'female',
+    this.dob = 'dob no given',
     required this.profileImage,
     this.following = const [],
     this.settings = const {},

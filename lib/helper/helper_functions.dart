@@ -147,7 +147,7 @@ String getMealTimeOfDay() {
   } else if (hour >= 11 && hour < 16) {
     return 'Lunch';
   } else {
-    return 'Dinner'; 
+    return 'Dinner';
   }
 }
 
@@ -155,7 +155,7 @@ String getSharedCalendarHeader(String userName, String friendName) {
   // Handle null or empty names
   userName = userName.trim();
   friendName = friendName.trim();
-  
+
   if (userName.isEmpty || friendName.isEmpty) {
     return 'Shared Calendar';
   }
@@ -166,4 +166,23 @@ String getSharedCalendarHeader(String userName, String friendName) {
   return '$userInitial & $friendName';
 }
 
-
+Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
+  return Container(
+    padding: EdgeInsets.symmetric(horizontal: isShrink ? 5 : 10),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      border: isShrink
+          ? Border.all(color: kAccentLight, width: 1)
+          : Border.all(color: kAccentLight, width: 0),
+    ),
+    child: Text(
+      '${birthdayName}s birthday is today! 🎂',
+      style: TextStyle(
+        color: kAccentLight,
+        fontSize: isShrink ? 12 : 14,
+        fontWeight: isShrink ? FontWeight.normal : FontWeight.w400,
+        overflow: isShrink ? TextOverflow.ellipsis : TextOverflow.visible,
+      ),
+    ),
+  );
+}

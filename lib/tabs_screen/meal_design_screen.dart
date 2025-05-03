@@ -51,6 +51,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   bool isPersonalCalendar = false;
   final CalendarSharingService calendarSharingService =
       CalendarSharingService();
+  Map<DateTime, List<String>> birthdays = {};
 
   @override
   void initState() {
@@ -71,7 +72,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Future<void> _onRefresh() async {
     await Future.wait([
       _loadMealPlans(),
-      // _loadMealCalendar(),
     ]);
   }
 
@@ -89,6 +89,35 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
         .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
         .get();
+  }
+
+  Future<void> _loadFriendsBirthdays() async {
+    print('loading friends birthdays');
+    birthdays.clear();
+    final following = userService.currentUser?.following as List<dynamic>?;
+    print('following: $following');
+    if (following == null) return;
+    for (final friendId in following) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(friendId)
+          .get();
+      if (doc.exists) {
+        final data = doc.data();
+        final dob = data?['dob'] as String?; // MM-dd
+        final name = data?['displayName'] as String? ?? '';
+        if (dob != null && dob.length == 5) {
+          final now = DateTime.now();
+          final month = int.tryParse(dob.substring(0, 2));
+          final day = int.tryParse(dob.substring(3, 5));
+          if (month != null && day != null) {
+            final birthdayDate = DateTime(now.year, month, day);
+            birthdays.putIfAbsent(birthdayDate, () => []).add(name);
+          }
+        }
+      }
+    }
+    setState(() {});
   }
 
   @override
@@ -127,6 +156,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Future<void> _loadMealPlans() async {
+    print('loading meal plans');
     try {
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month, now.day);
@@ -214,6 +244,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           continue;
         }
       }
+      _loadFriendsBirthdays();
 
       setState(() {
         mealPlans = newMealPlans;
@@ -565,6 +596,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         final isCurrentMonth = date.month == targetDate.month;
                         final isPastDate = normalizedDate.isBefore(
                             DateTime.now().subtract(const Duration(days: 1)));
+                        final hasBirthday =
+                            birthdays.containsKey(normalizedDate);
 
                         return GestureDetector(
                           onTap: isPastDate ? null : () => _selectDate(date),
@@ -627,6 +660,16 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                   ?.replaceAll('_', ' ') ??
                                               'regular_day',
                                           isDarkMode),
+                                    ),
+                                  ),
+                                if (hasBirthday && !showSharedCalendars)
+                                  const Positioned(
+                                    right: 2,
+                                    bottom: 2,
+                                    child: Icon(
+                                      Icons.cake,
+                                      size: 12,
+                                      color: kAccent,
                                     ),
                                   ),
                               ],
@@ -726,30 +769,35 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final personalMeals = mealPlans[normalizedSelectedDate] ?? [];
     final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
     final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
-
+    final birthdayNames = birthdays[normalizedSelectedDate] ?? <String>[];
+    final birthdayName = birthdayNames.isEmpty ? '' : birthdayNames.join(', &');
     if (!hasMeal && !isPersonalSpecialDay && sharedPlans.isEmpty) {
-      return _buildEmptyState(normalizedSelectedDate, isDarkMode);
+      return _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildDateHeader(normalizedSelectedDate, isDarkMode, personalMeals),
-        // if (!showSharedCalendars)
-        _buildMealsRow(personalMeals, isDarkMode),
+        _buildDateHeader(
+            normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
+        _buildMealsRow(personalMeals, birthdayName, isDarkMode),
         if (showSharedCalendars && sharedPlans.isNotEmpty)
-          _buildMealsRow(sharedPlans, isDarkMode),
+          _buildMealsRow(sharedPlans, birthdayName, isDarkMode),
       ],
     );
   }
 
-  Widget _buildMealsRow(List<Meal> meals, bool isDarkMode) {
+  Widget _buildMealsRow(
+      List<Meal> meals, String birthdayName, bool isDarkMode) {
     if (meals.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+              getBirthdayTextContainer(birthdayName, false),
+            ],
             const SizedBox(height: 40),
             Text(
               textAlign: TextAlign.center,
@@ -1097,7 +1145,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   IconData _getDayTypeIcon(String type) {
     switch (type.toLowerCase()) {
       case 'cheat day':
-        return Icons.cake;
+        return Icons.fastfood;
       case 'family dinner':
         return Icons.people;
       case 'workout boost':
@@ -1124,18 +1172,23 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-  Widget _buildEmptyState(DateTime date, bool isDarkMode) {
+  Widget _buildEmptyState(DateTime date, String birthdayName, bool isDarkMode) {
     return SizedBox(
       height: 200,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.restaurant,
-              size: 48,
-              color: isDarkMode ? Colors.white24 : Colors.black26,
-            ),
+            if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+              getBirthdayTextContainer(birthdayName, false),
+            ],
+            if (birthdayName.isEmpty) ...[
+              Icon(
+                Icons.restaurant,
+                size: 48,
+                color: isDarkMode ? Colors.white24 : Colors.black26,
+              ),
+            ],
             const SizedBox(height: 16),
             Text(
               'No meals planned for this day',
@@ -1161,7 +1214,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  Widget _buildDateHeader(DateTime date, bool isDarkMode, List<Meal> meals) {
+  Widget _buildDateHeader(
+      DateTime date, String birthdayName, bool isDarkMode, List<Meal> meals) {
     final isSpecialDay = specialMealDays[date] ?? false;
     final currentDayType = dayTypes[date] ?? 'regular_day';
 
@@ -1185,6 +1239,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ),
                     ),
                     if (meals.isNotEmpty)
+                      if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+                        getBirthdayTextContainer(birthdayName, true),
+                      ],
                       Text(
                         '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
                         style: TextStyle(
