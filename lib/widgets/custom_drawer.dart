@@ -7,7 +7,7 @@ import '../pages/settings_screen.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/favorite_screen.dart';
 import '../screens/premium_screen.dart';
-import '../bottom_nav/profile_screen.dart';
+import '../screens/profile_screen.dart';
 import '../screens/splash_screen.dart';
 import '../themes/theme_provider.dart';
 import '../service/notification_service.dart';

@@ -5,7 +5,7 @@ import 'dart:async';
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
-import '../bottom_nav/profile_screen.dart';
+import '../screens/profile_screen.dart';
 import '../pages/upload_battle.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';

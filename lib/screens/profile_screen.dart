@@ -13,7 +13,7 @@ import '../pages/upload_battle.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
-import '../screens/badges_screen.dart';
+import 'badges_screen.dart';
 import '../pages/settings_screen.dart';
 import '../service/battle_service.dart';
 
@@ -171,7 +171,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final double currentWeight = double.tryParse(
             getNumberBeforeSpace(settings['currentWeight'].toString())) ??
-        0.0;
+        startWeight;
     final double goalWeight = double.tryParse(
             getNumberBeforeSpace(settings['goalWeight'].toString())) ??
         0.0;
@@ -510,6 +510,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             ),
+                            Text(
+                              '${userService.currentUser?.settings['fitnessGoal']}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: kAccent,
+                              ),
+                            ),
                             GestureDetector(
                               onTap: () =>
                                   Get.to(() => const NutritionSettingsPage()),
@@ -530,14 +537,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      startWeight % 1 == 0
-                                          ? startWeight.toInt().toString()
-                                          : startWeight.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    Column(
+                                      children: [
+                                        const Icon(
+                                          Icons.keyboard_double_arrow_right_rounded,
+                                          size: 14,
+                                          color: kAccent,
+                                        ),
+                                        Text(
+                                          startWeight % 1 == 0
+                                              ? startWeight.toInt().toString()
+                                              : startWeight.toStringAsFixed(1) ,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(width: 5),
                                     Expanded(
@@ -551,23 +567,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             progressPercentage.clamp(0.0, 1.0),
                                         center: Text(
                                           currentWeight % 1 == 0
-                                              ? currentWeight.toInt().toString()
+                                              ? currentWeight.toInt().toString() + 'kg'
                                               : currentWeight
-                                                  .toStringAsFixed(1),
+                                                  .toStringAsFixed(1) + 'kg',
                                         ),
                                         barRadius: const Radius.circular(20.0),
                                         progressColor: kAccent,
                                       ),
                                     ),
                                     const SizedBox(width: 5),
-                                    Text(
-                                      goalWeight % 1 == 0
-                                          ? goalWeight.toInt().toString()
-                                          : goalWeight.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    Column(
+                                      children: [
+                                        const Icon(
+                                          Icons.keyboard_double_arrow_left_rounded,
+                                          size: 14,
+                                          color: kAccent,
+                                        ),
+                                        Text(
+                                          goalWeight % 1 == 0
+                                              ? goalWeight.toInt().toString()
+                                              : goalWeight.toStringAsFixed(1),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 20)
                                   ],
