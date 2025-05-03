@@ -99,7 +99,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
               pinned: true,
               automaticallyImplyLeading: false,
-              expandedHeight: 315,
+              expandedHeight: 220,
               title: isShrink
                   ? Text(
                       user?.displayName ?? '',
@@ -169,98 +169,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(
-                                  height: 18,
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  children: [
-                                    //points
-                                    Container(
-                                      width: 70,
-                                      padding: const EdgeInsets.all(5),
-                                      decoration: BoxDecoration(
-                                        color: kLightGrey.withValues(
-                                            alpha: kMidOpacity),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            (user?.followers.length ?? 0.0)
-                                                .toString(),
-                                            style: const TextStyle(
-                                              color: kBackgroundColor,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const Opacity(
-                                            opacity: 0.5,
-                                            child: Text(
-                                              'Followers',
-                                              style: TextStyle(
-                                                color: kBackgroundColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-
-                                    const SizedBox(
-                                      height: 30,
-                                      child: Opacity(
-                                        opacity: 0.2,
-                                        child: VerticalDivider(
-                                          color: kBackgroundColor,
-                                          thickness: 1,
-                                        ),
-                                      ),
-                                    ),
-
-                                    //following
-                                    Container(
-                                      width: 70,
-                                      padding: const EdgeInsets.all(5),
-                                      decoration: BoxDecoration(
-                                        color: kLightGrey.withValues(
-                                            alpha: kMidOpacity),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            (user?.following.length ?? 0)
-                                                .toString(),
-                                            style: const TextStyle(
-                                              color: kBackgroundColor,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const Opacity(
-                                            opacity: 0.5,
-                                            child: Text(
-                                              following,
-                                              style: TextStyle(
-                                                color: kBackgroundColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(
-                                  height: 18,
-                                ),
                               ],
                             ),
                           ),
@@ -269,8 +177,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           radius: 52,
                           backgroundColor: kBackgroundColor,
                           child: CircleAvatar(
-                            backgroundImage: getImageProvider(
-                                user?.profileImage),
+                            backgroundImage:
+                                getImageProvider(user?.profileImage),
                             radius: 50,
                           ),
                         ),
@@ -315,6 +223,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   friendController.followFriend(
                                       userService.userId ?? '',
                                       newUserid,
+                                      user?.displayName ?? '',
                                       context);
                                 }
 
@@ -328,14 +237,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           Obx(() {
                             bool isFollowing = friendController.followingList
                                 .contains(newUserid);
-                            bool isFollower = friendController.followerList
-                                .contains(userService.userId);
-
                             return FollowButton(
                               h: 40,
                               w: 120,
                               press: () async {
-                                if (isFollowing || isFollower) {
+                                if (isFollowing) {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(

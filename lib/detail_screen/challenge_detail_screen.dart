@@ -25,6 +25,7 @@ class ChallengeDetailScreen extends StatefulWidget {
 
 class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   bool isLiked = false;
+  bool isFollowing = false;
   int likesCount = 0;
 
   List<String> extractedItems = [];
@@ -51,6 +52,22 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     setState(() {
       isLiked = isFavorite;
     });
+  }
+
+  Future<void> toggleFollow() async {
+    if (isFollowing) {
+      friendController.unfollowFriend(userService.userId ?? '',
+          widget.dataSrc['userId'] ?? extractedItems.first, context);
+    } else {
+      friendController.followFriend(userService.userId ?? '',
+          widget.dataSrc['userId'] ?? extractedItems.first,
+          widget.dataSrc['name'] ?? '',
+          context);
+    }
+
+    // Update the UI immediately
+    friendController
+        .toggleFollowStatus(widget.dataSrc['userId'] ?? extractedItems.first);
   }
 
   /// ✅ Toggle like status & update Firestore
@@ -123,61 +140,45 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        leading: InkWell(
+          onTap: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(
+                  selectedIndex: 1,
+                ),
+              ),
+            );
+          },
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+            ),
+            child: const IconCircleButton(
+              isRemoveContainer: true,
+            ),
+          ),
+        ),
+        title: Text(
+          textAlign: TextAlign.center,
+          capitalizeFirstLetter(getTitle()),
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              // Custom App Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    // Back Button
-                    InkWell(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => BottomNavSec(
-                              selectedIndex: 3,
-                              foodScreenTabIndex:
-                                  widget.screen == 'battle_post' ? 0 : 1,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                        ),
-                        child: const IconCircleButton(
-                          isRemoveContainer: true,
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    Text(
-                      capitalizeFirstLetter(getTitle()),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-
-                    const Spacer(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
               // Challenge Thumbnail
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -306,6 +307,18 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                               "$likesCount",
                             ),
 
+                            const SizedBox(width: 36),
+
+                            // Follow Icon with Toggle
+                            GestureDetector(
+                              onTap: toggleFollow,
+                              child: Icon(
+                                isFollowing
+                                    ? Icons.person
+                                    : Icons.person_add_alt_1_outlined,
+                                color: isFollowing ? kRed : null,
+                              ),
+                            ),
                             const SizedBox(width: 36),
                           ],
                         ),

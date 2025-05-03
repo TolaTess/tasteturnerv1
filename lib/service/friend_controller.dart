@@ -5,11 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
+import 'chat_controller.dart';
 
 class FriendController extends GetxController {
   static FriendController instance = Get.find();
   final RxSet<String> followingList = <String>{}.obs;
-  final RxSet<String> followerList = <String>{}.obs;
 
   var friendsMap = <String, UserModel>{}.obs;
   var userProfileData = Rxn<UserModel>();
@@ -50,19 +50,20 @@ class FriendController extends GetxController {
 
   Future<void> getAllFriendData(String userId) async {
     try {
-      final querySnapshot = await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('following')
-          .get();
+      final docSnapshot =
+          await firestore.collection('friends').doc(userId).get();
+      print(docSnapshot.data());
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        final following = data?['following'] as List<dynamic>? ?? [];
+        print(following);
 
-      if (querySnapshot.docs.isNotEmpty) {
         Map<String, UserModel> tempMap = {};
 
-        for (var doc in querySnapshot.docs) {
-          final friendId = doc.id;
+        for (var friendId in following) {
           final friendDoc =
               await firestore.collection('users').doc(friendId).get();
+          print(friendDoc.data());
 
           if (friendDoc.exists) {
             final friendData = friendDoc.data() as Map<String, dynamic>;
@@ -83,77 +84,46 @@ class FriendController extends GetxController {
   /// Fetch the list of friends the user is following
   Future<void> fetchFollowing(String userId) async {
     try {
-      // Fetch `following` subcollection
-      final followingSnapshot = await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('following')
-          .get();
+      // Fetch user document
+      final userDoc = await firestore.collection('friends').doc(userId).get();
 
-      // Assign directly to RxSet
-      followingList
-          .assignAll(followingSnapshot.docs.map((doc) => doc.id).toSet());
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
 
-      // Fetch `follower` subcollection
-      final followerSnapshot = await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('follower')
-          .get();
-
-      // Assign directly to RxSet
-      followerList
-          .assignAll(followerSnapshot.docs.map((doc) => doc.id).toSet());
+        // Get following array
+        final following = data['following'] as List<dynamic>? ?? [];
+        followingList.assignAll(following.map((id) => id.toString()).toSet());
+      }
     } catch (e) {
       print('Error fetching following list: $e');
 
       // Clear the sets if there's an error
       followingList.clear();
-      followerList.clear();
     }
   }
 
   /// Follow a friend
-  Future<void> followFriend(String currentUserId, String friendUserId, BuildContext context) async {
+  Future<void> followFriend(String currentUserId, String friendUserId,
+      String friendName, BuildContext context) async {
     try {
-      final followingDoc = await firestore
-          .collection('users')
-          .doc(currentUserId)
-          .collection('following')
-          .doc(friendUserId)
-          .get();
+      final followingDoc =
+          await firestore.collection('friends').doc(currentUserId).get();
 
       if (followingDoc.exists) {
-        showTastySnackbar(
-          'Already Following',
-          'You are already following this user.',
-          context,
-        );
-        return;
+        final data = followingDoc.data();
+        final following = data?['following'] as List<dynamic>? ?? [];
+
+        if (following.contains(friendUserId)) {
+          showTastySnackbar(
+            'Already Following',
+            'You are already following this user.',
+            context,
+          );
+          return;
+        }
       }
 
-      await firestore
-          .collection('users')
-          .doc(currentUserId)
-          .collection('following')
-          .doc(friendUserId)
-          .set({'followedAt': FieldValue.serverTimestamp()});
-
-      await firestore
-          .collection('users')
-          .doc(friendUserId)
-          .collection('follower')
-          .doc(currentUserId)
-          .set({'followedAt': FieldValue.serverTimestamp()});
-
-      // Update local list
-      followingList.add(friendUserId);
-
-      showTastySnackbar(
-        'Success',
-        'You are now following this user.',
-        context,
-      );
+      sendFriendRequest(currentUserId, friendUserId, friendName, context);
     } catch (e) {
       showTastySnackbar(
         'Please try again.',
@@ -190,55 +160,41 @@ class FriendController extends GetxController {
           // Create user model
           final user = UserModel.fromMap(userData);
 
-          // Fetch subcollection data (followers)
-          final followersSnapshot = await firestore
-              .collection('users')
-              .doc(userId)
-              .collection('follower')
-              .get();
+          // Fetch friends document
+          final friendsDoc =
+              await firestore.collection('friends').doc(userId).get();
 
-          final followers =
-              followersSnapshot.docs.map((doc) => doc.id).toList();
+          if (friendsDoc.exists) {
+            final friendsData = friendsDoc.data();
+            if (friendsData != null) {
+              // Get following and follower lists
+              final following =
+                  friendsData['following'] as List<dynamic>? ?? [];
+              // Update UserModel with friends data
+              user.following = following.map((id) => id.toString()).toList();
 
-          // Fetch subcollection data (following)
-          final followingSnapshot = await firestore
-              .collection('users')
-              .doc(userId)
-              .collection('following')
-              .get();
+              // Update local lists
+              followingList.assignAll(following.map((id) => id.toString()));
+            }
+          }
 
-          final following =
-              followingSnapshot.docs.map((doc) => doc.id).toList();
-
-          // Update UserModel with subcollection data
-          user.followers = followers;
-          user.following = following;
-
-          // Update state (userProfileData is presumably an Rx<UserModel?>)
+          // Update state
           userProfileData.value = user;
         }
       }
     } catch (e) {
-      print("Error updating user with subcollection data: $e");
+      print("Error updating user data: $e");
     }
   }
 
   /// Unfollow a friend
-  Future<void> unfollowFriend(String currentUserId, String friendUserId, BuildContext context) async {
+  Future<void> unfollowFriend(
+      String currentUserId, String friendUserId, BuildContext context) async {
     try {
-      await firestore
-          .collection('users')
-          .doc(currentUserId)
-          .collection('following')
-          .doc(friendUserId)
-          .delete();
-
-      await firestore
-          .collection('users')
-          .doc(friendUserId)
-          .collection('follower')
-          .doc(currentUserId)
-          .delete();
+      // Update 'friends' collection for unfollowing
+      await firestore.collection('friends').doc(currentUserId).set({
+        'following': FieldValue.arrayRemove([friendUserId])
+      }, SetOptions(merge: true));
 
       // Update local list
       followingList.remove(friendUserId);
@@ -252,6 +208,31 @@ class FriendController extends GetxController {
       showTastySnackbar(
         'Please try again.',
         'Failed to unfollow user: $e',
+        context,
+      );
+    }
+  }
+
+  Future<void> sendFriendRequest(String currentUserId, String friendUserId,
+      String friendName, BuildContext context) async {
+    try {
+      // Use ChatController to send a friend request message
+      await ChatController.instance.sendFriendRequestMessage(
+        senderId: currentUserId,
+        recipientId: friendUserId,
+        friendName: friendName,
+        date: DateTime.now().toIso8601String(),
+      );
+
+      showTastySnackbar(
+        'Request Sent',
+        'Friend request sent. Awaiting acceptance.',
+        context,
+      );
+    } catch (e) {
+      showTastySnackbar(
+        'Please try again.',
+        'Failed to send friend request: $e',
         context,
       );
     }

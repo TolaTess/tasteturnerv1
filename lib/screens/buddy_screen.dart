@@ -314,6 +314,7 @@ class _TastyScreenState extends State<TastyScreen> {
                           dataSrc: message,
                           isMe: message.senderId == userService.userId,
                           chatController: chatController,
+                          chatId: chatId!,
                         );
                       },
                     );

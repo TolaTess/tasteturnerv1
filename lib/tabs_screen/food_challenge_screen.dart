@@ -102,7 +102,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(
-                  height: 15,
+                  height: 20,
                 ),
 
                 //category options
@@ -116,7 +116,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ),
 
                 const SizedBox(
-                  height: 20,
+                  height: 15,
                 ),
 
                 //Challenge
@@ -514,7 +514,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ),
 
                 const SizedBox(
-                  height: 40,
+                  height: 55,
                 ),
               ],
             ),

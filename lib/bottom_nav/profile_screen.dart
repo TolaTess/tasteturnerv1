@@ -215,9 +215,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : kPrimaryColor,
             ),
             leading: InkWell(
-                onTap: () => Navigator.canPop(context)
-                    ? Navigator.pop(context)
-                    : Get.to(() => const BottomNavSec()),
+              onTap: () => Navigator.canPop(context)
+                  ? Navigator.pop(context)
+                  : Get.to(() => const BottomNavSec()),
               child: const IconCircleButton(
                 isRemoveContainer: true,
               ),
@@ -349,23 +349,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                     child: Column(
                                       children: [
-                                        Text(
-                                          //todo
-                                          (userService.currentUser!.followers
-                                                      .length ??
-                                                  0)
-                                              .toString(),
-                                          style: TextStyle(
-                                            color:
-                                                isDarkMode ? kWhite : kDarkGrey,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
+                                        Obx(() {
+                                          myBadge = badgeController
+                                              .badgeAchievements
+                                              .where((badge) => badge.userids
+                                                  .contains(userId))
+                                              .toList();
+
+                                          return Text(
+                                            myBadge.length.toString(),
+                                            style: TextStyle(
+                                              color: isDarkMode
+                                                  ? kWhite
+                                                  : kDarkGrey,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          );
+                                        }),
                                         Opacity(
                                           opacity: 0.5,
                                           child: Text(
-                                            followers,
+                                            badges,
                                             style: TextStyle(
                                               color: isDarkMode
                                                   ? kWhite

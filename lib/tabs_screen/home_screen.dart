@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -215,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Text(
                               inspiration,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w400,
                                 color: kLightGrey,
                                 overflow: TextOverflow.ellipsis,
@@ -226,77 +226,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ],
                     ),
                     // Message Section
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? kDarkModeAccent.withOpacity(kLowOpacity)
-                            : kBackgroundColor,
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MessageScreen(),
-                                ),
-                              );
-                            },
-                            child: Icon(Icons.message,
-                                size: 30, color: kAccent.withOpacity(0.6)),
-                          ),
-                          const SizedBox(width: 5),
-
-                          // Unread Count Badge
-                          Obx(() {
-                            final nonBuddyChats = chatController.userChats
-                                .where((chat) => !(chat['participants'] as List)
-                                    .contains('buddy'))
-                                .toList();
-
-                            if (nonBuddyChats.isEmpty) {
-                              return const SizedBox
-                                  .shrink(); // Hide badge if no chats
-                            }
-
-                            // Calculate total unread count across all non-buddy chats
-                            final int unreadCount = nonBuddyChats.fold<int>(
-                              0,
-                              (sum, chat) =>
-                                  sum + (chat['unreadCount'] as int? ?? 0),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MessageScreen(),
+                              ),
                             );
-
-                            // Handle notifications
-                            _handleUnreadNotifications(unreadCount);
-
-                            if (unreadCount >= 1) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: kRed,
-                                  borderRadius: BorderRadius.circular(12),
+                          },
+                          child: Icon(Icons.message,
+                              size: 30, color: kAccent.withOpacity(0.6)),
+                        ),
+                        const SizedBox(width: 5),
+                                          
+                        // Unread Count Badge
+                        Obx(() {
+                          final nonBuddyChats = chatController.userChats
+                              .where((chat) => !(chat['participants'] as List)
+                                  .contains('buddy'))
+                              .toList();
+                                          
+                          if (nonBuddyChats.isEmpty) {
+                            return const SizedBox
+                                .shrink(); // Hide badge if no chats
+                          }
+                                          
+                          // Calculate total unread count across all non-buddy chats
+                          final int unreadCount = nonBuddyChats.fold<int>(
+                            0,
+                            (sum, chat) =>
+                                sum + (chat['unreadCount'] as int? ?? 0),
+                          );
+                                          
+                          // Handle notifications
+                          _handleUnreadNotifications(unreadCount);
+                                          
+                          if (unreadCount >= 1) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: kRed,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
                                 ),
-                                child: Text(
-                                  unreadCount.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              );
-                            } else {
-                              return const SizedBox
-                                  .shrink(); // Hide badge if unreadCount is 0
-                            }
-                          }),
-                        ],
-                      ),
+                              ),
+                            );
+                          } else {
+                            return const SizedBox
+                                .shrink(); // Hide badge if unreadCount is 0
+                          }
+                        }),
+                      ],
                     )
                   ],
                 ),
@@ -450,12 +438,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // const SizedBox(height: 10),
-                // Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                // const SizedBox(height: 10),
-
-                // // Weekly Ingredients Battle Widget
-                // const WeeklyIngredientBattle(),
 
                 const SizedBox(height: 15),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),

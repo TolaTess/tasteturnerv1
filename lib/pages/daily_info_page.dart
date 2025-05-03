@@ -124,65 +124,67 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
           const SizedBox(width: 20),
 
           // 250ml Cup
-          Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              // Lower square (background)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: squareW,
-                  height: squareSize,
-                  color: isDarkMode ? kDarkGrey.withOpacity(kOpacity) : kWhite,
+          Flexible(
+            child: Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                // Lower square (background)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: squareW,
+                    height: squareSize,
+                    color: isDarkMode ? kDarkGrey.withOpacity(kOpacity) : kWhite,
+                  ),
                 ),
-              ),
-
-              // Filling animation
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
+            
+                // Filling animation
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: currentWaterLevelNotifier,
+                    builder: (context, value, child) {
+                      checkPercentage(value);
+                      return TweenAnimationBuilder<double>(
+                        tween: Tween(
+                            begin: 0.0, end: fillPercentage.clamp(0.0, 1.0)),
+                        duration: const Duration(seconds: 1),
+                        builder: (context, animationValue, child) {
+                          return SizedBox(
+                            width: squareW,
+                            height: squareSize * animationValue,
+                            child: CustomPaint(
+                              painter: widget.title == 'Update Water'
+                                  ? WavePainter(animationValue, kBlue, 4)
+                                  : StepsPainter(animationValue, kLightGrey),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-                child: ValueListenableBuilder<double>(
+                // 250ml Label
+                ValueListenableBuilder<double>(
                   valueListenable: currentWaterLevelNotifier,
-                  builder: (context, value, child) {
-                    checkPercentage(value);
-                    return TweenAnimationBuilder<double>(
-                      tween: Tween(
-                          begin: 0.0, end: fillPercentage.clamp(0.0, 1.0)),
-                      duration: const Duration(seconds: 1),
-                      builder: (context, animationValue, child) {
-                        return SizedBox(
-                          width: squareW,
-                          height: squareSize * animationValue,
-                          child: CustomPaint(
-                            painter: widget.title == 'Update Water'
-                                ? WavePainter(animationValue, kBlue, 4)
-                                : StepsPainter(animationValue, kLightGrey),
-                          ),
-                        );
-                      },
+                  builder: (context, currentValue, child) {
+                    return Text(
+                      '${currentValue.toInt()} ${widget.title == 'Update Water' ? 'ml' : 'steps'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w200,
+                        color: getThemeProvider(context).isDarkMode
+                            ? kWhite
+                            : kDarkGrey,
+                      ),
                     );
                   },
                 ),
-              ),
-              // 250ml Label
-              ValueListenableBuilder<double>(
-                valueListenable: currentWaterLevelNotifier,
-                builder: (context, currentValue, child) {
-                  return Text(
-                    '${currentValue.toInt()} ${widget.title == 'Update Water' ? 'ml' : 'steps'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w200,
-                      color: getThemeProvider(context).isDarkMode
-                          ? kWhite
-                          : kDarkGrey,
-                    ),
-                  );
-                },
-              ),
-            ],
+              ],
+            ),
           ),
 
           const SizedBox(width: 20),

@@ -110,12 +110,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     String date;
     String message;
-    String? calendarId; 
+    String? calendarId;
     if (type == 'entire_calendar') {
       message = 'I\'d like to share my entire meal calendar with you.';
       date = DateFormat('MMM d, yyyy').format(DateTime.now());
       calendarId = data['calendarId'] as String?;
-
     } else {
       date = data['date'] as String? ?? 'No date specified';
       message = 'I\'d like to share my meal plan for $date with you.';
@@ -248,6 +247,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           dataSrc: message,
                           isMe: message.senderId == userService.userId,
                           chatController: chatController,
+                          chatId: chatId!,
                         );
                       },
                     );
@@ -346,12 +346,14 @@ class ChatItem extends StatelessWidget {
   final ChatScreenData dataSrc;
   final bool isMe;
   final ChatController chatController;
+  final String chatId;
 
   const ChatItem({
     super.key,
     required this.dataSrc,
     required this.isMe,
     required this.chatController,
+    required this.chatId,
   });
 
   @override
@@ -443,6 +445,10 @@ class ChatItem extends StatelessWidget {
               if (dataSrc.shareRequest != null)
                 _buildShareRequest(context, isDarkMode),
 
+              // Show Friend Request if available
+              if (dataSrc.friendRequest != null)
+                _buildFriendRequest(context, isDarkMode, chatId, dataSrc.messageId),
+
               const SizedBox(height: 4),
 
               // Timestamp & Read Status
@@ -466,6 +472,76 @@ class ChatItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFriendRequest(
+      BuildContext context, bool isDarkMode, String chatId, String messageId) {
+    final friendRequest = dataSrc.friendRequest!;
+    final status = friendRequest['status'] as String? ?? 'pending';
+    final friendName = friendRequest['friendName'] as String? ?? 'Friend';
+    final date = friendRequest['date'] as String?;
+    final senderId = friendRequest['senderId'] as String?;
+    final recipientId = friendRequest['recipientId'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDarkMode ? kDarkGrey : kAccentLight.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kAccent.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_add_alt_1_outlined, size: 18, color: kAccent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$friendName wants to be your friend',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: kAccent,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (status == 'pending')
+                TextButton(
+                  onPressed: () async {
+                    // Accept friend request logic
+                    await ChatController.instance.acceptFriendRequest(
+                      chatId,
+                      messageId,
+                    );
+                  },
+                  child: const Text('Accept'),
+                  style: TextButton.styleFrom(foregroundColor: isDarkMode ? kWhite : kDarkGrey),
+                ),
+              if (status == 'accepted')
+                const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Text('Accepted', style: TextStyle(color: kAccent)),
+                ),
+            ],
+          ),
+          if (date != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                'Requested on $date',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white54 : Colors.black54,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

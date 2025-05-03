@@ -137,7 +137,6 @@ class AuthController extends GetxController {
                   ),
                 )
               : {},
-          followers: followers,
           following: following,
           userType: userDataMap['userType']?.toString() ?? 'user',
           isPremium: userDataMap['isPremium'] as bool? ?? false,

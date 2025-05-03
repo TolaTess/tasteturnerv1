@@ -35,6 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final TextEditingController heightController = TextEditingController();
   final TextEditingController weightController = TextEditingController();
   final TextEditingController targetWeightController = TextEditingController();
+  final TextEditingController dobController = TextEditingController();
   String selectedSex = '';
   String selectedActivityLevel = '';
   String selectedHeightUnit = 'cm';
@@ -64,6 +65,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void dispose() {
     _bounceController.dispose();
+    dobController.dispose();
+    nameController.dispose();
+    ageController.dispose();
+    locationController.dispose();
+    heightController.dispose();
+    weightController.dispose();
+    targetWeightController.dispose();
     super.dispose();
   }
 
@@ -147,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ? selectedGoals.first
               : 'General Fitness',
           'targetSteps': '10000',
-          'dailySteps': '0',
+          'dob': dobController.text,
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
         },
         preferences: {
@@ -304,10 +312,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
-      child2: const SizedBox.shrink(),
+      child2: SafeTextFormField(
+        controller: dobController,
+        style: const TextStyle(color: kDarkGrey),
+        onChanged: (_) => _validateInputs(),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: const Color(0xFFF3F3F3),
+          enabledBorder: outlineInputBorder(10),
+          focusedBorder: outlineInputBorder(10),
+          border: outlineInputBorder(10),
+          labelStyle: const TextStyle(color: Color(0xffefefef)),
+          hintStyle: const TextStyle(color: kLightGrey),
+          hintText: "Enter your date of birth",
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          contentPadding: const EdgeInsets.only(
+            top: 16,
+            bottom: 16,
+            right: 10,
+            left: 10,
+          ),
+        ),
+      ),
       child3: const SizedBox.shrink(),
       description:
-          'Let\'s personalize your experience with us by telling us your name.',
+          'Let\'s personalize your experience with us by telling us a bit about you.',
     );
   }
 

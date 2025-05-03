@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
-import '../helper/helper_functions.dart';
 
 class ChatController extends GetxController {
   static ChatController instance = Get.find();
@@ -212,23 +211,22 @@ class ChatController extends GetxController {
       final date = shareRequest['date'] as String?;
       final header = shareRequest['header'] as String?;
 
-      final calendarId = shareRequest['calendarId'] as String?; 
+      final calendarId = shareRequest['calendarId'] as String?;
       if (calendarId == 'personal') {
         // Create shared calendar
         final calendarRef = firestore.collection('shared_calendars').doc();
 
-      await calendarRef.set({
-        'userIds': [senderId, userService.userId],
-        'type': type,
-        'date': date,
+        await calendarRef.set({
+          'userIds': [senderId, userService.userId],
+          'type': type,
+          'date': date,
           'createdAt': FieldValue.serverTimestamp(),
           'header': header,
         });
       } else {
         // Update existing shared calendar
-        final calendarRef = firestore
-            .collection('shared_calendars')
-            .doc(calendarId);
+        final calendarRef =
+            firestore.collection('shared_calendars').doc(calendarId);
 
         // Get current calendar data
         final calendarDoc = await calendarRef.get();
@@ -248,7 +246,6 @@ class ChatController extends GetxController {
           'header': header,
           'userIds': FieldValue.arrayUnion([userService.userId ?? '']),
         });
-       
       }
 
       // Update message to show accepted status
@@ -298,6 +295,64 @@ class ChatController extends GetxController {
       'chats': FieldValue.arrayUnion([chatId]),
     }, SetOptions(merge: true));
   }
+
+  Future<void> sendFriendRequestMessage({
+    required String senderId,
+    required String recipientId,
+    String? friendName,
+    String? date,
+  }) async {
+    final chatId = await getOrCreateChatId(senderId, recipientId);
+    final chatRef = firestore.collection('chats').doc(chatId);
+    final messageRef = chatRef.collection('messages').doc();
+
+    final messageData = {
+      'messageContent': '$friendName wants to be your friend!',
+      'senderId': senderId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'isRead': false,
+      'friendRequest': {
+        'status': 'pending',
+        'senderId': senderId,
+        'recipientId': recipientId,
+        'friendName': friendName,
+        'date': date, 
+      }
+    };
+
+    await messageRef.set(messageData);
+  }
+
+  Future<void> acceptFriendRequest(String chatId, String messageId) async {
+    final messageRef = firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId);
+    final messageDoc = await messageRef.get();
+    if (!messageDoc.exists) return;
+
+    final data = messageDoc.data()!;
+    final friendRequest = data['friendRequest'] as Map<String, dynamic>?;
+    if (friendRequest == null) return;
+
+    final senderId = friendRequest['senderId'];
+    final recipientId = friendRequest['recipientId'];
+
+    // Update message status
+    await messageRef.update({'friendRequest.status': 'accepted'});
+
+    // Add each user to the other's friends collection
+    await firestore.collection('friends').doc(senderId).set({
+      'following': FieldValue.arrayUnion([recipientId])
+    }, SetOptions(merge: true));
+    await firestore.collection('friends').doc(recipientId).set({
+      'following': FieldValue.arrayUnion([senderId])
+    }, SetOptions(merge: true));
+
+    await friendController.fetchFollowing(senderId);
+    await friendController.fetchFollowing(recipientId);
+  }
 }
 
 // Message data model
@@ -307,6 +362,7 @@ class ChatScreenData {
   final String senderId;
   final Timestamp timestamp;
   final Map<String, dynamic>? shareRequest;
+  final Map<String, dynamic>? friendRequest;
   final String messageId;
 
   ChatScreenData({
@@ -315,6 +371,7 @@ class ChatScreenData {
     required this.senderId,
     required this.timestamp,
     this.shareRequest,
+    this.friendRequest,
     required this.messageId,
   });
 
@@ -326,6 +383,7 @@ class ChatScreenData {
       'timestamp': timestamp,
       'messageId': messageId,
       if (shareRequest != null) 'shareRequest': shareRequest,
+      if (friendRequest != null) 'friendRequest': friendRequest,
     };
   }
 
@@ -337,6 +395,7 @@ class ChatScreenData {
       senderId: data['senderId'] ?? '',
       timestamp: data['timestamp'] ?? Timestamp.now(),
       shareRequest: data['shareRequest'] as Map<String, dynamic>?,
+      friendRequest: data['friendRequest'] as Map<String, dynamic>?,
       messageId: messageId ?? '',
     );
   }

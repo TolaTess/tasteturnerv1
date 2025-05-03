@@ -496,7 +496,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         }
                       },
                       icon: const Icon(Icons.add, size: 19),
-                      label: const Text('Add to Today'),
+                      label: const Text('Add Meal'),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -632,7 +632,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                           userService.userId ?? '', widget.profileId, context);
                     } else {
                       friendController.followFriend(
-                          userService.userId ?? '', widget.profileId, context);
+                          userService.userId ?? '', widget.profileId, widget.mealUser?.displayName ?? '', context);
                     }
 
                     // ✅ Toggle UI immediately for better user experience
