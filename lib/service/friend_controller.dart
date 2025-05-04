@@ -30,10 +30,7 @@ class FriendController extends GetxController {
 
   Future<UserModel?> getFriendData(String friendId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(friendId)
-          .get();
+      final doc = await firestore.collection('users').doc(friendId).get();
 
       if (doc.exists) {
         final data = doc.data();
@@ -52,18 +49,15 @@ class FriendController extends GetxController {
     try {
       final docSnapshot =
           await firestore.collection('friends').doc(userId).get();
-      print(docSnapshot.data());
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         final following = data?['following'] as List<dynamic>? ?? [];
-        print(following);
 
         Map<String, UserModel> tempMap = {};
 
         for (var friendId in following) {
           final friendDoc =
               await firestore.collection('users').doc(friendId).get();
-          print(friendDoc.data());
 
           if (friendDoc.exists) {
             final friendData = friendDoc.data() as Map<String, dynamic>;

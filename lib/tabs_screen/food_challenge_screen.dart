@@ -146,6 +146,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                       const SizedBox(height: 10,),
                       const Text(
                         ingredientBattle,
                         style: TextStyle(
@@ -162,6 +163,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           color: kAccentLight,
                         ),
                       ),
+                       const SizedBox(height: 10,),
                     ],
                   ),
                   children: [

@@ -164,24 +164,22 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         await File(compressedPath).delete();
       }
 
+      final post = Post(
+        id: widget.isMainPost ? '' : widget.battleId,
+        userId: userService.userId ?? '',
+        mediaPaths: uploadedImageUrls,
+        name: userService.currentUser?.displayName ?? '',
+        category: widget.isMainPost ? selectedCategory : widget.battleCategory,
+      );
+
       if (widget.isMainPost) {
         // Move battle from ongoing to voted for the user
-        final post = Post(
-          id: '',
-          userId: userService.userId ?? '',
-          mediaPaths: uploadedImageUrls,
-          name: userService.currentUser?.displayName ?? '',
-          category: selectedCategory,
-        );
-
         await postController.uploadPost(
             post, userService.userId ?? '', uploadedImageUrls);
       } else {
         // Update battle with uploaded images
         await BattleService.instance.uploadBattleImages(
-          battleId: widget.battleId,
-          userId: userService.userId ?? '',
-          imageUrls: uploadedImageUrls,
+          post: post
         );
       }
 

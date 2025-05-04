@@ -581,7 +581,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   Future<void> _saveMealPlanToFirestore(String userId, String date,
       List<String> mealIds, Map<String, dynamic>? mealPlan) async {
-    final docRef = FirebaseFirestore.instance
+    final docRef = firestore
         .collection('mealPlans')
         .doc(userId)
         .collection('buddy')
@@ -639,7 +639,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
 // Update user preferences
   Future<void> _updateUserPreferences(String userId) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+    await firestore.collection('users').doc(userId).update({
       'preferences': {
         'diet': selectedDiet,
         'allergies': selectedAllergies.toList(),
@@ -653,7 +653,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   }
 
   Future<bool> _fetchUserPreferences(String userId) async {
-    final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
+    final docRef = firestore.collection('users').doc(userId);
     final doc = await docRef.get();
 
     if (doc.exists && doc.data()?['preferences'] != null) {

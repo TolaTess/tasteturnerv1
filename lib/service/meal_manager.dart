@@ -391,7 +391,7 @@ class MealManager extends GetxController {
         'isSpecial': false,
       };
 
-      await FirebaseFirestore.instance
+      await firestore
           .collection('mealPlans')
           .doc(userService.userId!)
           .collection('date')
@@ -405,7 +405,7 @@ class MealManager extends GetxController {
   Future<List<Map<String, dynamic>>> getMealPlansOrderedByDate() async {
     try {
       // Fetch meal plans ordered by date
-      final querySnapshot = await FirebaseFirestore.instance
+      final querySnapshot = await firestore
           .collection('mealPlans')
           .orderBy('date', descending: false) // Ascending order (oldest first)
           .get();
@@ -436,7 +436,7 @@ class MealManager extends GetxController {
   Future<List<Map<String, dynamic>>> getMealPlansByDate(DateTime date) async {
     try {
       // Fetch meal plans for the specific date
-      final querySnapshot = await FirebaseFirestore.instance
+      final querySnapshot = await firestore
           .collection('mealPlans')
           .where('date', isEqualTo: date.toIso8601String())
           .get();
@@ -467,7 +467,7 @@ class MealManager extends GetxController {
   Future<List<Map<String, dynamic>>> getMealPlansForWeek(
       DateTime startDate, DateTime endDate) async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
+      final querySnapshot = await firestore
           .collection('mealPlans')
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThanOrEqualTo: endDate.toIso8601String())

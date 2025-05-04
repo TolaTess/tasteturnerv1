@@ -452,17 +452,12 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                                   // Quantity Picker
                                   SizedBox(
                                     width: 80,
-                                    child: buildPicker(
-                                      context,
-                                      21,
-                                      ingredientQuantities[index],
-                                      (val) {
-                                        setState(() {
-                                          ingredientQuantities[index] = val;
-                                        });
-                                      },
-                                      true
-                                    ),
+                                    child: buildPicker(context, 21,
+                                        ingredientQuantities[index], (val) {
+                                      setState(() {
+                                        ingredientQuantities[index] = val;
+                                      });
+                                    }, true),
                                   ),
                                   const SizedBox(width: 10),
                                   // Unit Picker

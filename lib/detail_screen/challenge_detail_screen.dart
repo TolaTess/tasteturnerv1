@@ -59,7 +59,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       friendController.unfollowFriend(userService.userId ?? '',
           widget.dataSrc['userId'] ?? extractedItems.first, context);
     } else {
-      friendController.followFriend(userService.userId ?? '',
+      friendController.followFriend(
+          userService.userId ?? '',
           widget.dataSrc['userId'] ?? extractedItems.first,
           widget.dataSrc['name'] ?? '',
           context);
@@ -76,18 +77,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     var postRef =
         firestore.collection(collectionName).doc(widget.dataSrc['id']);
     var postSnapshot = await postRef.get();
-
-    // If not found in posts, try battle_posts collection
-    if (!postSnapshot.exists) {
-      collectionName = 'battle_post';
-      postRef = firestore.collection(collectionName).doc(widget.dataSrc['id']);
-      postSnapshot = await postRef.get();
-
-      if (!postSnapshot.exists) {
-        print('Document not found in either posts or battle_posts');
-        return;
-      }
-    }
 
     // Get current favorites from Firestore to ensure we have the latest data
     final currentData = postSnapshot.data() ?? {};
@@ -334,9 +323,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: SearchContentGrid(
                   postId: widget.dataSrc['id'] ?? extractedItems.first,
-                  listType: widget.screen == 'group_cha'
-                      ? 'group_cha'
-                      : 'battle_post',
+                  listType: 'battle_post',
                 ),
               ),
 

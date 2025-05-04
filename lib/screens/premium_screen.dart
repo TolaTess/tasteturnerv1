@@ -34,17 +34,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
       }
 
       // Get the user's premium status
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
+      final userDoc = await firestore.collection('users').doc(userId).get();
       final userData = userDoc.data();
       isUserPremium = userData?['isPremium'] ?? false;
       userPlan = userData?['premiumPlan'] ?? '';
 
       // Get the premium plan
-      final planDoc =
-          await FirebaseFirestore.instance.collection('plans').get();
+      final planDoc = await firestore.collection('plans').get();
       if (planDoc.docs.isNotEmpty) {
         premiumPlan = planDoc.docs[0].data();
       }
@@ -325,7 +321,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height:isUserPremium ? 10 : 40),
+                    SizedBox(height: isUserPremium ? 10 : 40),
 
                     // Premium Features
                     Padding(
@@ -334,9 +330,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isUserPremium
-                                ? ''
-                                : 'Premium Benefits',
+                            isUserPremium ? '' : 'Premium Benefits',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

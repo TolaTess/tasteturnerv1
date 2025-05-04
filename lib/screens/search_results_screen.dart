@@ -6,7 +6,6 @@ import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../service/meal_api_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SearchResultGrid extends StatefulWidget {
   final bool enableSelection;
@@ -73,37 +72,55 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
     try {
       if (widget.search.isNotEmpty) {
-        // Search Firestore for all meals matching the search, ordered by createdAt desc
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('meals')
-            .orderBy('createdAt', descending: true)
-            .get();
+        // Special case: show only user's meals if search == 'myMeals'
+        if (widget.search == 'myMeals') {
+          final userId = userService.userId;
+          final querySnapshot = await firestore
+              .collection('meals')
+              .where('userId', isEqualTo: userId)
+              .orderBy('createdAt', descending: true)
+              .get();
 
-        final allMeals = querySnapshot.docs
-            .map((doc) => Meal.fromJson(doc.id, doc.data()))
-            .toList();
-
-        List<Meal> filteredMeals = [];
-        if (widget.screen == 'ingredient') {
-          filteredMeals = allMeals
-              .where((meal) => (meal.ingredients).keys.any((ingredient) =>
-                  ingredient
-                      .toLowerCase()
-                      .contains(widget.search.toLowerCase())))
+          final myMeals = querySnapshot.docs
+              .map((doc) => Meal.fromJson(doc.id, doc.data()))
               .toList();
+          _apiMeals.addAll(myMeals);
+          _hasMore.value = false;
+          _localMealsDisplayed.value = myMeals.length;
         } else {
-          filteredMeals = allMeals
-              .where((meal) => (meal.categories).any((category) =>
-                  category.toLowerCase().contains(widget.search.toLowerCase())))
+          // Search Firestore for all meals matching the search, ordered by createdAt desc
+          final querySnapshot = await firestore
+              .collection('meals')
+              .orderBy('createdAt', descending: true)
+              .get();
+
+          final allMeals = querySnapshot.docs
+              .map((doc) => Meal.fromJson(doc.id, doc.data()))
               .toList();
+
+          List<Meal> filteredMeals = [];
+          if (widget.screen == 'ingredient') {
+            filteredMeals = allMeals
+                .where((meal) => (meal.ingredients).keys.any((ingredient) =>
+                    ingredient
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase())))
+                .toList();
+          } else {
+            filteredMeals = allMeals
+                .where((meal) => (meal.categories).any((category) => category
+                    .toLowerCase()
+                    .contains(widget.search.toLowerCase())))
+                .toList();
+          }
+
+          // Show only the most recent meals first
+          filteredMeals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          _apiMeals.addAll(filteredMeals);
+          _hasMore.value = false;
+          _localMealsDisplayed.value = filteredMeals.length;
         }
-
-        // Show only the most recent meals first
-        filteredMeals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-        _apiMeals.addAll(filteredMeals);
-        _hasMore.value = false;
-        _localMealsDisplayed.value = filteredMeals.length;
       } else {
         _apiMeals.clear();
         _hasMore.value = mealManager.meals.length > _localPageSize;

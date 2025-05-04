@@ -96,10 +96,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final following = userService.currentUser?.following as List<dynamic>?;
     if (following == null) return;
     for (final friendId in following) {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(friendId)
-          .get();
+      final doc = await firestore.collection('users').doc(friendId).get();
       if (doc.exists) {
         final data = doc.data();
         final dob = data?['dob'] as String?; // MM-dd
@@ -183,14 +180,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       var userMealPlansQuery;
       if (showSharedCalendars && selectedSharedCalendarId != null) {
         isPersonalCalendar = false;
-        userMealPlansQuery = await FirebaseFirestore.instance
+        userMealPlansQuery = await firestore
             .collection('shared_calendars')
             .doc(selectedSharedCalendarId!)
             .collection('date')
             .get();
       } else {
         isPersonalCalendar = true;
-        userMealPlansQuery = await FirebaseFirestore.instance
+        userMealPlansQuery = await firestore
             .collection('mealPlans')
             .doc(userId)
             .collection('date')

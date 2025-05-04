@@ -61,44 +61,16 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                   data['id'] = doc.id;
                   return data;
                 }).toList());
-      } else if (widget.listType == "group_cha") {
-        snapshot = await firestore
-            .collection('group_cha')
-            .get()
-            .then((value) => value.docs.map((doc) {
-                  final data = doc.data();
-                  data['id'] = doc.id;
-                  return data;
-                }).toList());
-      } else if (widget.listType == "battle_post") {
+      } else if (widget.listType == "post" ||
+          widget.listType == 'battle_post') {
         // Fetch both posts and battle posts
-        snapshot = await firestore
-            .collection('battle_post')
-            .get()
-            .then((value) => value.docs.map((doc) {
-                  final data = doc.data();
-                  data['id'] = doc.id;
-                  return data;
-                }).toList());
-        final battlePostSnapshot =
-            await firestore.collection('battle_post').get();
         final postSnapshot = await firestore.collection('posts').get();
 
-        // Convert posts to maps
-        final postMaps = postSnapshot.docs.map((doc) {
+        snapshot = postSnapshot.docs.map((doc) {
           final data = doc.data();
           data['id'] = doc.id;
           return data;
         }).toList();
-
-        // Convert battle posts to maps and combine with posts
-        final battlePostMaps = battlePostSnapshot.docs.map((doc) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          return data;
-        }).toList();
-
-        snapshot = [...postMaps, ...battlePostMaps];
       } else {
         setState(() {
           searchContentDatas = [];
@@ -121,9 +93,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
           continue;
         }
 
-        // For battle posts, only show posts that match the selected category
-        if (widget.listType == "battle_post" &&
-            postCategory?.toLowerCase() ==
+        if (postCategory?.toLowerCase() ==
                 widget.selectedCategory.toLowerCase() &&
             postId != null &&
             postId.isNotEmpty) {

@@ -85,10 +85,8 @@ class FirebaseService extends GetxController {
 
   Future<void> fetchGeneralData() async {
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('general')
-          .doc('data')
-          .get();
+      final docSnapshot =
+          await firestore.collection('general').doc('data').get();
 
       if (docSnapshot.exists) {
         generalData.value = docSnapshot.data() ?? {};

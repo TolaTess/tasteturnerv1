@@ -24,7 +24,6 @@ class VoteScreen extends StatefulWidget {
 }
 
 class _VoteScreenState extends State<VoteScreen> {
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
   List<Map<String, dynamic>> candidates = [];
   int? selectedIndex;
   late String currentCategory;

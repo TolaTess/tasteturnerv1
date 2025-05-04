@@ -9,7 +9,6 @@ import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/circle_image.dart';
-import '../widgets/bottom_model.dart';
 import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
@@ -28,6 +27,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   List<MacroData> availableLabelsList = [];
   final Set<String> headerSet = {};
   List<Meal> mealList = [];
+  List<Meal> myMealList = [];
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   final GlobalKey _addSpinButtonKey = GlobalKey();
@@ -37,8 +37,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
     super.initState();
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
+    myMealList = mealList
+        .where((meal) => meal.userId == userService.userId)
+        .toList();
     // Show Tasty popup after a short delay
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddSpinTutorial();
     });
@@ -190,6 +192,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                   itemBuilder: (BuildContext ctx, index) {
                     return MealsCard(
                       dataSrc: demoMealsData[index],
+                      isMyMeal: myMealList.length >= 1,
                     );
                   },
                 ),
@@ -320,9 +323,11 @@ class MealsCard extends StatelessWidget {
   const MealsCard({
     super.key,
     required this.dataSrc,
+    required this.isMyMeal,
   });
 
   final MealsData dataSrc;
+  final bool isMyMeal;
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +339,10 @@ class MealsCard extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => RecipeListCategory(
               index: 1,
-              searchIngredient: dataSrc.title,
+              searchIngredient:
+                  isMyMeal && dataSrc.title.toLowerCase() == "breakfast"
+                      ? 'myMeals'
+                      : dataSrc.title,
               isFilter: true,
               screen: 'categories',
             ),
@@ -367,7 +375,9 @@ class MealsCard extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => RecipeListCategory(
                       index: 1,
-                      searchIngredient: dataSrc.title,
+                      searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
+                          ? "myMeals"
+                          : dataSrc.title,
                       isFilter: true,
                       screen: 'categories',
                     ),
@@ -375,7 +385,9 @@ class MealsCard extends StatelessWidget {
                 );
               },
               child: Text(
-                dataSrc.title,
+                isMyMeal && dataSrc.title == "Breakfast"
+                    ? "My Meals"
+                    : dataSrc.title,
                 style: const TextStyle(
                   color: kWhite,
                   fontWeight: FontWeight.w600,
@@ -393,7 +405,9 @@ class MealsCard extends StatelessWidget {
             ),
             // Subtitle
             Text(
-              dataSrc.subtitle,
+              isMyMeal && dataSrc.title == "Breakfast"
+                  ? "View your meals"
+                  : dataSrc.subtitle,
               style: const TextStyle(
                 color: kWhite,
                 shadows: [

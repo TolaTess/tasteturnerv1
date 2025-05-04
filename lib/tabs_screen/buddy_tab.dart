@@ -44,7 +44,7 @@ class _BuddyTabState extends State<BuddyTab> {
     final lowerBound = dateFormat.format(thirtyDaysAgo);
     final upperBound = dateFormat.format(now);
 
-    _buddyDataFuture = FirebaseFirestore.instance
+    _buddyDataFuture = firestore
         .collection('mealPlans')
         .doc(userService.userId)
         .collection('buddy')
@@ -123,7 +123,7 @@ class _BuddyTabState extends State<BuddyTab> {
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
 
-      final generations = await FirebaseFirestore.instance
+      final generations = await firestore
           .collection('mealPlans')
           .doc(userService.userId)
           .collection('buddy')
@@ -355,7 +355,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                       onPressed: () => _checkAndNavigateToGenerate(context),
                       child: Text(
-                        'Generate New Plan',  
+                        'Generate New Plan',
                         style: TextStyle(color: isDarkMode ? kWhite : kBlack),
                       ),
                     ),

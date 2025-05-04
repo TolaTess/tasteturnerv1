@@ -481,42 +481,6 @@ class NutritionController extends GetxController {
     dailyValueNotifier.value = safeProgressValue;
   }
 
-  Future<List<Map<String, dynamic>>> getMyChallenges(String userid) async {
-    try {
-      final QuerySnapshot snapshot = await firestore
-          .collection('group_cha')
-          .where('members', arrayContains: userid)
-          .get();
-
-      final now = DateTime.now();
-
-      return snapshot.docs
-          .map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-
-            // ✅ Safely parse `endDate` from Firestore
-            final String? endDateString = data['endDate'];
-            final DateTime? endDate =
-                endDateString != null ? DateTime.tryParse(endDateString) : null;
-
-            // ✅ Only return if `endDate` is not expired or null
-            if (endDate == null || endDate.isAfter(now)) {
-              return {
-                'id': doc.id,
-                ...data,
-              };
-            }
-
-            return null; // Exclude expired challenge
-          })
-          .whereType<Map<String, dynamic>>()
-          .toList();
-    } catch (e) {
-      print("Error fetching challenges: $e");
-      return [];
-    }
-  }
-
   Future<void> fetchMealsForToday(String userId, DateTime mDate) async {
     try {
       final dateId = DateFormat('yyyy-MM-dd').format(mDate);
@@ -575,7 +539,7 @@ class NutritionController extends GetxController {
 
       final dateId = DateFormat('yyyy-MM-dd').format(today);
 
-      final mealRef = FirebaseFirestore.instance
+      final mealRef = firestore
           .collection('userMeals')
           .doc(userId)
           .collection('meals')
@@ -618,7 +582,7 @@ class NutritionController extends GetxController {
         );
       }
 
-      final mealRef = FirebaseFirestore.instance
+      final mealRef = firestore
           .collection('userMeals')
           .doc(userId)
           .collection('meals')

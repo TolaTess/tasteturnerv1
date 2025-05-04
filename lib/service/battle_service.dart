@@ -4,6 +4,8 @@ import '../constants.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import '../data_models/post_model.dart';
+
 class BattleService extends GetxController {
   static final BattleService instance = Get.put(BattleService());
 
@@ -328,12 +330,10 @@ class BattleService extends GetxController {
 
   // Upload battle images and update battle status
   Future<void> uploadBattleImages({
-    required String battleId,
-    required String userId,
-    required List<String> imageUrls,
+    required Post post,
   }) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
+      final battleDoc = await battlesRef.doc(post.id).get();
       if (!battleDoc.exists) throw Exception('Battle not found');
       final data = battleDoc.data() as Map<String, dynamic>;
 
@@ -342,22 +342,19 @@ class BattleService extends GetxController {
 
       final firstDateKey = data['dates'].keys.first;
       // Update participant's media in the battle
-      await battlesRef.doc(battleId).update(
-          {'dates.$firstDateKey.participants.$userId.mediaPaths': imageUrls});
+      await battlesRef.doc(post.id).update({
+        'dates.$firstDateKey.participants.${post.userId}.mediaPaths':
+            post.mediaPaths
+      });
 
       // Move battle from ongoing to voted for the user
-      await firestore.collection('userBattles').doc(userId).update({
-        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId]),
-        'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId])
+      await firestore.collection('userBattles').doc(post.userId).update({
+        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([post.id]),
+        'dates.$firstDateKey.uploaded': FieldValue.arrayUnion([post.id])
       });
 
       // Create or update battle post
-      await firestore.collection('battle_post').doc(battleId).set({
-        'mediaPaths': imageUrls,
-        'category': data['category'],
-        'name': currentBattle['participants'][userId]['name'] ?? 'Unknown',
-        'favorites': [],
-      }, SetOptions(merge: true));
+      await postController.uploadPost(post, post.userId, post.mediaPaths);
     } catch (e) {
       print('Error uploading battle images: $e');
       throw Exception('Failed to upload battle images');

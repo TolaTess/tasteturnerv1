@@ -11,6 +11,7 @@ import '../widgets/follow_button.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../data_models/user_meal.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({super.key, required this.mealData});
@@ -22,9 +23,12 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  late Meal _meal;
+
   @override
   void initState() {
     super.initState();
+    _meal = widget.mealData;
     friendController.updateUserData(widget.mealData.userId);
   }
 
@@ -39,43 +43,70 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             slivers: [
               // Custom app bar > recipe image, back button, more action button, and drawer
               SlvAppBar(
-                meal: widget.mealData,
+                meal: _meal,
               ),
 
               // Recipe title, time to cook, serves, rating, and recipe description
               RecipeTittle(
-                meal: widget.mealData,
+                meal: _meal,
+                onEdit: () async {
+                  final updatedMeal = await Navigator.push<Meal>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CreateRecipeScreen(
+                        screenType: 'edit',
+                        meal: _meal,
+                      ),
+                    ),
+                  );
+                  if (updatedMeal != null) {
+                    setState(() {
+                      _meal = updatedMeal;
+                    });
+                  } else {
+                    // Refetch from Firestore in case of update
+                    final doc = await firestore
+                        .collection('meals')
+                        .doc(_meal.mealId)
+                        .get();
+                    if (doc.exists) {
+                      setState(() {
+                        _meal = Meal.fromJson(doc.id, doc.data()!);
+                      });
+                    }
+                  }
+                },
               ),
 
               // Chef profile: avatar, name, location, and follow button
               RecipeProfile(
-                profileId: widget.mealData.userId,
+                profileId: _meal.userId,
                 mealUser: mealUser,
               ),
 
               // Nutrition facts (sliver) grid view
               NutritionFacts(
-                meal: widget.mealData,
+                meal: _meal,
               ),
 
               // Ingredients title
               IngredientsTittle(
-                meal: widget.mealData,
+                meal: _meal,
               ),
 
               // Ingredients details
               IngredientsDetail(
-                meal: widget.mealData,
+                meal: _meal,
               ),
 
               // Directions title
               DirectionsTittle(
-                meal: widget.mealData,
+                meal: _meal,
               ),
 
               // Directions detail
               DirectionsDetail(
-                meal: widget.mealData,
+                meal: _meal,
               ),
             ],
           ),
@@ -374,9 +405,11 @@ class RecipeTittle extends StatefulWidget {
   const RecipeTittle({
     super.key,
     required this.meal,
+    required this.onEdit,
   });
 
   final Meal meal;
+  final Function() onEdit;
 
   @override
   State<RecipeTittle> createState() => _RecipeTittleState();
@@ -440,6 +473,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                     const SizedBox(width: 20),
                     Text(
                       " $serves: ${widget.meal.serveQty}",
+                      style: const TextStyle(fontSize: 15),
                     ),
                     const SizedBox(width: 20),
                     GestureDetector(
@@ -502,6 +536,60 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
                     ),
+                    // Edit button if user is the owner
+                    if (userService.userId == widget.meal.userId) ...[
+                      TextButton.icon(
+                        onPressed: widget.onEdit,
+                        icon: const Icon(Icons.edit, size: 19),
+                        label: const Text('Edit Meal'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: kAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: kRed),
+                        tooltip: 'Delete Meal',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Meal'),
+                              content: const Text(
+                                  'Are you sure you want to delete this meal? This action cannot be undone.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Delete',
+                                      style: TextStyle(color: kRed)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await mealManager.removeMeal(widget.meal.mealId);
+                              if (context.mounted) {
+                                showTastySnackbar('Deleted',
+                                    'Meal deleted successfully.', context);
+                                Navigator.pop(context);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                showTastySnackbar('Error',
+                                    'Failed to delete meal: $e', context,
+                                    backgroundColor: kRed);
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(
@@ -632,7 +720,10 @@ class _RecipeProfileState extends State<RecipeProfile> {
                           userService.userId ?? '', widget.profileId, context);
                     } else {
                       friendController.followFriend(
-                          userService.userId ?? '', widget.profileId, widget.mealUser?.displayName ?? '', context);
+                          userService.userId ?? '',
+                          widget.profileId,
+                          widget.mealUser?.displayName ?? '',
+                          context);
                     }
 
                     // ✅ Toggle UI immediately for better user experience
@@ -858,7 +949,7 @@ class DirectionsTittle extends StatelessWidget {
                     fontSize: 18,
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
-            Text("${meal.steps.length} $grams")
+            Text("${meal.steps.length} steps")
           ],
         ),
       ),

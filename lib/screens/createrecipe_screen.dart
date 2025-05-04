@@ -7,10 +7,8 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
-import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
-import '../tabs_screen/spin_tab_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
@@ -19,7 +17,8 @@ import 'recipes_list_category_screen.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
   final String screenType;
-  const CreateRecipeScreen({super.key, this.screenType = recipes});
+  final Meal? meal;
+  const CreateRecipeScreen({super.key, this.screenType = recipes, this.meal});
 
   @override
   State<CreateRecipeScreen> createState() => _CreateRecipeScreenState();
@@ -42,11 +41,36 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
   bool isUploading = false;
+  final List<int> ingredientQuantities = [];
+  final List<int> ingredientUnits = [];
+
+  int selectedNumber = 0;
+  int selectedUnit = 0;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    // If editing, prefill fields
+    if (widget.meal != null) {
+      final meal = widget.meal!;
+      titleController.text = meal.title;
+      serveQtyController.text = meal.serveQty.toString();
+      caloriesController.text = meal.calories.toString();
+      categoryController.text = meal.categories.join(', ');
+      stepsController.text = meal.steps.join('\n');
+      mediaPaths.addAll(meal.mediaPaths);
+      // Prefill ingredients
+      ingredientsList.clear();
+      ingredientQuantities.clear();
+      ingredientUnits.clear();
+      meal.ingredients.forEach((name, qty) {
+        ingredientsList.add({"name": name, "quantity": qty});
+        ingredientQuantities
+            .add(0); // Default to 0, or parse from qty if needed
+        ingredientUnits.add(0); // Default to 0, or parse from qty if needed
+      });
+    }
   }
 
   @override
@@ -72,6 +96,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   void _addIngredient() {
     setState(() {
       ingredientsList.add({"name": "", "quantity": ""});
+      ingredientQuantities.add(0);
+      ingredientUnits.add(0);
     });
   }
 
@@ -79,11 +105,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   void _removeIngredient(int index) {
     setState(() {
       ingredientsList.removeAt(index);
+      ingredientQuantities.removeAt(index);
+      ingredientUnits.removeAt(index);
     });
   }
 
   Future<void> _uploadMeal() async {
-    if (_selectedImages.isEmpty) {
+    final bool isEditing = widget.meal != null;
+    if (_selectedImages.isEmpty && !isEditing) {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
@@ -97,31 +126,40 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     setState(() => isUploading = true);
 
     try {
-      String mealId = firestore.collection('meals').doc().id;
+      // Use existing mealId if editing, otherwise create new
+
+      String mealId = isEditing
+          ? widget.meal!.mealId
+          : firestore.collection('meals').doc().id;
       final List<String> uploadedImageUrls = [];
 
-      for (final image in _selectedImages) {
-        String filePath =
-            'meals/$mealId/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      // If editing and no new images are selected, use existing images
+      if (isEditing && _selectedImages.isEmpty) {
+        uploadedImageUrls.addAll(widget.meal!.mediaPaths);
+      } else {
+        for (final image in _selectedImages) {
+          String filePath =
+              'meals/$mealId/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-        TaskSnapshot uploadTask =
-            await firebaseStorage.ref(filePath).putFile(File(image.path));
-        String downloadUrl = await uploadTask.ref.getDownloadURL();
+          TaskSnapshot uploadTask =
+              await firebaseStorage.ref(filePath).putFile(File(image.path));
+          String downloadUrl = await uploadTask.ref.getDownloadURL();
 
-        uploadedImageUrls.add(downloadUrl);
+          uploadedImageUrls.add(downloadUrl);
+        }
       }
 
       Map<String, String> mIngredients = {
-        for (var ingredient in ingredientsList)
-          if (ingredient["name"] != null && ingredient["quantity"] != null)
-            ingredient["name"]!.trim(): ingredient["quantity"]!.trim(),
+        for (int i = 0; i < ingredientsList.length; i++)
+          if (ingredientsList[i]["name"] != null)
+            ingredientsList[i]["name"]!.trim():
+                "${ingredientQuantities[i]} ${unitOptions[ingredientUnits[i]]}",
       };
 
-      /// ✅ Create `UserMeal` object
       Meal newMeal = Meal(
         userId: userService.userId ?? '',
         title: titleController.text.trim(),
-        createdAt: DateTime.now(),
+        createdAt: isEditing ? widget.meal!.createdAt : DateTime.now(),
         mediaPaths: uploadedImageUrls,
         serveQty: int.tryParse(serveQtyController.text) ?? 1,
         calories: int.tryParse(caloriesController.text) ?? 0,
@@ -133,13 +171,15 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         mealId: mealId,
       );
 
-      /// ✅ Save meal to Firestore
+      // Save or update meal in Firestore
       await firestore.collection('meals').doc(mealId).set(newMeal.toJson());
 
       if (mounted) {
         showTastySnackbar(
           'Success',
-          'Meal uploaded successfully!',
+          isEditing
+              ? 'Meal updated successfully!'
+              : 'Meal uploaded successfully!',
           context,
         );
       }
@@ -432,14 +472,31 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  Expanded(
-                                    child: TextFormField(
-                                      decoration: const InputDecoration(
-                                          labelText: "Quantity"),
-                                      onChanged: (value) {
-                                        ingredientsList[index]["quantity"] =
-                                            value;
+                                  // Quantity Picker
+                                  SizedBox(
+                                    width: 80,
+                                    child: buildPicker(context, 21,
+                                        ingredientQuantities[index], (val) {
+                                      setState(() {
+                                        ingredientQuantities[index] = val;
+                                      });
+                                    }, true),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  // Unit Picker
+                                  SizedBox(
+                                    width: 80,
+                                    child: buildPicker(
+                                      context,
+                                      unitOptions.length,
+                                      ingredientUnits[index],
+                                      (val) {
+                                        setState(() {
+                                          ingredientUnits[index] = val;
+                                        });
                                       },
+                                      true,
+                                      unitOptions,
                                     ),
                                   ),
                                   IconButton(

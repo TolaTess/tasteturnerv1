@@ -105,23 +105,18 @@ class AuthController extends GetxController {
       if (doc.exists) {
         final userDataMap = doc.data()!;
 
-        // Fetch followers
-        final followersSnapshot = await firestore
-            .collection('users')
-            .doc(userId)
-            .collection('followers')
-            .get();
-
-        final followers = followersSnapshot.docs.map((doc) => doc.id).toList();
-
         // Fetch following
-        final followingSnapshot = await firestore
-            .collection('users')
-            .doc(userId)
-            .collection('following')
-            .get();
+        List<String> following = [];
+        final followingSnapshot =
+            await firestore.collection('friends').doc(userId).get();
 
-        final following = followingSnapshot.docs.map((doc) => doc.id).toList();
+        if (followingSnapshot.exists) {
+          final data = followingSnapshot.data()!;
+
+          // Get following array and convert to List<String>
+          final followingData = data['following'] as List<dynamic>? ?? [];
+          following = followingData.map((id) => id.toString()).toList();
+        }
 
         // Create user model with all data
         final user = UserModel(
@@ -129,6 +124,7 @@ class AuthController extends GetxController {
           displayName: userDataMap['displayName']?.toString() ?? '',
           profileImage: userDataMap['profileImage']?.toString() ?? '',
           bio: userDataMap['bio']?.toString() ?? getRandomBio(bios),
+          dob: userDataMap['dob']?.toString() ?? '',
           settings: userDataMap['settings'] != null
               ? Map<String, String>.from(
                   (userDataMap['settings'] as Map).map(

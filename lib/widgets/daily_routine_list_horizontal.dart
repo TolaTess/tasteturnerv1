@@ -68,7 +68,7 @@ class _DailyRoutineListHorizontalState
       }
 
       // Get yesterday's completion data
-      final yesterdayDoc = await FirebaseFirestore.instance
+      final yesterdayDoc = await firestore
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
@@ -107,7 +107,7 @@ class _DailyRoutineListHorizontalState
         setState(() => _badgeAwarded = true);
 
         // Save badge to Firestore
-        await FirebaseFirestore.instance
+        await firestore
             .collection('userMeals')
             .doc(widget.userId)
             .collection('badges')
@@ -161,7 +161,7 @@ class _DailyRoutineListHorizontalState
 
     // Update completion status in Firestore if percentage is >= 80%
     if (completionPercentage >= 80) {
-      await FirebaseFirestore.instance
+      await firestore
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
@@ -175,7 +175,7 @@ class _DailyRoutineListHorizontalState
 
   Future<Map<String, bool>> _loadCompletionStatus() async {
     try {
-      final doc = await FirebaseFirestore.instance
+      final doc = await firestore
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')
@@ -201,7 +201,7 @@ class _DailyRoutineListHorizontalState
     }
 
     try {
-      final docRef = FirebaseFirestore.instance
+      final docRef = firestore
           .collection('userMeals')
           .doc(widget.userId)
           .collection('routine_completed')

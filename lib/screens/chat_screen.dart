@@ -87,10 +87,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _shareImage(String imageUrl) {
     String message = '';
-    if (widget.screen == 'group_cha') {
-      message =
-          'Shared from ${capitalizeFirstLetter(widget.dataSrc?['title'])} Challenge /${widget.dataSrc?['id']} /${widget.dataSrc?['title']} /${widget.screen}';
-    } else if (widget.screen == 'battle_post') {
+    if (widget.screen == 'battle_post') {
       message =
           'Shared from ${capitalizeFirstLetter(widget.dataSrc?['name'])} for ${capitalizeFirstLetter(widget.dataSrc?['category'])} Battle /${widget.dataSrc?['id']} /${widget.dataSrc?['name']} /${widget.screen}';
     } else {
