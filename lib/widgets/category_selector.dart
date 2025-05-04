@@ -45,7 +45,9 @@ class CategorySelector extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  category['name'],
+                  category['name'].toLowerCase() == 'all'
+                      ? 'General'
+                      : category['name'],
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                   ),

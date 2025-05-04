@@ -289,8 +289,13 @@ class _DailyRoutineListHorizontalState
                           constraints: const BoxConstraints(),
                           iconSize: 20,
                           color: kAccent,
-                          onPressed: () {
-                            Get.to(() => const NutritionSettingsPage());
+                          onPressed: () async {
+                            await Get.to(() => const NutritionSettingsPage(
+                                  isRoutineExpand: true,
+                                ));
+                            setState(() {
+                              _routineItems = _loadRoutineItems();
+                            });
                           },
                           icon: const Icon(Icons.edit),
                         ),

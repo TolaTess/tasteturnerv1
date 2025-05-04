@@ -3,14 +3,12 @@ import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../screens/premium_screen.dart';
 import '../widgets/avatar_upload.dart';
 import '../widgets/profile_form.dart';
 
@@ -75,6 +73,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final user = userService.currentUser;
     final nameController = TextEditingController(text: user?.displayName);
     final bioController = TextEditingController(text: user?.bio);
+    final dobController = TextEditingController(text: user?.dob);
 
     return Scaffold(
       appBar: AppBar(
@@ -154,44 +153,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                   const SizedBox(height: 20),
 
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
-                      backgroundColor: user?.isPremium == true ? kGreen : kBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                    onPressed: () {
-                      if (user?.isPremium == true) {
-                        // Do nothing if already premium
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PremiumScreen(),
-                          ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      user?.isPremium == true
-                          ? "Premium Access"
-                          : "Upgrade to Premium",
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
                   // Edit Profile Form
                   EditProfileForm(
                     nameController: nameController,
                     bioController: bioController,
+                    dobController: dobController,
                     press: () {
                       final updatedUser = {
                         'displayName': nameController.text,
                         'bio': bioController.text,
+                        'dob': dobController.text
                       };
                       authController.updateUserData(updatedUser);
 

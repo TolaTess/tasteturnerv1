@@ -305,10 +305,15 @@ ThemeProvider getThemeProvider(BuildContext context) {
 }
 
 // Unit options
-List<String> unitOptions = ['servings', 'cup', 'grams'];
+List<String> unitOptions = [
+  'g',
+  'ml',
+  'cup',
+  'servings',
+];
 
 Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
-    Function(int) onChanged,
+    Function(int) onChanged, bool isColorChange,
     [List<String>? labels]) {
   final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -318,9 +323,18 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
     onSelectedItemChanged: onChanged,
     children: List.generate(
       itemCount,
-      (index) => Text(
-        labels != null ? labels[index] : index.toString(),
-        style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+      (index) => Center(
+        child: Text(
+          textAlign: TextAlign.center,
+          labels != null ? labels[index] : index.toString(),
+          style: TextStyle(
+              color: isDarkMode
+                  ? isColorChange
+                      ? kBlack
+                      : kWhite
+                  : kBlack,
+              fontSize: 16),
+        ),
       ),
     ),
   );
@@ -690,6 +704,21 @@ bool isDateTodayAfterTime(DateTime date, {int hour = 22}) {
 
   // If we get here, the date is today, so check if before 22:00
   return now.hour < hour;
+}
+
+bool isDateToday(DateTime date) {
+  final now = DateTime.now();
+
+  // Create dates without time for proper comparison
+  final todayDate = DateTime(now.year, now.month, now.day);
+  final inputDate = DateTime(date.year, date.month, date.day);
+
+  // If the date is in the past or future, return false
+  if (inputDate.isBefore(todayDate) || inputDate.isAfter(todayDate)) {
+    return false;
+  }
+
+  return true;
 }
 
 ImageProvider getImageProvider(String? imageUrl) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasteturner/widgets/icon_widget.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -10,10 +11,12 @@ import '../service/battle_service.dart';
 
 class VoteScreen extends StatefulWidget {
   final bool isDarkMode;
+  final String category;
 
   const VoteScreen({
     super.key,
     required this.isDarkMode,
+    required this.category,
   });
 
   @override
@@ -24,20 +27,21 @@ class _VoteScreenState extends State<VoteScreen> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   List<Map<String, dynamic>> candidates = [];
   int? selectedIndex;
-  String selectedCategory = 'all';
+  late String currentCategory;
   String selectedCategoryId = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchCandidates(selectedCategory);
+    currentCategory = widget.category;
+    _fetchCandidates(currentCategory);
   }
 
   void _updateCategoryData(String categoryId, String category) {
     if (mounted) {
       setState(() {
         selectedCategoryId = categoryId;
-        selectedCategory = category;
+        currentCategory = category;
         _fetchCandidates(category);
       });
     }
@@ -262,6 +266,23 @@ class _VoteScreenState extends State<VoteScreen> {
         .isAfter(DateTime.parse(firebaseService.generalData['currentBattle']));
 
     return Scaffold(
+      appBar: AppBar(
+        leading: InkWell(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          child: const IconCircleButton(),
+        ),
+        title: Text(
+          currentCategory.toLowerCase() == 'all'
+              ? 'Vote: General Battle'
+              : 'Vote: ${capitalizeFirstLetter(currentCategory)}',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -296,6 +317,31 @@ class _VoteScreenState extends State<VoteScreen> {
                 ),
               ] else ...[
                 const SizedBox(height: 25),
+                const Column(
+                  children: [
+                    Text(
+                      'Vote for your favorite dish!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        color: kAccentLight,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        'Simply tap on the dish you like the most. \nRemember, presentation is key!',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 if (candidates.length >= 2)
                   Row(
                     children: [

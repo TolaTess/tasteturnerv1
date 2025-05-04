@@ -135,9 +135,11 @@ class _SearchContentGridState extends State<SearchContentGrid> {
         fetchedData.removeWhere((item) => item['id'] == widget.postId);
       }
 
-      setState(() {
-        searchContentDatas = fetchedData;
-      });
+      if (mounted) {
+        setState(() {
+          searchContentDatas = fetchedData;
+        });
+      }
     } catch (e) {
       print('Error fetching content: $e');
     }

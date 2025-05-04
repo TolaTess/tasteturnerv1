@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   String? userId = '';
   String? displayName;
-  String? bio, dob;
+  String? bio;
+  String? dob;
   String? profileImage;
   List<String> following;
 
@@ -18,7 +19,7 @@ class UserModel {
     this.userId,
     required this.displayName,
     this.bio = 'Today will be Epic!',
-    this.dob = 'dob no given',
+    this.dob = '',
     required this.profileImage,
     this.following = const [],
     this.settings = const {},
@@ -51,6 +52,7 @@ class UserModel {
       userId: snapshot.id,
       displayName: data['displayName']?.toString() ?? '',
       bio: data['bio']?.toString() ?? 'Today will be Epic!',
+      dob: data['dob']?.toString() ?? '',
       profileImage: data['profileImage']?.toString() ?? '',
       following: List<String>.from(data['following'] ?? []),
       settings: settings,
@@ -65,6 +67,7 @@ class UserModel {
     return {
       'displayName': displayName,
       'bio': bio,
+      'dob': dob,
       'profileImage': profileImage,
       'following': following,
       'settings': settings,
@@ -109,6 +112,7 @@ class UserModel {
     return UserModel(
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
+      dob: map['dob']?.toString() ?? '',
       profileImage: map['profileImage']?.toString() ?? '',
       following: List<String>.from(map['following'] ?? []),
       settings: settings,

@@ -10,7 +10,6 @@ import '../helper/utils.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
@@ -87,50 +86,100 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     _isSearching.value = true;
 
-    try {
-      // Search local meals
-      final meals = _allMeals
-          .where(
-              (meal) => meal.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+    // Track the latest query to avoid race conditions
+    final String currentQuery = query;
 
-      // Search ingredients
-      final ingredients = _allIngredients
-          .where((ingredient) =>
-              ingredient.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+    // Search local meals
+    final meals = _allMeals
+        .where((meal) => meal.title.toLowerCase().contains(query.toLowerCase()))
+        .toList();
 
-      // Search API meals
-      List<Meal> apiMeals = [];
-      if (query.length >= 3) {
-        // Only search API if query is at least 3 characters
-        apiMeals = await _apiService.fetchMeals(
-          limit: 5, // Limit API results
-          searchQuery: query,
-        );
+    // Search ingredients
+    final ingredients = _allIngredients
+        .where((ingredient) =>
+            ingredient.title.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
+    // Combine and filter local results
+    final localResults = [
+      ...meals,
+      ...ingredients,
+    ].where((item) {
+      if (item == null) return false;
+      final title = item is Meal
+          ? item.title
+          : item is MacroData
+              ? item.title
+              : item is IngredientData
+                  ? item.title
+                  : null;
+      return title != null && title != 'Unknown';
+    }).toList();
+
+    // Show local results immediately
+    setState(() {
+      // Only keep items that match the current query
+      _searchResults = localResults;
+    });
+
+    // Now fetch API results asynchronously and append them
+    if (query.length >= 3) {
+      final apiMealsFuture = _apiService.fetchMeals(
+        limit: 5, // Limit API results
+        searchQuery: query,
+      );
+      final apiIngredientsFuture = _macroApiService.searchIngredients(query);
+
+      // Wait for both API calls
+      final results = await Future.wait([
+        apiMealsFuture,
+        apiIngredientsFuture,
+      ]);
+      // Before updating, check if the query is still the latest
+      if (currentQuery != _searchController.text) {
+        // User has typed something else, so don't update
+        return;
       }
+      List<Meal> apiMeals = results[0] as List<Meal>;
+      List<IngredientData> apiIngredients = results[1] as List<IngredientData>;
 
-      // Search API meals
-      List<IngredientData> apiIngredients = [];
-      if (query.length >= 3) {
-        // Only search API if query is at least 3 characters
-        apiIngredients = await _macroApiService.searchIngredients(query);
-      }
+      // Filter API results
+      final apiResults = [
+        ...apiMeals,
+        ...apiIngredients,
+      ].where((item) {
+        if (item == null) return false;
+        final title = item is Meal
+            ? item.title
+            : item is MacroData
+                ? item.title
+                : item is IngredientData
+                    ? item.title
+                    : null;
+        return title != null &&
+            title != 'Unknown' &&
+            title.toLowerCase().contains(query.toLowerCase());
+      }).toList();
 
-      // Combine all results
+      // Append API results to the current search results, but only if they match the query
       setState(() {
-        _searchResults = [
-          ...meals,
-          ...ingredients,
-          ...apiMeals,
-          ...apiIngredients
-        ];
+        // Only keep items that match the current query
+        final filteredLocal = _searchResults.where((item) {
+          final title = item is Meal
+              ? item.title
+              : item is MacroData
+                  ? item.title
+                  : item is IngredientData
+                      ? item.title
+                      : null;
+          return title != null &&
+              title != 'Unknown' &&
+              title.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+        _searchResults = [...filteredLocal, ...apiResults];
       });
-    } catch (e) {
-      print('Error searching meals: $e');
-    } finally {
-      _isSearching.value = false;
     }
+    _isSearching.value = false;
   }
 
   void _showSearchResults(BuildContext context, String mealType) {
@@ -184,7 +233,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       'Add to $mealType',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w400,
                         color: getThemeProvider(context).isDarkMode
                             ? kWhite
                             : kBlack,
@@ -192,28 +241,45 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     ),
                   ),
                   // Search box
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SearchButton2(
-                      controller: _searchController,
-                      onChanged: (query) {
-                        _filterSearchResults(query);
-                      },
-                      kText: 'Search meals or ingredients',
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: SearchButton2(
+                            controller: _searchController,
+                            onChanged: (query) {
+                              _filterSearchResults(query);
+                            },
+                            kText: 'Search meals or ingredients',
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: kAccent.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AddMealManuallyScreen(
+                                    mealType: foodType,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add)),
+                      ),
+                    ],
                   ),
                   // Results
                   Expanded(
                     child: Obx(() {
-                      if (_isSearching.value) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: kAccent,
-                          ),
-                        );
-                      }
-
-                      if (_searchResults.isEmpty) {
+                      if (_searchResults.isEmpty && !_isSearching.value) {
                         return Center(
                           child: Text(
                             'No results found',
@@ -226,59 +292,85 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         );
                       }
 
-                      return ListView.builder(
-                        controller: scrollController,
-                        itemCount: _searchResults.length,
-                        itemBuilder: (context, index) {
-                          final result = _searchResults[index];
-                          return ListTile(
-                            leading: result is Meal &&
-                                    result.mediaPaths.isNotEmpty &&
-                                    result.mediaPaths.first.startsWith('http')
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: Image.network(
-                                      result.mediaPaths.first,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Image.asset(
-                                        getAssetImageForItem(
-                                            result.category ?? 'default'),
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  )
-                                : null,
-                            title: Text(
-                              result is Meal
-                                  ? result.title
-                                  : result is MacroData
-                                      ? capitalizeFirstLetter(result.title)
-                                      : result is IngredientData
+                      return Stack(
+                        children: [
+                          ListView.builder(
+                            controller: scrollController,
+                            itemCount: _searchResults.length,
+                            itemBuilder: (context, index) {
+                              if (index >= _searchResults.length) {
+                                // avoid out of range error
+                                return const SizedBox.shrink();
+                              }
+                              final result = _searchResults[index];
+                              return ListTile(
+                                leading: result is Meal &&
+                                        result.mediaPaths.isNotEmpty &&
+                                        result.mediaPaths.first
+                                            .startsWith('http')
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.network(
+                                          result.mediaPaths.first,
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Image.asset(
+                                            getAssetImageForItem(
+                                                result.category ?? 'default'),
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                                title: Text(
+                                  result is Meal
+                                      ? result.title
+                                      : result is MacroData
                                           ? capitalizeFirstLetter(result.title)
-                                          : 'Unknown Item',
-                              style: TextStyle(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kWhite
-                                    : kBlack,
+                                          : result is IngredientData
+                                              ? capitalizeFirstLetter(
+                                                  result.title)
+                                              : 'Unknown Item',
+                                  style: TextStyle(
+                                    color: getThemeProvider(context).isDarkMode
+                                        ? kWhite
+                                        : kBlack,
+                                  ),
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context); // Close the modal
+                                  _showDetailPopup(
+                                      result, userService.userId, mealType);
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchResults.clear();
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                          if (_isSearching.value && _searchResults.isNotEmpty)
+                            const Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 16,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: kAccent,
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
                               ),
                             ),
-                            onTap: () {
-                              Navigator.pop(context); // Close the modal
-                              _showDetailPopup(
-                                  result, userService.userId, mealType);
-                              _searchController.clear();
-                              setState(() {
-                                _searchResults.clear();
-                              });
-                            },
-                          );
-                        },
+                        ],
                       );
                     }),
                   ),
@@ -468,12 +560,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 height:
                                     MediaQuery.of(context).size.height * 0.25,
                                 child: buildPicker(
-                                  context,
-                                  21,
-                                  selectedNumber,
-                                  (index) => setModalState(
-                                      () => selectedNumber = index),
-                                ),
+                                    context,
+                                    21,
+                                    selectedNumber,
+                                    (index) => setModalState(
+                                        () => selectedNumber = index),
+                                    false),
                               ),
                             ),
                             Flexible(
@@ -487,6 +579,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   selectedUnit,
                                   (index) =>
                                       setModalState(() => selectedUnit = index),
+                                  false,
                                   unitOptions,
                                 ),
                               ),
@@ -539,23 +632,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 TextButton(
                   onPressed: () async {
                     try {
-                      // Create and add the current item if no items are pending
-                      if (_pendingMacroItems.isEmpty) {
-                        try {
-                          final newItem = createUserMeal();
-                          _pendingMacroItems.add(newItem);
-                        } catch (e) {
-                          if (mounted) {
-                            showTastySnackbar(
-                              'Error',
-                              'Failed to create item: $e',
-                              context,
-                              backgroundColor: kRed,
-                            );
-                          }
-                          return;
-                        }
-                      }
+                      // Always add the current item before saving
+                      final newItem = createUserMeal();
+                      _pendingMacroItems.add(newItem);
 
                       // Save all pending items
                       for (var item in _pendingMacroItems) {
@@ -607,42 +686,24 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      drawer: CustomDrawer(),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BottomNavSec(),
-                        ),
-                      );
-                    },
-                    child: const IconCircleButton(),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(),
               ),
-            ),
-          ],
+            );
+          },
+          child: const IconCircleButton(),
+        ),
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w400,
+            fontSize: 18,
+          ),
         ),
       ),
       body: SafeArea(
@@ -650,39 +711,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              //row of search icon and + button
-              Align(
-                alignment: Alignment.topRight,
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.35,
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                  margin: const EdgeInsets.only(top: 12, bottom: 9, right: 18),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? kDarkGrey : kWhite,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                          onPressed: () =>
-                              _showSearchResults(context, foodType),
-                          icon: const Icon(Icons.search)),
-                      IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddMealManuallyScreen(
-                                  mealType: foodType,
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.add)),
-                    ],
-                  ),
-                ),
+              const SizedBox(
+                height: 16,
               ),
 
               // NutritionStatusBar
@@ -948,7 +978,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               ? (dailyDataController
                                           .userMealList['Dinner']?.isNotEmpty ??
                                       false)
-                                  ? kAccent.withOpacity(0.5)
+                                  ? kAccentLight.withOpacity(0.5)
                                   : kDarkGrey.withOpacity(0.9)
                               : (dailyDataController
                                           .userMealList['Dinner']?.isNotEmpty ??
@@ -1082,7 +1112,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           ],
         ),
         trailing: IconButton(
-          icon: Icon(Icons.delete_outline, color: kRed.withOpacity(0.5)),
+          icon: const Icon(Icons.delete_outline, color: kRed),
           onPressed: () async {
             // Delete the meal
             await dailyDataController.removeMeal(

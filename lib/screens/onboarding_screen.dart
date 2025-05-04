@@ -637,7 +637,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               subtitle: const Text(
-                "Go Premium to get personalized guidance and chat support - 14 days free trial",
+                "Go Premium for personalized AI guidance and support - 30 days free trial",
                 style: TextStyle(
                   color: kWhite,
                   fontSize: 12,

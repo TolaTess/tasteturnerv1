@@ -45,8 +45,11 @@ class MealApiService {
                 final detailData = json.decode(detailResponse.body);
                 final mealDetails = detailData['meals'] as List<dynamic>?;
                 if (mealDetails != null && mealDetails.isNotEmpty) {
-                  fullMeals.add(
-                      convertToMeal(mealDetails[0] as Map<String, dynamic>));
+                  final mealObj =
+                      convertToMeal(mealDetails[0] as Map<String, dynamic>);
+                  if (mealObj.title != 'Unknown') {
+                    fullMeals.add(mealObj);
+                  }
                 }
               }
               await Future.delayed(const Duration(milliseconds: 100));
@@ -57,6 +60,7 @@ class MealApiService {
             return meals
                 .take(limit)
                 .map((meal) => convertToMeal(meal as Map<String, dynamic>))
+                .where((meal) => meal.title != 'Unknown')
                 .toList();
           }
         }
@@ -70,7 +74,10 @@ class MealApiService {
           final data = json.decode(response.body);
           final meals = data['meals'] as List<dynamic>?;
           if (meals != null && meals.isNotEmpty) {
-            allMeals.add(convertToMeal(meals[0] as Map<String, dynamic>));
+            final mealObj = convertToMeal(meals[0] as Map<String, dynamic>);
+            if (mealObj.title != 'Unknown') {
+              allMeals.add(mealObj);
+            }
           }
         }
         // Add a small delay to prevent rate limiting

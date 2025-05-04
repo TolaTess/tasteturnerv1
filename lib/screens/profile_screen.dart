@@ -9,6 +9,7 @@ import '../data_models/profilescreen_data.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
+import '../pages/profile_edit_screen.dart';
 import '../pages/upload_battle.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
@@ -33,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final userId = userService.userId ?? '';
   List<Map<String, dynamic>> ongoingBattles = [];
   bool isLoading = true;
+  bool showBattle = false;
 
   late ScrollController _scrollController;
 
@@ -59,6 +61,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchOngoingBattles(userId);
     dailyDataController.fetchPointsAchieved(userId);
     super.initState();
+    setState(() {
+      showBattle = ongoingBattles.isNotEmpty;
+    });
   }
 
   @override
@@ -106,10 +111,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       List<Post> fetchedData;
       fetchedData = await postController.getUserPosts(userId);
-
-      setState(() {
-        searchContentDatas = fetchedData;
-      });
+      if (mounted) {
+        setState(() {
+          searchContentDatas = fetchedData;
+          showBattle = ongoingBattles.isNotEmpty;
+        });
+      }
     } catch (e) {
       print('Error fetching content: $e');
     }
@@ -132,6 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         ongoingBattles = formattedBattles;
+        showBattle = ongoingBattles.isNotEmpty;
         isLoading = false;
       });
     } catch (e) {
@@ -271,18 +279,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               const SizedBox(height: 20),
                               Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: isDarkMode ? kDarkGrey : kWhite,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    userService.currentUser!.displayName ?? '',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      Get.to(() => const ProfileEditScreen()),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: isDarkMode ? kDarkGrey : kWhite,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      userService.currentUser!.displayName ??
+                                          '',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -293,40 +306,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     MainAxisAlignment.spaceAround,
                                 children: [
                                   // Points
-                                  Container(
-                                    width: 70,
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: isDarkMode ? kDarkGrey : kWhite,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          (dailyDataController.pointsAchieved ??
-                                                  0)
-                                              .toString(),
-                                          style: TextStyle(
-                                            color:
-                                                isDarkMode ? kWhite : kDarkGrey,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        Opacity(
-                                          opacity: 0.7,
-                                          child: Text(
-                                            'Points',
+                                  GestureDetector(
+                                    onTap: () => Get.to(() => BadgesScreen()),
+                                    child: Container(
+                                      width: 70,
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: isDarkMode ? kDarkGrey : kWhite,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            (dailyDataController
+                                                        .pointsAchieved ??
+                                                    0)
+                                                .toString(),
                                             style: TextStyle(
                                               color: isDarkMode
                                                   ? kWhite
                                                   : kDarkGrey,
-                                              fontSize: 12,
+                                              fontSize: 20,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                          Opacity(
+                                            opacity: 0.7,
+                                            child: Text(
+                                              'Points',
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? kWhite
+                                                    : kDarkGrey,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   SizedBox(
@@ -340,47 +358,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ),
                                   // Following
-                                  Container(
-                                    width: 70,
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: isDarkMode ? kDarkGrey : kWhite,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Obx(() {
-                                          myBadge = badgeController
-                                              .badgeAchievements
-                                              .where((badge) => badge.userids
-                                                  .contains(userId))
-                                              .toList();
+                                  GestureDetector(
+                                    onTap: () => Get.to(() => BadgesScreen()),
+                                    child: Container(
+                                      width: 70,
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: isDarkMode ? kDarkGrey : kWhite,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Obx(() {
+                                            myBadge = badgeController
+                                                .badgeAchievements
+                                                .where((badge) => badge.userids
+                                                    .contains(userId))
+                                                .toList();
 
-                                          return Text(
-                                            myBadge.length.toString(),
-                                            style: TextStyle(
-                                              color: isDarkMode
-                                                  ? kWhite
-                                                  : kDarkGrey,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          );
-                                        }),
-                                        Opacity(
-                                          opacity: 0.5,
-                                          child: Text(
-                                            badges,
-                                            style: TextStyle(
-                                              color: isDarkMode
-                                                  ? kWhite
-                                                  : kDarkGrey,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
+                                            return Text(
+                                              myBadge.length.toString(),
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? kWhite
+                                                    : kDarkGrey,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            );
+                                          }),
+                                          Opacity(
+                                            opacity: 0.5,
+                                            child: Text(
+                                              badges,
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? kWhite
+                                                    : kDarkGrey,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -462,11 +483,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           height: 100,
                           child: ListView.builder(
                             itemCount:
-                                (myBadge.length > 2 ? 2 : myBadge.length) + 1,
+                                (myBadge.length > 3 ? 3 : myBadge.length) + 1,
                             padding: const EdgeInsets.only(right: 10),
                             scrollDirection: Axis.horizontal,
                             itemBuilder: (context, index) {
-                              if (index < 2 && index < myBadge.length) {
+                              if (index < 3 && index < myBadge.length) {
                                 // Show badges for the first 2 items
                                 return Padding(
                                   padding: const EdgeInsets.only(left: 10),
@@ -540,14 +561,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Column(
                                       children: [
                                         const Icon(
-                                          Icons.keyboard_double_arrow_right_rounded,
+                                          Icons
+                                              .keyboard_double_arrow_right_rounded,
                                           size: 14,
                                           color: kAccent,
                                         ),
                                         Text(
                                           startWeight % 1 == 0
                                               ? startWeight.toInt().toString()
-                                              : startWeight.toStringAsFixed(1) ,
+                                              : startWeight.toStringAsFixed(1),
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
@@ -567,9 +589,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             progressPercentage.clamp(0.0, 1.0),
                                         center: Text(
                                           currentWeight % 1 == 0
-                                              ? currentWeight.toInt().toString() + 'kg'
+                                              ? currentWeight
+                                                      .toInt()
+                                                      .toString() +
+                                                  'kg'
                                               : currentWeight
-                                                  .toStringAsFixed(1) + 'kg',
+                                                      .toStringAsFixed(1) +
+                                                  'kg',
                                         ),
                                         barRadius: const Radius.circular(20.0),
                                         progressColor: kAccent,
@@ -579,7 +605,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Column(
                                       children: [
                                         const Icon(
-                                          Icons.keyboard_double_arrow_left_rounded,
+                                          Icons
+                                              .keyboard_double_arrow_left_rounded,
                                           size: 14,
                                           color: kAccent,
                                         ),
@@ -610,10 +637,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Battles Section
 
                 ExpansionTile(
+                  key: ValueKey(showBattle),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                  initiallyExpanded: showBattle,
                   title: const Text(
                     'Battles',
                     style: TextStyle(
@@ -634,7 +663,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : ongoingBattles.isEmpty
                               ? GestureDetector(
                                   onTap: () => Get.to(() => const BottomNavSec(
-                                        selectedIndex: 3,
+                                        selectedIndex: 1,
                                       )),
                                   child: Center(
                                       child: Text(

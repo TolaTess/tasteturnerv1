@@ -66,6 +66,7 @@ class _SafeTextFieldState extends State<SafeTextField> {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      
       cursorColor: kAccent,
       controller: widget.controller,
       decoration: widget.decoration,

@@ -30,13 +30,12 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
   final TextEditingController quantityController = TextEditingController();
   final TextEditingController caloriesController = TextEditingController();
   final List<Map<String, String>> ingredientsList = [];
+  final List<int> ingredientQuantities = [];
+  final List<int> ingredientUnits = [];
 
-  final List<String> servingOptions = [
-    'g',
-    'ml',
-    'cup',
-    'servings',
-  ];
+  int selectedNumber = 0;
+  int selectedUnit = 0;
+
   String selectedServing = 'g';
   String _selectedMealType = '';
 
@@ -63,6 +62,8 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
   void _addIngredient() {
     setState(() {
       ingredientsList.add({"name": "", "quantity": ""});
+      ingredientQuantities.add(0);
+      ingredientUnits.add(0);
     });
   }
 
@@ -70,6 +71,8 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
   void _removeIngredient(int index) {
     setState(() {
       ingredientsList.removeAt(index);
+      ingredientQuantities.removeAt(index);
+      ingredientUnits.removeAt(index);
     });
   }
 
@@ -127,9 +130,10 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
       }
 
       Map<String, String> mIngredients = {
-        for (var ingredient in ingredientsList)
-          if (ingredient["name"] != null && ingredient["quantity"] != null)
-            ingredient["name"]!.trim(): ingredient["quantity"]!.trim(),
+        for (int i = 0; i < ingredientsList.length; i++)
+          if (ingredientsList[i]["name"] != null)
+            ingredientsList[i]["name"]!.trim():
+                "${ingredientQuantities[i]} ${unitOptions[ingredientUnits[i]]}",
       };
 
       // Create a user meal
@@ -367,7 +371,7 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                               border: outlineInputBorder(10),
                               contentPadding: const EdgeInsets.all(8),
                             ),
-                            items: servingOptions.map((String value) {
+                            items: unitOptions.map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
                                 child: Text(value),
@@ -445,14 +449,36 @@ class _AddMealManuallyScreenState extends State<AddMealManuallyScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  Expanded(
-                                    child: SafeTextFormField(
-                                      decoration: const InputDecoration(
-                                          labelText: "Quantity"),
-                                      onChanged: (value) {
-                                        ingredientsList[index]["quantity"] =
-                                            value;
+                                  // Quantity Picker
+                                  SizedBox(
+                                    width: 80,
+                                    child: buildPicker(
+                                      context,
+                                      21,
+                                      ingredientQuantities[index],
+                                      (val) {
+                                        setState(() {
+                                          ingredientQuantities[index] = val;
+                                        });
                                       },
+                                      true
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  // Unit Picker
+                                  SizedBox(
+                                    width: 80,
+                                    child: buildPicker(
+                                      context,
+                                      unitOptions.length,
+                                      ingredientUnits[index],
+                                      (val) {
+                                        setState(() {
+                                          ingredientUnits[index] = val;
+                                        });
+                                      },
+                                      true,
+                                      unitOptions,
                                     ),
                                   ),
                                   IconButton(

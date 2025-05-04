@@ -19,7 +19,8 @@ class BattleManagement {
 
     await firebaseService.fetchGeneralData();
     final currentBattleStr =
-        firebaseService.generalData['currentBattle'] as String? ?? '2025-04-21';
+        firebaseService.generalData['currentBattle'] as String? ??
+            DateTime.now().toString();
     final currentBattleDate = DateTime.parse(currentBattleStr);
     final targetTime = DateTime(
       currentBattleDate.year,
@@ -168,10 +169,12 @@ class BattleManagement {
 
       // 3. Update current battle date to next week
       final nextBattleDate = currentDate.add(const Duration(days: 7));
+      final nextDeadlineDate = currentDate.add(const Duration(days: 6));
       final nextAnnounceDate = currentDate.add(const Duration(days: 1));
       await firestore.collection('general').doc('data').set({
         'currentBattle': nextBattleDate.toString().split(' ')[0],
         'isAnnounceDate': nextAnnounceDate.toString().split(' ')[0],
+        'battleDeadline': nextDeadlineDate.toString().split(' ')[0],
       }, SetOptions(merge: true));
 
       print('Battle processing completed successfully');

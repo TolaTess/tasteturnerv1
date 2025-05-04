@@ -65,10 +65,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     try {
       List<Post> fetchedData;
       fetchedData = await postController.getUserPosts(widget.userId);
-
-      setState(() {
-        searchContentDatas = fetchedData;
-      });
+      if (mounted) {
+        setState(() {
+          searchContentDatas = fetchedData;
+        });
+      }
     } catch (e) {
       print('Error fetching content: $e');
     }

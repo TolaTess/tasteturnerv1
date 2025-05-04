@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
+import 'package:tasteturner/pages/safe_text_field.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
 import '../helper/helper_functions.dart';
@@ -92,10 +92,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Future<void> _loadFriendsBirthdays() async {
-    print('loading friends birthdays');
     birthdays.clear();
     final following = userService.currentUser?.following as List<dynamic>?;
-    print('following: $following');
     if (following == null) return;
     for (final friendId in following) {
       final doc = await FirebaseFirestore.instance
@@ -115,6 +113,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             birthdays.putIfAbsent(birthdayDate, () => []).add(name);
           }
         }
+      }
+    }
+    // Add current user's birthday
+    final userDob = userService.currentUser?.dob;
+    if (userDob != null && userDob.length == 5) {
+      final now = DateTime.now();
+      final month = int.tryParse(userDob.substring(0, 2));
+      final day = int.tryParse(userDob.substring(3, 5));
+      if (month != null && day != null) {
+        final birthdayDate = DateTime(now.year, month, day);
+        birthdays.putIfAbsent(birthdayDate, () => []).add('You');
       }
     }
     setState(() {});
@@ -156,7 +165,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Future<void> _loadMealPlans() async {
-    print('loading meal plans');
     try {
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month, now.day);
@@ -704,7 +712,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           title: const Text('Share Calendar'),
-          content: TextField(
+          content: SafeTextField(
             style: TextStyle(color: isDarkMode ? kWhite : kBlack),
             decoration: InputDecoration(
               hintText: 'Enter title',
@@ -771,8 +779,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
     final birthdayNames = birthdays[normalizedSelectedDate] ?? <String>[];
     final birthdayName = birthdayNames.isEmpty ? '' : birthdayNames.join(', &');
+
+    false;
     if (!hasMeal && !isPersonalSpecialDay && sharedPlans.isEmpty) {
-      return _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode);
+      return Column(
+        children: [
+          _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode),
+        ],
+      );
     }
 
     return Column(
@@ -1242,13 +1256,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
                         getBirthdayTextContainer(birthdayName, true),
                       ],
-                      Text(
-                        '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDarkMode ? Colors.white70 : Colors.black54,
-                        ),
+                    Text(
+                      '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDarkMode ? Colors.white70 : Colors.black54,
                       ),
+                    ),
                   ],
                 ),
               ),

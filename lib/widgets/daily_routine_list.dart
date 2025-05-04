@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasteturner/pages/safe_text_field.dart';
 import '../constants.dart';
 import '../data_models/routine_item.dart';
 import '../service/routine_service.dart';
@@ -6,8 +7,11 @@ import '../helper/utils.dart';
 
 class DailyRoutineList extends StatefulWidget {
   final String userId;
+  final bool isRoutineEdit;
 
-  const DailyRoutineList({Key? key, required this.userId}) : super(key: key);
+  const DailyRoutineList(
+      {Key? key, required this.userId, required this.isRoutineEdit})
+      : super(key: key);
 
   @override
   State<DailyRoutineList> createState() => _DailyRoutineListState();
@@ -23,7 +27,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
     _routineItems = _routineService.getRoutineItems(userService.userId ?? '');
   }
 
-  Future<void> _showEditDialog(RoutineItem? item) async {
+  Future<void> _showEditDialog(RoutineItem? item, bool isDarkMode) async {
     final isNewItem = item == null;
     final titleController = TextEditingController(text: item?.title ?? '');
     final valueController = TextEditingController(text: item?.value ?? '');
@@ -32,25 +36,74 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isNewItem ? 'Add Routine Item' : 'Edit Routine Item'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          isNewItem ? 'Add Routine Item' : 'Edit Routine Item',
+          style: TextStyle(
+            height: 1.5,
+            color: isDarkMode ? kWhite : kBlack,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              SafeTextField(
                 controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  labelStyle: TextStyle(
+                    height: 1.5,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  enabledBorder: outlineInputBorder(20),
+                  focusedBorder: outlineInputBorder(20),
+                ),
               ),
-              TextField(
+              SafeTextField(
                 controller: valueController,
-                decoration: const InputDecoration(labelText: 'Value'),
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Value',
+                  labelStyle: TextStyle(
+                    height: 1.5,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  hintStyle: TextStyle(
+                    height: 1.5,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  enabledBorder: outlineInputBorder(20),
+                  focusedBorder: outlineInputBorder(20),
+                ),
               ),
               DropdownButtonFormField<String>(
                 value: selectedType,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDarkMode ? kDarkGrey : kWhite,
+                  contentPadding: const EdgeInsets.all(8),
+                  enabledBorder: outlineInputBorder(20),
+                    focusedBorder: outlineInputBorder(20),
+                ),
                 items: ['time', 'duration', 'quantity']
                     .map((type) => DropdownMenuItem(
                           value: type,
-                          child: Text(type.toUpperCase()),
+                          child: Text(
+                            type.toUpperCase(),
+                            style: TextStyle(
+                              height: 1.5,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
+                          ),
                         ))
                     .toList(),
                 onChanged: (value) {
@@ -58,6 +111,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                     selectedType = value;
                   }
                 },
+                dropdownColor: kAccent,
               ),
             ],
           ),
@@ -65,7 +119,13 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                height: 1.5,
+                color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -93,7 +153,13 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
 
               if (mounted) Navigator.pop(context);
             },
-            child: Text(isNewItem ? 'Add' : 'Save'),
+            child: Text(
+              isNewItem ? 'Add' : 'Save',
+              style: const TextStyle(
+                height: 1.5,
+                color: kAccent,
+              ),
+            ),
           ),
         ],
       ),
@@ -124,6 +190,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               iconColor: kAccent,
               textColor: kAccent,
               collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+              initiallyExpanded: widget.isRoutineEdit,
               title: const Text(
                 'Routine Items',
               ),
@@ -170,7 +237,8 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                 IconButton(
                                   icon: Icon(Icons.edit,
                                       color: isDarkMode ? kWhite : kBlack),
-                                  onPressed: () => _showEditDialog(item),
+                                  onPressed: () =>
+                                      _showEditDialog(item, isDarkMode),
                                 ),
                               IconButton(
                                 icon: Icon(
@@ -222,7 +290,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton.icon(
-                    onPressed: () => _showEditDialog(null),
+                    onPressed: () => _showEditDialog(null, isDarkMode),
                     icon: const Icon(Icons.add),
                     label: const Text('Add New Item'),
                     style: ElevatedButton.styleFrom(

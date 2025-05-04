@@ -6,6 +6,7 @@ import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../service/meal_api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SearchResultGrid extends StatefulWidget {
   final bool enableSelection;
@@ -72,44 +73,37 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
     try {
       if (widget.search.isNotEmpty) {
-        // Get filtered local meals
-        final localMeals = mealManager.meals;
-        List<Meal> filteredLocalMeals = [];
+        // Search Firestore for all meals matching the search, ordered by createdAt desc
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('meals')
+            .orderBy('createdAt', descending: true)
+            .get();
 
+        final allMeals = querySnapshot.docs
+            .map((doc) => Meal.fromJson(doc.id, doc.data()))
+            .toList();
+
+        List<Meal> filteredMeals = [];
         if (widget.screen == 'ingredient') {
-          filteredLocalMeals = localMeals
-              .where((meal) => meal.ingredients.keys.any((ingredient) =>
+          filteredMeals = allMeals
+              .where((meal) => (meal.ingredients).keys.any((ingredient) =>
                   ingredient
                       .toLowerCase()
                       .contains(widget.search.toLowerCase())))
               .toList();
         } else {
-          filteredLocalMeals = localMeals
-              .where((meal) => meal.categories.any((category) =>
+          filteredMeals = allMeals
+              .where((meal) => (meal.categories).any((category) =>
                   category.toLowerCase().contains(widget.search.toLowerCase())))
               .toList();
         }
 
-        // Search in API
-        final newMeals = await _apiService.fetchMeals(
-          limit: _apiPageSize,
-          searchQuery: widget.search,
-          screen: widget.screen,
-        );
+        // Show only the most recent meals first
+        filteredMeals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-        // Filter out duplicates based on mealId
-        final existingIds = filteredLocalMeals.map((m) => m.mealId).toList();
-        final uniqueNewMeals = newMeals
-            .where((meal) => !existingIds.contains(meal.mealId))
-            .toList();
-
-        _apiMeals.addAll(uniqueNewMeals);
-
-        // Set hasMore to false since we've loaded all search results
+        _apiMeals.addAll(filteredMeals);
         _hasMore.value = false;
-
-        // Update localMealsDisplayed to show all filtered local meals
-        _localMealsDisplayed.value = filteredLocalMeals.length;
+        _localMealsDisplayed.value = filteredMeals.length;
       } else {
         _apiMeals.clear();
         _hasMore.value = mealManager.meals.length > _localPageSize;
@@ -122,29 +116,19 @@ class _SearchResultGridState extends State<SearchResultGrid> {
   }
 
   List<Meal> _getFilteredMeals() {
-    final localMeals = mealManager.meals;
-    List<Meal> filteredLocalMeals;
-
     if (widget.search.isNotEmpty) {
-      // For search queries, filter local meals
-      if (widget.screen == 'ingredient') {
-        filteredLocalMeals = localMeals
-            .where((meal) => meal.ingredients.keys.any((ingredient) =>
-                ingredient.toLowerCase().contains(widget.search.toLowerCase())))
-            .toList();
-      } else {
-        filteredLocalMeals = localMeals
-            .where((meal) => meal.categories.any((category) =>
-                category.toLowerCase().contains(widget.search.toLowerCase())))
-            .toList();
-      }
+      // For search, just show the Firestore (api) meals, already sorted
+      return _apiMeals;
     } else {
-      // For normal browsing, take exactly the specified number of meals
-      filteredLocalMeals = localMeals.take(_localMealsDisplayed.value).toList();
+      // For normal browsing, show local meals (recent first) and then API meals
+      final localMeals = mealManager.meals;
+      final sortedLocalMeals = [...localMeals];
+      sortedLocalMeals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return [
+        ...sortedLocalMeals.take(_localMealsDisplayed.value),
+        ..._apiMeals
+      ];
     }
-
-    // Combine local and API meals
-    return [...filteredLocalMeals, ..._apiMeals];
   }
 
   Future<void> _loadMoreMealsIfNeeded() async {
@@ -203,7 +187,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
         return SliverFillRemaining(
           child: noItemTastyWidget(
             "No meals available.",
-            "Search for a meal to see results.",
+            "",
             context,
             true,
           ),

@@ -176,7 +176,7 @@ Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
           : Border.all(color: kAccentLight, width: 0),
     ),
     child: Text(
-      '${birthdayName}s birthday is today! 🎂',
+      birthdayName.toLowerCase() == 'you' ? 'Happy Birthday to you!' : '${birthdayName}s birthday is today! 🎂',
       style: TextStyle(
         color: kAccentLight,
         fontSize: isShrink ? 12 : 14,

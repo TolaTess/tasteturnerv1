@@ -7,7 +7,8 @@ import '../widgets/daily_routine_list.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
-  const NutritionSettingsPage({super.key});
+  final bool isRoutineExpand;
+  const NutritionSettingsPage({super.key, this.isRoutineExpand = false});
 
   @override
   _NutritionSettingsPageState createState() => _NutritionSettingsPageState();
@@ -110,254 +111,262 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
           child: ListView(
             children: [
               // Nutrition Section
-              const Text(
-                "Nutrition & Goals",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 25),
-              SafeTextFormField(
-                controller: waterController,
-                style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: "Daily Water Intake (liters)",
-                  labelStyle: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                  enabledBorder: outlineInputBorder(20),
-                  focusedBorder: outlineInputBorder(20),
-                  border: outlineInputBorder(20),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please enter your daily water intake.";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 15),
-              SafeTextFormField(
-                controller: foodController,
-                style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: "Calories",
-                  labelStyle: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                  enabledBorder: outlineInputBorder(20),
-                  focusedBorder: outlineInputBorder(20),
-                  border: outlineInputBorder(20),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please enter your calorie goal.";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 15),
-              ExpansionTile(
-                title: const Text("Health & Fitness"),
-                collapsedIconColor: kAccent,
-                iconColor: kAccent,
-                textColor: kAccent,
-                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                children: [
-                  const SizedBox(height: 15),
-                  SafeTextFormField(
-                    controller: dietPerfController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.text,
-                    decoration: InputDecoration(
-                      labelText: "Diet Preference",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your starting weight.";
-                      }
-                      return null;
-                    },
+              if (!widget.isRoutineExpand)
+                const Text(
+                  "Nutrition & Goals",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 15),
-                  SafeTextFormField(
-                    controller: targetStepsController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Target Steps",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your target steps.";
-                      }
-                      return null;
-                    },
+                ),
+              if (!widget.isRoutineExpand) const SizedBox(height: 25),
+              if (!widget.isRoutineExpand)
+                SafeTextFormField(
+                  controller: waterController,
+                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Daily Water Intake (liters)",
+                    labelStyle:
+                        TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                    enabledBorder: outlineInputBorder(20),
+                    focusedBorder: outlineInputBorder(20),
+                    border: outlineInputBorder(20),
                   ),
-                  const SizedBox(height: 10),
-                  SafeTextFormField(
-                    controller: fitnessGoalController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    decoration: InputDecoration(
-                      labelText: "Fitness Goal",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
-                      suffixIcon: const Icon(Icons.arrow_drop_down),
-                      suffixIconColor: kAccent,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Please enter your daily water intake.";
+                    }
+                    return null;
+                  },
+                ),
+              if (!widget.isRoutineExpand) const SizedBox(height: 15),
+              if (!widget.isRoutineExpand)
+                SafeTextFormField(
+                  controller: foodController,
+                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Calories",
+                    labelStyle:
+                        TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                    enabledBorder: outlineInputBorder(20),
+                    focusedBorder: outlineInputBorder(20),
+                    border: outlineInputBorder(20),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Please enter your calorie goal.";
+                    }
+                    return null;
+                  },
+                ),
+              const SizedBox(height: 15),
+              if (!widget.isRoutineExpand)
+                ExpansionTile(
+                  title: const Text("Health & Fitness"),
+                  collapsedIconColor: kAccent,
+                  iconColor: kAccent,
+                  textColor: kAccent,
+                  collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                  children: [
+                    const SizedBox(height: 15),
+                    SafeTextFormField(
+                      controller: dietPerfController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                        labelText: "Diet Preference",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your starting weight.";
+                        }
+                        return null;
+                      },
                     ),
-                    readOnly: true,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        constraints: const BoxConstraints(
-                            maxHeight: 300), // Control height
-                        builder: (context) => Container(
-                          color: isDarkMode ? kDarkGrey : kWhite,
-                          child: ListView.builder(
-                            itemCount: healthGoals.length,
-                            itemBuilder: (context, index) {
-                              return ListTile(
-                                title: Text(
-                                  healthGoals[index],
-                                  style: TextStyle(
-                                      color: isDarkMode ? kWhite : kDarkGrey),
-                                ),
-                                onTap: () {
-                                  fitnessGoalController.text =
-                                      healthGoals[index];
-                                  Navigator.pop(context);
-                                },
-                              );
-                            },
+                    const SizedBox(height: 15),
+                    SafeTextFormField(
+                      controller: targetStepsController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Target Steps",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your target steps.";
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SafeTextFormField(
+                      controller: fitnessGoalController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      decoration: InputDecoration(
+                        labelText: "Fitness Goal",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                        suffixIcon: const Icon(Icons.arrow_drop_down),
+                        suffixIconColor: kAccent,
+                      ),
+                      readOnly: true,
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          constraints: const BoxConstraints(
+                              maxHeight: 300), // Control height
+                          builder: (context) => Container(
+                            color: isDarkMode ? kDarkGrey : kWhite,
+                            child: ListView.builder(
+                              itemCount: healthGoals.length,
+                              itemBuilder: (context, index) {
+                                return ListTile(
+                                  title: Text(
+                                    healthGoals[index],
+                                    style: TextStyle(
+                                        color: isDarkMode ? kWhite : kDarkGrey),
+                                  ),
+                                  onTap: () {
+                                    fitnessGoalController.text =
+                                        healthGoals[index];
+                                    Navigator.pop(context);
+                                  },
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  SafeTextFormField(
-                    controller: heightController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Height (cm)",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
+                        );
+                      },
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 15),
-
-              ExpansionTile(
-                title: const Text(
-                  "Weight Management",
+                    const SizedBox(height: 15),
+                    SafeTextFormField(
+                      controller: heightController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Height (cm)",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                    ),
+                  ],
                 ),
-                collapsedIconColor: kAccent,
-                iconColor: kAccent,
-                textColor: kAccent,
-                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                children: [
-                  const SizedBox(height: 10),
-                  SafeTextFormField(
-                    controller: startingWeightController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Starting Weight (kg)",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your starting weight.";
-                      }
-                      return null;
-                    },
+              if (!widget.isRoutineExpand) const SizedBox(height: 15),
+              if (!widget.isRoutineExpand)
+                ExpansionTile(
+                  title: const Text(
+                    "Weight Management",
                   ),
-                  const SizedBox(height: 15),
-                  SafeTextFormField(
-                    controller: goalWeightController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Goal Weight (kg)",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
+                  collapsedIconColor: kAccent,
+                  iconColor: kAccent,
+                  textColor: kAccent,
+                  collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                  children: [
+                    const SizedBox(height: 10),
+                    SafeTextFormField(
+                      controller: startingWeightController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Starting Weight (kg)",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your starting weight.";
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your goal weight.";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  SafeTextFormField(
-                    controller: currentWeightController,
-                    style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Current Weight (kg)",
-                      labelStyle:
-                          TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      enabledBorder: outlineInputBorder(20),
-                      focusedBorder: outlineInputBorder(20),
-                      border: outlineInputBorder(20),
+                    const SizedBox(height: 15),
+                    SafeTextFormField(
+                      controller: goalWeightController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Goal Weight (kg)",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your goal weight.";
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter your current weight.";
-                      }
-                      return null;
-                    },
+                    const SizedBox(height: 10),
+                    SafeTextFormField(
+                      controller: currentWeightController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Current Weight (kg)",
+                        labelStyle:
+                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your current weight.";
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              if (!widget.isRoutineExpand) const SizedBox(height: 15),
+
+              // Save Button
+              if (!widget.isRoutineExpand)
+                ElevatedButton(
+                  onPressed: _saveSettings,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    backgroundColor:
+                        isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
                   ),
-                ],
-              ),
+                  child: const Text("Save Settings"),
+                ),
               const SizedBox(height: 15),
 
               DailyRoutineList(
-                userId:
-                    userService.currentUser?.userId ?? userService.userId ?? '',
-              ),
+                  userId: userService.currentUser?.userId ??
+                      userService.userId ??
+                      '',
+                  isRoutineEdit: widget.isRoutineExpand),
 
               const SizedBox(height: 30),
-
-              // Save Button
-              ElevatedButton(
-                onPressed: _saveSettings,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  backgroundColor:
-                      isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                ),
-                child: const Text("Save Settings"),
-              ),
             ],
           ),
         ),

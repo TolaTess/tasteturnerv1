@@ -141,23 +141,36 @@ class NutritionController extends GetxController {
     }
 
     final date = DateFormat('yyyy-MM-dd').format(mDate);
+    int retries = 0;
+    const maxRetries = 3;
+    const delays = [1, 2, 4]; // seconds
 
-    try {
-      final userMealsRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection('meals')
-          .doc(date);
+    while (retries < maxRetries) {
+      try {
+        final userMealsRef = firestore
+            .collection('userMeals')
+            .doc(userId)
+            .collection('meals')
+            .doc(date);
 
-      final docSnapshot = await userMealsRef.get();
-      final data = docSnapshot.data();
+        final docSnapshot = await userMealsRef.get();
+        final data = docSnapshot.data();
 
-      totalCalories.value = data != null && data.containsKey('meals')
-          ? _calculateDailyCalories(data['meals'])
-          : 0;
-    } catch (e) {
-      print("Error fetching calories for $date: $e");
-      totalCalories.value = 0;
+        totalCalories.value = data != null && data.containsKey('meals')
+            ? _calculateDailyCalories(data['meals'])
+            : 0;
+        return; // Success, exit the function
+      } catch (e) {
+        print("Error fetching calories for $date: $e");
+        if (e.toString().contains('cloud_firestore/unavailable') &&
+            retries < maxRetries - 1) {
+          await Future.delayed(Duration(seconds: delays[retries]));
+          retries++;
+          continue;
+        }
+        totalCalories.value = 0;
+        return;
+      }
     }
   }
 
@@ -300,7 +313,8 @@ class NutritionController extends GetxController {
         await notificationService.showNotification(
           id: 101,
           title: "Water Goal Achieved! 💧",
-          body: "Congratulations! You've reached your daily water intake goal! 10 points awarded! ",
+          body:
+              "Congratulations! You've reached your daily water intake goal! 10 points awarded! ",
         );
       }
       await BattleManagement.instance
@@ -337,7 +351,8 @@ class NutritionController extends GetxController {
         await notificationService.showNotification(
           id: 101,
           title: "Steps Goal Achieved! 💧",
-          body: "Congratulations! You've reached your daily steps goal! 10 points awarded!",
+          body:
+              "Congratulations! You've reached your daily steps goal! 10 points awarded!",
         );
       }
       await BattleManagement.instance
@@ -580,7 +595,6 @@ class NutritionController extends GetxController {
           },
         });
       }
-
       fetchMealsForToday(userId, today);
     } catch (e) {
       print('Error adding meal: $e');

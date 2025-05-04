@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tasteturner/tabs_screen/vote_screen.dart';
 import 'dart:async';
 
 import '../constants.dart';
@@ -25,6 +26,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   List<Map<String, dynamic>> battleList = [];
   Timer? _tastyPopupTimer;
   final GlobalKey _addJoinButtonKey = GlobalKey();
+  bool showBattle = false;
 
   @override
   void initState() {
@@ -33,6 +35,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddJoinTutorial();
+      // Ensure showBattle is set after widget is live
+      setState(() {
+        showBattle = battleList.isNotEmpty;
+      });
     });
   }
 
@@ -54,7 +60,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
   Future<void> _onRefresh() async {
     await firebaseService.fetchGeneralData();
+
     await _updateIngredientList(selectedCategory);
+    setState(() {
+      showBattle = battleList.isNotEmpty;
+    });
   }
 
   @override
@@ -78,6 +88,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
       if (!mounted) return;
       setState(() {
         battleList = newBattleList;
+        showBattle = battleList.isNotEmpty;
       });
     } catch (e) {
       print("Error updating ingredient list: $e");
@@ -92,6 +103,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   Widget build(BuildContext context) {
     final categoryDatas = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final battleDeadline = DateTime.parse(
+        firebaseService.generalData['battleDeadline'] ??
+            DateTime.now().toString());
+    final isBattleDeadlineShow = isDateToday(battleDeadline);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -121,17 +136,33 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                 //Challenge
                 ExpansionTile(
+                  key: ValueKey(showBattle),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: isDarkMode ? kWhite : kDarkGrey,
                   collapsedTextColor: kAccent,
-                  initiallyExpanded: false,
-                  title: const Text(
-                    ingredientBattle,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 18,
-                    ),
+                  initiallyExpanded: showBattle,
+                  title: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        ingredientBattle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        showBattle
+                            ? 'Join the battle to create a masterpiece!'
+                            : 'Next battle will start soon! Check back later!',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: kAccentLight,
+                        ),
+                      ),
+                    ],
                   ),
                   children: [
                     Container(
@@ -160,8 +191,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                               Countdown(
                                   targetDate: battleList.isEmpty
                                       ? DateTime.now()
-                                      : getNextWeekday(
-                                          battleList.first['dueDate'] ?? '')),
+                                      : battleDeadline),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -268,17 +298,33 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                           if (isJoined) {
                                             return GestureDetector(
                                               onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        const ProfileScreen(),
-                                                  ),
-                                                );
+                                                if (!isBattleDeadlineShow) {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const ProfileScreen(),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          VoteScreen(
+                                                              isDarkMode:
+                                                                  isDarkMode,
+                                                              category:
+                                                                  selectedCategory),
+                                                    ),
+                                                  );
+                                                }
                                               },
-                                              child: const Text(
-                                                'Manage in profile screen',
-                                                style: TextStyle(
+                                              child: Text(
+                                                !isBattleDeadlineShow
+                                                    ? 'Manage in profile screen'
+                                                    : 'Vote for your favorite dish!',
+                                                style: const TextStyle(
                                                   fontSize: 14,
                                                   color: kAccent,
                                                   fontWeight: FontWeight.w600,
@@ -498,7 +544,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           ),
                         ),
                       ),
-                     
                     ],
                   ),
                 ),
