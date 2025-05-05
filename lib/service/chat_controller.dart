@@ -206,47 +206,31 @@ class ChatController extends GetxController {
       final shareRequest = messageData['shareRequest'] as Map<String, dynamic>?;
       if (shareRequest == null) return;
 
-      final senderId = messageData['senderId'] as String;
-      final type = shareRequest['type'] as String;
-      final date = shareRequest['date'] as String?;
       final header = shareRequest['header'] as String?;
 
+
       final calendarId = shareRequest['calendarId'] as String?;
-      if (calendarId == 'personal') {
-        // Create shared calendar
-        final calendarRef = firestore.collection('shared_calendars').doc();
 
-        await calendarRef.set({
-          'userIds': [senderId, userService.userId],
-          'type': type,
-          'date': date,
-          'createdAt': FieldValue.serverTimestamp(),
-          'header': header,
-        });
-      } else {
-        // Update existing shared calendar
-        final calendarRef =
-            firestore.collection('shared_calendars').doc(calendarId);
+      final calendarRef =
+          firestore.collection('shared_calendars').doc(calendarId);
 
-        // Get current calendar data
-        final calendarDoc = await calendarRef.get();
-        if (!calendarDoc.exists) return;
+      // Get current calendar data
+      final calendarDoc = await calendarRef.get();
+      if (!calendarDoc.exists) return;
 
-        final calendarData = calendarDoc.data() as Map<String, dynamic>;
-        final currentUserIds = List<String>.from(calendarData['userIds'] ?? []);
+      final calendarData = calendarDoc.data() as Map<String, dynamic>;
+      final currentUserIds = List<String>.from(calendarData['userIds'] ?? []);
 
-        // Add new user if not already present
-        if (!currentUserIds.contains(userService.userId)) {
-          currentUserIds.add(userService.userId ?? '');
-        }
-        print('header: $header');
-
-        // Update header and merge with existing userIds
-        await calendarRef.update({
-          'header': header,
-          'userIds': FieldValue.arrayUnion([userService.userId ?? '']),
-        });
+      // Add new user if not already present
+      if (!currentUserIds.contains(userService.userId)) {
+        currentUserIds.add(userService.userId ?? '');
       }
+
+      // Update header and merge with existing userIds
+      await calendarRef.update({
+        'header': header,
+        'userIds': FieldValue.arrayUnion([userService.userId ?? '']),
+      });
 
       // Update message to show accepted status
       await messageDoc.reference.update({
@@ -316,7 +300,7 @@ class ChatController extends GetxController {
         'senderId': senderId,
         'recipientId': recipientId,
         'friendName': friendName,
-        'date': date, 
+        'date': date,
       }
     };
 

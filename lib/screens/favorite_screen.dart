@@ -69,7 +69,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                     "No favorite meals found.",
                     "Add meals to your favorites to see them here.",
                     context,
-                    true,
+                    false,
                   )
                 : SizedBox(
                     width: double.infinity,
@@ -95,7 +95,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                                       ),
                                     ),
                                   ),
-                                  height: 200,
+                                  height: getPercentageHeight(10, context),
                                 ),
                               ),
                             ),

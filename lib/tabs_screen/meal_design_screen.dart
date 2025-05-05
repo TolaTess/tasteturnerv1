@@ -121,6 +121,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         birthdays.putIfAbsent(birthdayDate, () => []).add('You');
       }
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -139,6 +140,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
       _tabController.addListener(_handleTabIndex);
     }
+    if (!mounted) return;
     setState(() {
       isPremium = userService.currentUser?.isPremium ?? false;
     });
@@ -148,6 +150,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (_tabController.index == 1 && _buddyDataFuture == null) {
       _initializeBuddyData();
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -170,6 +173,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
+        if (!mounted) return;
         setState(() {
           mealPlans = {};
           specialMealDays = {};
@@ -195,6 +199,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       }
 
       if (userMealPlansQuery.docs.isEmpty) {
+        if (!mounted) return;
         setState(() {
           mealPlans = {};
           specialMealDays = {};
@@ -250,7 +255,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         }
       }
       _loadFriendsBirthdays();
-
+      if (!mounted) return;
       setState(() {
         mealPlans = newMealPlans;
         specialMealDays = newSpecialMealDays;
@@ -258,6 +263,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       });
     } catch (e) {
       print('Error loading meal plans: $e');
+      if (!mounted) return;
       setState(() {
         mealPlans = {};
         specialMealDays = {};
@@ -411,6 +417,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       size: 20,
                     ),
                     onPressed: () {
+                      if (!mounted) return;
                       setState(() {
                         showSharedCalendars = !showSharedCalendars;
                         _loadMealPlans();
@@ -441,7 +448,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             return const CircularProgressIndicator();
                           }
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return const Text('No shared calendars found');
+                            return Text(
+                              'No shared calender yet',
+                              style: TextStyle(
+                                fontSize: 12,
+                                overflow: TextOverflow.ellipsis,
+                                color: isDarkMode ? kWhite : kDarkGrey,
+                              ),
+                            );
                           }
                           final calendars = snapshot.data!;
                           return DropdownButton<String>(
@@ -459,11 +473,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             ),
                             items: calendars
                                 .map((cal) => DropdownMenuItem(
-                                      value: cal.calendarId,
-                                      child: Text(cal.header),
+                                      value:
+                                          cal.calendarId,
+                                      child: Text(capitalizeFirstLetter(cal.header)),
                                     ))
                                 .toList(),
                             onChanged: (val) {
+                              if (!mounted) return;
                               setState(() {
                                 selectedSharedCalendarId = val;
                               });
@@ -648,7 +664,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  void _shareCalendar() {
+  void _shareCalendar() async {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -689,19 +705,82 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
                 if (calendarTitle.isNotEmpty) {
                   Navigator.pop(context);
-                  Get.to(() => FriendScreen(
-                        dataSrc: {
-                          'type': 'entire_calendar',
-                          'screen': 'meal_design',
-                          'calendarId': isPersonalCalendar
-                              ? 'personal'
-                              : selectedSharedCalendarId,
-                          'header': calendarTitle,
-                        },
-                      ));
+                  if (isPersonalCalendar) {
+                    // 1. Create new shared calendar doc
+                    final newCalRef =
+                        await firestore.collection('shared_calendars').add({
+                      'header': calendarTitle,
+                      'owner': userService.userId,
+                      'userIds': [userService.userId],
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+                    final newCalId = newCalRef.id;
+
+                    // 2. Fetch all personal calendar items
+                    final userId = userService.userId!;
+                    final personalItems = await firestore
+                        .collection('mealPlans')
+                        .doc(userId)
+                        .collection('date')
+                        .get();
+
+                    // Only include items from today onwards
+                    final today = DateTime.now();
+                    final filteredDocs = personalItems.docs.where((doc) {
+                      final data = doc.data();
+                      final dateStr = data['date'] as String?;
+                      if (dateStr == null) return false;
+                      try {
+                        final date = DateFormat('yyyy-MM-dd').parse(dateStr);
+                        final normalizedDate =
+                            DateTime(date.year, date.month, date.day);
+                        final normalizedToday =
+                            DateTime(today.year, today.month, today.day);
+                        return !normalizedDate.isBefore(normalizedToday);
+                      } catch (e) {
+                        return false;
+                      }
+                    });
+
+                    // 3. Copy to shared calendar in batches
+                    final batch = firestore.batch();
+                    for (final doc in filteredDocs) {
+                      final data = doc.data();
+                      final dateId = doc.id;
+                      final sharedDocRef = firestore
+                          .collection('shared_calendars')
+                          .doc(newCalId)
+                          .collection('date')
+                          .doc(dateId);
+                      batch.set(sharedDocRef, data);
+                      // If >500, commit and start new batch (not shown here for brevity)
+                    }
+                    await batch.commit();
+
+                    // 4. Navigate to FriendScreen with newCalId
+                    Get.to(() => FriendScreen(
+                          dataSrc: {
+                            'type': 'entire_calendar',
+                            'screen': 'meal_design',
+                            'calendarId': newCalId,
+                            'header': calendarTitle,
+                            'isPersonal': 'true',
+                          },
+                        ));
+                  } else {
+                    Get.to(() => FriendScreen(
+                          dataSrc: {
+                            'type': 'entire_calendar',
+                            'screen': 'meal_design',
+                            'calendarId': selectedSharedCalendarId,
+                            'header': calendarTitle,
+                            'isPersonal': 'false',
+                          },
+                        ));
+                  }
                 }
               },
               child: const Text(
@@ -888,9 +967,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   void _selectDate(DateTime date) {
     final normalizedSelectedDate = DateTime(date.year, date.month, date.day);
+    if (!mounted) return;
     setState(() {
       selectedDate = normalizedSelectedDate;
     });
+
     if (showSharedCalendars && selectedSharedCalendarId != null) {
       sharingController.selectSharedDate(normalizedSelectedDate);
     }
@@ -918,7 +999,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
 
     if (pickedDate == null) return;
-
+    if (!mounted) return;
     setState(() {
       selectedDate = pickedDate!;
     });
@@ -979,6 +1060,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     color: _getDayTypeColor(type, isDarkMode),
                   ),
                   onTap: () {
+                    if (!mounted) return;
                     setState(() {
                       selectedDayType = type.toLowerCase().replaceAll(' ', '_');
                     });
@@ -1075,7 +1157,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           'meals': [], // Initialize empty meals array if it doesn't exist
         }, SetOptions(merge: true));
       }
-
+      if (!mounted) return;
       setState(() {
         specialMealDays[selectedDate] = dayType != 'regular_day';
         dayTypes[selectedDate] = dayType;

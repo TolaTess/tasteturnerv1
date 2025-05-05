@@ -49,7 +49,9 @@ class _TastyScreenState extends State<TastyScreen> {
       chatController = Get.put(ChatController());
     }
     chatId = userService.buddyId;
-    if (isPremium || DateTime.now().isBefore(trailEndDate ?? DateTime.now())) {
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
+    if (isPremium || isInFreeTrail) {
       _initializeChatWithBuddy();
     }
   }
@@ -101,9 +103,11 @@ class _TastyScreenState extends State<TastyScreen> {
 
   /// Summarize chat when screen is closed and update chat summary in Firestore
   Future<void> _saveChatSummary() async {
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     if (chatId == null ||
         !isPremium ||
-        !DateTime.now().isBefore(trailEndDate ?? DateTime.now()) ||
+        !isInFreeTrail ||
         chatController.messages.last.senderId == 'buddy') return;
 
     final messages = chatController.messages;
@@ -199,130 +203,140 @@ class _TastyScreenState extends State<TastyScreen> {
     final isInFreeTrail =
         DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     final themeProvider = Provider.of<ThemeProvider>(context);
-    return Scaffold(
-      body: (isPremium || isInFreeTrail)
-          ? Column(
+    if (isPremium || isInFreeTrail) {
+      if (chatId == null) {
+        // Chat is still initializing
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return Scaffold(
+        body: Column(
+          children: [
+            const SizedBox(height: 45),
+            Row(
               children: [
-                const SizedBox(height: 45),
-                Row(
-                  children: [
-                    if (isPremium || isInFreeTrail)
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color:
-                                themeProvider.isDarkMode ? kLightGrey : kWhite,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                if (isPremium || isInFreeTrail)
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: themeProvider.isDarkMode ? kLightGrey : kWhite,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
-                          child: ExpansionTile(
-                            collapsedIconColor:
-                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                            iconColor:
-                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                            title: Row(
-                              children: [
-                                const CircleAvatar(
-                                  backgroundColor: kAccentLight,
-                                  backgroundImage: AssetImage(
-                                    tastyImage, // Adjust the path to your tasty image
-                                  ),
-                                  radius: 20,
-                                ),
-                                const SizedBox(width: 15),
-                                Text(
-                                  "Tasty Menu:",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: themeProvider.isDarkMode
-                                            ? kWhite
-                                            : kDarkGrey,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            initiallyExpanded: false,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildFeatureItem(
-                                      context,
-                                      "💬 Chat about your fitness goals and progress",
-                                      "Ask for advice, motivation, or meal planning",
-                                      themeProvider.isDarkMode),
-                                  _buildFeatureItem(
-                                      context,
-                                      "🎡 Type 'spin' to use the ingredient wheel",
-                                      "Get random food suggestions based on your macros",
-                                      themeProvider.isDarkMode),
-                                  _buildFeatureItem(
-                                      context,
-                                      "📊 Discuss your nutrition and workout plans",
-                                      "Get personalized recommendations for your goals",
-                                      themeProvider.isDarkMode),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
-                Expanded(
-                  child: Obx(() {
-                    final messages = chatController.messages;
-
-                    if (messages.isEmpty) {
-                      return noItemTastyWidget(
-                        "No messages yet.",
-                        "Start a conversation with Tasty!.",
-                        context,
-                        false,
-                      );
-                    }
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scrollController.hasClients) {
-                        _scrollController
-                            .jumpTo(_scrollController.position.maxScrollExtent);
-                      }
-                    });
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: messages.length,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        return ChatItem(
-                          dataSrc: message,
-                          isMe: message.senderId == userService.userId,
-                          chatController: chatController,
-                          chatId: chatId!,
-                        );
-                      },
-                    );
-                  }),
-                ),
-                _buildInputSection(themeProvider.isDarkMode),
-                const 
-                SizedBox(height: 80,),
+                      child: ExpansionTile(
+                        collapsedIconColor:
+                            themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                        iconColor:
+                            themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                        title: Row(
+                          children: [
+                            const CircleAvatar(
+                              backgroundColor: kAccentLight,
+                              backgroundImage: AssetImage(
+                                tastyImage, // Adjust the path to your tasty image
+                              ),
+                              radius: 20,
+                            ),
+                            const SizedBox(width: 15),
+                            Text(
+                              "Tasty Menu:",
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: themeProvider.isDarkMode
+                                        ? kWhite
+                                        : kDarkGrey,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        initiallyExpanded: false,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFeatureItem(
+                                  context,
+                                  "💬 Chat about your fitness goals and progress",
+                                  "Ask for advice, motivation, or meal planning",
+                                  themeProvider.isDarkMode),
+                              _buildFeatureItem(
+                                  context,
+                                  "🎡 Type 'spin' to use the ingredient wheel",
+                                  "Get random food suggestions based on your macros",
+                                  themeProvider.isDarkMode),
+                              _buildFeatureItem(
+                                  context,
+                                  "📊 Discuss your nutrition and workout plans",
+                                  "Get personalized recommendations for your goals",
+                                  themeProvider.isDarkMode),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
-            )
-          : _buildPremiumPrompt(themeProvider),
-    );
+            ),
+            Expanded(
+              child: Obx(() {
+                final messages = chatController.messages;
+
+                if (messages.isEmpty) {
+                  return noItemTastyWidget(
+                    "No messages yet.",
+                    "Start a conversation with Tasty!.",
+                    context,
+                    false,
+                  );
+                }
+
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController
+                        .jumpTo(_scrollController.position.maxScrollExtent);
+                  }
+                });
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: messages.length,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    return ChatItem(
+                      dataSrc: message,
+                      isMe: message.senderId == userService.userId,
+                      chatController: chatController,
+                      chatId: chatId!,
+                    );
+                  },
+                );
+              }),
+            ),
+            _buildInputSection(themeProvider.isDarkMode),
+            const SizedBox(
+              height: 80,
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Scaffold(
+        body: _buildPremiumPrompt(themeProvider),
+      );
+    }
   }
 
   Widget _buildInputSection(bool isDarkMode) {
@@ -431,9 +445,9 @@ Greet the user warmly and offer guidance based on:
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
-    if (chatId == null ||
-        !isPremium ||
-        !DateTime.now().isBefore(trailEndDate ?? DateTime.now())) return;
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
+    if (chatId == null || (!isPremium && !isInFreeTrail)) return;
 
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
@@ -476,6 +490,7 @@ Greet the user warmly and offer guidance based on:
             messageId: '',
           ));
         });
+        print('onmessagesend');
         _onNewMessage();
         await _saveMessageToFirestore(aiResponse, 'buddy');
 
@@ -521,7 +536,9 @@ Greet the user warmly and offer guidance based on:
       await _saveMessageToFirestore(userInput, currentUserId);
 
       // Check if we should get AI response
-      if (messages.isNotEmpty && messages.last.senderId == 'buddy') {
+      if (messages.length > 1 &&
+          messages[messages.length - 1].senderId == currentUserId &&
+          messages[messages.length - 2].senderId == 'buddy') {
         print('Skipping AI response - last message was from buddy');
         return;
       }
@@ -534,8 +551,8 @@ Greet the user warmly and offer guidance based on:
       try {
         String response;
         if (!isSystemMessage &&
-            messages.isNotEmpty &&
             messages.length > 1 &&
+            messages[messages.length - 1].senderId == currentUserId &&
             messages[messages.length - 2].senderId == 'buddy') {
           // If this is a follow-up question from the user
           response =
@@ -575,8 +592,9 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _initializeChatWithBuddy() async {
-    if (!isPremium || !DateTime.now().isBefore(trailEndDate ?? DateTime.now()))
-      return;
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
+    if (!isPremium || !isInFreeTrail) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
       // Existing chat - just listen to messages and mark as read
@@ -602,9 +620,9 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _sendWelcomeMessage() async {
-    if (!isPremium ||
-        !DateTime.now().isBefore(trailEndDate ?? DateTime.now()) ||
-        chatId == null) return;
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
+    if (!isPremium || !isInFreeTrail || chatId == null) return;
 
     try {
       final randomMessage = _welcomeMessages[

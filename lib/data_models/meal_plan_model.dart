@@ -113,7 +113,9 @@ class SharedCalendar {
       userIds: List<String>.from(data['userIds'] ?? []),
       type: data['type'] ?? 'entire_calendar',
       date: data['date'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
       header: data['header'] ?? '',
     );
   }
