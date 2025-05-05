@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
@@ -31,7 +30,7 @@ class EmailSigninScreen extends StatelessWidget {
               ),
               SizedBox(height: 16),
               Text(
-                "Welcome back! A delectable treat is just a tap away.",
+                "Welcome back! \n \nA delectable treat is just a tap away.",
                 style: TextStyle(
                   fontSize: 16,
                 ),

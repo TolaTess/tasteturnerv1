@@ -50,7 +50,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
     return Scaffold(
       extendBody: true,
       floatingActionButton: Visibility(
-        visible: !keyboardIsOpen,
+        visible: !keyboardIsOpen && _selectedIndex != 2,
         child: FloatingActionButton(
           heroTag: "uniqueHeroTagfb",
           onPressed: () {
@@ -59,8 +59,6 @@ class _BottomNavSecState extends State<BottomNavSec> {
               _currentTabIndex = 0;
             });
           },
-          // backgroundColor: kAccent.withOpacity(0.85),
-          // child: const Icon(Icons.add),
           backgroundColor: kPrimaryColor,
           child: Container(
             width: 56,
@@ -101,7 +99,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
               )),
               SizedBox(
                 width:
-                    screenSize.width * 0.15, // Responsive width for center gap
+                    screenSize.width * 0.10, // Responsive width for center gap
               ),
               Expanded(
                   child: createIcon(

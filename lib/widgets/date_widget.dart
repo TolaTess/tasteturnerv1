@@ -272,7 +272,7 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: kAccent.withOpacity(0.5),
+        color: kAccent.withOpacity(kMidOpacity),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(

@@ -21,6 +21,10 @@ class BuddyTab extends StatefulWidget {
 class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   bool isPremium = userService.currentUser?.isPremium ?? false;
+  DateTime? trailEndDate = userService.currentUser?.created_At?.add(Duration(
+      days: int.tryParse(
+              firebaseService.generalData['freeTrailDays']?.toString() ?? '') ??
+          29));
 
   @override
   void initState() {
@@ -181,9 +185,20 @@ class _BuddyTabState extends State<BuddyTab> {
   }
 
   Widget _buildDefaultView(BuildContext context) {
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     String tastyMessage = "It's $appNameBuddy Time!";
     String tastyMessage2 =
         "Let's craft a perfect meal plan for a healthier you.";
+    String tastyMessage1 = "$appNameBuddy, at your service";
+    String tastyMessage4 =
+        "AI-powered food coach, crafting the perfect plan for a fitter you.";
+
+    final date = DateFormat('d MMMM')
+        .format(trailEndDate ?? DateTime.now());
+
+    String tastyMessage3 =
+        "Please enjoy our AI-powered food coach, helping you craft the perfect plan for a fitter you. \n \n Free trail until $date";
 
     return Center(
       child: Column(
@@ -214,7 +229,7 @@ class _BuddyTabState extends State<BuddyTab> {
           ),
           const SizedBox(height: 40),
           Text(
-            tastyMessage,
+            isPremium ? tastyMessage : tastyMessage1,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -224,7 +239,11 @@ class _BuddyTabState extends State<BuddyTab> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              tastyMessage2,
+              isPremium
+                  ? tastyMessage2
+                  : isInFreeTrail
+                      ? tastyMessage3
+                      : tastyMessage4,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 16,
@@ -233,7 +252,7 @@ class _BuddyTabState extends State<BuddyTab> {
             ),
           ),
           const SizedBox(height: 20),
-          if (isPremium)
+          if (isPremium || isInFreeTrail)
             SecondaryButton(
               text: 'Get Meal Plan',
               press: () => _checkAndNavigateToGenerate(context),

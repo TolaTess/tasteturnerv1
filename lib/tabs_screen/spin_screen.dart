@@ -20,7 +20,7 @@ class _SpinScreenState extends State<SpinScreen>
   List<MacroData> ingredientList = [];
   List<Meal> mealList = [];
   List<String> macroList = [];
-  String selectedCategory = '';
+  String selectedCategory = 'all';
 
   @override
   void initState() {
@@ -33,11 +33,13 @@ class _SpinScreenState extends State<SpinScreen>
     final ingredients = await macroManager.getIngredientsByCategory('all');
     final uniqueTypes = await macroManager.getUniqueTypes(ingredients);
     final mealListData = await mealManager.fetchMealsByCategory('all');
-    setState(() {
-      ingredientList = ingredients;
-      macroList = uniqueTypes;
-      mealList = mealListData;
-    });
+    if (mounted) {
+      setState(() {
+        ingredientList = ingredients;
+        macroList = uniqueTypes;
+        mealList = mealListData;
+      });
+    }
   }
 
   @override

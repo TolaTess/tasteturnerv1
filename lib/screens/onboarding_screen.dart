@@ -42,16 +42,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String selectedWeightUnit = 'kg';
   List<String> selectedGoals = [];
   bool enableAITrial = false;
-  bool syncHealthData = false;
   bool _isNextEnabled = false;
 
   // Add dietary preferences
   String selectedDiet = '';
   Set<String> selectedAllergies = {};
   String selectedCuisineType = '';
-
-  // Add this to your state variables
-  bool _isTextVisible = false;
 
   @override
   void initState() {
@@ -143,7 +139,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         location: '',
         userType: 'user',
         isPremium: enableAITrial,
-        syncHealth: syncHealthData,
+        created_At: DateTime.now(),
         settings: {
           'waterIntake': '2000',
           'foodGoal': '2000',
@@ -637,7 +633,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               subtitle: const Text(
-                "Go Premium for personalized AI guidance and support - 30 days free trial",
+                "Go Premium for personalized AI guidance and premium features - 30 days free trial",
                 style: TextStyle(
                   color: kWhite,
                   fontSize: 12,
@@ -737,7 +733,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         backgroundColor: kAccentLight,
                         radius: 100,
                         backgroundImage: AssetImage(
-                          'assets/images/tasty/tasty_splash.png',
+                          'assets/images/tasty/tasty.png',
                         ),
                       ),
                     ),

@@ -10,7 +10,6 @@ import '../themes/theme_provider.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/help_screen.dart';
 import '../screens/premium_screen.dart';
-import '../screens/privacy_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -109,15 +108,7 @@ class SettingsScreen extends StatelessWidget {
                                         ),
                                       );
                                       break;
-                                    case 'Privacy & Security':
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const PrivacyScreen(),
-                                        ),
-                                      );
-                                      break;
+
                                     case 'Dark Mode':
                                       break;
                                   }

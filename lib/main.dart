@@ -24,12 +24,6 @@ import 'themes/theme_provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
-// Future<void> addDummyPosts() async {
-//   for (MacroData newChallenge in fatIngredients) {
-//     await MacroManager.instance.addMacro(newChallenge);
-//   }
-// }
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -59,7 +53,8 @@ void main() async {
     Get.lazyPut(() => BadgeController());
     Get.lazyPut(() => FriendController());
   });
-  // await addDummyPosts();
+
+  await firebaseService.fetchGeneralData();
   await macroManager.getIngredientsByCategory("All");
   BattleManagement.instance.startBattleManagement();
   // Initialize notification service

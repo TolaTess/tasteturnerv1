@@ -72,7 +72,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: kAccent.withOpacity(0.2),
+                              color: kWhite.withOpacity(0.2),
                               blurRadius: 20,
                               spreadRadius: 2,
                             ),
@@ -82,11 +82,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
                       // ✅ Actual Image
                       SizedBox(
-                        child: Image.asset(
-                          tastyImage,
-                          width: getPercentageWidth(30, context),
-                        ),
+                        width: 100,
+                      child: Image.asset(
+                        'assets/images/tasty/tasty.png',
+                        fit: BoxFit.contain,
                       ),
+                    ),
                     ],
                   ),
                   const SizedBox(

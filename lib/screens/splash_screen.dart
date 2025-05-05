@@ -98,22 +98,22 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   Center(
                     child: SizedBox(
-                        width: 40,
+                        width: 30,
                       child: Transform.scale(
                         scale: _zoomAnimation.value,
                         child: Image.asset(
-                          'assets/images/tasty/tasty_splash.png',
+                          'assets/images/tasty/tasty.png',
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
                   ),
-                  // Opacity(
-                  //   opacity: _fadeAnimation.value,
-                  //   child: Container(
-                  //     color: isDarkMode ? kDarkGrey : kWhite,
-                  //   ),
-                  // ),
+                  Opacity(
+                    opacity: _fadeAnimation.value,
+                    child: Container(
+                      color: isDarkMode ? kDarkGrey : kWhite,
+                    ),
+                  ),
                 ],
               );
             },

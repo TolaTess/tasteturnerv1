@@ -524,7 +524,7 @@ Widget noItemTastyWidget(
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w400,
-            color: kAccent,
+            color: kAccentLight,
           ),
           textAlign: TextAlign.center,
         ),
@@ -536,7 +536,9 @@ Widget noItemTastyWidget(
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const BottomNavSec(selectedIndex: 1),
+                    builder: (context) => const BottomNavSec(
+                      selectedIndex: 0,
+                    ),
                   ),
                 );
               } else {
@@ -549,7 +551,7 @@ Widget noItemTastyWidget(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: isLinked
-                    ? kBlue
+                    ? kAccent
                     : themeProvider.isDarkMode
                         ? kWhite
                         : kBlack,

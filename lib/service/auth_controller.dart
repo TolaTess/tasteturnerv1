@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -61,9 +62,8 @@ class AuthController extends GetxController {
 
     print("Auth state changed: User authenticated");
 
-    // Check if user exists in Firestore
     try {
-      final userDoc = await firestore.collection('users').doc(user.uid).get();
+      final userDoc = await _fetchUserDocWithRetry(user.uid);
 
       if (!userDoc.exists) {
         // New user - needs onboarding
@@ -88,13 +88,45 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       print("Error checking user existence: $e");
-      // Handle the error appropriately
-      Get.snackbar(
-        'Please try again.',
-        'Something went wrong. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      // Check for Firestore unavailable error
+      if (e.toString().contains('cloud_firestore/unavailable')) {
+        // Optionally, you could retry here with a delay/backoff
+        Get.snackbar(
+          'Network Issue',
+          'We`re having trouble connecting. Please check your connection and try again.',
+          backgroundColor: kAccentLight,
+          colorText: kWhite,
+        );
+      } else {
+        // Handle other errors as before
+        Get.snackbar(
+          'Please try again.',
+          'Something went wrong. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    }
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _fetchUserDocWithRetry(
+      String userId,
+      {int maxRetries = 3}) async {
+    int attempt = 0;
+    int delayMs = 500;
+    while (true) {
+      try {
+        return await firestore.collection('users').doc(userId).get();
+      } catch (e) {
+        if (e.toString().contains('cloud_firestore/unavailable') &&
+            attempt < maxRetries) {
+          attempt++;
+          await Future.delayed(Duration(milliseconds: delayMs));
+          delayMs *= 2; // Exponential backoff
+          continue;
+        }
+        rethrow;
+      }
     }
   }
 
@@ -119,6 +151,13 @@ class AuthController extends GetxController {
         }
 
         // Create user model with all data
+        DateTime? createdAt;
+        if (userDataMap['created_At'] is Timestamp) {
+          createdAt = (userDataMap['created_At'] as Timestamp).toDate();
+        } else if (userDataMap['created_At'] is String) {
+          createdAt = DateTime.tryParse(userDataMap['created_At']);
+        }
+
         final user = UserModel(
           userId: doc.id,
           displayName: userDataMap['displayName']?.toString() ?? '',
@@ -136,6 +175,7 @@ class AuthController extends GetxController {
           following: following,
           userType: userDataMap['userType']?.toString() ?? 'user',
           isPremium: userDataMap['isPremium'] as bool? ?? false,
+          created_At: createdAt,
         );
 
         // Update userService and current user

@@ -241,29 +241,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               size: 30, color: kAccent.withOpacity(0.6)),
                         ),
                         const SizedBox(width: 5),
-                                          
+
                         // Unread Count Badge
                         Obx(() {
                           final nonBuddyChats = chatController.userChats
                               .where((chat) => !(chat['participants'] as List)
                                   .contains('buddy'))
                               .toList();
-                                          
+
                           if (nonBuddyChats.isEmpty) {
                             return const SizedBox
                                 .shrink(); // Hide badge if no chats
                           }
-                                          
+
                           // Calculate total unread count across all non-buddy chats
                           final int unreadCount = nonBuddyChats.fold<int>(
                             0,
                             (sum, chat) =>
                                 sum + (chat['unreadCount'] as int? ?? 0),
                           );
-                                          
+
                           // Handle notifications
                           _handleUnreadNotifications(unreadCount);
-                                          
+
                           if (unreadCount >= 1) {
                             return Container(
                               padding: const EdgeInsets.symmetric(
@@ -336,21 +336,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Row(
                         children: [
                           Text(
-                            DateFormat('EEEE').format(currentDate),
+                            getRelativeDayString(currentDate),
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            DateFormat('d MMMM').format(currentDate),
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.amber[700],
+                          if (getRelativeDayString(currentDate) != 'Today' &&
+                              getRelativeDayString(currentDate) != 'Yesterday')
+                            Text(
+                              DateFormat('d MMMM').format(currentDate),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.amber[700],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       IconButton(
@@ -437,7 +439,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-
 
                 const SizedBox(height: 15),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),

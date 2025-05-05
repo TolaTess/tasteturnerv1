@@ -32,10 +32,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   void initState() {
     super.initState();
     _setupDataListeners();
+
+    final categoryDatasIngredient = helperController.category;
+    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+    }
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _showAddJoinTutorial();
-      // Ensure showBattle is set after widget is live
       setState(() {
         showBattle = battleList.isNotEmpty;
       });
@@ -60,8 +66,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
   Future<void> _onRefresh() async {
     await firebaseService.fetchGeneralData();
-
     await _updateIngredientList(selectedCategory);
+    if (!mounted) return;
     setState(() {
       showBattle = battleList.isNotEmpty;
     });
@@ -117,7 +123,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(
-                  height: 20,
+                  height: 25,
                 ),
 
                 //category options
@@ -146,7 +152,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       const SizedBox(height: 10,),
+                      const SizedBox(
+                        height: 10,
+                      ),
                       const Text(
                         ingredientBattle,
                         style: TextStyle(
@@ -163,7 +171,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           color: kAccentLight,
                         ),
                       ),
-                       const SizedBox(height: 10,),
+                      const SizedBox(
+                        height: 10,
+                      ),
                     ],
                   ),
                   children: [
@@ -171,9 +181,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? kDarkModeAccent.withOpacity(kLowOpacity)
-                            : kLightGrey.withOpacity(kLowOpacity),
+                        color: kAccent.withOpacity(kMidOpacity),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
@@ -328,7 +336,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     : 'Vote for your favorite dish!',
                                                 style: const TextStyle(
                                                   fontSize: 14,
-                                                  color: kAccent,
+                                                  color: kAccentLight,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),

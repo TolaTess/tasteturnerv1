@@ -94,6 +94,12 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   void initState() {
     super.initState();
+
+    final categoryDatasIngredient = helperController.category;
+    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+    }
     _loadGalleryImages();
   }
 
@@ -178,9 +184,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             post, userService.userId ?? '', uploadedImageUrls);
       } else {
         // Update battle with uploaded images
-        await BattleService.instance.uploadBattleImages(
-          post: post
-        );
+        await BattleService.instance.uploadBattleImages(post: post);
       }
 
       if (mounted) {

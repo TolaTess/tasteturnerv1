@@ -12,7 +12,7 @@ class UserModel {
   Map<String, dynamic> preferences;
   String? userType;
   bool isPremium;
-  bool? syncHealth;
+  DateTime? created_At;
   String? location;
 
   UserModel({
@@ -26,7 +26,7 @@ class UserModel {
     this.preferences = const {},
     this.userType = 'user',
     required this.isPremium,
-    this.syncHealth,
+    this.created_At,
     this.location,
   });
 
@@ -48,6 +48,14 @@ class UserModel {
       preferences = Map<String, dynamic>.from(data['preferences']);
     }
 
+    // Handle created_At as Timestamp or String
+    DateTime? createdAt;
+    if (data['created_At'] is Timestamp) {
+      createdAt = (data['created_At'] as Timestamp).toDate();
+    } else if (data['created_At'] is String) {
+      createdAt = DateTime.tryParse(data['created_At']);
+    }
+
     return UserModel(
       userId: snapshot.id,
       displayName: data['displayName']?.toString() ?? '',
@@ -59,6 +67,7 @@ class UserModel {
       preferences: preferences,
       userType: data['userType']?.toString() ?? 'user',
       isPremium: data['isPremium'] as bool? ?? false,
+      created_At: createdAt,
     );
   }
 
@@ -74,13 +83,17 @@ class UserModel {
       'preferences': preferences,
       'userType': userType,
       'isPremium': isPremium,
+      'created_At': created_At != null ? Timestamp.fromDate(created_At!) : null,
     };
   }
 
   // Convert to JSON-safe map for SharedPreferences
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = toMap();
-
+    // Convert created_At to ISO8601 string for JSON
+    if (created_At != null) {
+      data['created_At'] = created_At!.toIso8601String();
+    }
     // Convert preferences map to be JSON-safe
     if (data['preferences'] != null) {
       final prefs = Map<String, dynamic>.from(data['preferences']);
@@ -90,7 +103,6 @@ class UserModel {
       }
       data['preferences'] = prefs;
     }
-
     return data;
   }
 
@@ -109,6 +121,14 @@ class UserModel {
       preferences = Map<String, dynamic>.from(map['preferences']);
     }
 
+    // Handle created_At as String or Timestamp
+    DateTime? createdAt;
+    if (map['created_At'] is String) {
+      createdAt = DateTime.tryParse(map['created_At']);
+    } else if (map['created_At'] is Timestamp) {
+      createdAt = (map['created_At'] as Timestamp).toDate();
+    }
+
     return UserModel(
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
@@ -119,17 +139,7 @@ class UserModel {
       preferences: preferences,
       userType: map['userType']?.toString() ?? 'user',
       isPremium: map['isPremium'] as bool? ?? false,
-    );
-  }
-
-  UserModel copyWith({
-    bool? syncHealth,
-  }) {
-    return UserModel(
-      syncHealth: syncHealth ?? this.syncHealth,
-      displayName: displayName ?? this.displayName,
-      profileImage: profileImage ?? this.profileImage,
-      isPremium: isPremium ?? this.isPremium,
+      created_At: createdAt,
     );
   }
 }

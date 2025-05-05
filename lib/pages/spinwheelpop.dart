@@ -37,23 +37,40 @@ class SpinWheelPop extends StatefulWidget {
 class _SpinWheelPopState extends State<SpinWheelPop>
     with SingleTickerProviderStateMixin {
   final TextEditingController customController = TextEditingController();
-  bool _isExpanded = false;
   List<String> _ingredientList = [];
   List<String> _mealList = [];
   late AudioPlayer _audioPlayer;
   bool _isMuted = false;
-  String selectedCategoryMeal = 'Balanced';
+  String selectedCategoryMeal = 'all';
   String selectedCategoryIdMeal = '';
   String selectedCategoryIdIngredient = '';
   String selectedCategoryIngredient = 'all';
   bool showIngredientSpin = true; // New state to toggle between modes
+  bool _funMode = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchMeals(); // Load meals for Meal Spin mode
     _audioPlayer = AudioPlayer();
     _loadMuteState();
+
+    // Set default for meal category
+    final categoryDatasMeal = helperController.headers;
+    if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
+      selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
+      selectedCategoryMeal = categoryDatasMeal[0]['category'] ?? '';
+    }
+
+    // Set default for ingredient category
+    final categoryDatasIngredient = helperController.category;
+    if (categoryDatasIngredient.isNotEmpty &&
+        selectedCategoryIdIngredient.isEmpty) {
+      selectedCategoryIdIngredient = categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategoryIngredient = categoryDatasIngredient[0]['category'] ?? '';
+    }
+
+    // Ensure meal list is populated for default category
+    _updateMealListByType();
   }
 
   Future<void> _loadMuteState() async {
@@ -71,23 +88,11 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   @override
   void dispose() {
-    customController.dispose();
+    if (!_funMode) {
+      customController.dispose();
+    }
     _audioPlayer.dispose();
     super.dispose();
-  }
-
-  void _updateIngredientList() {
-    _isExpanded = false;
-    if (customController.text.isNotEmpty) {
-      List<String> ingredients = customController.text
-          .split(RegExp(r'[,;\n]'))
-          .map((ingredient) => ingredient.trim())
-          .where((ingredient) => ingredient.isNotEmpty)
-          .toList();
-      setState(() {
-        _ingredientList = ingredients;
-      });
-    }
   }
 
   void _playSound() async {
@@ -129,7 +134,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   void _updateMealListByType() async {
     if (!mounted) return;
 
-    if (selectedCategoryMeal == 'Balanced') {
+    if (selectedCategoryMeal.isEmpty ||
+        selectedCategoryMeal.toLowerCase() == 'balanced' ||
+        selectedCategoryMeal.toLowerCase() == 'all') {
       setState(() {
         _mealList = widget.mealList.map((meal) => meal.title).take(10).toList();
       });
@@ -151,31 +158,32 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   void _updateIngredientListByType() async {
     if (!mounted) return;
 
-    if (selectedCategoryIngredient == 'all') {
+    if (selectedCategoryIngredient.isEmpty ||
+        selectedCategoryIngredient == 'all') {
       setState(() {
-        _ingredientList = widget.ingredientList.map((ingredient) => ingredient.title).take(10).toList();
+        _ingredientList = widget.ingredientList
+            .map((ingredient) => ingredient.title)
+            .take(10)
+            .toList();
       });
     } else {
       final newIngredientList = widget.ingredientList
-          .where((ingredient) => ingredient.categories.contains(selectedCategoryIngredient.toLowerCase()))
+          .where((ingredient) => ingredient.categories
+              .contains(selectedCategoryIngredient.toLowerCase()))
           .toList();
 
       setState(() {
         if (newIngredientList.length > 10) {
-          _ingredientList = newIngredientList.map((ingredient) => ingredient.title).take(10).toList();
-        } else {    
-          _ingredientList = newIngredientList.map((ingredient) => ingredient.title).toList();
+          _ingredientList = newIngredientList
+              .map((ingredient) => ingredient.title)
+              .take(10)
+              .toList();
+        } else {
+          _ingredientList =
+              newIngredientList.map((ingredient) => ingredient.title).toList();
         }
       });
-    } 
-  }
-
-  Future<void> _fetchMeals() async {
-    final meals =
-        await mealManager.fetchMealsByCategory(widget.selectedCategory);
-    setState(() {
-      _mealList = meals.map((meal) => meal.title).toList().take(10).toList();
-    });
+    }
   }
 
   @override
@@ -201,6 +209,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                       onPressed: () {
                         setState(() {
                           showIngredientSpin = !showIngredientSpin;
+                          if (!showIngredientSpin) {
+                            // Switched to meal spin, update meal list
+                            _updateMealListByType();
+                          }
                         });
                       },
                       child: Text(
@@ -247,62 +259,96 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         ),
 
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? kLightGrey
-                : kAccent.withValues(alpha: kMidOpacity),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: TextButton(
-            onPressed: () => setState(() => _isExpanded = !_isExpanded),
-            child: Text(
-              _isExpanded ? "Hide Input" : "Add Your Ingredients",
-              style:
-                  TextStyle(fontSize: 16, color: isDarkMode ? kWhite : kBlack),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Theme(
+              data: Theme.of(context).copyWith(
+                unselectedWidgetColor: isDarkMode ? kPrimaryColor : kBlack,
+              ),
+              child: Checkbox(
+                activeColor: kAccent,
+                checkColor: isDarkMode ? kWhite : kDarkGrey,
+                value: _funMode,
+                onChanged: (val) async {
+                  setState(() => _funMode = val ?? false);
+                  if (_funMode) {
+                    // Show modal for entering ingredients
+                    final result = await showDialog<List<String>>(
+                      context: context,
+                      builder: (context) {
+                        final TextEditingController modalController =
+                            TextEditingController();
+                        return AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          backgroundColor: getThemeProvider(context).isDarkMode
+                              ? kDarkGrey
+                              : kWhite,
+                          title: Text(
+                            'Enter Ingredients',
+                            style: TextStyle(
+                                color: isDarkMode ? kWhite : kDarkGrey),
+                          ),
+                          content: SafeTextFormField(
+                            controller: modalController,
+                            style: TextStyle(
+                                color: isDarkMode ? kWhite : kDarkGrey),
+                            keyboardType: TextInputType.text,
+                            decoration: InputDecoration(
+                              labelText:
+                                  "Add your Ingredients (eggs, tuna, etc.)",
+                              labelStyle: TextStyle(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey),
+                              enabledBorder: outlineInputBorder(10),
+                              focusedBorder: outlineInputBorder(10),
+                              border: outlineInputBorder(10),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                    color: isDarkMode ? kWhite : kDarkGrey),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                final text = modalController.text;
+                                final items = text
+                                    .split(RegExp(r'[,;\n]'))
+                                    .map((i) => i.trim())
+                                    .where((i) => i.isNotEmpty)
+                                    .toList();
+                                Navigator.pop(context, items);
+                              },
+                              child: const Text(
+                                'Add',
+                                style: TextStyle(color: kAccent),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (result != null && result.isNotEmpty) {
+                      setState(() {
+                        _ingredientList = result;
+                      });
+                    }
+                  }
+                },
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        const SizedBox(height: 10),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          height: _isExpanded ? 100 : 0,
-          curve: Curves.easeInOut,
-          child: _isExpanded
-              ? Row(
-                  children: [
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SafeTextFormField(
-                        controller: customController,
-                        style:
-                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                        keyboardType: TextInputType.text,
-                        decoration: InputDecoration(
-                          labelText: "Add your Ingredients (eggs, tuna, etc.)",
-                          labelStyle: TextStyle(
-                              color: isDarkMode ? kLightGrey : kDarkGrey),
-                          enabledBorder: outlineInputBorder(10),
-                          focusedBorder: outlineInputBorder(10),
-                          border: outlineInputBorder(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: _updateIngredientList,
-                      child: const IconCircleButton(icon: Icons.send),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                )
-              : const SizedBox(),
+            const Text('Custom Mode', style: TextStyle(fontSize: 12),),
+            const SizedBox(width: 15),
+          ],
         ),
         const SizedBox(height: 15),
 
-        const SizedBox(height: 10),
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
@@ -334,7 +380,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           darkModeAccentColor: kDarkModeAccent,
         ),
 
-        const SizedBox(height: 50),
+        _mealList.isEmpty
+            ? const SizedBox(height: 1)
+            : const SizedBox(height: 50),
 
         Expanded(
           child: Center(

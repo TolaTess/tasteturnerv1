@@ -35,11 +35,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   void initState() {
     super.initState();
+
+    final categoryDatasIngredient = helperController.category;
+    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+    }
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
-    myMealList = mealList
-        .where((meal) => meal.userId == userService.userId)
-        .toList();
+    myMealList =
+        mealList.where((meal) => meal.userId == userService.userId).toList();
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddSpinTutorial();

@@ -40,7 +40,7 @@ class CategorySelector extends StatelessWidget {
                         : accentColor.withOpacity(0.60)
                     : isDarkMode
                         ? darkModeAccentColor.withOpacity(0.08)
-                        : accentColor.withOpacity(0.2),
+                        : accentColor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Center(

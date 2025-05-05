@@ -64,7 +64,7 @@ class _FriendScreenState extends State<FriendScreen> {
             if (friendController.friendsMap.isEmpty) {
               return noItemTastyWidget(
                 "No friends yet.",
-                "Add friends to see them here.",
+                "Follow more users to see them here.",
                 context,
                 false,
               );

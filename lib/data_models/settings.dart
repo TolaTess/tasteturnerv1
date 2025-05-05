@@ -35,11 +35,6 @@ List<Setting> demoSetting = [
     suffixicon: Icons.navigate_next,
   ),
   Setting(
-    category: "Privacy & Security",
-    prefixicon: Icons.lock,
-    suffixicon: Icons.navigate_next,
-  ),
-  Setting(
     category: "Help & Support",
     prefixicon: Icons.headset_mic,
     suffixicon: Icons.navigate_next,

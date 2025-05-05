@@ -176,7 +176,9 @@ Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
           : Border.all(color: kAccentLight, width: 0),
     ),
     child: Text(
-      birthdayName.toLowerCase() == 'you' ? 'Happy Birthday to you!' : '${birthdayName}s birthday is today! 🎂',
+      birthdayName.toLowerCase() == 'you'
+          ? 'Happy Birthday to you!'
+          : '${birthdayName}s birthday is today! 🎂',
       style: TextStyle(
         color: kAccentLight,
         fontSize: isShrink ? 12 : 14,
@@ -185,4 +187,42 @@ Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
       ),
     ),
   );
+}
+
+// Returns a string like 'Today', 'Yesterday', 'Tomorrow', or the weekday name for the given date
+String getRelativeDayString(DateTime date) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(date.year, date.month, date.day);
+  final diff = target.difference(today).inDays;
+  if (diff == 0) {
+    return 'Today';
+  } else if (diff == -1) {
+    return 'Yesterday';
+  } else if (diff == 1) {
+    return 'Tomorrow';
+  } else {
+    return _weekdayName(target.weekday);
+  }
+}
+
+String _weekdayName(int weekday) {
+  switch (weekday) {
+    case DateTime.monday:
+      return 'Mon';
+    case DateTime.tuesday:
+      return 'Tues';
+    case DateTime.wednesday:
+      return 'Wed';
+    case DateTime.thursday:
+      return 'Thur';
+    case DateTime.friday:
+      return 'Fri';
+    case DateTime.saturday:
+      return 'Sat';
+    case DateTime.sunday:
+      return 'Sun';
+    default:
+      return '';
+  }
 }

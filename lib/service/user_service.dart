@@ -1,4 +1,3 @@
-
 import '../data_models/user_data_model.dart';
 
 class UserService {

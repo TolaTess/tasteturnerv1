@@ -25,7 +25,6 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
   Future<void> _fetchFavorites() async {
     try {
-      final userId = userService.userId ?? ''; // Get current user ID
       final meals =
           await mealManager.fetchFavoriteMeals(); // Use your fetch function
       setState(() {

@@ -289,7 +289,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (snapshot.hasError) {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No items selected');
+                return const Text('No items selected',
+                    style: TextStyle(fontSize: 12));
               } else {
                 final displayedItems = snapshot.data!;
                 return _buildContent(context, displayedItems, true);
@@ -307,7 +308,10 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (snapshot.hasError) {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No items selected');
+                return const Text(
+                  'No items selected',
+                  style: TextStyle(fontSize: 12),
+                );
               } else {
                 final displayedItems = snapshot.data!;
                 return _buildContent(context, displayedItems, false);

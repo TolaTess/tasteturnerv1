@@ -24,6 +24,10 @@ class _TastyScreenState extends State<TastyScreen> {
   final TextEditingController textController = TextEditingController();
   String? chatId;
   bool get isPremium => userService.currentUser?.isPremium ?? false;
+  DateTime? trailEndDate = userService.currentUser?.created_At?.add(Duration(
+      days: int.tryParse(
+              firebaseService.generalData['freeTrailDays']?.toString() ?? '') ??
+          29));
   late ChatController chatController;
 
   // List of welcome messages
@@ -44,9 +48,8 @@ class _TastyScreenState extends State<TastyScreen> {
       // If controller is not found, initialize it
       chatController = Get.put(ChatController());
     }
-
     chatId = userService.buddyId;
-    if (isPremium) {
+    if (isPremium || DateTime.now().isBefore(trailEndDate ?? DateTime.now())) {
       _initializeChatWithBuddy();
     }
   }
@@ -100,6 +103,7 @@ class _TastyScreenState extends State<TastyScreen> {
   Future<void> _saveChatSummary() async {
     if (chatId == null ||
         !isPremium ||
+        !DateTime.now().isBefore(trailEndDate ?? DateTime.now()) ||
         chatController.messages.last.senderId == 'buddy') return;
 
     final messages = chatController.messages;
@@ -192,100 +196,92 @@ class _TastyScreenState extends State<TastyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isInFreeTrail =
+        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
-      body: Column(
-        children: [
-          const SizedBox(height: 45),
-          Row(
-            children: [
-              InkWell(
-                onTap: () {
-                  Navigator.pop(context);
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(15),
-                  child: IconCircleButton(isColorChange: true),
-                ),
-              ),
-              if (isPremium)
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: themeProvider.isDarkMode ? kLightGrey : kWhite,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ExpansionTile(
-                      collapsedIconColor:
-                          themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                      iconColor: themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                      title: Row(
-                        children: [
-                          const CircleAvatar(
-                            backgroundColor: kAccentLight,
-                            backgroundImage: AssetImage(
-                              tastyImage, // Adjust the path to your tasty image
-                            ),
-                            radius: 20,
+      body: (isPremium || isInFreeTrail)
+          ? Column(
+              children: [
+                const SizedBox(height: 45),
+                Row(
+                  children: [
+                    if (isPremium || isInFreeTrail)
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color:
+                                themeProvider.isDarkMode ? kLightGrey : kWhite,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          const SizedBox(
-                              width:
-                                  15), // Add some spacing between image and text
-                          Text(
-                            "Tasty Menu:",
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: themeProvider.isDarkMode
-                                      ? kWhite
-                                      : kDarkGrey,
+                          child: ExpansionTile(
+                            collapsedIconColor:
+                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                            iconColor:
+                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                            title: Row(
+                              children: [
+                                const CircleAvatar(
+                                  backgroundColor: kAccentLight,
+                                  backgroundImage: AssetImage(
+                                    tastyImage, // Adjust the path to your tasty image
+                                  ),
+                                  radius: 20,
                                 ),
+                                const SizedBox(width: 15),
+                                Text(
+                                  "Tasty Menu:",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: themeProvider.isDarkMode
+                                            ? kWhite
+                                            : kDarkGrey,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            initiallyExpanded: false,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFeatureItem(
+                                      context,
+                                      "💬 Chat about your fitness goals and progress",
+                                      "Ask for advice, motivation, or meal planning",
+                                      themeProvider.isDarkMode),
+                                  _buildFeatureItem(
+                                      context,
+                                      "🎡 Type 'spin' to use the ingredient wheel",
+                                      "Get random food suggestions based on your macros",
+                                      themeProvider.isDarkMode),
+                                  _buildFeatureItem(
+                                      context,
+                                      "📊 Discuss your nutrition and workout plans",
+                                      "Get personalized recommendations for your goals",
+                                      themeProvider.isDarkMode),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      initiallyExpanded: false,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildFeatureItem(
-                                context,
-                                "💬 Chat about your fitness goals and progress",
-                                "Ask for advice, motivation, or meal planning",
-                                themeProvider.isDarkMode),
-                            _buildFeatureItem(
-                                context,
-                                "🎡 Type 'spin' to use the ingredient wheel",
-                                "Get random food suggestions based on your macros",
-                                themeProvider.isDarkMode),
-                            _buildFeatureItem(
-                                context,
-                                "📊 Discuss your nutrition and workout plans",
-                                "Get personalized recommendations for your goals",
-                                themeProvider.isDarkMode),
-                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-          Expanded(
-            child: !isPremium
-                ? _buildPremiumPrompt(themeProvider)
-                : Obx(() {
+                Expanded(
+                  child: Obx(() {
                     final messages = chatController.messages;
 
                     if (messages.isEmpty) {
@@ -319,10 +315,13 @@ class _TastyScreenState extends State<TastyScreen> {
                       },
                     );
                   }),
-          ),
-          if (isPremium) _buildInputSection(themeProvider.isDarkMode),
-        ],
-      ),
+                ),
+                _buildInputSection(themeProvider.isDarkMode),
+                const 
+                SizedBox(height: 80,),
+              ],
+            )
+          : _buildPremiumPrompt(themeProvider),
     );
   }
 
@@ -432,7 +431,9 @@ Greet the user warmly and offer guidance based on:
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
-    if (chatId == null || !isPremium) return;
+    if (chatId == null ||
+        !isPremium ||
+        !DateTime.now().isBefore(trailEndDate ?? DateTime.now())) return;
 
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
@@ -574,7 +575,8 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _initializeChatWithBuddy() async {
-    if (!isPremium) return;
+    if (!isPremium || !DateTime.now().isBefore(trailEndDate ?? DateTime.now()))
+      return;
 
     if (chatId != null && chatId!.isNotEmpty) {
       // Existing chat - just listen to messages and mark as read
@@ -600,7 +602,9 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _sendWelcomeMessage() async {
-    if (!isPremium || chatId == null) return;
+    if (!isPremium ||
+        !DateTime.now().isBefore(trailEndDate ?? DateTime.now()) ||
+        chatId == null) return;
 
     try {
       final randomMessage = _welcomeMessages[

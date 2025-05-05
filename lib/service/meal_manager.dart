@@ -51,7 +51,7 @@ class MealManager extends GetxController {
     }
     try {
       QuerySnapshot snapshot;
-      if (category == 'All' || category == 'all') {
+      if (category.toLowerCase() == 'balanced' || category.toLowerCase() == 'all') {
         snapshot = await firestore.collection('meals').get();
       } else {
         snapshot = await firestore
