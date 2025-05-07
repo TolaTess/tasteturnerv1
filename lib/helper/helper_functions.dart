@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
@@ -106,21 +107,22 @@ class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
 
 Widget buildProfileAvatar({
   required String imageUrl,
-  double outerRadius = 38,
-  double innerRadius = 35,
-  double imageSize = 70,
+  double outerRadius = 5,
+  double innerRadius = 4.5,
+  double imageSize = 50,
   Color? backgroundColor,
+  required BuildContext context,
 }) {
   return CircleAvatar(
-    radius: outerRadius,
+    radius: getPercentageHeight(outerRadius, context),
     backgroundColor: backgroundColor ?? kAccent.withOpacity(kOpacity),
     child: CircleAvatar(
-      radius: innerRadius,
+      radius: getPercentageHeight(innerRadius,  context),
       child: ClipOval(
         child: OptimizedImage(
           imageUrl: imageUrl,
-          width: imageSize,
-          height: imageSize,
+          width: getPercentageHeight(imageSize, context),
+          height: getPercentageHeight(imageSize, context),
           isProfileImage: true,
         ),
       ),

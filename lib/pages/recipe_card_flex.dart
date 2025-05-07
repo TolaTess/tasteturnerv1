@@ -59,7 +59,6 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
 
   @override
   Widget build(BuildContext context) {
-
     final String? mediaPath = widget.recipe.mediaPaths.isNotEmpty
         ? widget.recipe.mediaPaths.first
         : extPlaceholderImage;
@@ -79,7 +78,9 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
               child: Stack(
                 children: [
                   // Recipe image
-                  mediaPath != null && mediaPath.isNotEmpty && mediaPath.startsWith('http')
+                  mediaPath != null &&
+                          mediaPath.isNotEmpty &&
+                          mediaPath.startsWith('http')
                       ? Image.network(
                           mediaPath,
                           width: double.infinity,
@@ -149,9 +150,9 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
 
                   // Recipe details (title, prep time, serve quantity)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 10,
+                      vertical: getPercentageHeight(0.5, context),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -161,10 +162,10 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                         Text(
                           widget.recipe.title,
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              color: Colors.white,
+                              fontSize: getPercentageHeight(2.2, context),
+                              fontWeight: FontWeight.w500,
+                              overflow: TextOverflow.ellipsis),
                           maxLines: 2,
                         ),
                         const SizedBox(height: 7),

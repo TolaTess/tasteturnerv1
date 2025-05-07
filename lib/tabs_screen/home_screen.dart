@@ -336,23 +336,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Row(
                         children: [
                           Text(
-                            getRelativeDayString(currentDate),
+                            '${getRelativeDayString(currentDate)},',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (getRelativeDayString(currentDate) != 'Today' &&
-                              getRelativeDayString(currentDate) != 'Yesterday')
-                            Text(
-                              DateFormat('d MMMM').format(currentDate),
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.amber[700],
-                              ),
+                          Text(
+                            DateFormat('d MMMM').format(currentDate),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.amber[700],
                             ),
+                          ),
                         ],
                       ),
                       IconButton(
@@ -518,8 +516,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     }),
                   ],
                 ),
-
-                const SizedBox(height: 72),
               ],
             ),
           ),

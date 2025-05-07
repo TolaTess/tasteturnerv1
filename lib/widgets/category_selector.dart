@@ -7,6 +7,7 @@ class CategorySelector extends StatelessWidget {
   final bool isDarkMode;
   final Color accentColor;
   final Color darkModeAccentColor;
+  final bool isFunMode;
 
   const CategorySelector({
     super.key,
@@ -16,6 +17,7 @@ class CategorySelector extends StatelessWidget {
     required this.isDarkMode,
     required this.accentColor,
     required this.darkModeAccentColor,
+    this.isFunMode = false,
   });
 
   @override

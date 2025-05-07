@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../pages/leaderboard.dart';
@@ -26,18 +27,21 @@ class CustomDrawer extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
+            SizedBox(
+              height: getPercentageHeight(3, context),
+            ),
             //Custom Header
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 1.5,
+                horizontal: 16,
+                vertical: 2,
               ),
               child: Row(
                 children: [
                   buildProfileAvatar(
-                    imageUrl: userService.currentUser!.profileImage ??
-                        intPlaceholderImage,
-                  ),
+                      imageUrl: userService.currentUser!.profileImage ??
+                          intPlaceholderImage,
+                      context: context),
                   const SizedBox(
                     width: 12,
                   ),
@@ -46,9 +50,9 @@ class CustomDrawer extends StatelessWidget {
                     children: [
                       Text(
                         userService.currentUser!.displayName ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                          fontSize: getPercentageHeight(3, context),
                         ),
                       ),
                     ],
@@ -202,6 +206,9 @@ class CustomDrawer extends StatelessWidget {
                 );
               },
             ),
+            SizedBox(
+              height: getPercentageHeight(7, context),
+            )
           ],
         ),
       ),

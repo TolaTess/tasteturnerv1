@@ -52,7 +52,7 @@ class _FoodTabScreenState extends State<FoodTabScreen>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             // Profile image that opens drawer
             GestureDetector(
@@ -97,6 +97,8 @@ class _FoodTabScreenState extends State<FoodTabScreen>
               ),
               child: const IconCircleButton(
                 icon: Icons.add,
+                h: 30,
+                w: 30,
                 isRemoveContainer: false,
               ),
             ),

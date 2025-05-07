@@ -160,9 +160,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 //Techniques
                 if (widget.item.techniques.isNotEmpty)
                   SizedBox(
-                    height: getPercentageWidth(8, context),
+                    height: getPercentageWidth(9, context),
                     child: ListView.builder(
-                      padding: const EdgeInsets.all(5),
+                      padding:  const EdgeInsets.all(5),
                       shrinkWrap: true,
                       itemCount: widget.item.techniques.length,
                       scrollDirection: Axis.horizontal,
@@ -178,7 +178,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
 
                 if (widget.item.macros.isNotEmpty)
                   const SizedBox(
-                    height: 15,
+                    height: 8,
                   ),
                 if (widget.item.macros.isNotEmpty)
                   Padding(
@@ -555,11 +555,11 @@ class TopFeatures extends StatelessWidget {
       case 'g_i':
         return 'Glycemic Index: $value\nGlycemic index measures how quickly a food raises blood sugar levels.';
       case 'freezer':
-        return 'Store in freezer at $value°F.\nThis helps preserve the ingredient\'s freshness and flavor.';
+        return 'Store in freezer for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
       case 'fridge':
-        return 'Store in refrigerator at $value°F.\nThis helps preserve the ingredient\'s freshness and flavor.';
+        return 'Store in refrigerator for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
       case 'countertop':
-        return 'Store at room temperature.\nThis helps preserve the ingredient\'s freshness and flavor.';
+        return 'Store at room temperature for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
       default:
         return '$key: $value';
     }

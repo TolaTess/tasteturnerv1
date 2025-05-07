@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:tasteturner/tabs_screen/spin_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
-import '../screens/createrecipe_screen.dart';
+import '../helper/utils.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/ingredient_features.dart';
 import 'shopping_tab.dart';
 import '../themes/theme_provider.dart';
 
@@ -28,6 +29,19 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
     _tabController = TabController(
         length: 2, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
+    _setupDataListeners();
+  }
+
+  void _setupDataListeners() {
+    _onRefresh();
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() {
+      final currentWeek = getCurrentWeek();
+      macroManager.fetchShoppingList(
+          userService.userId ?? '', currentWeek, false);
+    });
   }
 
   @override
@@ -52,7 +66,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             // Profile image that opens drawer
             GestureDetector(
@@ -82,7 +96,30 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             ),
           ],
         ),
-       
+        actions: [
+          // Add new recipe button
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => IngredientFeatures(
+                      items: macroManager.ingredient,
+                    ),
+                  ),
+                );
+              },
+              child: const IconCircleButton(
+                icon: Icons.add,
+                h: 30,
+                w: 30,
+                isRemoveContainer: false,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -124,9 +161,8 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                        SpinScreen(), // Calls tab content
+                  SpinScreen(), // Calls tab content
                   const ShoppingTab(), // Chats tab content
-            
                 ],
               ),
             ),

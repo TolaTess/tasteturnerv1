@@ -194,81 +194,85 @@ class _BuddyTabState extends State<BuddyTab> {
     String tastyMessage4 =
         "AI-powered food coach, crafting the perfect plan for a fitter you.";
 
-    final date = DateFormat('d MMMM')
-        .format(trailEndDate ?? DateTime.now());
+    final date = DateFormat('d MMMM').format(trailEndDate ?? DateTime.now());
 
     String tastyMessage3 =
         "Please enjoy our AI-powered food coach, helping you craft the perfect plan for a fitter you. \n \n Free trail until $date";
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          TweenAnimationBuilder(
-            tween: Tween<double>(begin: 0.8, end: 1.2),
-            duration: const Duration(seconds: 2),
-            curve: Curves.easeInOut,
-            builder: (context, double scale, child) {
-              return Transform.scale(
-                scale: scale,
-                child: child,
-              );
-            },
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: const BoxDecoration(
-                color: kAccentLight,
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: AssetImage(tastyImage),
-                  fit: BoxFit.cover,
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: getPercentageHeight(8, context),),
+              TweenAnimationBuilder(
+                tween: Tween<double>(begin: 0.8, end: 1.2),
+                duration: const Duration(seconds: 2),
+                curve: Curves.easeInOut,
+                builder: (context, double scale, child) {
+                  return Transform.scale(
+                    scale: scale,
+                    child: child,
+                  );
+                },
+                child: Container(
+                  width: 170,
+                  height: 170,
+                  decoration: const BoxDecoration(
+                    color: kAccentLight,
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      image: AssetImage(tastyImage),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 40),
-          Text(
-            isPremium ? tastyMessage : tastyMessage1,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              isPremium
-                  ? tastyMessage2
-                  : isInFreeTrail
-                      ? tastyMessage3
-                      : tastyMessage4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          if (isPremium || isInFreeTrail)
-            SecondaryButton(
-              text: 'Get Meal Plan',
-              press: () => _checkAndNavigateToGenerate(context),
-            )
-          else
-            SecondaryButton(
-              text: goPremium,
-              press: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PremiumScreen(),
+              SizedBox(height: getPercentageHeight(5, context),),
+              Text(
+                isPremium ? tastyMessage : tastyMessage1,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          const SizedBox(height: 100),
-        ],
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  isPremium
+                      ? tastyMessage2
+                      : isInFreeTrail
+                          ? tastyMessage3
+                          : tastyMessage4,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (isPremium || isInFreeTrail)
+                SecondaryButton(
+                  text: 'Get Meal Plan',
+                  press: () => _checkAndNavigateToGenerate(context),
+                )
+              else
+                SecondaryButton(
+                  text: goPremium,
+                  press: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PremiumScreen(),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -495,104 +499,103 @@ class _BuddyTabState extends State<BuddyTab> {
                               _getMealTypeColor(meal['category'] ?? 'default'),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                _getMealTypeImage(
-                                    meal['category'] ?? 'default'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            meal['title'] ?? 'Untitled Meal',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          subtitle: Row(
-                            children: [
-                              const Icon(
-                                Icons.restaurant,
-                                size: 16,
-                                color: Colors.white70,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${meal['calories'] ?? 0} kcal',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.arrow_forward_ios),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RecipeDetailScreen(
-                                    mealData: Meal(
-                                      mealId: meal['mealId']?.toString() ?? '',
-                                      title: meal['title']?.toString() ??
-                                          'Delicious Meal - Untitled',
-                                      userId: meal['userId']?.toString() ??
-                                          'Taste Turner',
-                                      category: meal['category']?.toString() ??
-                                          'default',
-                                      calories: meal['calories'] is int
-                                          ? meal['calories'] as int
-                                          : int.tryParse(meal['calories']
-                                                      ?.toString() ??
-                                                  '0') ??
-                                              0,
-                                      ingredients: meal['ingredients'] is Map
-                                          ? Map<String, String>.from(
-                                              meal['ingredients'])
-                                          : <String, String>{},
-                                      categories: meal['categories'] is List
-                                          ? List<String>.from(meal['categories']
-                                              .map((e) => e.toString()))
-                                          : <String>[],
-                                      createdAt: meal['createdAt'] is Timestamp
-                                          ? (meal['createdAt'] as Timestamp)
-                                              .toDate()
-                                          : DateTime.now(),
-                                      mediaPaths: meal['mediaPaths'] is List
-                                          ? List<String>.from(meal['mediaPaths']
-                                              .map((e) => e.toString()))
-                                          : <String>[''],
-                                      serveQty: meal['serveQty'] is int
-                                          ? meal['serveQty'] as int
-                                          : int.tryParse(meal['serveQty']
-                                                      ?.toString() ??
-                                                  '1') ??
-                                              1,
-                                      steps: meal['steps'] is List
-                                          ? List<String>.from(meal['steps']
-                                              .map((e) => e.toString()))
-                                          : <String>[],
-                                      macros: meal['macros'] is Map
-                                          ? Map<String, String>.from(
-                                              meal['macros'])
-                                          : <String, String>{},
-                                    ),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RecipeDetailScreen(
+                                  mealData: Meal(
+                                    mealId: meal['mealId']?.toString() ?? '',
+                                    title: meal['title']?.toString() ??
+                                        'Delicious Meal - Untitled',
+                                    userId: meal['userId']?.toString() ??
+                                        'Taste Turner',
+                                    category: meal['category']?.toString() ??
+                                        'default',
+                                    calories: meal['calories'] is int
+                                        ? meal['calories'] as int
+                                        : int.tryParse(
+                                                meal['calories']?.toString() ??
+                                                    '0') ??
+                                            0,
+                                    ingredients: meal['ingredients'] is Map
+                                        ? Map<String, String>.from(
+                                            meal['ingredients'])
+                                        : <String, String>{},
+                                    categories: meal['categories'] is List
+                                        ? List<String>.from(meal['categories']
+                                            .map((e) => e.toString()))
+                                        : <String>[],
+                                    createdAt: meal['createdAt'] is Timestamp
+                                        ? (meal['createdAt'] as Timestamp)
+                                            .toDate()
+                                        : DateTime.now(),
+                                    mediaPaths: meal['mediaPaths'] is List
+                                        ? List<String>.from(meal['mediaPaths']
+                                            .map((e) => e.toString()))
+                                        : <String>[''],
+                                    serveQty: meal['serveQty'] is int
+                                        ? meal['serveQty'] as int
+                                        : int.tryParse(
+                                                meal['serveQty']?.toString() ??
+                                                    '1') ??
+                                            1,
+                                    steps: meal['steps'] is List
+                                        ? List<String>.from(meal['steps']
+                                            .map((e) => e.toString()))
+                                        : <String>[],
+                                    macros: meal['macros'] is Map
+                                        ? Map<String, String>.from(
+                                            meal['macros'])
+                                        : <String, String>{},
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            );
+                          },
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            leading: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  _getMealTypeImage(
+                                      meal['category'] ?? 'default'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              meal['title'] ?? 'Untitled Meal',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            subtitle: Row(
+                              children: [
+                                const Icon(
+                                  Icons.restaurant,
+                                  size: 16,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${meal['calories'] ?? 0} kcal',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

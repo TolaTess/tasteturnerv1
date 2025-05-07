@@ -9,7 +9,6 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../widgets/category_selector.dart';
-import '../widgets/icon_widget.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
 
@@ -63,10 +62,16 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Set default for ingredient category
     final categoryDatasIngredient = helperController.category;
+    final customCategory = {
+      'id': 'custom',
+      'name': 'Custom',
+      'category': 'Custom'
+    };
+    categoryDatasIngredient.insert(0, customCategory);
     if (categoryDatasIngredient.isNotEmpty &&
         selectedCategoryIdIngredient.isEmpty) {
-      selectedCategoryIdIngredient = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategoryIngredient = categoryDatasIngredient[0]['category'] ?? '';
+      selectedCategoryIdIngredient = categoryDatasIngredient[1]['id'] ?? '';
+      selectedCategoryIngredient = categoryDatasIngredient[1]['category'] ?? '';
     }
 
     // Ensure meal list is populated for default category
@@ -122,13 +127,75 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     });
   }
 
-  void _updateCategoryIngredientData(String categoryId, String category) {
+  void _updateCategoryIngredientData(String categoryId, String category) async {
     if (!mounted) return;
     setState(() {
       selectedCategoryIdIngredient = categoryId;
       selectedCategoryIngredient = category;
-      _updateIngredientListByType();
     });
+    if (categoryId == 'custom') {
+      final result = await showDialog<List<String>>(
+        context: context,
+        builder: (context) {
+          final TextEditingController modalController = TextEditingController();
+          final isDarkMode = getThemeProvider(context).isDarkMode;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            title: Text(
+              'Enter Ingredients',
+              style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+            ),
+            content: SafeTextFormField(
+              controller: modalController,
+              style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+              keyboardType: TextInputType.text,
+              decoration: InputDecoration(
+                labelText: "Add your Ingredients (eggs, tuna, etc.)",
+                labelStyle:
+                    TextStyle(color: isDarkMode ? kLightGrey : kDarkGrey),
+                enabledBorder: outlineInputBorder(10),
+                focusedBorder: outlineInputBorder(10),
+                border: outlineInputBorder(10),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final text = modalController.text;
+                  final items = text
+                      .split(RegExp(r'[,;\n]'))
+                      .map((i) => i.trim())
+                      .where((i) => i.isNotEmpty)
+                      .toList();
+                  Navigator.pop(context, items);
+                },
+                child: const Text(
+                  'Add',
+                  style: TextStyle(color: kAccent),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      if (result != null && result.isNotEmpty) {
+        setState(() {
+          _ingredientList = result;
+        });
+      }
+    } else {
+      _updateIngredientListByType();
+    }
   }
 
   void _updateMealListByType() async {
@@ -256,105 +323,16 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           isDarkMode: isDarkMode,
           accentColor: kAccent,
           darkModeAccentColor: kDarkModeAccent,
+          isFunMode: false, // No longer needed
         ),
-
         const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Theme(
-              data: Theme.of(context).copyWith(
-                unselectedWidgetColor: isDarkMode ? kPrimaryColor : kBlack,
-              ),
-              child: Checkbox(
-                activeColor: kAccent,
-                checkColor: isDarkMode ? kWhite : kDarkGrey,
-                value: _funMode,
-                onChanged: (val) async {
-                  setState(() => _funMode = val ?? false);
-                  if (_funMode) {
-                    // Show modal for entering ingredients
-                    final result = await showDialog<List<String>>(
-                      context: context,
-                      builder: (context) {
-                        final TextEditingController modalController =
-                            TextEditingController();
-                        return AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          backgroundColor: getThemeProvider(context).isDarkMode
-                              ? kDarkGrey
-                              : kWhite,
-                          title: Text(
-                            'Enter Ingredients',
-                            style: TextStyle(
-                                color: isDarkMode ? kWhite : kDarkGrey),
-                          ),
-                          content: SafeTextFormField(
-                            controller: modalController,
-                            style: TextStyle(
-                                color: isDarkMode ? kWhite : kDarkGrey),
-                            keyboardType: TextInputType.text,
-                            decoration: InputDecoration(
-                              labelText:
-                                  "Add your Ingredients (eggs, tuna, etc.)",
-                              labelStyle: TextStyle(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey),
-                              enabledBorder: outlineInputBorder(10),
-                              focusedBorder: outlineInputBorder(10),
-                              border: outlineInputBorder(10),
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                    color: isDarkMode ? kWhite : kDarkGrey),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                final text = modalController.text;
-                                final items = text
-                                    .split(RegExp(r'[,;\n]'))
-                                    .map((i) => i.trim())
-                                    .where((i) => i.isNotEmpty)
-                                    .toList();
-                                Navigator.pop(context, items);
-                              },
-                              child: const Text(
-                                'Add',
-                                style: TextStyle(color: kAccent),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    if (result != null && result.isNotEmpty) {
-                      setState(() {
-                        _ingredientList = result;
-                      });
-                    }
-                  }
-                },
-              ),
-            ),
-            const Text('Custom Mode', style: TextStyle(fontSize: 12),),
-            const SizedBox(width: 15),
-          ],
-        ),
-        const SizedBox(height: 15),
-
+        // Removed custom mode checkbox row
+        //const SizedBox(height: 15),
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
             labels: widget.ingredientList,
             customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
-            // macro: currentMacro,
             isMealSpin: false,
             playSound: _playSound,
             stopSound: _stopSound,

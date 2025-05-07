@@ -95,7 +95,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                                       ),
                                     ),
                                   ),
-                                  height: getPercentageHeight(10, context),
+                                  height: getPercentageHeight(13, context),
                                 ),
                               ),
                             ),
