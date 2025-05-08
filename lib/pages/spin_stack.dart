@@ -1,14 +1,16 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
-import '../widgets/ingredient_features.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/spinning_math.dart';
 
@@ -226,7 +228,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                     },
                   );
                 },
-                size: 300,
+                size: getPercentageWidth(70, context),
               ),
               Positioned(
                 top: -5,
@@ -274,6 +276,158 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     setState(() {
       widget.acceptedItems.removeAt(index);
     });
+  }
+
+  // Helper method to show loading dialog
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => noItemTastyWidget(
+          'Generating Meal Plan, Please Wait...', '', context, false),
+    );
+  }
+
+  // Prepare the prompt for Gemini
+  Future<void> _generateMealFromIngredients(displayedItems) async {
+    try {
+      // Show loading indicator
+      _showLoadingDialog();
+      print('displayedItems.first: ${displayedItems.first.title}');
+
+      // Prepare prompt and generate meal plan
+      final mealPlan = await geminiService.generateMealFromIngredients(
+        displayedItems.map((item) => item.title).join(', '),
+      );
+
+      print('mealPlan: $mealPlan');
+
+      // Hide loading dialog before showing selection
+      if (mounted) Navigator.of(context).pop();
+
+      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+      if (meals.isEmpty) throw Exception('No meals generated');
+
+      // Show dialog to let user pick one meal
+      final selectedMeal = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) {
+          final isDarkMode = getThemeProvider(context).isDarkMode;
+          return AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            title: Text('Select a Meal',
+                style: TextStyle(color: isDarkMode ? kWhite : kBlack)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: meals.length,
+                itemBuilder: (context, index) {
+                  final meal = meals[index];
+                  final title = meal['title'] ?? 'Untitled';
+
+                  String cookingTime = meal['cookingTime'] ?? '';
+                  String cookingMethod = meal['cookingMethod'] ?? '';
+
+                  return Card(
+                    color: kAccent,
+                    child: ListTile(
+                      title: Text(title,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (cookingTime.isNotEmpty)
+                            Text('Cooking Time: $cookingTime'),
+                          if (cookingMethod.isNotEmpty)
+                            Text('Method: $cookingMethod'),
+                        ],
+                      ),
+                      onTap: () async {
+                        // Show a loading indicator while saving
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => noItemTastyWidget(
+                              'Saving your meal in your calendar...',
+                              '',
+                              context,
+                              false),
+                        );
+                        await Future.delayed(const Duration(seconds: 5));
+                        try {
+                          final userId = userService.userId;
+                          if (userId == null)
+                            throw Exception('User ID not found');
+                          final date =
+                              DateFormat('yyyy-MM-dd').format(DateTime.now());
+                          // Save all meals first
+                          final List<String> allMealIds =
+                              await saveMealsToFirestore(userId, mealPlan, '');
+                          final int selectedIndex = meals
+                              .indexWhere((m) => m['title'] == meal['title']);
+                          final String? selectedMealId = (selectedIndex != -1 &&
+                                  selectedIndex < allMealIds.length)
+                              ? allMealIds[selectedIndex]
+                              : null;
+                          final List<String> selectedMealIds =
+                              selectedMealId != null
+                                  ? [selectedMealId]
+                                  : <String>[];
+                          await firestore
+                              .collection('mealPlans')
+                              .doc(userId)
+                              .collection('date')
+                              .doc(date)
+                              .set({
+                            'userId': userId,
+                            'dayType': 'regular_day',
+                            'isSpecial': false,
+                            'date': date,
+                            'meals': selectedMealIds,
+                          }, SetOptions(merge: true));
+
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                            Navigator.of(context)
+                                .pop(meal); // Close selection dialog
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            Navigator.of(context).pop(); // Hide loading
+                            handleError(e, context);
+                          }
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      if (selectedMeal == null) return; // User cancelled
+    } catch (e) {
+      if (mounted) {
+        handleError(e, context);
+      }
+    }
   }
 
   @override
@@ -333,10 +487,81 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
             .toList();
 
     return Padding(
-      padding: const EdgeInsets.only(top: 10, left: 20),
+      padding: EdgeInsets.only(
+        left: getPercentageWidth(5, context),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          isMealSpin
+              ? SizedBox(height: getPercentageHeight(1, context))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '${widget.acceptedItems.length} ',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        Text(
+                          'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (int i = 0; i < widget.acceptedItems.length; i++)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                widget.acceptedItems.removeAt(i);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: kAccentLight.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: kAccentLight),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    capitalizeFirstLetter(
+                                        widget.acceptedItems[i]),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.normal,
+                                      color: kAccentLight,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.close,
+                                      size: 16, color: kAccentLight),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+          SizedBox(height: getPercentageHeight(1, context)),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -351,16 +576,23 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                       ),
                     );
                   } else {
-                    Get.to(
-                      () => IngredientFeatures(
-                        items: displayedItems,
-                      ),
-                    );
+                    if (displayedItems.isNotEmpty &&
+                        widget.acceptedItems.length > 1) {
+                      _generateMealFromIngredients(displayedItems);
+                    } else {
+                      showTastySnackbar(
+                        'Try Again',
+                        'Please select at least 2 ingredients',
+                        context,
+                      );
+                    }
                   }
                 },
                 child: Center(
                   child: Container(
-                    padding: EdgeInsets.all(getPercentageHeight(2, context)),
+                    padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(1.2, context),
+                        horizontal: getPercentageWidth(3, context)),
                     decoration: BoxDecoration(
                       color:
                           isDarkMode ? kLightGrey : kAccent.withOpacity(0.60),
@@ -369,21 +601,14 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     child: Text(
                       isMealSpin
                           ? 'Save to Meal Plan'
-                          : 'Go to Saved ${widget.acceptedItems.length == 1 ? 'item' : 'items'}:',
+                          : 'Generate Meal with Ingredients!',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: isMealSpin ? 18 : 12,
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
                       ),
                     ),
                   ),
-                ),
-              ),
-              Text(
-                '${widget.acceptedItems.length}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],

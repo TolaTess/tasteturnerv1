@@ -473,9 +473,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             ),
                             items: calendars
                                 .map((cal) => DropdownMenuItem(
-                                      value:
-                                          cal.calendarId,
-                                      child: Text(capitalizeFirstLetter(cal.header)),
+                                      value: cal.calendarId,
+                                      child: Text(
+                                          capitalizeFirstLetter(cal.header)),
                                     ))
                                 .toList(),
                             onChanged: (val) {
@@ -658,7 +658,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
           // Meals List Section
           _buildMealsList(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 110),
         ],
       ),
     );
@@ -845,7 +845,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ],
             const SizedBox(height: 40),
             Text(
-              'No meals planned for ${getRelativeDayString(selectedDate)}',
+              getRelativeDayString(selectedDate) == 'Today' ||
+                      getRelativeDayString(selectedDate) == 'Tomorrow'
+                  ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                  : 'No meals planned for this day',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isDarkMode ? Colors.white54 : Colors.black54,
@@ -1239,7 +1242,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ],
             const SizedBox(height: 16),
             Text(
-              'No meals planned for ${getRelativeDayString(date)}',
+              getRelativeDayString(selectedDate) == 'Today' ||
+                      getRelativeDayString(selectedDate) == 'Tomorrow'
+                  ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                  : 'No meals planned for this day',
               style: TextStyle(
                 color: isDarkMode ? Colors.white54 : Colors.black54,
                 fontSize: 16,

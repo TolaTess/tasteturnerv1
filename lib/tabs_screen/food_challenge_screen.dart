@@ -36,7 +36,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     final categoryDatasIngredient = helperController.category;
     if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
     }
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -122,8 +122,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(
-                  height: 25,
+                SizedBox(
+                  height: getPercentageHeight(2, context),
                 ),
 
                 //category options
@@ -136,8 +136,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   darkModeAccentColor: kDarkModeAccent,
                 ),
 
-                const SizedBox(
-                  height: 15,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 //Challenge
@@ -152,8 +152,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(
-                        height: 10,
+                      SizedBox(
+                        height: getPercentageHeight(1, context),
                       ),
                       const Text(
                         ingredientBattle,
@@ -171,8 +171,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           color: kAccentLight,
                         ),
                       ),
-                      const SizedBox(
-                        height: 10,
+                      SizedBox(
+                        height: getPercentageHeight(1, context),
                       ),
                     ],
                   ),
@@ -204,11 +204,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                       : battleDeadline),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: getPercentageHeight(1, context),
+                          ),
 
                           // GridView for discount data
                           SizedBox(
-                            height: 185,
+                            height: getPercentageHeight(23, context),
                             child: battleList.isEmpty
                                 ? noItemTastyWidget(
                                     "No battles available yet",
@@ -232,6 +234,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                         onTap: () async {
                                           final ingredientId =
                                               battleList[index]['id'];
+                                          print('ingredientId: $ingredientId');
                                           final ingredientData =
                                               await macroManager
                                                   .fetchIngredient(
@@ -264,7 +267,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                   ),
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(
+                            height: 3,
+                          ),
 
                           //join now button
                           Center(
@@ -522,7 +527,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 15),
+                SizedBox(
+                  height: getPercentageHeight(1, context),
+                ),
 
                 Padding(
                   padding: const EdgeInsets.only(left: 15.0, right: 5.0),
@@ -568,8 +575,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ),
                 ),
 
-                const SizedBox(
-                  height: 55,
+                SizedBox(
+                  height: getPercentageHeight(7, context),
                 ),
               ],
             ),
@@ -602,16 +609,18 @@ class DetailItem extends StatelessWidget {
                 ? Image.network(
                     dataSrc['image'],
                     fit: BoxFit.cover,
-                    height: 160,
+                    height: getPercentageHeight(18, context),
                   )
                 : Image.asset(
                     getAssetImageForItem(dataSrc['image']),
                     fit: BoxFit.cover,
-                    height: 160,
+                    height: getPercentageHeight(18, context),
                   ),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(
+          height: getPercentageHeight(1.5, context),
+        ),
         Text(
           capitalizeFirstLetter(dataSrc['name']),
           maxLines: 2,

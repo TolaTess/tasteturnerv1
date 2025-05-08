@@ -46,6 +46,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   String selectedCategoryIngredient = 'all';
   bool showIngredientSpin = true; // New state to toggle between modes
   bool _funMode = false;
+  late List<Map<String, dynamic>> _categoryDatasIngredient;
 
   @override
   void initState() {
@@ -57,21 +58,25 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final categoryDatasMeal = helperController.headers;
     if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
       selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
-      selectedCategoryMeal = categoryDatasMeal[0]['category'] ?? '';
+      selectedCategoryMeal = categoryDatasMeal[0]['name'] ?? '';
     }
 
     // Set default for ingredient category
-    final categoryDatasIngredient = helperController.category;
+    _categoryDatasIngredient = [...helperController.category];
     final customCategory = {
       'id': 'custom',
       'name': 'Custom',
       'category': 'Custom'
     };
-    categoryDatasIngredient.insert(0, customCategory);
-    if (categoryDatasIngredient.isNotEmpty &&
+    if (_categoryDatasIngredient.isEmpty ||
+        _categoryDatasIngredient.first['id'] != 'custom') {
+      _categoryDatasIngredient.insert(0, customCategory);
+    }
+    if (_categoryDatasIngredient.isNotEmpty &&
         selectedCategoryIdIngredient.isEmpty) {
-      selectedCategoryIdIngredient = categoryDatasIngredient[1]['id'] ?? '';
-      selectedCategoryIngredient = categoryDatasIngredient[1]['category'] ?? '';
+      selectedCategoryIdIngredient = _categoryDatasIngredient[1]['id'] ?? '';
+      selectedCategoryIngredient =
+          _categoryDatasIngredient[1]['name'] ?? '';
     }
 
     // Ensure meal list is populated for default category
@@ -226,7 +231,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     if (!mounted) return;
 
     if (selectedCategoryIngredient.isEmpty ||
-        selectedCategoryIngredient == 'all') {
+        selectedCategoryIngredient == 'all' ||
+        selectedCategoryIngredient == 'general') {
       setState(() {
         _ingredientList = widget.ingredientList
             .map((ingredient) => ingredient.title)
@@ -256,7 +262,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   @override
   Widget build(BuildContext context) {
     final categoryDatasMeal = helperController.headers;
-    final categoryDatasIngredient = helperController.category;
+    final categoryDatasIngredient = _categoryDatasIngredient;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
@@ -268,7 +274,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           child: IntrinsicHeight(
             child: Column(
               children: [
-                const SizedBox(height: 20),
+                SizedBox(height: getPercentageHeight(2, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -314,7 +320,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
-        const SizedBox(height: 20),
+        SizedBox(height: getPercentageHeight(2, context)),
         //category options
         CategorySelector(
           categories: categoryDatas,
@@ -325,7 +331,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           darkModeAccentColor: kDarkModeAccent,
           isFunMode: false, // No longer needed
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: getPercentageHeight(2.5, context)),
         // Removed custom mode checkbox row
         //const SizedBox(height: 15),
         // Spin wheel below macros

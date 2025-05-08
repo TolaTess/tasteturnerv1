@@ -11,7 +11,6 @@ import '../widgets/follow_button.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../data_models/user_meal.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({super.key, required this.mealData});
@@ -463,19 +462,19 @@ class _RecipeTittleState extends State<RecipeTittle> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 10,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
                 //time, serve, rating
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(width: 20),
+                    SizedBox(width: getPercentageWidth(2, context)),
                     Text(
                       " $serves: ${widget.meal.serveQty}",
                       style: const TextStyle(fontSize: 15),
                     ),
-                    const SizedBox(width: 20),
+                    SizedBox(width: getPercentageWidth(2, context)),
                     GestureDetector(
                       onTap: _toggleFavorite,
                       child: Container(
@@ -493,7 +492,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    SizedBox(width: getPercentageWidth(2, context)),
                     TextButton.icon(
                       onPressed: () async {
                         final userMeal = UserMeal(

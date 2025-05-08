@@ -131,6 +131,16 @@ class GeminiService {
     }
   }
 
+  // Utility to extract JSON object from Gemini response text
+  Map<String, dynamic> _extractJsonObject(String text) {
+    final jsonStr = text
+        .trim()
+        .replaceAll(RegExp(r'^```json\\n'), '')
+        .replaceAll(RegExp(r'\\n```$'), '')
+        .trim();
+    return jsonDecode(jsonStr);
+  }
+
   Future<Map<String, dynamic>> generateMealPlan(String prompt) async {
     // Initialize model if not already done
     if (_activeModel == null) {
@@ -210,21 +220,10 @@ Important:
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-
-        // Extract the JSON object from the response
-        final jsonStr = text
-            .trim()
-            // Remove markdown code block markers if present
-            .replaceAll(RegExp(r'^```json\n'), '')
-            .replaceAll(RegExp(r'\n```$'), '')
-            // Remove any leading/trailing whitespace
-            .trim();
-
         try {
-          return jsonDecode(jsonStr);
+          return _extractJsonObject(text);
         } catch (e) {
           print('Raw response text: $text');
-          print('Processed JSON string: $jsonStr');
           throw Exception('Failed to parse meal plan JSON: $e');
         }
       } else {
@@ -236,6 +235,99 @@ Important:
       print('AI API Exception: $e');
       _activeModel = null;
       throw Exception('Failed to generate meal plan: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> generateMealFromIngredients(
+      String prompt) async {
+    // Initialize model if not already done
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        throw Exception('No suitable AI model available');
+      }
+    }
+
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('API key not configured');
+    }
+
+    final mealPrompt = '''
+    Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt
+
+    Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+    {
+      "meals": [
+        {
+          "title": "Dish name",
+          "type": "protein|grain|vegetable", 
+          "cookingTime": "10 minutes",
+          "cookingMethod": "frying, boiling, baking, etc.",
+          "ingredients": {
+            "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+            "ingredient2": "amount with unit"
+          },
+          "instructions": ["step1", "step2", ...],
+          "nutritionalInfo": {
+            "calories": number,
+            "protein": number,
+            "carbs": number,
+            "fat": number
+          },
+          "categories": ["category1", "category2", ...],
+          "serveQty": number
+        }
+      ],
+      "nutritionalSummary": {
+        "totalCalories": number,
+        "totalProtein": number,
+        "totalCarbs": number,
+        "totalFat": number
+      },
+      "tips": ["tip1", "tip2", ...]
+    }
+    ''';
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {"text": mealPrompt}
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 2048,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
+        try {
+          return _extractJsonObject(text);
+        } catch (e) {
+          print('Raw response text: $text');
+          throw Exception('Failed to parse meal JSON: $e');
+        }
+      } else {
+        print('AI API Error: ${response.body}');
+        _activeModel = null;
+        throw Exception('Failed to generate meal: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('AI API Exception: $e');
+      _activeModel = null;
+      throw Exception('Failed to generate meal: $e');
     }
   }
 }

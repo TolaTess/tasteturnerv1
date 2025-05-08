@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/exceptions/exceptions.dart';
 
 import '../constants.dart';
 import '../data_models/profilescreen_data.dart';

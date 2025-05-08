@@ -98,7 +98,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     final categoryDatasIngredient = helperController.category;
     if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
     }
     _loadGalleryImages();
   }

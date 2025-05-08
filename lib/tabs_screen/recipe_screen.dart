@@ -39,7 +39,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final categoryDatasIngredient = helperController.category;
     if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['category'] ?? '';
+      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
     }
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;

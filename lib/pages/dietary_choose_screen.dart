@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/base_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -448,9 +449,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       if (userId == null) throw Exception('User ID not found');
 
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final List<String> mealIds =
-          await _saveMealsToFirestore(userId, mealPlan);
-      await _saveMealPlanToFirestore(userId, date, mealIds, mealPlan);
+      final List<String> mealIds = await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
+      await saveMealPlanToFirestore(userId, date, mealIds, mealPlan);
       await _updateUserPreferences(userId);
 
       // Hide loading and navigate back
@@ -460,7 +460,9 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
             () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 2));
       }
     } catch (e) {
-      _handleError(e);
+      if (mounted) {
+        handleError(e, context);
+      }
     }
   }
 
@@ -472,99 +474,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       builder: (BuildContext context) => noItemTastyWidget(
           'Generating Meal Plan, Please Wait...', '', context, false),
     );
-  }
-
-  Map<String, String> _convertToStringMap(dynamic input) {
-    if (input is List<dynamic>) {
-      // Convert list of strings to a map with indexed keys
-      return {
-        for (int i = 0; i < input.length; i++)
-          'ingredient${i + 1}': input[i].toString()
-      };
-    } else if (input is Map) {
-      // Handle case where input is already a map
-      return input
-          .map((key, value) => MapEntry(key.toString(), value.toString()));
-    }
-    return {}; // Fallback for invalid input
-  }
-
-  Future<List<String>> _saveMealsToFirestore(
-      String userId, Map<String, dynamic>? mealPlan) async {
-    if (mealPlan == null ||
-        mealPlan['meals'] == null ||
-        mealPlan['meals'] is! List) {
-      print('Invalid mealPlan: $mealPlan');
-      return [];
-    }
-
-    final List<String> mealIds = [];
-    final mealCollection = firestore.collection('meals');
-    final meals = mealPlan['meals'] as List<dynamic>;
-
-    for (final mealData in meals) {
-      if (mealData is! Map<String, dynamic>) {
-        continue;
-      }
-
-      final mealId = mealCollection.doc().id;
-      final nutritionalInfo =
-          mealData['nutritionalInfo'] as Map<String, dynamic>? ?? {};
-
-      // Process data
-      final ingredients = _convertToStringMap(mealData['ingredients'] ?? []);
-      final steps = _convertToStringList(mealData['instructions'] ?? []);
-      final categories = [
-        ..._convertToStringList(mealData['categories'] ?? []),
-        selectedCuisine
-      ];
-      final type = _parseStringOrDefault(mealData['type'], '');
-
-      final processedNutritionalInfo = {
-        'calories': (nutritionalInfo['calories']?.toString() ?? '0').trim(),
-        'protein': (nutritionalInfo['protein']?.toString() ?? '0').trim(),
-        'carbs': (nutritionalInfo['carbs']?.toString() ?? '0').trim(),
-        'fat': (nutritionalInfo['fat']?.toString() ?? '0').trim(),
-      };
-
-      if (!_validateNutritionalInfo(processedNutritionalInfo)) {
-        print(
-            'Error: Invalid nutritional information: $processedNutritionalInfo');
-        continue;
-      }
-
-      final title = mealData['title']?.toString() ?? 'Untitled Meal';
-
-      // Explicitly construct JSON to avoid Meal class serialization issues
-      final mealJson = {
-        'userId': tastyId,
-        'title': title,
-        'calories': int.parse(processedNutritionalInfo['calories'] ?? '0'),
-        'mealId': mealId,
-        'createdAt': Timestamp.fromDate(DateTime.now()), // Use server timestamp
-        'ingredients': ingredients,
-        'steps': steps,
-        'mediaPaths': [type],
-        'serveQty': mealData['serveQty'] is int ? mealData['serveQty'] : 1,
-        'macros': {
-          'protein': processedNutritionalInfo['protein'],
-          'carbs': processedNutritionalInfo['carbs'],
-          'fat': processedNutritionalInfo['fat'],
-        },
-        'category': type,
-        'categories': categories,
-        'mediaType': 'image',
-      };
-
-      try {
-        await mealCollection.doc(mealId).set(mealJson);
-        mealIds.add(mealId);
-      } catch (e) {
-        print('Error saving meal $mealId: $e');
-        continue;
-      }
-    }
-    return mealIds;
   }
 
   void _updatePreferences() {
@@ -579,63 +488,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     super.dispose();
   }
 
-  Future<void> _saveMealPlanToFirestore(String userId, String date,
-      List<String> mealIds, Map<String, dynamic>? mealPlan) async {
-    final docRef = firestore
-        .collection('mealPlans')
-        .doc(userId)
-        .collection('buddy')
-        .doc(date);
 
-    // Fetch the existing document (if it exists)
-    List<Map<String, dynamic>> existingGenerations = [];
-    try {
-      final existingDoc = await docRef.get();
-      if (existingDoc.exists) {
-        final existingData = existingDoc.data() as Map<String, dynamic>?;
-        final generations = existingData?['generations'] as List<dynamic>?;
-        if (generations != null) {
-          existingGenerations =
-              generations.map((gen) => gen as Map<String, dynamic>).toList();
-        }
-      }
-    } catch (e) {
-      print('Error fetching existing document: $e');
-    }
-
-    // Create a new generation object
-    final newGeneration = {
-      'mealIds': mealIds,
-      'timestamp':
-          Timestamp.fromDate(DateTime.now()), // Use client-side Timestamp
-    };
-
-    // Add nutritionSummary and tips if they exist in mealPlan
-    if (mealPlan != null) {
-      if (mealPlan['nutritionalSummary'] != null) {
-        newGeneration['nutritionalSummary'] = mealPlan['nutritionalSummary'];
-      }
-      if (mealPlan['tips'] != null) {
-        newGeneration['tips'] = mealPlan['tips'];
-      }
-    }
-
-    // Append the new generation to the list
-    existingGenerations.add(newGeneration);
-
-    // Prepare the data to save
-    final mealPlanData = {
-      'date': date,
-      'generations': existingGenerations,
-    };
-
-    // Save the updated document
-    try {
-      await docRef.set(mealPlanData);
-    } catch (e) {
-      print('Error saving meal plan: $e');
-    }
-  }
 
 // Update user preferences
   Future<void> _updateUserPreferences(String userId) async {
@@ -678,57 +531,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return false; // Return false if no preferences found
   }
 
-// Handle errors
-  void _handleError(dynamic e) {
-    if (mounted) {
-      Navigator.of(context).pop(); // Hide loading
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            backgroundColor:
-                getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-            title: const Text('$appNameBuddy'),
-            content: Text(
-              'Unable to generate meal plan at present. Please try again later.',
-              style: TextStyle(
-                color:
-                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'OK',
-                  style: TextStyle(
-                    color: getThemeProvider(context).isDarkMode
-                        ? kWhite
-                        : kDarkGrey,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
-
-  String _parseStringOrDefault(dynamic value, String defaultValue) {
-    if (value == null) return defaultValue;
-    return value.toString();
-  }
-
-  List<String> _convertToStringList(dynamic value) {
-    if (value is List) {
-      return value.map((item) => item.toString()).toList();
-    }
-    return [];
-  }
-
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;
     final dailyCalorieGoal =
@@ -750,27 +552,6 @@ Include:
 ''';
   }
 
-  // Add this helper method for nutritional info validation
-  bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {
-    try {
-      // Check if all required fields are present and can be parsed as numbers
-      final requiredFields = ['calories', 'protein', 'carbs', 'fat'];
-      for (final field in requiredFields) {
-        if (!nutritionalInfo.containsKey(field) ||
-            nutritionalInfo[field] == null ||
-            nutritionalInfo[field]!.isEmpty ||
-            int.tryParse(nutritionalInfo[field]!) == null) {
-          print(
-              'Validation failed for field: $field with value: ${nutritionalInfo[field]}');
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      print('Error during nutritional info validation: $e');
-      return false;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
