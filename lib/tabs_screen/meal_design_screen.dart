@@ -632,7 +632,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                             isDarkMode),
                                       ),
                                     ),
-                                  if (hasBirthday && !showSharedCalendars)
+                                  if (hasBirthday && showSharedCalendars)
                                     const Positioned(
                                       right: 2,
                                       bottom: 2,
@@ -840,7 +840,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+            if (birthdayName.isNotEmpty && showSharedCalendars) ...[
               getBirthdayTextContainer(birthdayName, false),
             ],
             const SizedBox(height: 40),
@@ -1230,7 +1230,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+            if (birthdayName.isNotEmpty && showSharedCalendars) ...[
               getBirthdayTextContainer(birthdayName, false),
             ],
             if (birthdayName.isEmpty) ...[
@@ -1293,7 +1293,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ),
                     ),
                     if (meals.isNotEmpty)
-                      if (birthdayName.isNotEmpty && !showSharedCalendars) ...[
+                      if (birthdayName.isNotEmpty && showSharedCalendars) ...[
                         getBirthdayTextContainer(birthdayName, true),
                       ],
                     Text(

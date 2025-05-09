@@ -42,20 +42,6 @@ class RoutineService {
   Future<List<RoutineItem>> _createDefaultRoutine(String userId) async {
     final defaultItems = [
       RoutineItem(
-        id: 'Make Bed',
-        title: 'Make Bed',
-        value: '5 min',
-        type: 'duration',
-        isEnabled: true,
-      ),
-      RoutineItem(
-        id: 'Meditate',
-        title: 'Meditate',
-        value: '10 min',
-        type: 'duration',
-        isEnabled: true,
-      ),
-      RoutineItem(
         id: 'Gym',
         title: 'Gym',
         value: '1 hour',

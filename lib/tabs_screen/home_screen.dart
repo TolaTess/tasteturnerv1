@@ -16,7 +16,7 @@ import '../widgets/date_widget.dart';
 import '../screens/add_food_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
-
+import '../widgets/ingredient_battle_widget.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -463,59 +463,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
                 // ------------------------------------Premium / Ads-------------------------------------
-                const SizedBox(height: 20),
+                const SizedBox(height: 20), 
 
-                // Water widgets
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Obx(() {
-                      final settings = userService.currentUser!.settings;
-                      final double waterTotal = settings['waterIntake'] != null
-                          ? double.tryParse(
-                                  settings['waterIntake'].toString()) ??
-                              0.0
-                          : 0.0;
-                      final double currentWater =
-                          dailyDataController.currentWater.value.toDouble();
-                      return Expanded(
-                        child: SizedBox(
-                          height: 250,
-                          child: DailyFoodPage(
-                            total: waterTotal,
-                            current: currentWater,
-                            currentNotifier: currentNotifier,
-                            title: 'Update Water',
-                          ),
-                        ),
-                      );
-                    }),
-
-                    // Water widgets
-                    Obx(() {
-                      final settings = userService.currentUser!.settings;
-                      final double stepsTotal = settings['targetSteps'] != null
-                          ? double.tryParse(
-                                  settings['targetSteps'].toString()) ??
-                              0.0
-                          : 0.0;
-                      final double currentSteps =
-                          dailyDataController.currentSteps.value.toDouble();
-                      return Expanded(
-                        child: SizedBox(
-                          height: 250,
-                          child: DailyFoodPage(
-                            total: stepsTotal,
-                            current: currentSteps,
-                            currentNotifier: currentStepsNotifier,
-                            title: 'Update Steps',
-                            increment: 1000,
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+                  // Weekly Ingredients Battle Widget
+                const WeeklyIngredientBattle(),
+  
               ],
             ),
           ),

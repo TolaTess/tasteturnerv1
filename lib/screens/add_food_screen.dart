@@ -711,31 +711,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                height: 16,
-              ),
-
-              // NutritionStatusBar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: NutritionStatusBar(
-                  userId: userService.userId ?? '',
-                  userSettings: userService.currentUser!.settings,
-                  onMealTypeSelected: (mealType) {
-                    setState(() {
-                      foodType = mealType;
-                    });
-                    _showSearchResults(context, mealType);
-                  },
-                ),
-              ),
 
               const SizedBox(height: 20),
 
               // Selected Items List
               SizedBox(
                 height: MediaQuery.of(context).size.height -
-                    300, // Fixed height for the list area
+                    getPercentageHeight(30, context), // Fixed height for the list area
                 child: Obx(() {
                   return Column(
                     children: [
@@ -805,15 +787,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               ),
                                             ],
                                           ),
-                                          Text(
-                                            '${dailyDataController.userMealList['Breakfast']?.length ?? 0} items',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: isDarkMode
-                                                  ? kWhite.withOpacity(0.7)
-                                                  : kDarkGrey.withOpacity(0.7),
-                                            ),
-                                          ),
+                                           GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    foodType = 'Breakfast';
+                                                  });
+                                                  _showSearchResults(
+                                                      context, 'Breakfast');
+                                                },
+                                                child:
+                                          Icon(Icons.add, color: kAccent)),
                                         ],
                                       ),
                                     ),
@@ -917,15 +900,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               ),
                                             ],
                                           ),
-                                          Text(
-                                            '${dailyDataController.userMealList['Lunch']?.length ?? 0} items',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: isDarkMode
-                                                  ? kWhite.withOpacity(0.7)
-                                                  : kDarkGrey.withOpacity(0.7),
-                                            ),
-                                          ),
+                                          GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    foodType = 'Lunch';
+                                                  });
+                                                  _showSearchResults(
+                                                      context, 'Lunch');
+                                                },
+                                                child:
+                                          Icon(Icons.add, color: kAccent)),
                                         ],
                                       ),
                                     ),
@@ -1027,15 +1011,15 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                       ),
                                     ],
                                   ),
-                                  Text(
-                                    '${dailyDataController.userMealList['Dinner']?.length ?? 0} items',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDarkMode
-                                          ? kWhite.withOpacity(0.7)
-                                          : kDarkGrey.withOpacity(0.7),
-                                    ),
-                                  ),
+                                   GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            foodType = 'Dinner';
+                                          });
+                                          _showSearchResults(context, 'Dinner');
+                                        },
+                                        child: 
+                                  Icon(Icons.add, color: kAccent)),
                                 ],
                               ),
                             ),
