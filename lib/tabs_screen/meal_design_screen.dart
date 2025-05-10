@@ -1203,6 +1203,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Icons.fitness_center;
       case 'special celebration':
         return Icons.celebration;
+      case 'tasty spin':
+        return Icons.restaurant;
       default:
         return Icons.restaurant;
     }
@@ -1218,6 +1220,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Colors.blue;
       case 'special celebration':
         return Colors.orange;
+      case 'tasty spin':
+        return Colors.red;
       default:
         return isDarkMode ? kWhite : kBlack;
     }

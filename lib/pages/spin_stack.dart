@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -105,30 +106,61 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   void _updateLabels() {
     setState(() {
       availableLabels = []; // Clear existing labels first
-
+      final random = Random();
       if (widget.isMealSpin) {
         if (widget.customLabels != null) {
-          availableLabels = widget.customLabels!.toSet().toList();
+          final customList = widget.customLabels!.toSet().toList();
+          customList.shuffle(random);
+          availableLabels = customList.take(10).toList();
         } else if (widget.mealList != null && widget.mealList!.isNotEmpty) {
           fullMealList = widget.mealList!.toList();
           isMacroEmpty = fullMealList.isEmpty;
-          availableLabels =
-              fullMealList.map((meal) => meal.title).take(10).toList();
+          final mealTitles = fullMealList.map((meal) => meal.title).toList();
+          mealTitles.shuffle(random);
+          availableLabels = mealTitles.take(10).toList();
         }
       } else if (widget.customLabels != null &&
           widget.customLabels!.isNotEmpty) {
-        availableLabels = widget.customLabels!.toSet().toList();
+        final customList = widget.customLabels!.toSet().toList();
+        customList.shuffle(random);
+        availableLabels = customList.take(10).toList();
       } else {
         fullLabelsList = widget.labels;
         isMacroEmpty = fullLabelsList.isEmpty;
-        availableLabels = fullLabelsList
-            .map((macroData) => macroData.title)
-            .take(10)
-            .toList();
+        final macroTitles =
+            fullLabelsList.map((macroData) => macroData.title).toList();
+        macroTitles.shuffle(random);
+        availableLabels = macroTitles.take(10).toList();
       }
 
       // Ensure we don't have empty labels
       availableLabels.removeWhere((label) => label.trim().isEmpty);
+    });
+  }
+
+  void _maintainAvailableLabels() {
+    availableLabels.removeWhere((label) => acceptedItems.contains(label));
+
+    while (availableLabels.length < 10 && fullLabelsList.isNotEmpty) {
+      MacroData? newLabel = fullLabelsList.firstWhere(
+        (item) =>
+            !acceptedItems.contains(item.title) &&
+            !availableLabels.contains(item.title),
+      );
+
+      if (newLabel.title.isNotEmpty) {
+        availableLabels.add(newLabel.title);
+      } else {
+        break;
+      }
+    }
+  }
+
+  void _tryAgainLabel() {
+    setState(() {
+      availableLabels.remove(selectedLabel);
+      _maintainAvailableLabels();
+      selectedLabel = null;
     });
   }
 
@@ -138,6 +170,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         acceptedItems.add(label);
       }
       availableLabels.remove(label);
+      _maintainAvailableLabels();
       selectedLabel = null;
     });
   }
@@ -213,6 +246,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           SecondaryButton(
                             press: () {
                               Navigator.of(context).pop();
+                              _tryAgainLabel();
                             },
                             text: "Try Again",
                           ),
@@ -384,8 +418,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               .doc(date)
                               .set({
                             'userId': userId,
-                            'dayType': 'regular_day',
-                            'isSpecial': false,
+                            'dayType': 'tasty_spin',
+                            'isSpecial': true,
                             'date': date,
                             'meals': selectedMealIds,
                           }, SetOptions(merge: true));
@@ -518,7 +552,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: getPercentageHeight(1, context)),
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
@@ -565,6 +599,15 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              if (widget.isMealSpin)
+                Text(
+                  '${widget.acceptedItems.length} ${widget.acceptedItems.length == 1 ? 'meal' : 'meals'} accepted',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
               GestureDetector(
                 onTap: () {
                   if (widget.isMealSpin) {
@@ -616,7 +659,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           ? 'Save to Meal Plan'
                           : 'Generate Meal with Ingredients!',
                       style: TextStyle(
-                        fontSize: isMealSpin ? 18 : 12,
+                        fontSize: isMealSpin ? 14 : 12,
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
                       ),
