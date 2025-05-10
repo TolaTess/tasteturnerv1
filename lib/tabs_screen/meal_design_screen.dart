@@ -902,78 +902,115 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RecipeDetailScreen(
-                        mealData: meal,
-                      ),
-                    ),
-                  );
-                },
-                child: Column(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        child: AspectRatio(
-                          aspectRatio: 1,
-                          child: ClipOval(
-                            child: meal.mediaPaths.isNotEmpty
-                                ? Image.network(
-                                    meal.mediaPaths.first.startsWith('http')
-                                        ? meal.mediaPaths.first
-                                        : extPlaceholderImage,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.restaurant,
-                                        size: 30,
-                                      ),
-                                    ),
-                                  )
-                                : Image.asset(
-                                    getAssetImageForItem(
-                                        meal.category ?? 'default'),
-                                    fit: BoxFit.cover,
-                                  ),
+              child: Stack(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(
+                            mealData: meal,
                           ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              meal.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDarkMode ? kBlack : kWhite,
+                      );
+                    },
+                    child: Column(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: ClipOval(
+                                child: meal.mediaPaths.isNotEmpty
+                                    ? Image.network(
+                                        meal.mediaPaths.first.startsWith('http')
+                                            ? meal.mediaPaths.first
+                                            : extPlaceholderImage,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[300],
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.restaurant,
+                                            size: 30,
+                                          ),
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        getAssetImageForItem(
+                                            meal.category ?? 'default'),
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        Expanded(
+                          flex: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  meal.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDarkMode ? kBlack : kWhite,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  // Remove icon (top right)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, size: 25, color: kAccent),
+                      tooltip: 'Remove from meal plan',
+                      onPressed: () async {
+                        // Remove meal from Firestore for this date
+                        final formattedDate =
+                            DateFormat('yyyy-MM-dd').format(selectedDate);
+                        final userId = userService.userId;
+                        if (userId == null) return;
+                        final docRef = firestore
+                            .collection('mealPlans')
+                            .doc(userId)
+                            .collection('date')
+                            .doc(formattedDate);
+                        final doc = await docRef.get();
+                        if (doc.exists) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final mealIds =
+                              List<String>.from(data['meals'] ?? []);
+                          mealIds.remove(meal.mealId);
+                          await docRef.update({'meals': mealIds});
+                        }
+                        if (!mounted) return;
+                        setState(() {
+                          meals.removeAt(index);
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -1322,8 +1359,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         ],
                       ],
                     ),
-                    if (isUserBirthday)
-                      getBirthdayTextContainer('You', true),
+                    if (isUserBirthday) getBirthdayTextContainer('You', true),
                     if (meals.isNotEmpty)
                       if (birthdayName.isNotEmpty && showSharedCalendars) ...[
                         getBirthdayTextContainer(birthdayName, true),
