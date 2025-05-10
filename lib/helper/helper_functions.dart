@@ -27,48 +27,7 @@ Widget buildTastyFloatingActionButton({
       } else {
         showDialog(
           context: context,
-          builder: (BuildContext context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
-            title: const Text(
-              'Premium Feature',
-              style: TextStyle(color: kAccent),
-            ),
-            content: Text(
-              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
-              style: TextStyle(
-                color: themeProvider.isDarkMode ? kWhite : kBlack,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: themeProvider.isDarkMode ? kWhite : kBlack,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PremiumScreen(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Upgrade',
-                  style: TextStyle(color: kAccentLight),
-                ),
-              ),
-            ],
-          ),
+          builder: (context) => showPremiumDialog(context, themeProvider.isDarkMode, 'Premium Feature', 'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
         );
       }
     },
@@ -450,5 +409,50 @@ void handleError(dynamic e, BuildContext context) {
         ],
       );
     },
+  );
+}
+
+Widget showPremiumDialog(BuildContext context, bool isDarkMode, String title, String message) {
+  return AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+    backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+    title: Text(
+      title,
+      style: TextStyle(color: kAccent),
+    ),
+    content: Text(
+      message,
+      style: TextStyle(
+        color: isDarkMode ? kWhite : kBlack,
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(
+          'Cancel',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+          ),
+        ),
+      ),
+      TextButton(
+        onPressed: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PremiumScreen(),
+            ),
+          );
+        },
+        child: const Text(
+          'Upgrade',
+          style: TextStyle(color: kAccentLight),
+        ),
+      ),
+    ],
   );
 }

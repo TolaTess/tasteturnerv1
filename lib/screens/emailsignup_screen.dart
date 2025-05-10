@@ -14,7 +14,6 @@ class EmailSignupScreen extends StatefulWidget {
 }
 
 class _EmailSignupScreenState extends State<EmailSignupScreen> {
-  final TextEditingController userNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -22,7 +21,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
   @override
   void dispose() {
-    userNameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
@@ -65,7 +63,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
               ),
               const SizedBox(height: 24),
               SignUpForm(
-                userNameController: userNameController,
                 emailController: emailController,
                 passwordController: passwordController,
                 confirmPasswordController: confirmPasswordController,
@@ -83,12 +80,10 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 class SignUpForm extends StatefulWidget {
   const SignUpForm(
       {super.key,
-      required this.userNameController,
       required this.emailController,
       required this.passwordController,
       required this.confirmPasswordController});
 
-  final TextEditingController userNameController;
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
@@ -114,8 +109,8 @@ class _SignUpFormState extends State<SignUpForm> {
       return;
     }
 
-    authController.registerUser(context, widget.userNameController.text,
-        widget.emailController.text, widget.passwordController.text);
+    authController.registerUser(context, widget.emailController.text,
+        widget.passwordController.text);
   }
 
   @override
@@ -125,19 +120,6 @@ class _SignUpFormState extends State<SignUpForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name form field
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-            ),
-            child: FirstNameField(
-              kHint: 'Your Username',
-              themeProvider: isDarkMode,
-              controller: widget.userNameController,
-            ),
-          ),
-          const SizedBox(height: 40),
-
           // Email form field
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -244,8 +226,8 @@ class _SignUpFormState extends State<SignUpForm> {
                 ],
               ),
               if (showTermsError)
-                Padding(
-                  padding: const EdgeInsets.only(left: 12.0, top: 4.0),
+                const Padding(
+                  padding: EdgeInsets.only(left: 12.0, top: 4.0),
                   child: Text(
                     "Please accept the terms and conditions to continue",
                     style: TextStyle(

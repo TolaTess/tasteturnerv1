@@ -7,6 +7,7 @@ class UserModel {
   String? dob;
   String? profileImage;
   List<String> following;
+  DateTime? freeTrialDate;
 
   Map<String, String> settings;
   Map<String, dynamic> preferences;
@@ -28,6 +29,7 @@ class UserModel {
     required this.isPremium,
     this.created_At,
     this.location,
+    this.freeTrialDate,
   });
 
   // Convert from Firestore document snapshot
@@ -56,6 +58,12 @@ class UserModel {
       createdAt = DateTime.tryParse(data['created_At']);
     }
 
+    DateTime? freeTrialDate;
+    if (data['freeTrialDate'] is Timestamp) {
+      freeTrialDate = (data['freeTrialDate'] as Timestamp).toDate();
+    } else if (data['freeTrialDate'] is String) {
+      freeTrialDate = DateTime.tryParse(data['freeTrialDate']);
+    }
     return UserModel(
       userId: snapshot.id,
       displayName: data['displayName']?.toString() ?? '',
@@ -68,6 +76,7 @@ class UserModel {
       userType: data['userType']?.toString() ?? 'user',
       isPremium: data['isPremium'] as bool? ?? false,
       created_At: createdAt,
+      freeTrialDate: freeTrialDate,
     );
   }
 
@@ -84,6 +93,8 @@ class UserModel {
       'userType': userType,
       'isPremium': isPremium,
       'created_At': created_At != null ? Timestamp.fromDate(created_At!) : null,
+      'freeTrialDate':
+          freeTrialDate != null ? Timestamp.fromDate(freeTrialDate!) : null,
     };
   }
 
@@ -93,6 +104,9 @@ class UserModel {
     // Convert created_At to ISO8601 string for JSON
     if (created_At != null) {
       data['created_At'] = created_At!.toIso8601String();
+    }
+    if (freeTrialDate != null) {
+      data['freeTrialDate'] = freeTrialDate!.toIso8601String();
     }
     // Convert preferences map to be JSON-safe
     if (data['preferences'] != null) {
@@ -129,6 +143,12 @@ class UserModel {
       createdAt = (map['created_At'] as Timestamp).toDate();
     }
 
+    DateTime? freeTrialDate;
+    if (map['freeTrialDate'] is String) {
+      freeTrialDate = DateTime.tryParse(map['freeTrialDate']);
+    } else if (map['freeTrialDate'] is Timestamp) {
+      freeTrialDate = (map['freeTrialDate'] as Timestamp).toDate();
+    }
     return UserModel(
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
@@ -140,6 +160,7 @@ class UserModel {
       userType: map['userType']?.toString() ?? 'user',
       isPremium: map['isPremium'] as bool? ?? false,
       created_At: createdAt,
+      freeTrialDate: freeTrialDate,
     );
   }
 }

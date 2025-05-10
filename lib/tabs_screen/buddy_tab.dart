@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../screens/buddy_screen.dart';
@@ -21,10 +22,6 @@ class BuddyTab extends StatefulWidget {
 class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   bool isPremium = userService.currentUser?.isPremium ?? false;
-  DateTime? trailEndDate = userService.currentUser?.created_At?.add(Duration(
-      days: int.tryParse(
-              firebaseService.generalData['freeTrailDays']?.toString() ?? '') ??
-          29));
 
   @override
   void initState() {
@@ -185,8 +182,6 @@ class _BuddyTabState extends State<BuddyTab> {
   }
 
   Widget _buildDefaultView(BuildContext context) {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     String tastyMessage = "It's $appNameBuddy Time!";
     String tastyMessage2 =
         "Let's craft a perfect meal plan for a healthier you.";
@@ -194,10 +189,15 @@ class _BuddyTabState extends State<BuddyTab> {
     String tastyMessage4 =
         "AI-powered food coach, crafting the perfect plan for a fitter you.";
 
-    final date = DateFormat('d MMMM').format(trailEndDate ?? DateTime.now());
+    final date = DateFormat('d MMMM')
+        .format(userService.currentUser?.freeTrialDate ?? DateTime.now());
 
     String tastyMessage3 =
         "Please enjoy our AI-powered food coach, helping you craft the perfect plan for a fitter you. \n \n Free trail until $date";
+
+    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final isInFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -205,7 +205,9 @@ class _BuddyTabState extends State<BuddyTab> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: getPercentageHeight(8, context),),
+              SizedBox(
+                height: getPercentageHeight(8, context),
+              ),
               TweenAnimationBuilder(
                 tween: Tween<double>(begin: 0.8, end: 1.2),
                 duration: const Duration(seconds: 2),
@@ -229,7 +231,9 @@ class _BuddyTabState extends State<BuddyTab> {
                   ),
                 ),
               ),
-              SizedBox(height: getPercentageHeight(5, context),),
+              SizedBox(
+                height: getPercentageHeight(5, context),
+              ),
               Text(
                 isPremium ? tastyMessage : tastyMessage1,
                 style: const TextStyle(
@@ -243,7 +247,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 child: Text(
                   isPremium
                       ? tastyMessage2
-                      : isInFreeTrail
+                      : isInFreeTrial
                           ? tastyMessage3
                           : tastyMessage4,
                   textAlign: TextAlign.center,
@@ -254,7 +258,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 ),
               ),
               const SizedBox(height: 20),
-              if (isPremium || isInFreeTrail)
+              if (isPremium || isInFreeTrial)
                 SecondaryButton(
                   text: 'Get Meal Plan',
                   press: () => _checkAndNavigateToGenerate(context),

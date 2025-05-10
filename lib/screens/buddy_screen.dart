@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
@@ -24,10 +25,8 @@ class _TastyScreenState extends State<TastyScreen> {
   final TextEditingController textController = TextEditingController();
   String? chatId;
   bool get isPremium => userService.currentUser?.isPremium ?? false;
-  DateTime? trailEndDate = userService.currentUser?.created_At?.add(Duration(
-      days: int.tryParse(
-              firebaseService.generalData['freeTrailDays']?.toString() ?? '') ??
-          29));
+
+  bool isInFreeTrial = false;
   late ChatController chatController;
 
   // List of welcome messages
@@ -49,9 +48,14 @@ class _TastyScreenState extends State<TastyScreen> {
       chatController = Get.put(ChatController());
     }
     chatId = userService.buddyId;
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
-    if (isPremium || isInFreeTrail) {
+    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
+
+    if (isPremium || isInFreeTrial) {
       _initializeChatWithBuddy();
     }
   }
@@ -103,11 +107,9 @@ class _TastyScreenState extends State<TastyScreen> {
 
   /// Summarize chat when screen is closed and update chat summary in Firestore
   Future<void> _saveChatSummary() async {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     if (chatId == null ||
         !isPremium ||
-        !isInFreeTrail ||
+        !isInFreeTrial ||
         chatController.messages.last.senderId == 'buddy') return;
 
     final messages = chatController.messages;
@@ -200,10 +202,8 @@ class _TastyScreenState extends State<TastyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
     final themeProvider = Provider.of<ThemeProvider>(context);
-    if (isPremium || isInFreeTrail) {
+    if (isPremium || isInFreeTrial) { 
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(
@@ -217,7 +217,7 @@ class _TastyScreenState extends State<TastyScreen> {
               const SizedBox(height: 45),
               Row(
                 children: [
-                  if (isPremium || isInFreeTrail)
+                  if (isPremium || isInFreeTrial)
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.all(16),
@@ -447,9 +447,7 @@ Greet the user warmly and offer guidance based on:
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
-    if (chatId == null || (!isPremium && !isInFreeTrail)) return;
+    if (chatId == null || (!isPremium && !isInFreeTrial)) return;
 
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
@@ -594,9 +592,7 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _initializeChatWithBuddy() async {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
-    if (!isPremium || !isInFreeTrail) return;
+    if (!isPremium || !isInFreeTrial) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
       // Existing chat - just listen to messages and mark as read
@@ -622,9 +618,7 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _sendWelcomeMessage() async {
-    final isInFreeTrail =
-        DateTime.now().isBefore(trailEndDate ?? DateTime.now());
-    if (!isPremium || !isInFreeTrail || chatId == null) return;
+    if (!isPremium || !isInFreeTrial || chatId == null) return;
 
     try {
       final randomMessage = _welcomeMessages[

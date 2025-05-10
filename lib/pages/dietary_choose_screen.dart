@@ -460,7 +460,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       if (mounted) {
         Navigator.of(context).pop(); // Hide loading
         Get.to(
-            () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 2));
+            () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
       }
     } catch (e) {
       if (mounted) {
@@ -704,7 +704,7 @@ class DietItem extends StatelessWidget {
           ],
           border: Border.all(
             color: isSelected ? kAccentLight : kWhite,
-            width: 1.5,
+            width: 3,
           ),
         ),
         child: Column(

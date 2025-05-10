@@ -157,6 +157,12 @@ class AuthController extends GetxController {
         } else if (userDataMap['created_At'] is String) {
           createdAt = DateTime.tryParse(userDataMap['created_At']);
         }
+        DateTime? freeTrialDate;
+        if (userDataMap['freeTrialDate'] is Timestamp) {
+          freeTrialDate = (userDataMap['freeTrialDate'] as Timestamp).toDate();
+        } else if (userDataMap['freeTrialDate'] is String) {
+          freeTrialDate = DateTime.tryParse(userDataMap['freeTrialDate']);
+        }
 
         final user = UserModel(
           userId: doc.id,
@@ -176,6 +182,7 @@ class AuthController extends GetxController {
           userType: userDataMap['userType']?.toString() ?? 'user',
           isPremium: userDataMap['isPremium'] as bool? ?? false,
           created_At: createdAt,
+          freeTrialDate: freeTrialDate,
         );
 
         // Update userService and current user
@@ -197,10 +204,10 @@ class AuthController extends GetxController {
     await prefs.setBool(_isLoggedInKey, value);
   }
 
-  Future<void> registerUser(BuildContext context, String username, String email,
+  Future<void> registerUser(BuildContext context, String email,
       String password) async {
     try {
-      if (username.isNotEmpty && email.isNotEmpty && password.isNotEmpty) {
+      if (email.isNotEmpty && password.isNotEmpty) {
         UserCredential cred =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,

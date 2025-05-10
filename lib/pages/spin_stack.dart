@@ -293,14 +293,11 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     try {
       // Show loading indicator
       _showLoadingDialog();
-      print('displayedItems.first: ${displayedItems.first.title}');
 
       // Prepare prompt and generate meal plan
       final mealPlan = await geminiService.generateMealFromIngredients(
         displayedItems.map((item) => item.title).join(', '),
       );
-
-      print('mealPlan: $mealPlan');
 
       // Hide loading dialog before showing selection
       if (mounted) Navigator.of(context).pop();
@@ -477,6 +474,9 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
   Widget _buildContent(
       BuildContext context, dynamic displayedItems, bool isMealSpin) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final isInFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     final processedItems = isMealSpin
         ? (displayedItems as List<Meal>)
@@ -561,7 +561,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     ),
                   ],
                 ),
-          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(2, context)),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -578,7 +578,20 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   } else {
                     if (displayedItems.isNotEmpty &&
                         widget.acceptedItems.length > 1) {
-                      _generateMealFromIngredients(displayedItems);
+                      if ((userService.currentUser?.isPremium ?? false) ||
+                          isInFreeTrial) {
+                        _generateMealFromIngredients(displayedItems);
+                        return;
+                      } else {
+                        showDialog(
+                          context: context,
+                          builder: (context) => showPremiumDialog(
+                              context,
+                              isDarkMode,
+                              'Premium Feature',
+                              'Upgrade to premium to generate a meal plan with the ingredients you have selected!'),
+                        );
+                      }
                     } else {
                       showTastySnackbar(
                         'Try Again',

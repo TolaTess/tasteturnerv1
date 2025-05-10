@@ -32,7 +32,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
-  final TextEditingController heightController = TextEditingController();
   final TextEditingController weightController = TextEditingController();
   final TextEditingController targetWeightController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
@@ -65,7 +64,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     nameController.dispose();
     ageController.dispose();
     locationController.dispose();
-    heightController.dispose();
     weightController.dispose();
     targetWeightController.dispose();
     super.dispose();
@@ -140,10 +138,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         userType: 'user',
         isPremium: enableAITrial,
         created_At: DateTime.now(),
+        freeTrialDate: DateTime.now().add(const Duration(days: 30)),
         settings: {
           'waterIntake': '2000',
           'foodGoal': '2000',
-          "height": "${heightController.text} $selectedHeightUnit",
           'goalWeight': "${targetWeightController.text} $selectedWeightUnit",
           'startingWeight': "${weightController.text} $selectedWeightUnit",
           "currentWeight": "${weightController.text} $selectedWeightUnit",
@@ -285,46 +283,60 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildNamePage() {
     return _buildPage(
       title: "Welcome to $appName!",
-      child1: SafeTextFormField(
-        controller: nameController,
-        style: const TextStyle(color: kDarkGrey),
-        onChanged: (_) => _validateInputs(),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFFF3F3F3),
-          enabledBorder: outlineInputBorder(10),
-          focusedBorder: outlineInputBorder(10),
-          border: outlineInputBorder(10),
-          labelStyle: const TextStyle(color: Color(0xffefefef)),
-          hintStyle: const TextStyle(color: kLightGrey),
-          hintText: "Enter your name",
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-          contentPadding: const EdgeInsets.only(
-            top: 16,
-            bottom: 16,
-            right: 10,
-            left: 10,
+      child1: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: kDarkGrey,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SafeTextFormField(
+          controller: nameController,
+          style: const TextStyle(color: kDarkGrey),
+          onChanged: (_) => _validateInputs(),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF3F3F3),
+            enabledBorder: outlineInputBorder(10),
+            focusedBorder: outlineInputBorder(10),
+            border: outlineInputBorder(10),
+            labelStyle: const TextStyle(color: Color(0xffefefef)),
+            hintStyle: const TextStyle(color: kLightGrey),
+            hintText: "Enter your name",
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding: const EdgeInsets.only(
+              top: 16,
+              bottom: 16,
+              right: 10,
+              left: 10,
+            ),
           ),
         ),
       ),
-      child2: SafeTextFormField(
-        controller: dobController,
-        style: const TextStyle(color: kDarkGrey),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFFF3F3F3),
-          enabledBorder: outlineInputBorder(10),
-          focusedBorder: outlineInputBorder(10),
-          border: outlineInputBorder(10),
-          labelStyle: const TextStyle(color: Color(0xffefefef)),
-          hintStyle: const TextStyle(color: kLightGrey),
-          hintText: "Enter your date of birth (MM-dd)",
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-          contentPadding: const EdgeInsets.only(
-            top: 16,
-            bottom: 16,
-            right: 10,
-            left: 10,
+      child2: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: kDarkGrey,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SafeTextFormField(
+          controller: dobController,
+          style: const TextStyle(color: kDarkGrey),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF3F3F3),
+            enabledBorder: outlineInputBorder(10),
+            focusedBorder: outlineInputBorder(10),
+            border: outlineInputBorder(10),
+            labelStyle: const TextStyle(color: Color(0xffefefef)),
+            hintStyle: const TextStyle(color: kLightGrey),
+            hintText: "Enter your date of birth (MM-dd) (optional)",
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding: const EdgeInsets.only(
+              top: 16,
+              bottom: 16,
+              right: 10,
+              left: 10,
+            ),
           ),
         ),
       ),
@@ -464,49 +476,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Combined Measurements Page
   Widget _buildMeasurementsPage() {
     return _buildPage(
-      title: "Your Body Measurements",
+      title: "Your Measurements",
       description:
-          "Enter your height and weight details to keep track of your progress (optional).",
-      child1: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: kDarkGrey,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Height:",
-                  style: TextStyle(
-                    color: kWhite,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _buildMeasurementInput(
-                  heightController,
-                  ["cm", "ft"],
-                  selectedHeightUnit,
-                  (value) {
-                    setState(() {
-                      selectedHeightUnit = value;
-                      _validateInputs();
-                    });
-                  },
-                  (value) {
-                    _validateInputs();
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      child2: Container(
+          "Enter your weight details to keep track of your progress (optional).",
+      child1: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: kDarkGrey,
@@ -541,7 +514,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ],
         ),
       ),
-      child3: Container(
+      child2: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: kDarkGrey,
@@ -576,6 +549,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ],
         ),
       ),
+      child3: const SizedBox.shrink(),
     );
   }
 
@@ -698,16 +672,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             ),
             const SizedBox(height: 50),
-            const SizedBox(height: 20),
             child1,
             const SizedBox(height: 20),
             child2,
             const SizedBox(height: 20),
             child3,
-            const SizedBox(height: 50),
+            title.contains("Your Measurements")
+                ? const SizedBox(height: 10)
+                : const SizedBox(height: 50),
             if (!title.contains("Key Features") &&
                 !title.contains("What are your goals?") &&
-                !title.contains("Your Body Measurements") &&
                 !title.contains("App Settings"))
               TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0.8, end: 1.0),
