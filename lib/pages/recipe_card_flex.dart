@@ -152,7 +152,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: getPercentageHeight(0.5, context),
+                      vertical: getPercentageHeight(0.3, context),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -163,12 +163,12 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           widget.recipe.title,
                           style: TextStyle(
                               color: Colors.white,
-                              fontSize: getPercentageHeight(2.2, context),
+                              fontSize: getPercentageHeight(1.8, context),
                               fontWeight: FontWeight.w500,
                               overflow: TextOverflow.ellipsis),
                           maxLines: 2,
                         ),
-                        const SizedBox(height: 7),
+                        const SizedBox(height: 5),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

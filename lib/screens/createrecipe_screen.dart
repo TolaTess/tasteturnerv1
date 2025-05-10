@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../widgets/bottom_nav.dart';
@@ -46,11 +47,20 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   int selectedNumber = 0;
   int selectedUnit = 0;
+  String selectedServing = 'g';
+  String foodType = '';
+  String screen = '';
 
   @override
   void initState() {
     super.initState();
     _loadData();
+
+    if (widget.screenType.contains('addManual')) {
+      foodType = widget.screenType.split('addManual')[1];
+      screen = 'addManual';
+    }
+
     // If editing, prefill fields
     if (widget.meal != null) {
       final meal = widget.meal!;
@@ -127,7 +137,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
     try {
       // Use existing mealId if editing, otherwise create new
-
       String mealId = isEditing
           ? widget.meal!.mealId
           : firestore.collection('meals').doc().id;
@@ -171,7 +180,37 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         mealId: mealId,
       );
 
-      // Save or update meal in Firestore
+      // If screenType is 'add_manual', save as in AddMealManuallyScreen
+      if (screen == 'addManual') {
+        // Create a user meal
+        final userMeal = UserMeal(
+          name: titleController.text.trim(),
+          quantity: serveQtyController.text.trim(),
+          servings: selectedServing,
+          calories: int.tryParse(caloriesController.text.trim()) ?? 0,
+          mealId: mealId,
+        );
+        // Add to user's daily meals
+        await dailyDataController.addUserMeal(
+          userService.userId ?? '',
+          foodType, // or pass meal type if available
+          userMeal,
+        );
+        // Save meal to Firestore
+        await firestore.collection('meals').doc(mealId).set(newMeal.toJson());
+        if (mounted) {
+          showTastySnackbar(
+            'Success',
+            'Meal added successfully!',
+            context,
+          );
+        }
+        Navigator.pop(context);
+        setState(() => isUploading = false);
+        return;
+      }
+
+      // Save or update meal in Firestore (default behavior)
       await firestore.collection('meals').doc(mealId).set(newMeal.toJson());
 
       if (mounted) {
@@ -184,13 +223,16 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         );
       }
 
-      Navigator.pop(context);
+      Get.to(() => const BottomNavSec(
+            selectedIndex: 1,
+            foodScreenTabIndex: 1,
+          ));
     } catch (e) {
       print("Error uploading meal: $e");
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
-          'Failed to upload meal. Try again.',
+          'Meal was not uploaded. Try again.',
           context,
         );
       }
@@ -204,7 +246,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
-          title: const Text("Create Recipe"),
+          title: Text(
+              screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe'),
           leading: InkWell(
             onTap: () {
               if (widget.screenType == 'list') {
@@ -215,6 +258,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     screen: 'ingredient',
                   ),
                 );
+              } else if (screen == 'addManual' ||
+                  widget.screenType == 'addManual') {
+                Get.back();
               } else {
                 Get.to(() => const BottomNavSec(
                       selectedIndex: 1,
@@ -235,33 +281,20 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(
-                  height: 24,
-                ),
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                //   children: [
-                //     //back arrow
-                //     InkWell(
-                //       onTap: () => Navigator.pop(context),
-                //       child: const IconCircleButton(),
-                //     ),
-                //   ],
-                // ),
-                const SizedBox(
-                  height: 20,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
                 //Recipe Title
-                const Text(
-                  recipeTitle,
-                  style: TextStyle(
+                Text(
+                  screen == 'addManual' ? '$foodType Title' : recipeTitle,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
 
-                const SizedBox(
-                  height: 24,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 SafeTextFormField(
@@ -285,114 +318,99 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 32,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
-                //Add Cover Image
-                const Center(
-                  child: Text(
-                    addCoverImage,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                Center(
-                  child: InkWell(
-                    onTap: () async {
-                      List<XFile> pickedImages =
-                          await openMultiImagePickerModal(context: context);
-
-                      if (pickedImages.isNotEmpty) {
-                        setState(() {
-                          _selectedImages = pickedImages;
-                          _recentImage = _selectedImages.first;
-                        });
-                      }
-                    },
-                    child: _recentImage != null
-                        ? Image.file(
-                            File(_recentImage!.path),
-                            height: 150,
-                            width: 150,
-                            fit: BoxFit.cover,
-                          )
-                        : DottedBorder(
-                            radius: const Radius.circular(30),
-                            color: kLightGrey,
-                            dashPattern: const [5, 2],
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 36,
-                                vertical: 54,
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(
-                                    Icons.photo_camera,
-                                    color: kLightGrey,
-                                  ),
-                                  Text(
-                                    addCoverImage,
-                                    style: TextStyle(
-                                      color: kLightGrey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                // Quantity and Units Row
+                Row(
+                  children: [
+                    // Quantity
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Serving Size",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-
-                //Serving Size
-                const Text(
-                  servingSize,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
-                SafeTextFormField(
-                  controller: serveQtyController,
-                  style: const TextStyle(color: kDarkGrey),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF3F3F3),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
-                    labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: const TextStyle(color: kLightGrey),
-                    hintText: 'Enter serving size... 1, 2 or 3',
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    contentPadding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      right: 10,
-                      left: 10,
+                          const SizedBox(height: 12),
+                          SafeTextFormField(
+                            controller: serveQtyController,
+                            style: const TextStyle(color: kDarkGrey),
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: const Color(0xFFF3F3F3),
+                              enabledBorder: outlineInputBorder(10),
+                              focusedBorder: outlineInputBorder(10),
+                              border: outlineInputBorder(10),
+                              hintStyle: const TextStyle(color: kLightGrey),
+                              hintText: '1',
+                              contentPadding: const EdgeInsets.all(8),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
 
-                const SizedBox(
-                  height: 16,
+                    SizedBox(
+                      width: getPercentageWidth(1, context),
+                    ),
+
+                    // Serving Unit
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Unit",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: selectedServing,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.9)
+                                  : kWhite.withValues(alpha: 0.2),
+                              enabledBorder: outlineInputBorder(10),
+                              focusedBorder: outlineInputBorder(10),
+                              border: outlineInputBorder(10),
+                              contentPadding: const EdgeInsets.all(8),
+                            ),
+                            items: unitOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  selectedServing = newValue;
+                                });
+                              }
+                            },
+                            dropdownColor: kWhite,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 //Calories Time
@@ -404,13 +422,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
 
-                const SizedBox(
-                  height: 16,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 SafeTextFormField(
                   controller: caloriesController,
                   style: const TextStyle(color: kDarkGrey),
+                  keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: const Color(0xFFF3F3F3),
@@ -430,8 +449,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
 
-                const SizedBox(
-                  height: 20,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 //Ingredients
@@ -444,8 +463,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
 
-                const SizedBox(
-                  height: 16,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 Column(
@@ -527,113 +546,179 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
                   ],
                 ),
-
-                const SizedBox(
-                  height: 20,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
-                //Cooking Instructions
-
-                const Text(
-                  cookingInstructions,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const Text(
-                  notes,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
-                SafeTextFormField(
-                  controller: stepsController,
-                  style: const TextStyle(color: kDarkGrey),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF3F3F3),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
-                    labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: const TextStyle(color: kLightGrey),
-                    hintText: cookingInstructionsHint,
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    contentPadding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      right: 10,
-                      left: 10,
+                //Add Cover Image
+                const Center(
+                  child: Text(
+                    addCoverImage,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 20,
+
+                SizedBox(
+                  height: getPercentageHeight(2, context),
                 ),
 
-                //Notes
-                const Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                Center(
+                  child: InkWell(
+                    onTap: () async {
+                      List<XFile> pickedImages =
+                          await openMultiImagePickerModal(context: context);
+
+                      if (pickedImages.isNotEmpty) {
+                        setState(() {
+                          _selectedImages = pickedImages;
+                          _recentImage = _selectedImages.first;
+                        });
+                      }
+                    },
+                    child: _recentImage != null
+                        ? Image.file(
+                            File(_recentImage!.path),
+                            height: getPercentageHeight(15, context),
+                            width: getPercentageWidth(40, context),
+                            fit: BoxFit.cover,
+                          )
+                        : DottedBorder(
+                            radius: const Radius.circular(30),
+                            color: kLightGrey,
+                            dashPattern: const [5, 2],
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(5, context),
+                                vertical: getPercentageHeight(2, context),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(
+                                    Icons.photo_camera,
+                                    color: kLightGrey,
+                                  ),
+                                  Text(
+                                    addCoverImage,
+                                    style: TextStyle(
+                                      color: kLightGrey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                   ),
                 ),
 
-                const Text(
-                  snippet,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                SizedBox(
+                  height: getPercentageHeight(2, context),
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
-
-                SafeTextFormField(
-                  controller: categoryController,
-                  style: const TextStyle(color: kDarkGrey),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF3F3F3),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
-                    labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: const TextStyle(color: kLightGrey),
-                    hintText: notesHint,
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    contentPadding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      right: 10,
-                      left: 10,
+                if (screen != 'addManual') ...[
+                  //Cooking Instructions
+                  const Text(
+                    cookingInstructions,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(
-                  height: 32,
-                ),
+                  const Text(
+                    notes,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
+                  ),
+                  SafeTextFormField(
+                    controller: stepsController,
+                    style: const TextStyle(color: kDarkGrey),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF3F3F3),
+                      enabledBorder: outlineInputBorder(20),
+                      focusedBorder: outlineInputBorder(20),
+                      border: outlineInputBorder(20),
+                      labelStyle: const TextStyle(color: Color(0xffefefef)),
+                      hintStyle: const TextStyle(color: kLightGrey),
+                      hintText: cookingInstructionsHint,
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      contentPadding: const EdgeInsets.only(
+                        top: 16,
+                        bottom: 16,
+                        right: 10,
+                        left: 10,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
+                  ),
+                  //Notes
+                  const Text(
+                    category,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Text(
+                    snippet,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
+                  ),
+                  SafeTextFormField(
+                    controller: categoryController,
+                    style: const TextStyle(color: kDarkGrey),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFF3F3F3),
+                      enabledBorder: outlineInputBorder(20),
+                      focusedBorder: outlineInputBorder(20),
+                      border: outlineInputBorder(20),
+                      labelStyle: const TextStyle(color: Color(0xffefefef)),
+                      hintStyle: const TextStyle(color: kLightGrey),
+                      hintText: notesHint,
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      contentPadding: const EdgeInsets.only(
+                        top: 16,
+                        bottom: 16,
+                        right: 10,
+                        left: 10,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(2, context),
+                  ),
+                ],
 
                 //Submit button
+                isUploading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : PrimaryButton(
+                        text: screen == 'addManual'
+                            ? 'Add to $foodType'
+                            : submitRecipe,
+                        press: _uploadMeal,
+                      ),
 
-                PrimaryButton(
-                  text: submitRecipe,
-                  press: _uploadMeal,
-                ),
-
-                const SizedBox(
-                  height: 32,
+                SizedBox(
+                  height: getPercentageHeight(2, context),
                 ),
               ],
             ),

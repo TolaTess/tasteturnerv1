@@ -10,10 +10,9 @@ import '../helper/utils.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/date_widget.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
-import './add_meal_manually_screen.dart';
+import 'createrecipe_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
@@ -266,8 +265,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => AddMealManuallyScreen(
-                                    mealType: foodType,
+                                  builder: (context) =>
+                                      CreateRecipeScreen(
+                                    screenType: 'addManual' + foodType,
                                   ),
                                 ),
                               );
@@ -711,13 +711,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               const SizedBox(height: 20),
 
               // Selected Items List
               SizedBox(
                 height: MediaQuery.of(context).size.height -
-                    getPercentageHeight(30, context), // Fixed height for the list area
+                    getPercentageHeight(
+                        30, context), // Fixed height for the list area
                 child: Obx(() {
                   return Column(
                     children: [
@@ -787,16 +787,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               ),
                                             ],
                                           ),
-                                           GestureDetector(
-                                                onTap: () {
-                                                  setState(() {
-                                                    foodType = 'Breakfast';
-                                                  });
-                                                  _showSearchResults(
-                                                      context, 'Breakfast');
-                                                },
-                                                child:
-                                          Icon(Icons.add, color: kAccent)),
+                                          GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  foodType = 'Breakfast';
+                                                });
+                                                _showSearchResults(
+                                                    context, 'Breakfast');
+                                              },
+                                              child: Icon(Icons.add,
+                                                  color: kAccent)),
                                         ],
                                       ),
                                     ),
@@ -901,15 +901,15 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                             ],
                                           ),
                                           GestureDetector(
-                                                onTap: () {
-                                                  setState(() {
-                                                    foodType = 'Lunch';
-                                                  });
-                                                  _showSearchResults(
-                                                      context, 'Lunch');
-                                                },
-                                                child:
-                                          Icon(Icons.add, color: kAccent)),
+                                              onTap: () {
+                                                setState(() {
+                                                  foodType = 'Lunch';
+                                                });
+                                                _showSearchResults(
+                                                    context, 'Lunch');
+                                              },
+                                              child: Icon(Icons.add,
+                                                  color: kAccent)),
                                         ],
                                       ),
                                     ),
@@ -1011,15 +1011,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                       ),
                                     ],
                                   ),
-                                   GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            foodType = 'Dinner';
-                                          });
-                                          _showSearchResults(context, 'Dinner');
-                                        },
-                                        child: 
-                                  Icon(Icons.add, color: kAccent)),
+                                  GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          foodType = 'Dinner';
+                                        });
+                                        _showSearchResults(context, 'Dinner');
+                                      },
+                                      child: Icon(Icons.add, color: kAccent)),
                                 ],
                               ),
                             ),
