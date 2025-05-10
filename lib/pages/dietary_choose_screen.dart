@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
-import '../data_models/base_model.dart';
+import '../data_models/ingredient_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,7 +27,7 @@ class ChooseDietScreen extends StatefulWidget {
 }
 
 class _ChooseDietScreenState extends State<ChooseDietScreen> {
-  String selectedDiet = demoDietData[0].title; // First element is "None"
+  String selectedDiet = 'None';
   Set<String> selectedAllergies = {};
   int proteinDishes = 2;
   int grainDishes = 2;
@@ -35,11 +35,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   String selectedCuisine = 'Balanced';
 
   List<Map<String, dynamic>> cuisineTypes = [];
+  List<Map<String, dynamic>> dietTypes = [];
 
   @override
   void initState() {
     super.initState();
     cuisineTypes = helperController.headers;
+    dietTypes = helperController.category;
     if (!widget.isOnboarding) {
       _checkExistingPreferences();
     }
@@ -449,7 +451,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       if (userId == null) throw Exception('User ID not found');
 
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final List<String> mealIds = await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
+      final List<String> mealIds =
+          await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
       await saveMealPlanToFirestore(userId, date, mealIds, mealPlan);
       await _updateUserPreferences(userId);
 
@@ -487,8 +490,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   void dispose() {
     super.dispose();
   }
-
-
 
 // Update user preferences
   Future<void> _updateUserPreferences(String userId) async {
@@ -552,7 +553,6 @@ Include:
 ''';
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -602,15 +602,15 @@ Include:
                     mainAxisSpacing: 5,
                     crossAxisSpacing: 5,
                   ),
-                  itemCount: demoDietData.length,
+                  itemCount: dietTypes.length,
                   itemBuilder: (BuildContext ctx, index) {
                     return DietItem(
-                      dataSrc: demoDietData[index],
-                      isSelected: selectedDiet == demoDietData[index].title,
+                      dataSrc: dietTypes[index],
+                      isSelected: selectedDiet == dietTypes[index]['name'],
                       onSelected: (title) {
                         setState(() {
                           if (selectedDiet == title) {
-                            selectedDiet = demoDietData[0].title;
+                            selectedDiet = dietTypes[0]['name'];
                           } else {
                             selectedDiet = title;
                           }
@@ -675,21 +675,21 @@ Include:
 }
 
 class DietItem extends StatelessWidget {
-  const DietItem({
+  DietItem({
     super.key,
     required this.dataSrc,
     required this.isSelected,
     required this.onSelected,
   });
 
-  final DataModelBase dataSrc;
+  final Map<String, dynamic> dataSrc;
   final bool isSelected;
   final Function(String) onSelected;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => onSelected(dataSrc.title),
+      onTap: () => onSelected(dataSrc['name']),
       child: Container(
         decoration: BoxDecoration(
           color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -713,7 +713,7 @@ class DietItem extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Image.asset(
-                  dataSrc.image,
+                  getAssetImageForItem(dataSrc['name']),
                   width: 85,
                   height: 60,
                   fit: BoxFit.cover,
@@ -723,7 +723,9 @@ class DietItem extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(4.0),
               child: Text(
-                dataSrc.title,
+                dataSrc['name'] == 'All'
+                    ? 'General'
+                    : dataSrc['name'],
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

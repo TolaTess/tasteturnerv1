@@ -140,11 +140,23 @@ String getAssetImageForItem(String itemType) {
     case 'fats':
       return 'assets/images/butter.jpg';
     case 'breakfast':
+    case 'keto':
       return 'assets/images/keto.jpg';
     case 'lunch':
+    case 'paleo':
+    case 'carnivore':
       return 'assets/images/paleo.jpg';
     case 'dinner':
+    case 'low-carb':
       return 'assets/images/low-carb.jpg';
+    case 'all':
+      return 'assets/images/none_diet.jpg';
+    case 'vegan':
+      return 'assets/images/vegan.jpg';
+    case 'vegetarian':
+      return 'assets/images/vegetarian.jpg';
+    case 'pescatarian':
+      return 'assets/images/pescatarian.jpg';
     case 'snack':
       return 'assets/images/pastry.jpg';
     case 'dessert':
