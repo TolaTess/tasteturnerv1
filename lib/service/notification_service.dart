@@ -192,6 +192,71 @@ class NotificationService {
   Future<void> cancelAllScheduledNotifications() async {
     await notificationPlugin.cancelAll();
   }
+
+  // Schedule weekly reminder at specific weekday and time
+  Future<void> scheduleWeeklyReminder({
+    required int id,
+    required String title,
+    required String body,
+    required int weekday, // Monday=1, ..., Sunday=7
+    required int hour,
+    required int minute,
+    String? timeZoneName,
+  }) async {
+    if (Platform.isAndroid) {
+      final androidPlugin =
+          notificationPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      final hasPermission =
+          await androidPlugin?.areNotificationsEnabled() ?? false;
+
+      if (!hasPermission) {
+        // Request notification permissions
+        final granted = await notificationPlugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+
+        if (granted != true) {
+          return; // Exit if notification permissions not granted
+        }
+      }
+
+      // For exact alarms, we need to direct users to system settings
+      await notificationPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestExactAlarmsPermission();
+    }
+    // Use provided timezone or fall back to user's timezone
+    final targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
+
+    final now = DateTime.now();
+    // Find the next occurrence of the selected weekday
+    int daysUntil = (weekday - now.weekday + 7) % 7;
+    final nextDay = now.add(Duration(days: daysUntil));
+    final scheduledDate = DateTime(
+      nextDay.year,
+      nextDay.month,
+      nextDay.day,
+      hour,
+      minute,
+    );
+
+    final location = tz.getLocation(targetTimeZone);
+    final scheduledTime = tz.TZDateTime.from(scheduledDate, location);
+
+    await notificationPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduledTime,
+      notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
 }
 
 // Helper class for multiple daily reminders

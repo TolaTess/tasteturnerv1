@@ -8,6 +8,7 @@ import '../widgets/icon_widget.dart';
 import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/shopping_list_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ShoppingTab extends StatefulWidget {
   const ShoppingTab({super.key});
@@ -20,11 +21,76 @@ class _ShoppingTabState extends State<ShoppingTab> {
   List<MacroData> shoppingList = [];
   List<MacroData> myShoppingList = [];
   Set<String> selectedShoppingItems = {};
+  String? _selectedDay;
+  final List<String> _daysOfWeek = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
 
   @override
   void initState() {
     super.initState();
+    _loadSelectedDay();
     _setupDataListeners();
+  }
+
+  Future<void> _loadSelectedDay() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedDay = prefs.getString('shopping_day');
+    });
+  }
+
+  Future<void> _saveSelectedDay(String day) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('shopping_day', day);
+    setState(() {
+      _selectedDay = day;
+    });
+    // Cancel previous scheduled notification
+    await notificationService.cancelScheduledNotification(1001);
+    // Schedule weekly notification for the selected day at 10:00 AM
+    int dayIndex = _daysOfWeek.indexOf(day); // 0 = Monday
+    int weekday = dayIndex + 1; // DateTime weekday: Monday=1, ..., Sunday=7
+    await notificationService.scheduleWeeklyReminder(
+      id: 1001, // Unique ID for shopping reminder
+      title: 'Shopping Reminder',
+      body: 'Today is your shopping day! Don\'t forget to shop!',
+      weekday: weekday,
+      hour: 10,
+      minute: 0,
+      // Optionally, pass timezone if needed
+    );
+  }
+
+  void _showDayPicker(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _daysOfWeek.map((day) {
+              return ListTile(
+                title: Text(day),
+                trailing: _selectedDay == day
+                    ? const Icon(Icons.check, color: kAccent)
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _saveSelectedDay(day);
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   void _setupDataListeners() {
@@ -120,9 +186,39 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 ),
               ),
             ),
-          const SizedBox(height: 10),
 
-          // Shopping list
+          // Shopping schedule selector
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Shopping Day:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: kAccent,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showDayPicker(context),
+                  icon: const Icon(Icons.calendar_today,
+                      size: 18, color: kAccent),
+                  label: Text(
+                    _selectedDay ?? 'Select Day',
+                    style: const TextStyle(
+                      color: kAccent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          //Shopping list
           Expanded(
             child: Obx(() {
               if (macroManager.shoppingList.isEmpty &&

@@ -16,6 +16,7 @@ import '../screens/add_food_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
+import '../widgets/bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   DateTime currentDate = DateTime.now();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
+  String? _shoppingDay;
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
 
+    _loadShoppingDay();
     _setupDataListeners();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
@@ -106,6 +109,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
+  }
+
+  Future<void> _loadShoppingDay() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _shoppingDay = prefs.getString('shopping_day');
+    });
+  }
+
+  bool _isTodayShoppingDay() {
+    if (_shoppingDay == null) return false;
+    final today = DateTime.now();
+    final days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return days[today.weekday - 1] == _shoppingDay;
   }
 
   // Add this method to handle notifications
@@ -294,7 +319,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _onRefresh,
+        onRefresh: () async {
+          await _onRefresh();
+          await _loadShoppingDay();
+        },
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(10.0),
@@ -392,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (!allDisabled)
                   DailyRoutineListHorizontal(
                       userId: userService.userId!, date: currentDate),
-                if (!allDisabled) const SizedBox(height: 15),
+                if (!allDisabled) const SizedBox(height: 10),
                 if (!allDisabled)
                   Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 if (!allDisabled) const SizedBox(height: 5),
@@ -408,6 +436,80 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 if (winners.isNotEmpty && isAnnounceShow)
                   const SizedBox(height: 10),
+
+                if (_isTodayShoppingDay())
+                  Container(
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: kAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kAccent, width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shopping_cart,
+                            color: kAccent, size: 32),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Text(
+                            "It's your shopping day! Don't forget to check your shopping list.",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: kAccent,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: kWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BottomNavSec(
+                                    selectedIndex: 3, foodScreenTabIndex: 1),
+                              ),
+                            );
+                          },
+                          child: const Text('Go'),
+                        ),
+                      ],
+                    ),
+                  ),
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 5),
+
+                // ------------------------------------Premium / Ads------------------------------------
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : PremiumSection(
+                        isPremium: userService.currentUser?.isPremium ?? false,
+                        titleOne: joinChallenges,
+                        titleTwo: premium,
+                        isDiv: false,
+                      ),
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 10),
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+
+                // ------------------------------------Premium / Ads-------------------------------------
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 10),
 
                 // Nutrition Overview
                 SizedBox(
@@ -441,29 +543,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 15),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 const SizedBox(height: 8),
-
-                // Icons Navigation
-
-                // ------------------------------------Premium / Ads------------------------------------
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : PremiumSection(
-                        isPremium: userService.currentUser?.isPremium ?? false,
-                        titleOne: joinChallenges,
-                        titleTwo: premium,
-                        isDiv: false,
-                      ),
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
-                // ------------------------------------Premium / Ads-------------------------------------
-                const SizedBox(height: 20),
 
                 // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),
