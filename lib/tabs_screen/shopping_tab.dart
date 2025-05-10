@@ -131,26 +131,22 @@ class _ShoppingTabState extends State<ShoppingTab> {
                     userService.userId ?? '', getCurrentWeek() - 1, true);
                 return noItemTastyWidget(
                   'No items in shopping list',
-                  '',
+                  'Add items using Tasty Spin!',
                   context,
-                  false,
+                  true,
+                  'spin',
                 );
               }
 
+              // Use the ingredient id as the selection key
+              final statusMap = macroManager.shoppingList.isNotEmpty
+                  ? macroManager.shoppingList
+                  : macroManager.previousShoppingList;
+              final itemIds = statusMap.keys.toList();
               return ShoppingListView(
-                items: macroManager.shoppingList.isNotEmpty
-                    ? macroManager.shoppingList
-                    : macroManager.previousShoppingList,
-                selectedItems: selectedShoppingItems,
-                onToggle: (item) {
-                  setState(() {
-                    if (selectedShoppingItems.contains(item)) {
-                      selectedShoppingItems.remove(item);
-                    } else {
-                      selectedShoppingItems.add(item);
-                    }
-                  });
-                },
+                items: itemIds,
+                statusMap: statusMap,
+                onToggle: (itemId) {}, // No-op, handled in ShoppingListView
                 isCurrentWeek: macroManager.shoppingList.isNotEmpty,
               );
             }),

@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 
 class ShoppingListView extends StatefulWidget {
-  final List<MacroData> items;
-  final Set<String> selectedItems;
+  final List<String> items; // ingredient IDs
+  final Map<String, bool> statusMap; // id -> purchased status
   final Function(String) onToggle;
   final bool isCurrentWeek;
 
   const ShoppingListView({
     Key? key,
     required this.items,
-    required this.selectedItems,
+    required this.statusMap,
     required this.onToggle,
     this.isCurrentWeek = true,
   }) : super(key: key);
@@ -23,44 +22,37 @@ class ShoppingListView extends StatefulWidget {
 }
 
 class _ShoppingListViewState extends State<ShoppingListView> {
-  static const String _shoppingListKey = 'shopping_list_selections';
-  late Set<String> selectedItems;
+  late List<String> localItems;
 
   @override
   void initState() {
     super.initState();
-    selectedItems = widget.selectedItems;
-    _loadSelections();
+    localItems = List<String>.from(widget.items);
   }
 
-  Future<void> _loadSelections() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedSelections = prefs.getStringList(_shoppingListKey) ?? [];
-    if (mounted) {
+  @override
+  void didUpdateWidget(covariant ShoppingListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.items != oldWidget.items) {
       setState(() {
-        selectedItems = Set.from(savedSelections.where((id) => id != null));
+        localItems = List<String>.from(widget.items);
       });
     }
   }
 
-  Future<void> _saveSelections() async {
-    final prefs = await SharedPreferences.getInstance();
-    final validSelections = selectedItems.where((id) => id != null).toList();
-    await prefs.setStringList(_shoppingListKey, validSelections);
-  }
-
-  void _toggleItem(MacroData item) {
-    if (item.id == null) return;
-
-    setState(() {
-      if (selectedItems.contains(item.id)) {
-        selectedItems.remove(item.id);
-      } else {
-        selectedItems.add(item.id!);
-      }
-    });
-    widget.onToggle(item.id!);
-    _saveSelections();
+  void _toggleItem(String id) async {
+    final macro = macroManager.ingredient.firstWhere((m) => m.id == id,
+        orElse: () => MacroData(
+            title: '',
+            type: '',
+            mediaPaths: [],
+            macros: {},
+            categories: [],
+            features: {}));
+    if (macro.id == null || macro.title.isEmpty) return;
+    await macroManager.markItemPurchased(userService.userId ?? '', macro);
+    setState(() {}); // To trigger UI update
+    widget.onToggle(id);
   }
 
   Future<void> _removeItem(MacroData item) async {
@@ -71,13 +63,6 @@ class _ShoppingListViewState extends State<ShoppingListView> {
       if (userId == null) return;
 
       await macroManager.removeFromShoppingList(userId, item);
-
-      if (selectedItems.contains(item.id)) {
-        setState(() {
-          selectedItems.remove(item.id);
-        });
-        _saveSelections();
-      }
 
       if (mounted) {
         showTastySnackbar(
@@ -102,10 +87,21 @@ class _ShoppingListViewState extends State<ShoppingListView> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return ListView.builder(
-      itemCount: widget.items.length,
+      itemCount: localItems.length,
       itemBuilder: (context, index) {
-        final item = widget.items[index];
-        final isSelected = item.id != null && selectedItems.contains(item.id);
+        final id = localItems[index];
+        final purchased = widget.statusMap[id] == true;
+        final macro = macroManager.ingredient.firstWhere((m) => m.id == id,
+            orElse: () => MacroData(
+                title: '',
+                type: '',
+                mediaPaths: [],
+                macros: {},
+                categories: [],
+                features: {}));
+        if (macro.id == null || macro.title.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
         Widget listItem = Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -124,21 +120,24 @@ class _ShoppingListViewState extends State<ShoppingListView> {
           child: ListTile(
             leading: CircleAvatar(
               radius: 25,
-              backgroundImage: item.mediaPaths.first.startsWith('http')
-                  ? NetworkImage(item.mediaPaths.first) as ImageProvider
-                  : AssetImage(getAssetImageForItem(item.mediaPaths.first)),
+              backgroundImage: macro.mediaPaths.isNotEmpty &&
+                      macro.mediaPaths.first.startsWith('http')
+                  ? NetworkImage(macro.mediaPaths.first) as ImageProvider
+                  : AssetImage(getAssetImageForItem(macro.mediaPaths.isNotEmpty
+                      ? macro.mediaPaths.first
+                      : '')),
             ),
             title: Text(
-              capitalizeFirstLetter(item.title),
+              capitalizeFirstLetter(macro.title),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: isSelected
+                color: purchased
                     ? kAccent
                     : isDarkMode
                         ? Colors.white
                         : Colors.black,
-                decoration: isSelected ? TextDecoration.lineThrough : null,
+                decoration: purchased ? TextDecoration.lineThrough : null,
               ),
             ),
             trailing: Theme(
@@ -146,11 +145,9 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                 unselectedWidgetColor: isDarkMode ? Colors.white : Colors.black,
               ),
               child: Checkbox(
-                value: isSelected,
+                value: purchased,
                 onChanged: (bool? value) {
-                  if (item.id != null) {
-                    _toggleItem(item);
-                  }
+                  _toggleItem(id);
                 },
                 activeColor: kAccent,
                 checkColor: kWhite,
@@ -161,7 +158,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
 
         return widget.isCurrentWeek
             ? Dismissible(
-                key: Key(item.id ?? '${index}_${item.title}'),
+                key: Key(id),
                 background: Container(
                   color: kRed.withOpacity(kMidOpacity),
                   alignment: Alignment.centerRight,
@@ -172,7 +169,12 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                   ),
                 ),
                 direction: DismissDirection.endToStart,
-                onDismissed: (direction) => _removeItem(item),
+                onDismissed: (direction) {
+                  setState(() {
+                    localItems.removeAt(index);
+                  });
+                  _removeItem(macro);
+                },
                 child: listItem,
               )
             : listItem;

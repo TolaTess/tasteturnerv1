@@ -1,7 +1,6 @@
 import '../widgets/bottom_nav.dart';
 import '../widgets/search_button.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
@@ -23,7 +22,6 @@ class IngredientFeatures extends StatefulWidget {
 }
 
 class _IngredientFeaturesState extends State<IngredientFeatures> {
-  static const String _shoppingListKey = 'shopping_list_selections';
   final Set<String> headerSet = {};
   final TextEditingController _searchController = TextEditingController();
   Set<String> _selectedIngredients = {};
@@ -38,32 +36,25 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
       headerSet.addAll(item.features.keys);
     }
     _filteredItems = widget.items.take(10).toList();
-    _loadSelections();
+
+    // Fetch user's shopping list and pre-select items
+    _preselectShoppingList();
   }
 
-  Future<void> _loadSelections() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedSelections = prefs.getStringList(_shoppingListKey) ?? [];
-
-      if (mounted) {
-        setState(() {
-          _selectedIngredients = Set<String>.from(savedSelections);
-        });
-      }
-    } catch (e) {
-      print('Error loading selections: $e');
-    }
-  }
-
-  Future<void> _saveSelections() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final List<String> selectionsToSave = _selectedIngredients.toList();
-      await prefs.setStringList(_shoppingListKey, selectionsToSave);
-    } catch (e) {
-      print('Error saving selections: $e');
-    }
+  void _preselectShoppingList() async {
+    final userId = userService.userId;
+    if (userId == null) return;
+    final shoppingListMap = await macroManager
+        .fetchShoppingListForWeekWithStatus(userId, getCurrentWeek());
+    final selectedTitles = widget.items
+        .where((item) =>
+            shoppingListMap[item.id] == true ||
+            shoppingListMap[item.id] == false)
+        .map((item) => item.title)
+        .toSet();
+    setState(() {
+      _selectedIngredients = selectedTitles;
+    });
   }
 
   @override
@@ -81,8 +72,25 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
       }
     });
 
-    // Save selections after state update
-    _saveSelections();
+    // Update Firestore after state update
+    final item = widget.items.firstWhere(
+      (i) => i.title == title,
+      orElse: () => MacroData(
+        title: '',
+        type: '',
+        mediaPaths: [],
+        macros: {},
+        categories: [],
+        features: {},
+      ),
+    );
+    if (item.id != null && item.title.isNotEmpty) {
+      if (_selectedIngredients.contains(title)) {
+        macroManager.addToShoppingList(userService.userId ?? '', item);
+      } else {
+        macroManager.removeFromShoppingList(userService.userId ?? '', item);
+      }
+    }
   }
 
   void _filterItems(String query) {
@@ -123,42 +131,6 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
       }
       _isLoading = false;
     });
-  }
-
-  Future<void> _saveSelectedToShoppingList() async {
-    try {
-      if (_selectedIngredients.isEmpty) return;
-
-      // Convert selected items to MacroData objects
-      final macroDataList = await macroManager
-          .fetchAndEnsureIngredientsExist(_selectedIngredients.toList());
-
-      // Save the MacroData items
-      await macroManager.saveShoppingList(
-        userService.userId ?? '',
-        macroDataList,
-      );
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Items added to shopping list'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error saving to shopping list: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add items to shopping list'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -202,21 +174,6 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
           ),
         ),
         title: const Text('Ingredient Features'),
-        actions: [
-          if (_selectedIngredients.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 15.0),
-              child: GestureDetector(
-                onTap: _saveSelectedToShoppingList,
-                child: IconCircleButton(
-                  icon: Icons.save,
-                  isColorChange: true,
-                  h: 50,
-                  w: 50,
-                ),
-              ),
-            ),
-        ],
       ),
       body: Column(
         children: [
@@ -291,7 +248,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                       columns: [
                         DataColumn(
                           label: Text(
-                            'Add to list',
+                            'Save to list',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,
