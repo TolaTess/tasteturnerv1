@@ -14,7 +14,6 @@ class UserModel {
   String? userType;
   bool isPremium;
   DateTime? created_At;
-  String? location;
 
   UserModel({
     this.userId,
@@ -28,7 +27,6 @@ class UserModel {
     this.userType = 'user',
     required this.isPremium,
     this.created_At,
-    this.location,
     this.freeTrialDate,
   });
 

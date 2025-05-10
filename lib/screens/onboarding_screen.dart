@@ -134,7 +134,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         bio: getRandomBio(bios),
         dob: dobController.text,
         profileImage: '',
-        location: '',
         userType: 'user',
         isPremium: enableAITrial,
         created_At: DateTime.now(),

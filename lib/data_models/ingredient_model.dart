@@ -1,27 +1,3 @@
-class MacroType {
-  final String image, title;
-
-  MacroType({
-    required this.image,
-    required this.title,
-  });
-}
-
-List<MacroType> demoMacroData = [
-  MacroType(
-    image: "assets/images/meat.jpg",
-    title: "Protein",
-  ),
-  MacroType(
-    image: "assets/images/grain.jpg",
-    title: "Carbs",
-  ),
-  MacroType(
-    image: "assets/images/butter.jpg",
-    title: "Fat",
-  ),
-];
-
 // Meals Data model
 
 class MealsData {

@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../pages/daily_info_page.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';

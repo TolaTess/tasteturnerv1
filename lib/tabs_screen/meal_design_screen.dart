@@ -1194,7 +1194,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           'dayType': dayType,
           'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
           'date': formattedDate,
-          'meals': [], // Initialize empty meals array if it doesn't exist
+          'meals': FieldValue.arrayUnion(
+              []), // Only initialize if meals field doesn't exist
         }, SetOptions(merge: true));
       } else {
         // For personal calendar
@@ -1208,7 +1209,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           'dayType': dayType,
           'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
           'date': formattedDate,
-          'meals': [], // Initialize empty meals array if it doesn't exist
+          'meals': FieldValue.arrayUnion(
+              []), // Only initialize if meals field doesn't exist
         }, SetOptions(merge: true));
       }
       if (!mounted) return;
