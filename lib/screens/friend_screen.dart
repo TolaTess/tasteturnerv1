@@ -66,7 +66,25 @@ class _FriendScreenState extends State<FriendScreen> {
                 "No friends yet.",
                 "Follow more users to see them here.",
                 context,
-                false,
+                true,
+                'friend',
+              );
+            }
+
+            // Filter friends by search query
+            final filteredFriends = friendController.friendsMap.entries
+                .where((entry) => (entry.value.displayName ?? '')
+                    .toLowerCase()
+                    .contains(searchQuery.toLowerCase()))
+                .toList();
+
+            if (filteredFriends.isEmpty) {
+              return noItemTastyWidget(
+                "No friends found.",
+                "Try a different search.",
+                context,
+                true,
+                'friend',
               );
             }
 
@@ -79,11 +97,10 @@ class _FriendScreenState extends State<FriendScreen> {
                   mainAxisSpacing: 24,
                   childAspectRatio: 0.75,
                 ),
-                itemCount: friendController.friendsMap.length,
+                itemCount: filteredFriends.length,
                 itemBuilder: (context, index) {
-                  final friendId =
-                      friendController.friendsMap.keys.elementAt(index);
-                  final friend = friendController.friendsMap[friendId]!;
+                  final friendId = filteredFriends[index].key;
+                  final friend = filteredFriends[index].value;
 
                   return GestureDetector(
                     onTap: () {

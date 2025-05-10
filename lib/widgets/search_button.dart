@@ -4,57 +4,6 @@ import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../screens/recipes_list_category_screen.dart';
 
-class SearchButton extends StatelessWidget {
-  const SearchButton({super.key, required this.press, required this.kText});
-
-  final VoidCallback press;
-  final String kText;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: press,
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.grey[300],
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Row(
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 4,
-              ),
-              child: Icon(
-                Icons.search,
-                color: kBlack,
-              ),
-            ),
-            Expanded(
-              child: Text(
-                kText,
-                style: const TextStyle(
-                  color: kDarkGrey,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            // const Padding(
-            //   padding: EdgeInsets.symmetric(horizontal: 10),
-            //   child: Icon(
-            //     Icons.tune_outlined,
-            //     color: kPrimaryColor,
-            //   ),
-            // ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class SearchButton2 extends StatelessWidget {
   final TextEditingController controller;
   final Function(String) onChanged;

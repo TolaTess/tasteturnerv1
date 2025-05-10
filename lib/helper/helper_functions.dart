@@ -13,21 +13,26 @@ Widget buildTastyFloatingActionButton({
   required Key? buttonKey,
   required UserService userService,
   required ThemeProvider themeProvider,
+  required bool isInFreeTrial,
 }) {
   return FloatingActionButton(
     key: buttonKey,
     onPressed: () {
-      if (userService.currentUser?.isPremium ?? false) {
+      if (userService.currentUser?.isPremium ?? false || isInFreeTrial) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const TastyScreen(),
+            builder: (context) => const TastyScreen(screen: 'message'),
           ),
         );
       } else {
         showDialog(
           context: context,
-          builder: (context) => showPremiumDialog(context, themeProvider.isDarkMode, 'Premium Feature', 'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
+          builder: (context) => showPremiumDialog(
+              context,
+              themeProvider.isDarkMode,
+              'Premium Feature',
+              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
         );
       }
     },
@@ -412,7 +417,8 @@ void handleError(dynamic e, BuildContext context) {
   );
 }
 
-Widget showPremiumDialog(BuildContext context, bool isDarkMode, String title, String message) {
+Widget showPremiumDialog(
+    BuildContext context, bool isDarkMode, String title, String message) {
   return AlertDialog(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(15),

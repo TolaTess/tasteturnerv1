@@ -217,6 +217,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                     "The next battle will start soon. Stay tuned!",
                                     context,
                                     false,
+                                    '',
                                   )
                                 : GridView.builder(
                                     physics:

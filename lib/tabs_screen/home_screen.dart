@@ -16,6 +16,7 @@ import '../screens/add_food_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -462,11 +463,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
                 // ------------------------------------Premium / Ads-------------------------------------
-                const SizedBox(height: 20), 
+                const SizedBox(height: 20),
 
-                  // Weekly Ingredients Battle Widget
+                // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),
-  
+
+                const SizedBox(
+                  height: 60,
+                ),
               ],
             ),
           ),

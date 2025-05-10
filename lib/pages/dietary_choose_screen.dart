@@ -475,7 +475,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) => noItemTastyWidget(
-          'Generating Meal Plan, Please Wait...', '', context, false),
+          'Generating Meal Plan, Please Wait...', '', context, false, ''),
     );
   }
 

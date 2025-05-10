@@ -303,6 +303,7 @@ class _VoteScreenState extends State<VoteScreen> {
                   "The next battle will start soon. Stay tuned!",
                   context,
                   false,
+                  '',
                 ),
               ] else if (candidates.isEmpty || candidates.length <= 1) ...[
                 const SizedBox(height: 60),
@@ -313,6 +314,7 @@ class _VoteScreenState extends State<VoteScreen> {
                   '',
                   context,
                   false,
+                  '',
                 ),
               ] else ...[
                 const SizedBox(height: 25),

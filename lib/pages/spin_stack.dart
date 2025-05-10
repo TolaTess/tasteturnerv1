@@ -318,7 +318,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) => noItemTastyWidget(
-          'Generating Meal Plan, Please Wait...', '', context, false),
+          'Generating Meal Plan, Please Wait...', '', context, false, ''),
     );
   }
 
@@ -389,7 +389,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               'Saving your meal in your calendar...',
                               '',
                               context,
-                              false),
+                              false,
+                              ''),
                         );
                         await Future.delayed(const Duration(seconds: 5));
                         try {
@@ -407,21 +408,33 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                   selectedIndex < allMealIds.length)
                               ? allMealIds[selectedIndex]
                               : null;
-                          final List<String> selectedMealIds =
-                              selectedMealId != null
-                                  ? [selectedMealId]
-                                  : <String>[];
-                          await firestore
+                          // Get existing meals first
+                          final docRef = firestore
                               .collection('mealPlans')
                               .doc(userId)
                               .collection('date')
-                              .doc(date)
-                              .set({
+                              .doc(date);
+
+                          final docSnapshot = await docRef.get();
+                          List<String> existingMealIds = [];
+                          if (docSnapshot.exists) {
+                            final data = docSnapshot.data();
+                            if (data != null && data['meals'] != null) {
+                              existingMealIds =
+                                  List<String>.from(data['meals']);
+                            }
+                          }
+                          // Add new meal ID if not null
+                          if (selectedMealId != null) {
+                            existingMealIds.add(selectedMealId);
+                          }
+
+                          await docRef.set({
                             'userId': userId,
                             'dayType': 'tasty_spin',
                             'isSpecial': true,
                             'date': date,
-                            'meals': selectedMealIds,
+                            'meals': existingMealIds,
                           }, SetOptions(merge: true));
 
                           if (mounted) {
@@ -632,7 +645,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               context,
                               isDarkMode,
                               'Premium Feature',
-                              'Upgrade to premium to generate a meal plan with the ingredients you have selected!'),
+                              'Upgrade to premium to generate a meal with selected ingredients!'),
                         );
                       }
                     } else {

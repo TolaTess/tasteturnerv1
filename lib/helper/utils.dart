@@ -14,6 +14,9 @@ import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/photo_manager.dart';
+import '../screens/buddy_screen.dart';
+import '../screens/friend_screen.dart';
+import '../tabs_screen/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 
@@ -509,7 +512,7 @@ const proteins = [
 ];
 
 Widget noItemTastyWidget(
-    String message, String subtitle, BuildContext context, bool isLinked) {
+    String message, String subtitle, BuildContext context, bool isLinked, String screen) {
   final themeProvider = getThemeProvider(context);
   return Center(
     child: Column(
@@ -545,16 +548,37 @@ Widget noItemTastyWidget(
           GestureDetector(
             onTap: () {
               if (isLinked) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BottomNavSec(
-                      selectedIndex: 0,
+                if (screen == 'buddy') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TastyScreen(),
                     ),
-                  ),
-                );
-              } else {
-                null;
+                  );
+                } else if (screen == 'recipe') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RecipeScreen(),
+                    ),
+                  );
+                } else if (screen == 'spin') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BottomNavSec(
+                        selectedIndex: 3,
+                      ),
+                    ),
+                  );
+                } else if (screen == 'friend') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FriendScreen(),
+                    ),
+                  );
+                }
               }
             },
             child: Text(

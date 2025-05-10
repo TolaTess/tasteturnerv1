@@ -346,6 +346,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 '',
                 context,
                 false,
+                '',
               );
             }
 

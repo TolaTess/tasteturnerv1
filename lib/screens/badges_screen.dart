@@ -38,7 +38,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
         child: Obx(() {
           if (_badgeController.badgeAchievements.isEmpty) {
             return noItemTastyWidget(
-                'No badges earned yet', '', context, false);
+                'No badges earned yet', '', context, false, '');
           }
 
           myBadge = _badgeController.badgeAchievements

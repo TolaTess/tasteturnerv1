@@ -98,6 +98,9 @@ class _MessageScreenState extends State<MessageScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final isInFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -171,9 +174,10 @@ class _MessageScreenState extends State<MessageScreen>
                     if (nonBuddyChats.isEmpty) {
                       return noItemTastyWidget(
                         "No messages yet.",
-                        "click add to start a conversation with a friend.",
+                        "start a conversation with a friend.",
                         context,
                         false,
+                        'friend',
                       );
                     }
 
@@ -252,6 +256,7 @@ class _MessageScreenState extends State<MessageScreen>
         buttonKey: _addBuddyKey,
         userService: userService,
         themeProvider: themeProvider,
+        isInFreeTrial: isInFreeTrial,
       ),
     );
   }

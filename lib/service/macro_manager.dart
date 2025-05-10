@@ -17,8 +17,8 @@ class MacroManager extends GetxController {
   // Getter to retrieve ingredients
   List<MacroData> get ingredient => _demoIngredientData;
   List<Map<String, dynamic>> get ingredientBattle => _ingredientBattle;
-  final RxList<MacroData> shoppingList = <MacroData>[].obs;
-  final RxList<MacroData> previousShoppingList = <MacroData>[].obs;
+  final RxMap<String, bool> shoppingList = <String, bool>{}.obs;
+  final RxMap<String, bool> previousShoppingList = <String, bool>{}.obs;
   Future<void> fetchIngredients() async {
     try {
       final snapshot = await firestore.collection('ingredients').get();
@@ -85,28 +85,30 @@ class MacroManager extends GetxController {
 
       // Get the existing document first
       final docSnapshot = await userMealsRef.get();
-      List<String> existingItemIds = [];
+      Map<String, dynamic> existingItems = {};
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
-        if (data != null && data['itemIds'] != null) {
-          existingItemIds = List<String>.from(data['itemIds']);
+        if (data != null && data['items'] != null) {
+          existingItems = Map<String, dynamic>.from(data['items']);
         }
       }
 
-      // Get IDs from new items and filter out nulls
-      final List<String> newItemIds = newShoppingList
-          .map((item) => item.id)
-          .where((id) => id != null)
-          .cast<String>()
-          .toList();
+      // Build a map of new items to add (id: false)
+      final Map<String, bool> newItemsMap = {
+        for (var item in newShoppingList)
+          if (item.id != null && item.id!.isNotEmpty) item.id!: false
+      };
 
-      // Merge existing and new items, removing duplicates
-      final Set<String> mergedItemIds = {...existingItemIds, ...newItemIds};
+      // Merge: preserve existing status, add new as false
+      final Map<String, bool> mergedItems = {
+        ...existingItems.map((k, v) => MapEntry(k, v == true)),
+        ...newItemsMap,
+      };
 
       // Save the merged data with week information
       await userMealsRef.set({
-        'itemIds': mergedItemIds.toList(),
+        'items': mergedItems,
         'week': currentWeek,
         'year': DateTime.now().year,
         'created_at': docSnapshot.exists ? FieldValue.serverTimestamp() : null,
@@ -136,8 +138,8 @@ class MacroManager extends GetxController {
 
       // Extract item IDs from the document
       final data = docSnapshot.data();
-      if (data != null && data['itemIds'] != null) {
-        final List<String> itemIds = List<String>.from(data['itemIds']);
+      if (data != null && data['items'] != null) {
+        final List<String> itemIds = List<String>.from(data['items'].keys);
 
         if (itemIds.isEmpty) return [];
 
@@ -183,45 +185,21 @@ class MacroManager extends GetxController {
         .listen((docSnapshot) async {
       if (docSnapshot.exists && docSnapshot.data() != null) {
         final data = docSnapshot.data();
-        if (data != null && data['itemIds'] != null) {
-          final List<String> itemIds = List<String>.from(data['itemIds']);
-          if (itemIds.isEmpty) {
+        if (data != null && data['items'] != null) {
+          final Map<String, dynamic> itemsMap =
+              Map<String, dynamic>.from(data['items']);
+          final Map<String, bool> statusMap =
+              itemsMap.map((key, value) => MapEntry(key, value == true));
+          if (statusMap.isEmpty) {
             shoppingList.clear();
             previousShoppingList.clear();
             return;
           }
 
-          try {
-            final List<MacroData> items = [];
-
-            // Batch the queries
-            const int batchSize = 10;
-            for (var i = 0; i < itemIds.length; i += batchSize) {
-              final end = (i + batchSize < itemIds.length)
-                  ? i + batchSize
-                  : itemIds.length;
-              final batch = itemIds.sublist(i, end);
-
-              final QuerySnapshot querySnapshot = await firestore
-                  .collection('ingredients')
-                  .where(FieldPath.documentId, whereIn: batch)
-                  .get();
-
-              items.addAll(querySnapshot.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return MacroData.fromJson(data, doc.id);
-              }));
-            }
-
-            if (isPreviousList) {
-              previousShoppingList.assignAll(items);
-            } else {
-              shoppingList.assignAll(items);
-            }
-          } catch (e) {
-            print("Error fetching shopping list items: $e");
-            shoppingList.clear();
-            previousShoppingList.clear();
+          if (isPreviousList) {
+            previousShoppingList.assignAll(statusMap);
+          } else {
+            shoppingList.assignAll(statusMap);
           }
         } else {
           shoppingList.clear();
@@ -236,7 +214,7 @@ class MacroManager extends GetxController {
     });
   }
 
-  /// Add an item to the shopping list
+  /// Add an item to the shopping list (not yet bought)
   Future<void> addToShoppingList(String userId, MacroData item) async {
     try {
       if (item.id == null) {
@@ -251,29 +229,44 @@ class MacroManager extends GetxController {
           .collection('shoppingList')
           .doc('week_$currentWeek');
 
-      final docSnapshot = await userMealsRef.get();
-      List<String> itemIds = [];
-
-      if (docSnapshot.exists && docSnapshot.data() != null) {
-        final data = docSnapshot.data()!;
-        if (data.containsKey('itemIds')) {
-          itemIds =
-              List<String>.from(data['itemIds'].where((id) => id != null));
-        }
-      }
-
-      // Prevent duplicate items
-      if (!itemIds.contains(item.id)) {
-        itemIds.add(item.id!);
-        await userMealsRef.set({
-          'itemIds': itemIds,
-          'week': currentWeek,
-          'year': DateTime.now().year,
-          'updated_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      // Set the ingredient id to false (not yet bought)
+      await userMealsRef.set({
+        'items': {item.id!: false},
+        'week': currentWeek,
+        'year': DateTime.now().year,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       print("Error adding to shopping list: $e");
+    }
+  }
+
+  /// Toggle an item's purchased status (true/false)
+  Future<void> markItemPurchased(String userId, MacroData item) async {
+    try {
+      if (item.id == null) {
+        print("Cannot mark item with null ID as purchased");
+        return;
+      }
+      final currentWeek = getCurrentWeek();
+      final userMealsRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList')
+          .doc('week_$currentWeek');
+
+      // Get current status
+      final doc = await userMealsRef.get();
+      final data = doc.data();
+      final currentStatus = data?['items']?[item.id] ?? false;
+
+      // Toggle status
+      await userMealsRef.set({
+        'items': {item.id!: !currentStatus},
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Error marking item as purchased: $e");
     }
   }
 
@@ -291,28 +284,9 @@ class MacroManager extends GetxController {
           .collection('shoppingList')
           .doc('week_$currentWeek');
 
-      final DocumentSnapshot docSnapshot = await userMealsRef.get();
-
-      if (!docSnapshot.exists || docSnapshot.data() == null) {
-        print("No shopping list found for week $currentWeek.");
-        return;
-      }
-
-      final data = docSnapshot.data() as Map<String, dynamic>;
-
-      if (!data.containsKey('itemIds')) {
-        print("No items found in the shopping list.");
-        return;
-      }
-
-      List<String> itemIds =
-          List<String>.from(data['itemIds'].where((id) => id != null));
-      itemIds.remove(item.id!);
-
+      // Remove the ingredient id from the map
       await userMealsRef.set({
-        'itemIds': itemIds,
-        'week': currentWeek,
-        'year': DateTime.now().year,
+        'items': {item.id!: FieldValue.delete()},
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -322,7 +296,8 @@ class MacroManager extends GetxController {
   }
 
   // Add method to fetch shopping list for a specific week
-  Future<List<MacroData>> fetchShoppingListForWeek(String userId, int week,
+  Future<Map<String, bool>> fetchShoppingListForWeekWithStatus(
+      String userId, int week,
       [int? year]) async {
     try {
       year ??= DateTime.now().year;
@@ -336,40 +311,22 @@ class MacroManager extends GetxController {
 
       if (!docSnapshot.exists) {
         print("No shopping list found for week $week of year $year.");
-        return [];
+        return {};
       }
 
       final data = docSnapshot.data();
-      if (data != null && data['itemIds'] != null && data['year'] == year) {
-        final List<String> itemIds = List<String>.from(data['itemIds']);
-        if (itemIds.isEmpty) return [];
-
-        final List<MacroData> items = [];
-        const int batchSize = 10;
-
-        for (var i = 0; i < itemIds.length; i += batchSize) {
-          final end =
-              (i + batchSize < itemIds.length) ? i + batchSize : itemIds.length;
-          final batch = itemIds.sublist(i, end);
-
-          final QuerySnapshot querySnapshot = await firestore
-              .collection('ingredients')
-              .where(FieldPath.documentId, whereIn: batch)
-              .get();
-
-          items.addAll(querySnapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return MacroData.fromJson(data, doc.id);
-          }));
-        }
-
-        return items;
+      if (data != null && data['items'] != null && data['year'] == year) {
+        final Map<String, dynamic> itemsMap =
+            Map<String, dynamic>.from(data['items']);
+        final Map<String, bool> statusMap =
+            itemsMap.map((key, value) => MapEntry(key, value == true));
+        return statusMap;
       }
 
-      return [];
+      return {};
     } catch (e) {
       print("Error fetching shopping list for week $week: $e");
-      return [];
+      return {};
     }
   }
 

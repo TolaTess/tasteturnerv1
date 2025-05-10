@@ -67,9 +67,10 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
             : favoriteMeals.isEmpty
                 ? noItemTastyWidget(
                     "No favorite meals found.",
-                    "Add meals to your favorites to see them here.",
+                    "Add meals to your favorites...",
                     context,
-                    false,
+                    true,
+                    'recipe',
                   )
                 : SizedBox(
                     width: double.infinity,

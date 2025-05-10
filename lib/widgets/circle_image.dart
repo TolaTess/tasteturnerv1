@@ -36,7 +36,8 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
               'No ingredients available',
               '',
               context,
-              true,
+              false,
+              '',
             )
           : ListView.builder(
               itemCount: widget.demoAcceptedData.length,

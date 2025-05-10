@@ -214,6 +214,7 @@ class _ChatScreenState extends State<ChatScreen> {
               "",
               context,
               false,
+              '',
             )
           : Column(
               children: [

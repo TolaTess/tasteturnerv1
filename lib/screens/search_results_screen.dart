@@ -206,7 +206,8 @@ class _SearchResultGridState extends State<SearchResultGrid> {
             "No meals available.",
             "",
             context,
-            true,
+            false,
+            '',
           ),
         );
       }

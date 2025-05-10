@@ -376,6 +376,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     "",
                     context,
                     false,
+                    '',
                   )
                 : SpinWheelWidget(
                     mealList: widget.mealList,

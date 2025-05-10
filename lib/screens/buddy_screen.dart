@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
@@ -14,7 +13,8 @@ import '../widgets/bottom_model.dart';
 import '../screens/premium_screen.dart';
 
 class TastyScreen extends StatefulWidget {
-  const TastyScreen({super.key});
+  final String screen;
+  const TastyScreen({super.key, this.screen = 'buddy'});
 
   @override
   State<TastyScreen> createState() => _TastyScreenState();
@@ -203,7 +203,7 @@ class _TastyScreenState extends State<TastyScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    if (isPremium || isInFreeTrial) { 
+    if (isPremium || isInFreeTrial) {
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(
@@ -240,6 +240,13 @@ class _TastyScreenState extends State<TastyScreen> {
                               themeProvider.isDarkMode ? kWhite : kDarkGrey,
                           title: Row(
                             children: [
+                              if (widget.screen == 'message')
+                                InkWell(
+                                  onTap: () {
+                                    Get.back();
+                                  },
+                                  child: const IconCircleButton(),
+                                ),
                               const CircleAvatar(
                                 backgroundColor: kAccentLight,
                                 backgroundImage: AssetImage(
@@ -300,6 +307,7 @@ class _TastyScreenState extends State<TastyScreen> {
                       "Start a conversation with Tasty!.",
                       context,
                       false,
+                      'buddy',
                     );
                   }
 
