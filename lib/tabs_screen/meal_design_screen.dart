@@ -58,6 +58,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
     _setupDataListeners();
+
     if (widget.initialTabIndex == 1) {
       _initializeBuddyData();
     }
@@ -108,17 +109,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             birthdays.putIfAbsent(birthdayDate, () => []).add(name);
           }
         }
-      }
-    }
-    // Add current user's birthday
-    final userDob = userService.currentUser?.dob;
-    if (userDob != null && userDob.length == 5) {
-      final now = DateTime.now();
-      final month = int.tryParse(userDob.substring(0, 2));
-      final day = int.tryParse(userDob.substring(3, 5));
-      if (month != null && day != null) {
-        final birthdayDate = DateTime(now.year, month, day);
-        birthdays.putIfAbsent(birthdayDate, () => []).add('You');
       }
     }
     if (!mounted) return;
@@ -270,6 +260,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         dayTypes = {};
       });
     }
+  }
+
+  /// Returns true if the given date is the user's birthday and in personal view
+  bool _isUserBirthday(DateTime date) {
+    if (showSharedCalendars) return false;
+    final userDob = userService.currentUser?.dob;
+    if (userDob == null || userDob.length != 5) return false;
+    final month = int.tryParse(userDob.substring(0, 2));
+    final day = int.tryParse(userDob.substring(3, 5));
+    if (month == null || day == null) return false;
+    return date.month == month && date.day == day;
   }
 
   @override
@@ -568,6 +569,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               DateTime(today.year, today.month, today.day));
                           final hasBirthday =
                               birthdays.containsKey(normalizedDate);
+                          final isUserBirthday =
+                              _isUserBirthday(normalizedDate);
 
                           return GestureDetector(
                             onTap: isPastDate ? null : () => _selectDate(date),
@@ -633,6 +636,16 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                       ),
                                     ),
                                   if (hasBirthday && showSharedCalendars)
+                                    const Positioned(
+                                      right: 2,
+                                      bottom: 2,
+                                      child: Icon(
+                                        Icons.cake,
+                                        size: 12,
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  if (isUserBirthday)
                                     const Positioned(
                                       right: 2,
                                       bottom: 2,
@@ -809,6 +822,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
     final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
     final birthdayNames = birthdays[normalizedSelectedDate] ?? <String>[];
+
     final birthdayName = birthdayNames.isEmpty ? '' : birthdayNames.join(', &');
 
     false;
@@ -1237,7 +1251,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             if (birthdayName.isNotEmpty && showSharedCalendars) ...[
               getBirthdayTextContainer(birthdayName, false),
             ],
-            if (birthdayName.isEmpty) ...[
+            if (_isUserBirthday(date)) ...[
+              getBirthdayTextContainer('You', false),
+            ],
+            if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
               Icon(
                 Icons.restaurant,
                 size: 48,
@@ -1276,6 +1293,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       DateTime date, String birthdayName, bool isDarkMode, List<Meal> meals) {
     final isSpecialDay = specialMealDays[date] ?? false;
     final currentDayType = dayTypes[date] ?? 'regular_day';
+    final isUserBirthday = _isUserBirthday(date);
 
     return Column(
       children: [
@@ -1288,14 +1306,24 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      DateFormat('MMMM d, yyyy').format(date),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          DateFormat('MMMM d, yyyy').format(date),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        if (isUserBirthday) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.cake, color: kAccent, size: 20),
+                        ],
+                      ],
                     ),
+                    if (isUserBirthday)
+                      getBirthdayTextContainer('You', true),
                     if (meals.isNotEmpty)
                       if (birthdayName.isNotEmpty && showSharedCalendars) ...[
                         getBirthdayTextContainer(birthdayName, true),
