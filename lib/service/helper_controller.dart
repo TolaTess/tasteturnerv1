@@ -9,6 +9,8 @@ class HelperController extends GetxController {
   final RxList<Map<String, dynamic>> plans = RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> category =
       RxList<Map<String, dynamic>>([]);
+  final RxList<Map<String, dynamic>> macros =
+      RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> headers = RxList<Map<String, dynamic>>([]);
   RxMap<String, dynamic> winners = <String, dynamic>{}.obs;
 
@@ -18,6 +20,7 @@ class HelperController extends GetxController {
     fetchPlans();
     fetchCategorys();
     fetchHeaders();
+    fetchMacros();
     fetchWinners();
   }
 
@@ -80,6 +83,35 @@ class HelperController extends GetxController {
     } catch (e) {
       print('Error fetching headers: $e');
       headers.value = [];
+    }
+  }
+
+  Future<void> fetchMacros() async {
+    try {
+      final snapshot = await firestore.collection('macros').get();
+      if (snapshot.docs.isEmpty) {
+        macros.value = [];
+        return;
+      }
+
+      macros.value = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'name': data['name'] as String? ?? '',
+              };
+            } catch (e) {
+              print('Error parsing macro data: $e');
+              return null;
+            }
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (e) {
+      print('Error fetching macros: $e');
+      macros.value = [];
     }
   }
 

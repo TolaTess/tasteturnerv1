@@ -31,6 +31,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   List<String> extractedItems = [];
   @override
   void initState() {
+    print(widget.dataSrc['id']);
     if (widget.screen == 'myPost') {
       extractedItems = [widget.dataSrc['id'] ?? ''];
     } else {

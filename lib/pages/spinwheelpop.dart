@@ -62,7 +62,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     }
 
     // Set default for ingredient category
-    _categoryDatasIngredient = [...helperController.category];
+    _categoryDatasIngredient = [...helperController.macros];
     final customCategory = {
       'id': 'custom',
       'name': 'Custom',
@@ -75,8 +75,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     if (_categoryDatasIngredient.isNotEmpty &&
         selectedCategoryIdIngredient.isEmpty) {
       selectedCategoryIdIngredient = _categoryDatasIngredient[1]['id'] ?? '';
-      selectedCategoryIngredient =
-          _categoryDatasIngredient[1]['name'] ?? '';
+      selectedCategoryIngredient = _categoryDatasIngredient[1]['name'] ?? '';
     }
 
     // Ensure meal list is populated for default category
@@ -240,10 +239,22 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             .toList();
       });
     } else {
-      final newIngredientList = widget.ingredientList
-          .where((ingredient) => ingredient.categories
-              .contains(selectedCategoryIngredient.toLowerCase()))
-          .toList();
+      final newIngredientList = widget.ingredientList.where((ingredient) {
+        if (selectedCategoryIngredient.toLowerCase() == 'smoothie') {
+          return ingredient.techniques.any((technique) =>
+              technique.toLowerCase().contains('smoothie') ||
+              technique.toLowerCase().contains('blending') ||
+              technique.toLowerCase().contains('juicing'));
+        }
+        if (selectedCategoryIngredient.toLowerCase() == 'soup') {
+          return ingredient.techniques.any((technique) =>
+              technique.toLowerCase().contains('soup') ||
+              technique.toLowerCase().contains('stewing'));
+        }
+        return ingredient.techniques.any((technique) => technique
+            .toLowerCase()
+            .contains(selectedCategoryIngredient.toLowerCase()));
+      }).toList();
 
       setState(() {
         if (newIngredientList.length > 10) {

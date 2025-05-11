@@ -6,7 +6,6 @@ import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
-import '../themes/theme_provider.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/circle_image.dart';
 import '../widgets/ingredient_features.dart';
@@ -31,15 +30,25 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   final GlobalKey _addSpinButtonKey = GlobalKey();
-
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
   @override
   void initState() {
     super.initState();
 
-    final categoryDatasIngredient = helperController.category;
-    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
+    _categoryDatasIngredient = [...helperController.macros];
+    final generalCategory = {
+      'id': 'general',
+      'name': 'General',
+      'category': 'General'
+    };
+    if (_categoryDatasIngredient.isEmpty ||
+        _categoryDatasIngredient.first['id'] != 'general') {
+      _categoryDatasIngredient.insert(0, generalCategory);
+    }
+    if (_categoryDatasIngredient.isNotEmpty &&
+        selectedCategoryId.isEmpty) {
+      selectedCategoryId = _categoryDatasIngredient[1]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[1]['name'] ?? '';
     }
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
@@ -86,7 +95,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final headers = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: SafeArea(
@@ -100,7 +108,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
               //category options - here is category widget - chatgpt
               CategorySelector(
-                categories: headers,
+                categories: _categoryDatasIngredient,
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,

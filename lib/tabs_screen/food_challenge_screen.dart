@@ -27,16 +27,27 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   Timer? _tastyPopupTimer;
   final GlobalKey _addJoinButtonKey = GlobalKey();
   bool showBattle = false;
-
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
   @override
   void initState() {
     super.initState();
     _setupDataListeners();
 
-    final categoryDatasIngredient = helperController.category;
-    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
+     // Set default for ingredient category
+    _categoryDatasIngredient = [...helperController.macros];
+    final generalCategory = {
+      'id': 'general',
+      'name': 'General',
+      'category': 'General'
+    };
+    if (_categoryDatasIngredient.isEmpty ||
+        _categoryDatasIngredient.first['id'] != 'general') {
+      _categoryDatasIngredient.insert(0, generalCategory);
+    }
+    if (_categoryDatasIngredient.isNotEmpty &&
+        selectedCategoryId.isEmpty) {
+      selectedCategoryId = _categoryDatasIngredient[1]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[1]['name'] ?? '';
     }
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -107,7 +118,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categoryDatas = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final battleDeadline = DateTime.parse(
         firebaseService.generalData['battleDeadline'] ??
@@ -128,7 +138,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                 //category options
                 CategorySelector(
-                  categories: categoryDatas,
+                  categories: _categoryDatasIngredient,
                   selectedCategoryId: selectedCategoryId,
                   onCategorySelected: _updateCategoryData,
                   isDarkMode: isDarkMode,

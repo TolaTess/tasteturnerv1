@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasteturner/helper/utils.dart';
 
 class CategorySelector extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
@@ -49,7 +50,7 @@ class CategorySelector extends StatelessWidget {
                 child: Text(
                   category['name'].toLowerCase() == 'all'
                       ? 'General'
-                      : category['name'],
+                      : capitalizeFirstLetter(category['name']),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                   ),

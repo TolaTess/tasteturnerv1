@@ -63,8 +63,11 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                 }).toList());
       } else if (widget.listType == "post" ||
           widget.listType == 'battle_post') {
-        // Fetch both posts and battle posts
-        final postSnapshot = await firestore.collection('posts').get();
+        // Fetch both posts and battle posts ordered by createdAt
+        final postSnapshot = await firestore
+            .collection('posts')
+            .orderBy('createdAt', descending: true)
+            .get();
 
         snapshot = postSnapshot.docs.map((doc) {
           final data = doc.data();
@@ -86,6 +89,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
 
         // If category is 'all' or no category selected, show all posts
         if (widget.selectedCategory.toLowerCase() == 'all' ||
+            widget.selectedCategory.toLowerCase() == 'general' ||
             widget.selectedCategory.isEmpty) {
           if (postId != null && postId.isNotEmpty) {
             fetchedData.add(data);

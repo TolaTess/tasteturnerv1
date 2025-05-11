@@ -10,6 +10,7 @@ class Post {
   final List<String> mediaPaths;
   final String? category;
   final List<String> favorites;
+  final DateTime? createdAt;
 
   Post({
     required this.id,
@@ -21,6 +22,7 @@ class Post {
     required this.mediaPaths,
     this.category,
     this.favorites = const [],
+    this.createdAt,
   });
 
   // Factory method to create Post instance from Firestore document
@@ -33,6 +35,8 @@ class Post {
       name: data['name'] ?? '',
       category: data['category'] ?? '',
       favorites: List<String>.from(data['favorites'] ?? []),
+      createdAt:
+          data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
     );
   }
 
@@ -45,6 +49,8 @@ class Post {
       name: data['name'] ?? '',
       category: data['category'] ?? '',
       favorites: List<String>.from(data['favorites'] ?? []),
+      createdAt:
+          data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
     );
   }
 
@@ -57,6 +63,7 @@ class Post {
       'name': name,
       'category': category,
       'favorites': favorites,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
@@ -67,6 +74,7 @@ class Post {
     List<String>? mediaPaths,
     String? category,
     List<String>? favorites,
+    DateTime? createdAt,
   }) {
     return Post(
       id: id ?? this.id,
@@ -75,6 +83,7 @@ class Post {
       name: name ?? this.name,
       category: category ?? this.category,
       favorites: favorites ?? this.favorites,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

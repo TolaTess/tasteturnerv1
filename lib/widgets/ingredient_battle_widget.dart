@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../data_models/profilescreen_data.dart';
+import '../screens/add_food_screen.dart';
 import '../screens/badges_screen.dart';
 import '../service/battle_management.dart';
 
@@ -316,16 +317,24 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               ),
             ],
           ),
-          child: const Center(
-            child: Padding(
-              padding: EdgeInsets.all(10.0),
-              child: Text(
-                'Log more meals to see your ingredient battle!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  color: kLightGrey,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddFoodScreen()),
+              );
+            },
+            child: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(10.0),
+                child: Text(
+                  'Log more meals to see your ingredient battle!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    color: kLightGrey,
+                  ),
                 ),
               ),
             ),
@@ -365,7 +374,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    ingredientBattle,
+                    'Ingredient Tug-of-War',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

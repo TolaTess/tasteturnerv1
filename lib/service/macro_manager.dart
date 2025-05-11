@@ -405,14 +405,27 @@ class MacroManager extends GetxController {
     await _ensureDataFetched();
     String lowerCaseCategory = category.toLowerCase();
 
-    if (lowerCaseCategory == "all") {
+    if (lowerCaseCategory == "general" || lowerCaseCategory == "all") {
       return ingredient;
     }
 
-    return ingredient
-        .where((macro) => macro.categories
-            .any((cat) => cat.toLowerCase() == lowerCaseCategory))
-        .toList();
+    if (lowerCaseCategory == 'smoothie') {
+      return ingredient.where((ingredient) =>
+          ingredient.techniques.any((technique) =>
+              technique.toLowerCase().contains('smoothie') ||
+              technique.toLowerCase().contains('blending') ||
+              technique.toLowerCase().contains('juicing'))).toList();
+    }
+    if (lowerCaseCategory == 'soup') {
+      return ingredient.where((ingredient) =>
+          ingredient.techniques.any((technique) =>
+              technique.toLowerCase().contains('soup') ||
+              technique.toLowerCase().contains('stewing'))).toList();
+    }
+    return ingredient.where((ingredient) =>
+        ingredient.techniques.any((technique) => technique
+            .toLowerCase()
+            .contains(lowerCaseCategory))).toList();
   }
 
   Future<List<Map<String, dynamic>>> getIngredientsBattle(

@@ -29,7 +29,7 @@ class PostController extends GetxController {
   void fetchPosts() async {
     firestore
         .collection('posts')
-        .orderBy('timestamp', descending: true)
+        .orderBy('createdAt', descending: true) // Date stored like: "2025-05-10T20:43:36.462566"
         .snapshots()
         .listen((snapshot) async {
       final fetchedPosts =
@@ -263,7 +263,10 @@ class PostController extends GetxController {
         throw Exception('No valid images to upload');
       }
 
-      final updatedPost = post.copyWith(mediaPaths: downloadUrls);
+      final updatedPost = post.copyWith(
+        mediaPaths: downloadUrls,
+        createdAt: post.createdAt ?? DateTime.now(),
+      );
       WriteBatch batch = firestore.batch();
       batch.set(postRef, updatedPost.toFirestore());
       batch.update(firestore.collection('users').doc(userId), {

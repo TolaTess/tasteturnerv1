@@ -189,7 +189,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
       if (mounted) {
         if (widget.isMainPost) {
-          Get.to(() => const BottomNavSec());
+          Get.to(() => const BottomNavSec(selectedIndex: 1));
         } else {
           Get.back();
         }
