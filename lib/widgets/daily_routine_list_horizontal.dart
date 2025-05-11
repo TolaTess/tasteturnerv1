@@ -283,7 +283,7 @@ class _DailyRoutineListHorizontalState
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: getPercentageHeight(0.5, context)),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -313,13 +313,18 @@ class _DailyRoutineListHorizontalState
                       child: Row(
                         children: [
                           if (_badgeAwarded)
-                            Icon(Icons.emoji_events, color: Colors.amber[600]),
+                            Icon(
+                              Icons.emoji_events,
+                              color: kAccentLight.withOpacity(0.8),
+                              size: 20,
+                            ),
                           const SizedBox(width: 4),
                           Text(
                             'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(yesterday))}',
                             style: const TextStyle(
                               color: kAccent,
                               fontWeight: FontWeight.bold,
+                              fontSize: 10,
                             ),
                           ),
                         ],
@@ -348,14 +353,18 @@ class _DailyRoutineListHorizontalState
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: isCompleted
-                                ? kAccentLight.withOpacity(0.5)
+                                ? isDarkMode
+                                    ? kLightGrey.withOpacity(0.5)
+                                    : kAccentLight.withOpacity(0.5)
                                 : isDarkMode
                                     ? kDarkGrey
                                     : kWhite,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: isCompleted
-                                  ? kAccentLight.withOpacity(0.5)
+                                  ? isDarkMode
+                                      ? kLightGrey.withOpacity(0.5)
+                                      : kAccentLight.withOpacity(0.5)
                                   : (isDarkMode ? kLightGrey : kDarkGrey),
                             ),
                           ),
@@ -367,7 +376,9 @@ class _DailyRoutineListHorizontalState
                                 decoration: isCompleted
                                     ? TextDecoration.lineThrough
                                     : null,
-                                decorationColor: kAccentLight,
+                                decorationColor: isDarkMode
+                                    ? kWhite
+                                    : kAccentLight,
                                 decorationThickness: 2,
                               ),
                             ),

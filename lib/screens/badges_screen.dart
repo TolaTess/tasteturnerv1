@@ -244,15 +244,15 @@ class _BadgesScreenState extends State<BadgesScreen> {
                       child: Column(
                         children: [
                           const Text(
-                            'Collect 500 points to get a chance to win a \$50 food voucher!',
+                            'Collect ${pointsToWin} points to get a chance to win a \$50 food voucher!',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: kAccent,
                             ),
                           ),
-                          SizedBox(
+                          const SizedBox(
                             height: 15,
                           ),
                           Text(
