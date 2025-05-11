@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/widgets/ingredient_features.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
@@ -73,14 +74,12 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             ingredientList,
           );
 
-          // Check if widget is still mounted before showing SnackBar
-          if (mounted) {
-            showTastySnackbar(
-              'Success',
-              'Shopping list saved',
-              currentContext,
-            );
-          }
+          // removed mounted check so it can show even if widget is disposed
+          showTastySnackbar(
+            'Success',
+            'Items added to your shopping list',
+            currentContext,
+          );
         } catch (e) {
           debugPrint("Error saving shopping list: $e");
         }
@@ -525,14 +524,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     final isInFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
-    final processedItems = isMealSpin
-        ? (displayedItems as List<Meal>)
-            .map((meal) => {'mealId': meal.mealId, 'title': meal.title})
-            .toList()
-        : (displayedItems as List<MacroData>)
-            .map((macro) => {'title': macro.title})
-            .toList();
-
     return Padding(
       padding: EdgeInsets.only(
         left: getPercentageWidth(5, context),
@@ -545,25 +536,36 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          '${widget.acceptedItems.length} ',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? kWhite : kBlack,
+                    GestureDetector(
+                      onTap: () {
+                        if (!isMealSpin && displayedItems is List<MacroData>) {
+                          Get.to(
+                            () => IngredientFeatures(
+                              items: displayedItems,
+                            ),
+                          );
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Text(
+                            '${widget.acceptedItems.length} ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            color: isDarkMode ? kWhite : kBlack,
+                          Text(
+                            'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     SizedBox(height: getPercentageHeight(1, context)),
                     Wrap(
@@ -627,7 +629,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     // Convert the items to the appropriate type before passing to ShoppingListScreen
                     Get.to(
                       () => MealSpinList(
-                        mealList: processedItems,
+                        mealList: displayedItems,
                         isMealSpin: isMealSpin,
                       ),
                     );
