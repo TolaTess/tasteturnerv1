@@ -47,8 +47,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
     if (_categoryDatasIngredient.isNotEmpty &&
         selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[1]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[1]['name'] ?? '';
+      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
     }
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;

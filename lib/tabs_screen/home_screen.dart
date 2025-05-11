@@ -414,7 +414,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                const SizedBox(height: 5),
 
                 // Add Horizontal Routine List
                 if (!allDisabled)
@@ -439,8 +438,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 if (_isTodayShoppingDay())
                   Container(
-                    margin:
-                        const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    margin: const EdgeInsets.all(8),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: kAccent.withOpacity(0.15),
@@ -486,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
-                    : const SizedBox(height: 5),
+                    : const SizedBox(height: 8),
 
                 // ------------------------------------Premium / Ads------------------------------------
 

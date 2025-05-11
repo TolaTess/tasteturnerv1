@@ -46,8 +46,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     }
     if (_categoryDatasIngredient.isNotEmpty &&
         selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[1]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[1]['name'] ?? '';
+      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
     }
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
