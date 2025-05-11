@@ -33,19 +33,37 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     super.initState();
     _setupDataListeners();
 
-     // Set default for ingredient category
-    _categoryDatasIngredient = [...helperController.macros];
+    // Ensure battleDetails is a String
+    final battleDetailsRaw = firebaseService.generalData['battleDetails'];
+    final String battleDetails = battleDetailsRaw is String
+        ? battleDetailsRaw
+        : (battleDetailsRaw?.toString() ?? '');
+    final splitBattleDetails = battleDetails
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
     final generalCategory = {
       'id': 'general',
       'name': 'General',
       'category': 'General'
     };
+
+    _categoryDatasIngredient = splitBattleDetails
+        .map((detail) => {
+              'id': detail.toLowerCase(),
+              'name': capitalizeFirstLetter(detail),
+              'category': capitalizeFirstLetter(detail),
+            })
+        .toList();
+
     if (_categoryDatasIngredient.isEmpty ||
         _categoryDatasIngredient.first['id'] != 'general') {
       _categoryDatasIngredient.insert(0, generalCategory);
     }
-    if (_categoryDatasIngredient.isNotEmpty &&
-        selectedCategoryId.isEmpty) {
+
+    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
     }
