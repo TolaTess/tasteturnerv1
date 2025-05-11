@@ -132,13 +132,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
         if (searchContentDatas.isEmpty)
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: noItemTastyWidget(
-              "No posts yet.",
-              "",
-              context,
-              false,
-              ''
-            ),
+            child: noItemTastyWidget("No posts yet.", "", context, false, ''),
           )
         else
           GridView.builder(
@@ -188,68 +182,6 @@ class _SearchContentGridState extends State<SearchContentGrid> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class StatusWidget extends StatelessWidget {
-  final double total;
-  final double current;
-  final String sym;
-  final bool isLarge;
-
-  const StatusWidget({
-    super.key,
-    required this.total,
-    required this.current,
-    required this.isLarge,
-    this.sym = '',
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    double progressValue = current == 0 ? 0 : current / total * 100;
-
-    ValueNotifier<double> valueNotifier = ValueNotifier<double>(progressValue);
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: kLightGrey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          // Progress Value on the left
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Text(
-                    '${current.toStringAsFixed(1)} $sym',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          // Circular Progress Bar on the right
-          Expanded(
-            flex: 1,
-            child: CustomCircularProgressBar(
-              valueNotifier: valueNotifier,
-              isMain: isLarge,
-              sym: sym,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

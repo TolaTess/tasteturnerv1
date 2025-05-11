@@ -147,29 +147,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
             ],
           ),
 
-          // ------------------------------------Premium / Ads------------------------------------
-          userService.currentUser?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : const SizedBox(height: 15),
-          userService.currentUser?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : PremiumSection(
-                  isPremium: userService.currentUser?.isPremium ?? false,
-                  titleOne: joinChallenges,
-                  titleTwo: premium,
-                  isDiv: false,
-                ),
-
-          userService.currentUser?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : const SizedBox(height: 10),
-          userService.currentUser?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : Divider(
-                  color: getThemeProvider(context).isDarkMode
-                      ? kWhite
-                      : kDarkGrey),
-          // ------------------------------------Premium / Ads-------------------------------------
 
           if (macroManager.shoppingList.isEmpty &&
               macroManager.previousShoppingList.isNotEmpty)
@@ -190,31 +167,100 @@ class _ShoppingTabState extends State<ShoppingTab> {
           // Shopping schedule selector
           Padding(
             padding:
-                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Shopping Day:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: kAccent,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showDayPicker(context),
-                  icon: const Icon(Icons.calendar_today,
-                      size: 18, color: kAccent),
-                  label: Text(
-                    _selectedDay ?? 'Select Day',
-                    style: const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.w500,
+                const EdgeInsets.symmetric(vertical: 5.0, horizontal: 16.0),
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 18.0, horizontal: 20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today,
+                            color: kAccent, size: 28),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Shopping Day',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: kAccent,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            GestureDetector(
+                              onTap: () => _showDayPicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      _selectedDay ?? 'Select Day',
+                                      style: const TextStyle(
+                                        color: kAccent,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.edit_calendar,
+                                        color: kAccent, size: 18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'Items',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: kAccent,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.shopping_basket,
+                                color: kAccent, size: 20),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${macroManager.shoppingList.length}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: getThemeProvider(context).isDarkMode
+                                    ? kWhite
+                                    : kAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
 
@@ -247,7 +293,31 @@ class _ShoppingTabState extends State<ShoppingTab> {
               );
             }),
           ),
-          const SizedBox(height: 70),
+          const SizedBox(height: 10),
+                    // ------------------------------------Premium / Ads------------------------------------
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : const SizedBox(height: 15),
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : PremiumSection(
+                  isPremium: userService.currentUser?.isPremium ?? false,
+                  titleOne: joinChallenges,
+                  titleTwo: premium,
+                  isDiv: false,
+                ),
+
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : const SizedBox(height: 10),
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : Divider(
+                  color: getThemeProvider(context).isDarkMode
+                      ? kWhite
+                      : kDarkGrey),
+          // ------------------------------------Premium / Ads-------------------------------------
+          
         ],
       ),
     );

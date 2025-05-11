@@ -47,7 +47,7 @@ class PremiumSection extends StatelessWidget {
             height: isPost ? 40 : null, 
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              color: kAccentLight.withOpacity(0.7),
+              color: kLightGrey.withOpacity(0.7),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(

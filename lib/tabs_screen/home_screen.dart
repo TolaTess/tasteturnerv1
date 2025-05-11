@@ -518,21 +518,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       currentPage = value;
                     }),
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          if (getCurrentDate(currentDate)) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AddFoodScreen(),
-                              ),
-                            );
-                          }
-                        },
-                        child: DailyNutritionOverview(
-                          settings: userService.currentUser!.settings,
-                          key: _addMealButtonKey,
-                        ),
+                      DailyNutritionOverview(
+                        settings: userService.currentUser!.settings,
+                        key: _addMealButtonKey,
+                        currentDate: currentDate,
                       ),
                     ],
                   ),

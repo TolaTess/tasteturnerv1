@@ -157,7 +157,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: purchased
-                        ? kAccent
+                        ? kAccentLight
                         : isDarkMode
                             ? Colors.white
                             : Colors.black,
@@ -174,7 +174,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     onChanged: (bool? value) {
                       _toggleItem(id);
                     },
-                    activeColor: kAccent,
+                    activeColor: kAccentLight,
                     checkColor: kWhite,
                   ),
                 ),
