@@ -115,6 +115,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 icon: Icons.add,
                 h: 30,
                 w: 30,
+                colorD: kAccent,
                 isRemoveContainer: false,
               ),
             ),

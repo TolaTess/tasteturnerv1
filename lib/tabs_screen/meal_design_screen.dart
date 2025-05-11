@@ -332,17 +332,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isDarkMode ? Colors.white24 : Colors.black12,
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: InkWell(
+              onTap: () => _addMealPlan(context, isDarkMode, true, ''),
+              child: const IconCircleButton(
+                icon: Icons.add,
+                h: 30,
+                w: 30,
+                colorD: kAccent,
+                isRemoveContainer: false,
               ),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => _addMealPlan(context, isDarkMode, true, ''),
             ),
           ),
         ],

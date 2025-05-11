@@ -99,6 +99,7 @@ class _FoodTabScreenState extends State<FoodTabScreen>
                 icon: Icons.add,
                 h: 30,
                 w: 30,
+                colorD: kAccent,
                 isRemoveContainer: false,
               ),
             ),

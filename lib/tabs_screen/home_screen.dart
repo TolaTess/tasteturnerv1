@@ -13,6 +13,7 @@ import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/date_widget.dart';
 import '../screens/add_food_screen.dart';
+import '../widgets/icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
@@ -262,8 +263,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             );
                           },
-                          child: Icon(Icons.message,
-                              size: 30, color: kAccent.withOpacity(0.6)),
+                          child: IconCircleButton(
+                            icon: Icons.message,
+                            h: 40,
+                            w: 40,
+                            colorD: kAccent.withOpacity(0.6),
+                            colorL: kDarkGrey.withOpacity(0.6),
+                            isRemoveContainer: true,
+                          ),
                         ),
                         const SizedBox(width: 5),
 
@@ -436,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (winners.isNotEmpty && isAnnounceShow)
                   const SizedBox(height: 10),
 
-                        userService.currentUser?.isPremium ?? false
+                userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : const SizedBox(height: 5),
 
@@ -462,7 +469,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : const SizedBox(height: 5),
-
 
                 if (_isTodayShoppingDay())
                   Container(
