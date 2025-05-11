@@ -436,6 +436,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (winners.isNotEmpty && isAnnounceShow)
                   const SizedBox(height: 10),
 
+                        userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 5),
+
+                // ------------------------------------Premium / Ads------------------------------------
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : PremiumSection(
+                        isPremium: userService.currentUser?.isPremium ?? false,
+                        titleOne: joinChallenges,
+                        titleTwo: premium,
+                        isDiv: false,
+                      ),
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 10),
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+
+                // ------------------------------------Premium / Ads-------------------------------------
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 5),
+
+
                 if (_isTodayShoppingDay())
                   Container(
                     margin: const EdgeInsets.all(8),
@@ -482,32 +510,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ],
                     ),
                   ),
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 8),
-
-                // ------------------------------------Premium / Ads------------------------------------
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : PremiumSection(
-                        isPremium: userService.currentUser?.isPremium ?? false,
-                        titleOne: joinChallenges,
-                        titleTwo: premium,
-                        isDiv: false,
-                      ),
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
-                // ------------------------------------Premium / Ads-------------------------------------
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
+                if (_isTodayShoppingDay()) const SizedBox(height: 10),
 
                 // Nutrition Overview
                 SizedBox(

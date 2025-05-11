@@ -6,6 +6,7 @@ import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import '../screens/favorite_screen.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/circle_image.dart';
 import '../widgets/ingredient_features.dart';
@@ -27,6 +28,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   final Set<String> headerSet = {};
   List<Meal> mealList = [];
   List<Meal> myMealList = [];
+  List<Meal> favouriteMealList = [];
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   final GlobalKey _addSpinButtonKey = GlobalKey();
@@ -45,8 +47,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
         _categoryDatasIngredient.first['id'] != 'general') {
       _categoryDatasIngredient.insert(0, generalCategory);
     }
-    if (_categoryDatasIngredient.isNotEmpty &&
-        selectedCategoryId.isEmpty) {
+    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
     }
@@ -54,10 +55,18 @@ class _RecipeScreenState extends State<RecipeScreen> {
     mealList = mealManager.meals;
     myMealList =
         mealList.where((meal) => meal.userId == userService.userId).toList();
+
+    _fetchFavouriteMeals();
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddSpinTutorial();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fetchFavouriteMeals();
   }
 
   void _showAddSpinTutorial() {
@@ -72,8 +81,18 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 
+  Future<void> _fetchFavouriteMeals() async {
+    final favs = await mealManager.fetchFavoriteMeals();
+    if (mounted) {
+      setState(() {
+        favouriteMealList = favs;
+      });
+    }
+  }
+
   Future<void> _updateIngredientList(String category) async {
     fullLabelsList = await macroManager.getIngredientsByCategory(category);
+    favouriteMealList = await mealManager.fetchFavoriteMeals();
     for (var item in fullLabelsList) {
       headerSet.addAll(item.features.keys);
     }
@@ -206,6 +225,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                     return MealsCard(
                       dataSrc: demoMealsData[index],
                       isMyMeal: myMealList.length >= 1,
+                      isFavourite: favouriteMealList.length >= 1,
                     );
                   },
                 ),
@@ -227,30 +247,39 @@ class MealsCard extends StatelessWidget {
     super.key,
     required this.dataSrc,
     required this.isMyMeal,
+    required this.isFavourite,
   });
 
   final MealsData dataSrc;
   final bool isMyMeal;
-
+  final bool isFavourite;
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RecipeListCategory(
-              index: 1,
-              searchIngredient:
-                  isMyMeal && dataSrc.title.toLowerCase() == "breakfast"
-                      ? 'myMeals'
-                      : dataSrc.title,
-              isFilter: true,
-              screen: 'categories',
+        if (isFavourite && dataSrc.title == "Lunch") {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FavoriteScreen(),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RecipeListCategory(
+                index: 1,
+                searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
+                    ? "myMeals"
+                    : dataSrc.title,
+                isFilter: true,
+                screen: 'categories',
+              ),
+            ),
+          );
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -273,24 +302,36 @@ class MealsCard extends StatelessWidget {
             // Title
             GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RecipeListCategory(
-                      index: 1,
-                      searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
-                          ? "myMeals"
-                          : dataSrc.title,
-                      isFilter: true,
-                      screen: 'categories',
+                if (isFavourite && dataSrc.title == "Lunch") {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FavoriteScreen(),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeListCategory(
+                        index: 1,
+                        searchIngredient:
+                            isMyMeal && dataSrc.title == "Breakfast"
+                                ? "myMeals"
+                                : dataSrc.title,
+                        isFilter: true,
+                        screen: 'categories',
+                      ),
+                    ),
+                  );
+                }
               },
               child: Text(
                 isMyMeal && dataSrc.title == "Breakfast"
                     ? "My Meals"
-                    : dataSrc.title,
+                    : isFavourite && dataSrc.title == "Lunch"
+                        ? "Favourites"
+                        : dataSrc.title,
                 style: const TextStyle(
                   color: kWhite,
                   fontWeight: FontWeight.w600,
@@ -310,7 +351,9 @@ class MealsCard extends StatelessWidget {
             Text(
               isMyMeal && dataSrc.title == "Breakfast"
                   ? "View your meals"
-                  : dataSrc.subtitle,
+                  : isFavourite && dataSrc.title == "Lunch"
+                      ? "View your favourites"
+                      : dataSrc.subtitle,
               style: const TextStyle(
                 color: kWhite,
                 shadows: [

@@ -362,7 +362,7 @@ void showTastySnackbar(String title, String message, BuildContext context,
     title,
     message,
     snackPosition: SnackPosition.BOTTOM,
-    backgroundColor: backgroundColor ?? kAccent,
+    backgroundColor: backgroundColor ?? kAccentLight.withOpacity(0.5),
   );
 }
 

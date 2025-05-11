@@ -288,7 +288,7 @@ class _DailyRoutineListHorizontalState
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           iconSize: 20,
-                          color: kAccent,
+                          color: kAccentLight.withOpacity(0.8),
                           onPressed: () async {
                             await Get.to(() => const NutritionSettingsPage(
                                   isRoutineExpand: true,

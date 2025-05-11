@@ -68,16 +68,26 @@ class _ShoppingTabState extends State<ShoppingTab> {
     );
   }
 
-  void _showDayPicker(BuildContext context) async {
+  void _showDayPicker(BuildContext context, bool isDarkMode) async {
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
       builder: (ctx) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: _daysOfWeek.map((day) {
               return ListTile(
-                title: Text(day),
+                title: Text(day,
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                    )),
                 trailing: _selectedDay == day
                     ? const Icon(Icons.check, color: kAccent)
                     : null,
@@ -108,45 +118,13 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return RefreshIndicator(
       onRefresh: _onRefresh,
       child: Column(
         children: [
           // Action buttons row
           const SizedBox(height: 15),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              MealCategoryItem(
-                title: favorite,
-                press: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FavoriteScreen(),
-                    ),
-                  );
-                },
-                icon: Icons.favorite,
-              ),
-              MealCategoryItem(
-                title: 'Add to Shopping List',
-                press: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => IngredientFeatures(
-                        items: macroManager.ingredient,
-                      ),
-                    ),
-                  );
-                },
-                icon: Icons.shopping_basket,
-              ),
-            ],
-          ),
-
 
           if (macroManager.shoppingList.isEmpty &&
               macroManager.previousShoppingList.isNotEmpty)
@@ -173,92 +151,120 @@ class _ShoppingTabState extends State<ShoppingTab> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              color: isDarkMode ? kDarkGrey : kWhite,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                     vertical: 18.0, horizontal: 20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.calendar_today,
-                            color: kAccent, size: 28),
-                        const SizedBox(width: 12),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_today,
+                                color: kAccent, size: 28),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Shopping Day',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color: kAccent,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                GestureDetector(
+                                  onTap: () => _showDayPicker(
+                                      context, isDarkMode),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: kAccent.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          _selectedDay ?? 'Select Day',
+                                          style: const TextStyle(
+                                            color: kAccent,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Icon(Icons.edit_calendar,
+                                            color: kAccent, size: 18),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ),
+                          ],
+                        ),
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             const Text(
-                              'Shopping Day',
+                              'Items',
                               style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
                                 color: kAccent,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            GestureDetector(
-                              onTap: () => _showDayPicker(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: kAccent.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      _selectedDay ?? 'Select Day',
-                                      style: const TextStyle(
-                                        color: kAccent,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                      ),
+                            Row(
+                              children: [
+                                const Icon(Icons.shopping_basket,
+                                    color: kAccent, size: 20),
+                                const SizedBox(width: 4),
+                                Obx(
+                                  () => Text(
+                                    '${macroManager.shoppingList.length}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: kAccent,
                                     ),
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.edit_calendar,
-                                        color: kAccent, size: 18),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
                       ],
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text(
-                          'Items',
+                    const SizedBox(height: 5),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => IngredientFeatures(
+                              items: macroManager.ingredient,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Center(
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          'SEE MORE INGREDIENTS',
                           style: TextStyle(
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: kAccent,
+                            color: kAccentLight,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.shopping_basket,
-                                color: kAccent, size: 20),
-                            const SizedBox(width: 4),
-                            Obx(
-                              () => Text(
-                                '${macroManager.shoppingList.length}',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: getThemeProvider(context).isDarkMode
-                                      ? kWhite
-                                      : kAccent,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -296,7 +302,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             }),
           ),
           const SizedBox(height: 10),
-                    // ------------------------------------Premium / Ads------------------------------------
+          // ------------------------------------Premium / Ads------------------------------------
           userService.currentUser?.isPremium ?? false
               ? const SizedBox.shrink()
               : const SizedBox(height: 15),
@@ -319,7 +325,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       ? kWhite
                       : kDarkGrey),
           // ------------------------------------Premium / Ads-------------------------------------
-          
         ],
       ),
     );
@@ -333,7 +338,7 @@ class MealCategoryItem extends StatelessWidget {
     required this.title,
     required this.press,
     this.icon = Icons.favorite,
-    this.size = 40,
+    this.size = 35,
     this.image = intPlaceholderImage,
   });
 
