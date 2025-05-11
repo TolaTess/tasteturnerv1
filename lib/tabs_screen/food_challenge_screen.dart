@@ -251,10 +251,14 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                     physics:
                                         const NeverScrollableScrollPhysics(),
                                     gridDelegate:
-                                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 270,
-                                      mainAxisExtent: 212,
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisExtent:
+                                          (MediaQuery.of(context).size.height *
+                                                  0.22)
+                                              .clamp(160, 260),
                                       crossAxisSpacing: 15,
+                                      childAspectRatio: 0.8,
                                     ),
                                     itemCount: battleList.length,
                                     itemBuilder: (BuildContext ctx, index) {
@@ -598,7 +602,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 5.0),
                   child: SearchContentGrid(
-                    screenLength: 9,
+                    screenLength: 12,
                     listType: 'battle_post',
                     selectedCategory: selectedCategory,
                   ),
@@ -628,36 +632,51 @@ class DetailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: dataSrc['image'].startsWith('http')
-                ? Image.network(
-                    dataSrc['image'],
-                    fit: BoxFit.cover,
-                    height: getPercentageHeight(18, context),
-                  )
-                : Image.asset(
-                    getAssetImageForItem(dataSrc['image']),
-                    fit: BoxFit.cover,
-                    height: getPercentageHeight(18, context),
-                  ),
+    final double itemHeight = MediaQuery.of(context).size.height * 0.28;
+    final double minHeight = 160;
+    final double maxHeight = 260;
+    final double usedHeight = itemHeight.clamp(minHeight, maxHeight);
+    return SizedBox(
+      height: usedHeight,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: onTap,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: dataSrc['image'].startsWith('http')
+                    ? Image.network(
+                        dataSrc['image'],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : Image.asset(
+                        getAssetImageForItem(dataSrc['image']),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+              ),
+            ),
           ),
-        ),
-        SizedBox(
-          height: getPercentageHeight(1.5, context),
-        ),
-        Text(
-          capitalizeFirstLetter(dataSrc['name']),
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.clip,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ],
+          SizedBox(
+            height: 8,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Text(
+              capitalizeFirstLetter(dataSrc['name']),
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

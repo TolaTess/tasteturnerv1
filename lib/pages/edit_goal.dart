@@ -253,20 +253,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                         );
                       },
                     ),
-                    const SizedBox(height: 15),
-                    SafeTextFormField(
-                      controller: heightController,
-                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: "Height (cm)",
-                        labelStyle:
-                            TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                        enabledBorder: outlineInputBorder(20),
-                        focusedBorder: outlineInputBorder(20),
-                        border: outlineInputBorder(20),
-                      ),
-                    ),
                   ],
                 ),
               if (!widget.isRoutineExpand) const SizedBox(height: 15),
@@ -342,6 +328,15 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     ),
                   ],
                 ),
+
+              const SizedBox(height: 15),
+
+              DailyRoutineList(
+                  userId: userService.currentUser?.userId ??
+                      userService.userId ??
+                      '',
+                  isRoutineEdit: widget.isRoutineExpand),
+
               if (!widget.isRoutineExpand) const SizedBox(height: 15),
 
               // Save Button
@@ -358,13 +353,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   ),
                   child: const Text("Save Settings"),
                 ),
-              const SizedBox(height: 15),
-
-              DailyRoutineList(
-                  userId: userService.currentUser?.userId ??
-                      userService.userId ??
-                      '',
-                  isRoutineEdit: widget.isRoutineExpand),
 
               const SizedBox(height: 30),
             ],

@@ -6,7 +6,6 @@ import '../data_models/profilescreen_data.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
-import '../widgets/date_widget.dart';
 import '../pages/recipe_card_flex.dart';
 
 class SearchContentGrid extends StatefulWidget {
@@ -135,32 +134,38 @@ class _SearchContentGridState extends State<SearchContentGrid> {
             child: noItemTastyWidget("No posts yet.", "", context, false, ''),
           )
         else
-          GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-            ),
-            padding: const EdgeInsets.only(
-              top: 4,
-              bottom: 4,
-            ),
-            itemCount: itemCount,
-            itemBuilder: (BuildContext ctx, index) {
-              final data = searchContentDatas[index];
-              return SearchContent(
-                dataSrc: data,
-                press: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChallengeDetailScreen(
-                      screen: widget.listType,
-                      dataSrc: data,
-                    ),
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int crossAxisCount =
+                  (constraints.maxWidth / 120).floor().clamp(3, 6);
+              return GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 1,
+                  crossAxisSpacing: 1,
                 ),
+                padding: const EdgeInsets.only(
+                  top: 1,
+                  bottom: 1,
+                ),
+                itemCount: itemCount,
+                itemBuilder: (BuildContext ctx, index) {
+                  final data = searchContentDatas[index];
+                  return SearchContent(
+                    dataSrc: data,
+                    press: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChallengeDetailScreen(
+                          screen: widget.listType,
+                          dataSrc: data,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),

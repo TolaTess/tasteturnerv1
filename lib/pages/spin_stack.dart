@@ -199,71 +199,77 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           Stack(
             alignment: Alignment.center,
             children: [
-              WidgetSpinningWheel(
-                key: _spinningWheelKey,
-                playSound: widget.playSound,
-                stopSound: widget.stopSound,
-                labels: availableLabels,
-                defaultSpeed: 0.05,
-                textStyle: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 600,
+                  minWidth: 450,
                 ),
-                colours: [
-                  isDarkMode ? kWhite : kBlack,
-                ],
-                onSpinComplete: (String label) {
-                  setState(() {
-                    selectedLabel = label;
-                  });
-
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        backgroundColor:
-                            isDarkMode ? kDarkGrey : kBackgroundColor,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(30),
-                            topRight: Radius.circular(30),
+                child: WidgetSpinningWheel(
+                  key: _spinningWheelKey,
+                  playSound: widget.playSound,
+                  stopSound: widget.stopSound,
+                  labels: availableLabels,
+                  defaultSpeed: 0.05,
+                  textStyle: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  colours: [
+                    isDarkMode ? kWhite : kBlack,
+                  ],
+                  onSpinComplete: (String label) {
+                    setState(() {
+                      selectedLabel = label;
+                    });
+                
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          backgroundColor:
+                              isDarkMode ? kDarkGrey : kBackgroundColor,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(30),
+                              topRight: Radius.circular(30),
+                            ),
                           ),
-                        ),
-                        title: Text(
-                          "Selected Option",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? kWhite : kBlack,
+                          title: Text(
+                            "Selected Option",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
                           ),
-                        ),
-                        content: Text(
-                          capitalizeFirstLetter(label),
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: isDarkMode ? kBlue : kAccent,
+                          content: Text(
+                            capitalizeFirstLetter(label),
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: isDarkMode ? kBlue : kAccent,
+                            ),
                           ),
-                        ),
-                        actions: [
-                          SecondaryButton(
-                            press: () {
-                              Navigator.of(context).pop();
-                              _tryAgainLabel();
-                            },
-                            text: "Try Again",
-                          ),
-                          SecondaryButton(
-                            press: () {
-                              Navigator.of(context).pop();
-                              _acceptSelectedLabel(label);
-                            },
-                            text: "Accept",
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                size: getPercentageWidth(70, context),
+                          actions: [
+                            SecondaryButton(
+                              press: () {
+                                Navigator.of(context).pop();
+                                _tryAgainLabel();
+                              },
+                              text: "Try Again",
+                            ),
+                            SecondaryButton(
+                              press: () {
+                                Navigator.of(context).pop();
+                                _acceptSelectedLabel(label);
+                              },
+                              text: "Accept",
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  size: getPercentageWidth(70, context),
+                ),
               ),
               Positioned(
                 top: -5,

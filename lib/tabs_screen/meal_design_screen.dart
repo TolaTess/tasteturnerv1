@@ -519,150 +519,169 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 const SizedBox(height: 10),
 
                 // Calendar Grid
-                SizedBox(
-                  height: getPercentageHeight(26, context),
-                  child: PageView.builder(
-                    controller: PageController(
-                        initialPage: 1), // Start at current month
-                    itemBuilder: (context, pageIndex) {
-                      // Calculate the month offset (-1, 0, 1 for prev, current, next)
-                      final monthOffset = pageIndex - 1;
-                      final currentDate = DateTime.now();
-                      final targetDate = DateTime(
-                          currentDate.year, currentDate.month + monthOffset);
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 600,
+                      minWidth: 320,
+                    ),
+                    child: SizedBox(
+                      height: getPercentageHeight(32, context),
+                      child: PageView.builder(
+                        controller: PageController(
+                            initialPage: 1), // Start at current month
+                        itemBuilder: (context, pageIndex) {
+                          // Calculate the month offset (-1, 0, 1 for prev, current, next)
+                          final monthOffset = pageIndex - 1;
+                          final currentDate = DateTime.now();
+                          final targetDate = DateTime(currentDate.year,
+                              currentDate.month + monthOffset);
 
-                      // Find the first day of the month
-                      final firstDayOfMonth =
-                          DateTime(targetDate.year, targetDate.month, 1);
-                      // Calculate days to subtract to get to the previous Monday
-                      final daysToSubtract = (firstDayOfMonth.weekday - 1) % 7;
-                      // Get the first Monday
-                      final firstMonday = firstDayOfMonth
-                          .subtract(Duration(days: daysToSubtract));
+                          // Find the first day of the month
+                          final firstDayOfMonth =
+                              DateTime(targetDate.year, targetDate.month, 1);
+                          // Calculate days to subtract to get to the previous Monday
+                          final daysToSubtract =
+                              (firstDayOfMonth.weekday - 1) % 7;
+                          // Get the first Monday
+                          final firstMonday = firstDayOfMonth
+                              .subtract(Duration(days: daysToSubtract));
 
-                      return GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 7,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                          childAspectRatio: 1.2,
-                        ),
-                        itemCount: 42, // 6 weeks × 7 days
-                        itemBuilder: (context, index) {
-                          final date = firstMonday.add(Duration(days: index));
-                          final normalizedDate =
-                              DateTime(date.year, date.month, date.day);
-                          final normalizedSelectedDate = DateTime(
-                              selectedDate.year,
-                              selectedDate.month,
-                              selectedDate.day);
-
-                          final hasSpecialMeal =
-                              specialMealDays[normalizedDate] ?? false;
-                          final hasMeal = mealPlans.containsKey(normalizedDate);
-                          final isCurrentMonth = date.month == targetDate.month;
-                          final today = DateTime.now();
-                          final isPastDate = normalizedDate.isBefore(
-                              DateTime(today.year, today.month, today.day));
-                          final hasBirthday =
-                              birthdays.containsKey(normalizedDate);
-                          final isUserBirthday =
-                              _isUserBirthday(normalizedDate);
-
-                          return GestureDetector(
-                            onTap: isPastDate ? null : () => _selectDate(date),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: hasSpecialMeal
-                                    ? _getDayTypeColor(
-                                            dayTypes[normalizedDate]
-                                                    ?.replaceAll('_', ' ') ??
-                                                'regular_day',
-                                            isDarkMode)
-                                        .withOpacity(0.2)
-                                    : hasMeal
-                                        ? kLightGrey.withOpacity(0.3)
-                                        : null,
-                                borderRadius: BorderRadius.circular(8),
-                                border: normalizedDate == normalizedSelectedDate
-                                    ? Border.all(color: kAccentLight, width: 2)
-                                    : null,
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Text(
-                                      '${date.day}',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: isPastDate
-                                            ? isDarkMode
-                                                ? Colors.white24
-                                                : Colors.black26
-                                            : !isCurrentMonth
-                                                ? isDarkMode
-                                                    ? Colors.white38
-                                                    : Colors.black38
-                                                : isDarkMode
-                                                    ? Colors.white
-                                                    : Colors.black,
-                                        fontWeight: normalizedDate ==
-                                                DateTime(
-                                                    DateTime.now().year,
-                                                    DateTime.now().month,
-                                                    DateTime.now().day)
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                  if (hasSpecialMeal)
-                                    Positioned(
-                                      right: 2,
-                                      top: 2,
-                                      child: Icon(
-                                        _getDayTypeIcon(dayTypes[normalizedDate]
-                                                ?.replaceAll('_', ' ') ??
-                                            'regular_day'),
-                                        size: 8,
-                                        color: _getDayTypeColor(
-                                            dayTypes[normalizedDate]
-                                                    ?.replaceAll('_', ' ') ??
-                                                'regular_day',
-                                            isDarkMode),
-                                      ),
-                                    ),
-                                  if (hasBirthday && showSharedCalendars)
-                                    const Positioned(
-                                      right: 2,
-                                      bottom: 2,
-                                      child: Icon(
-                                        Icons.cake,
-                                        size: 12,
-                                        color: kAccent,
-                                      ),
-                                    ),
-                                  if (isUserBirthday)
-                                    const Positioned(
-                                      right: 2,
-                                      bottom: 2,
-                                      child: Icon(
-                                        Icons.cake,
-                                        size: 12,
-                                        color: kAccent,
-                                      ),
-                                    ),
-                                ],
-                              ),
+                          return GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 7,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                              childAspectRatio: 1.2,
                             ),
+                            itemCount: 42, // 6 weeks × 7 days
+                            itemBuilder: (context, index) {
+                              final date =
+                                  firstMonday.add(Duration(days: index));
+                              final normalizedDate =
+                                  DateTime(date.year, date.month, date.day);
+                              final normalizedSelectedDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day);
+
+                              final hasSpecialMeal =
+                                  specialMealDays[normalizedDate] ?? false;
+                              final hasMeal =
+                                  mealPlans.containsKey(normalizedDate);
+                              final isCurrentMonth =
+                                  date.month == targetDate.month;
+                              final today = DateTime.now();
+                              final isPastDate = normalizedDate.isBefore(
+                                  DateTime(today.year, today.month, today.day));
+                              final hasBirthday =
+                                  birthdays.containsKey(normalizedDate);
+                              final isUserBirthday =
+                                  _isUserBirthday(normalizedDate);
+
+                              return GestureDetector(
+                                onTap:
+                                    isPastDate ? null : () => _selectDate(date),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: hasSpecialMeal
+                                        ? _getDayTypeColor(
+                                                dayTypes[normalizedDate]
+                                                        ?.replaceAll(
+                                                            '_', ' ') ??
+                                                    'regular_day',
+                                                isDarkMode)
+                                            .withOpacity(0.2)
+                                        : hasMeal
+                                            ? kLightGrey.withOpacity(0.3)
+                                            : null,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border:
+                                        normalizedDate == normalizedSelectedDate
+                                            ? Border.all(
+                                                color: kAccentLight, width: 2)
+                                            : null,
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Center(
+                                        child: Text(
+                                          '${date.day}',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: isPastDate
+                                                ? isDarkMode
+                                                    ? Colors.white24
+                                                    : Colors.black26
+                                                : !isCurrentMonth
+                                                    ? isDarkMode
+                                                        ? Colors.white38
+                                                        : Colors.black38
+                                                    : isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black,
+                                            fontWeight: normalizedDate ==
+                                                    DateTime(
+                                                        DateTime.now().year,
+                                                        DateTime.now().month,
+                                                        DateTime.now().day)
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                      if (hasSpecialMeal)
+                                        Positioned(
+                                          right: 2,
+                                          top: 2,
+                                          child: Icon(
+                                            _getDayTypeIcon(
+                                                dayTypes[normalizedDate]
+                                                        ?.replaceAll(
+                                                            '_', ' ') ??
+                                                    'regular_day'),
+                                            size: 8,
+                                            color: _getDayTypeColor(
+                                                dayTypes[normalizedDate]
+                                                        ?.replaceAll(
+                                                            '_', ' ') ??
+                                                    'regular_day',
+                                                isDarkMode),
+                                          ),
+                                        ),
+                                      if (hasBirthday && showSharedCalendars)
+                                        const Positioned(
+                                          right: 2,
+                                          bottom: 2,
+                                          child: Icon(
+                                            Icons.cake,
+                                            size: 12,
+                                            color: kAccent,
+                                          ),
+                                        ),
+                                      if (isUserBirthday)
+                                        const Positioned(
+                                          right: 2,
+                                          bottom: 2,
+                                          child: Icon(
+                                            Icons.cake,
+                                            size: 12,
+                                            color: kAccent,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                    itemCount: 3, // Show 3 months
+                        itemCount: 3, // Show 3 months
+                      ),
+                    ),
                   ),
                 ),
               ],
