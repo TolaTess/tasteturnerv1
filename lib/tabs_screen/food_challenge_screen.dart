@@ -160,7 +160,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   selectedCategoryId: selectedCategoryId,
                   onCategorySelected: _updateCategoryData,
                   isDarkMode: isDarkMode,
-                  accentColor: kAccent,
+                  accentColor: kAccentLight,
                   darkModeAccentColor: kDarkModeAccent,
                 ),
 
@@ -206,8 +206,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ),
                   children: [
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.all(20),
+                      margin: const EdgeInsets.symmetric(horizontal: 15),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: kAccent.withOpacity(kMidOpacity),
                         borderRadius: BorderRadius.circular(10),

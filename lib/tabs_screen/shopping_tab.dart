@@ -241,17 +241,19 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.shopping_basket,
+                            const Icon(Icons.shopping_basket,
                                 color: kAccent, size: 20),
                             const SizedBox(width: 4),
-                            Text(
-                              '${macroManager.shoppingList.length}',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kWhite
-                                    : kAccent,
+                            Obx(
+                              () => Text(
+                                '${macroManager.shoppingList.length}',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: getThemeProvider(context).isDarkMode
+                                      ? kWhite
+                                      : kAccent,
+                                ),
                               ),
                             ),
                           ],

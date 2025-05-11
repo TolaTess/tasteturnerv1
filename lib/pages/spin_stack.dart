@@ -75,11 +75,13 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           );
 
           // removed mounted check so it can show even if widget is disposed
-          showTastySnackbar(
-            'Success',
-            'Items added to your shopping list',
-            currentContext,
-          );
+          if (!widget.isMealSpin) {
+            showTastySnackbar(
+              'Success',
+              'Items added to your shopping list',
+              currentContext,
+            );
+          }
         } catch (e) {
           debugPrint("Error saving shopping list: $e");
         }

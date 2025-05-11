@@ -112,7 +112,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,
-                accentColor: kAccent,
+                accentColor: kAccentLight,
                 darkModeAccentColor: kDarkModeAccent,
               ),
               const SizedBox(

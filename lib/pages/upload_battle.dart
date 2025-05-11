@@ -235,7 +235,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,
-                accentColor: kAccent,
+                accentColor: kAccentLight,
                 darkModeAccentColor: kDarkModeAccent,
               ),
             const SizedBox(height: 20),

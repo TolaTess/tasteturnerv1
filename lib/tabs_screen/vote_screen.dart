@@ -293,7 +293,7 @@ class _VoteScreenState extends State<VoteScreen> {
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,
-                accentColor: kAccent,
+                accentColor: kAccentLight,
                 darkModeAccentColor: kDarkModeAccent,
               ),
               if (dateInPast) ...[

@@ -338,11 +338,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           selectedCategoryId: selectedCategoryIdIngredient,
           onCategorySelected: _updateCategoryIngredientData,
           isDarkMode: isDarkMode,
-          accentColor: kAccent,
+          accentColor: kAccentLight,
           darkModeAccentColor: kDarkModeAccent,
           isFunMode: false, // No longer needed
         ),
-        SizedBox(height: getPercentageHeight(2.5, context)),
+        _ingredientList.isEmpty
+            ? SizedBox(height: getPercentageHeight(3.5, context))
+            : const SizedBox(height: 1),
         // Removed custom mode checkbox row
         //const SizedBox(height: 15),
         // Spin wheel below macros
@@ -371,13 +373,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           selectedCategoryId: selectedCategoryIdMeal,
           onCategorySelected: _updateCategoryData,
           isDarkMode: isDarkMode,
-          accentColor: kAccent,
+          accentColor: kAccentLight,
           darkModeAccentColor: kDarkModeAccent,
         ),
 
         _mealList.isEmpty
             ? const SizedBox(height: 1)
-            : const SizedBox(height: 50),
+            : SizedBox(height: getPercentageHeight(3.5, context)),
 
         Expanded(
           child: Center(
