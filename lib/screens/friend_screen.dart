@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/screens/user_profile_screen.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
@@ -24,6 +25,7 @@ class _FriendScreenState extends State<FriendScreen> {
   void initState() {
     super.initState();
     friendController.getAllFriendData(userService.userId ?? '');
+    friendController.fetchAllUsers();
   }
 
   void _onSearchChanged(String query) {
@@ -61,30 +63,40 @@ class _FriendScreenState extends State<FriendScreen> {
           ),
           const SizedBox(height: 16),
           Obx(() {
-            if (friendController.friendsMap.isEmpty) {
+            // If searching, use all users; otherwise, use only friends
+            final isSearching = searchQuery.trim().isNotEmpty;
+            final List<dynamic> baseList = isSearching
+                ? friendController.allUsersList
+                : friendController.friendsMap.values.toList();
+
+            if (baseList.isEmpty) {
               return noItemTastyWidget(
-                "No friends yet.",
-                "Follow more users to see them here.",
+                isSearching ? "No friends found." : "No friends yet.",
+                isSearching
+                    ? "Try a different search."
+                    : "Use search bar to find friends.",
                 context,
-                true,
-                'friend',
+                false,
+                '',
               );
             }
 
-            // Filter friends by search query
-            final filteredFriends = friendController.friendsMap.entries
-                .where((entry) => (entry.value.displayName ?? '')
-                    .toLowerCase()
-                    .contains(searchQuery.toLowerCase()))
-                .toList();
+            // Filter by search query if searching
+            final filteredFriends = isSearching
+                ? baseList
+                    .where((entry) => (entry.displayName ?? '')
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase()))
+                    .toList()
+                : baseList;
 
             if (filteredFriends.isEmpty) {
               return noItemTastyWidget(
                 "No friends found.",
                 "Try a different search.",
                 context,
-                true,
-                'friend',
+                false,
+                '',
               );
             }
 
@@ -99,22 +111,33 @@ class _FriendScreenState extends State<FriendScreen> {
                 ),
                 itemCount: filteredFriends.length,
                 itemBuilder: (context, index) {
-                  final friendId = filteredFriends[index].key;
-                  final friend = filteredFriends[index].value;
+                  final friendId = filteredFriends[index].userId;
+                  final friend = filteredFriends[index];
 
                   return GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatScreen(
-                            friendId: friendId,
-                            dataSrc: widget.dataSrc,
-                            screen: widget.screen,
-                            friend: friend,
+                      if (isSearching) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => UserProfileScreen(
+                              userId: friendId,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              friendId: friendId,
+                              dataSrc: widget.dataSrc,
+                              screen: widget.screen,
+                              friend: friend,
+                            ),
+                          ),
+                        );
+                      }
                     },
                     child: Column(
                       children: [

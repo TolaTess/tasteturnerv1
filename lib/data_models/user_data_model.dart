@@ -148,6 +148,7 @@ class UserModel {
       freeTrialDate = (map['freeTrialDate'] as Timestamp).toDate();
     }
     return UserModel(
+      userId: map['userId']?.toString(),
       displayName: map['displayName']?.toString() ?? '',
       bio: map['bio']?.toString() ?? 'Today will be Epic!',
       dob: map['dob']?.toString() ?? '',

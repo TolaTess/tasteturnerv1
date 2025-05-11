@@ -16,6 +16,27 @@ class FriendController extends GetxController {
 
   final RxSet<String> followingUsers = <String>{}.obs;
 
+  /// RxList to hold all users in the users collection
+  final RxList<UserModel> allUsersList = <UserModel>[].obs;
+
+  /// Fetch all users from the users collection and update allUsersList
+  Future<void> fetchAllUsers() async {
+    try {
+      final snapshot = await firestore.collection('users').get();
+      final users = snapshot.docs.map((doc) {
+        final user = UserModel.fromMap({
+          'userId': doc.id,
+          ...?doc.data(),
+        });
+        return user;
+      }).toList();
+      allUsersList.assignAll(users);
+    } catch (e) {
+      print('Error fetching all users: $e');
+      allUsersList.clear();
+    }
+  }
+
   bool isFollowing(String profileId) {
     return followingUsers.contains(profileId);
   }
@@ -61,7 +82,10 @@ class FriendController extends GetxController {
 
           if (friendDoc.exists) {
             final friendData = friendDoc.data() as Map<String, dynamic>;
-            tempMap[friendId] = UserModel.fromMap(friendData);
+            tempMap[friendId] = UserModel.fromMap({
+              'userId': friendId,
+              ...friendData,
+            });
           }
         }
 
