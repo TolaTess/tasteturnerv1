@@ -370,7 +370,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               final selectedPlan =
                                   isYearlySelected ? 'year' : 'month';
                               await authController.updateIsPremiumStatus(
-                                  userId, true, selectedPlan);
+                                  context, userId, true, selectedPlan);
 
                               Navigator.pop(context);
                             } catch (e) {
@@ -395,7 +395,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           if (userId != null) {
                             try {
                               await authController.updateIsPremiumStatus(
-                                  userId, false, '');
+                                  context, userId, false, '');
                             } catch (e) {
                               print("Error updating Premium: $e");
                               if (mounted) {

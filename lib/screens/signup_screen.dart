@@ -154,7 +154,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       // sign up with google
                       Expanded(
                         child: InkWell(
-                          onTap: authController.signInWithApple,
+                          onTap: () => authController.signInWithApple(context),
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
@@ -177,7 +177,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       // sign up with Apple
                       Expanded(
                         child: InkWell(
-                          onTap: () => authController.signInWithGoogle(),
+                          onTap: () => authController.signInWithGoogle(context),
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),

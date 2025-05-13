@@ -109,7 +109,7 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
       child: Container(
         height: widget.height,
         decoration: BoxDecoration(
-          color: kAccentLight.withOpacity(0.6),
+          color: kAccentLight.withOpacity(0.8),
           borderRadius: BorderRadius.circular(12),
         ),
         child: ListView(

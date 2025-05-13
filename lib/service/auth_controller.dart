@@ -83,6 +83,7 @@ class AuthController extends GetxController {
             'Failed to load user data. Please try again.',
             backgroundColor: Colors.red,
             colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
           );
         }
       }
@@ -96,6 +97,7 @@ class AuthController extends GetxController {
           'We`re having trouble connecting. Please check your connection and try again.',
           backgroundColor: kAccentLight,
           colorText: kWhite,
+          snackPosition: SnackPosition.BOTTOM,
         );
       } else {
         // Handle other errors as before
@@ -104,6 +106,7 @@ class AuthController extends GetxController {
           'Something went wrong. Please try again.',
           backgroundColor: Colors.red,
           colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
         );
       }
     }
@@ -204,8 +207,8 @@ class AuthController extends GetxController {
     await prefs.setBool(_isLoggedInKey, value);
   }
 
-  Future<void> registerUser(BuildContext context, String email,
-      String password) async {
+  Future<void> registerUser(
+      BuildContext context, String email, String password) async {
     try {
       if (email.isNotEmpty && password.isNotEmpty) {
         UserCredential cred =
@@ -229,12 +232,13 @@ class AuthController extends GetxController {
         'Please try again.',
         'Error Creating Account: $e',
         context,
+        backgroundColor: Colors.red,
       );
     }
   }
 
   /// ✅ Google Sign-In Function
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle(BuildContext context) async {
     try {
       // Trigger Google Sign-In Popup
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -259,17 +263,17 @@ class AuthController extends GetxController {
       // No need to manually navigate or set up user data here
     } catch (e) {
       print("Error signing in with Google: $e");
-      Get.snackbar(
-        'Error',
+      showTastySnackbar(
+        'Please try again.',
         'Failed to sign in with Google. Please try again.',
+        context,
         backgroundColor: Colors.red,
-        colorText: Colors.white,
       );
     }
   }
 
   /// ✅ Apple Sign-In Function
-  Future<void> signInWithApple() async {
+  Future<void> signInWithApple(BuildContext context) async {
     try {
       print('Apple');
       // Begin sign in process
@@ -304,16 +308,17 @@ class AuthController extends GetxController {
       // The auth state listener will handle the rest via _handleAuthState
     } catch (e) {
       print("Error signing in with Apple: $e");
-      Get.snackbar(
-        'Error',
+      showTastySnackbar(
+        'Please try again.',
         'Failed to sign in with Apple. Please try again.',
+        context,
         backgroundColor: Colors.red,
-        colorText: Colors.white,
       );
     }
   }
 
-  Future<void> loginUser(String email, String password) async {
+  Future<void> loginUser(
+      BuildContext context, String email, String password) async {
     try {
       if (email.isNotEmpty && password.isNotEmpty) {
         // Sign in with Firebase
@@ -325,10 +330,19 @@ class AuthController extends GetxController {
         // The auth state listener will handle the rest via _handleAuthState
         // No need to manually navigate or set up user data here
       } else {
-        Get.snackbar('Error Logging in', 'Please fill in all fields.');
+        showTastySnackbar(
+          'Please try again.',
+          'Please fill in all fields.',
+          context,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error Logging in', e.toString());
+      showTastySnackbar(
+        'Please try again.',
+        'Error Logging in: $e',
+        context,
+        backgroundColor: Colors.red,
+      );
     }
   }
 
@@ -397,15 +411,16 @@ class AuthController extends GetxController {
       );
     } catch (e) {
       Get.snackbar(
-        'Error',
-        e.toString(),
+        'Please try again.',
+        'Error Resetting Password: $e',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
       );
     }
   }
 
   Future<void> updateIsPremiumStatus(
-      String userId, bool isPremium, String plan) async {
+      BuildContext context, String userId, bool isPremium, String plan) async {
     try {
       if (userId.isEmpty) {
         throw Exception("User ID is invalid or empty.");
@@ -430,24 +445,25 @@ class AuthController extends GetxController {
 
       // Notify user of success
       if (isPremium) {
-        Get.snackbar(
+        showTastySnackbar(
           'Success',
           'Premium status updated successfully!',
-          snackPosition: SnackPosition.BOTTOM,
+          context,
         );
       } else {
-        Get.snackbar(
+        showTastySnackbar(
           'Sorry to see you go',
           'You will no longer have access to $appNameBuddy',
-          snackPosition: SnackPosition.BOTTOM,
+          context,
         );
       }
     } catch (e) {
       print("Error updating premium status: $e");
-      Get.snackbar(
-        'Error',
+      showTastySnackbar(
+        'Please try again.',
         'Failed to update premium status: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        context,
+        backgroundColor: Colors.red,
       );
     }
   }

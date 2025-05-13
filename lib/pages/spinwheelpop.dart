@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
@@ -47,6 +48,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   bool showIngredientSpin = true; // New state to toggle between modes
   bool _funMode = false;
   late List<Map<String, dynamic>> _categoryDatasIngredient;
+  final GlobalKey _addSpinButtonKey = GlobalKey();
+  final GlobalKey _addSwitchButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -80,6 +83,33 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Ensure meal list is populated for default category
     _updateMealListByType();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddSpinTutorial();
+    });
+  }
+
+  void _showAddSpinTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_switch_button',
+          message: 'Tap here to switch view from ingredient to meal spin!',
+          targetKey: _addSwitchButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_spin_button',
+          message: 'Double tap on the wheel for a spontaneous meal!',
+          targetKey: _addSpinButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+      ],
+    );
   }
 
   Future<void> _loadMuteState() async {
@@ -300,6 +330,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         });
                       },
                       child: Text(
+                        key: _addSwitchButtonKey,
                         showIngredientSpin
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
@@ -344,12 +375,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         ),
         _ingredientList.isEmpty
             ? SizedBox(height: getPercentageHeight(3.5, context))
-            : const SizedBox(height: 1),
+            : SizedBox(height: getPercentageHeight(1, context)),
         // Removed custom mode checkbox row
         //const SizedBox(height: 15),
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
+            key: _addSpinButtonKey,
             labels: widget.ingredientList,
             customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
             isMealSpin: false,

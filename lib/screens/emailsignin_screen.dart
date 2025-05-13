@@ -155,7 +155,7 @@ class _SigninFormState extends State<SigninForm> {
           PrimaryButton(
             text: "Sign In",
             press: () => authController.loginUser(
-                emailController.text, passwordController.text),
+                context, emailController.text, passwordController.text),
           ),
         ],
       ),
