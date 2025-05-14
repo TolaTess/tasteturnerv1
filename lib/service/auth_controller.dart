@@ -393,7 +393,6 @@ class AuthController extends GetxController {
       await FirebaseAuth.instance.signOut();
       await _setLoggedIn(false);
       userService.clearUser();
-      await TutorialPopupService().isFirstTimeUser();
       Get.offAll(() => const SplashScreen());
     } catch (e) {
       print("Error signing out: $e");

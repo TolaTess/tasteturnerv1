@@ -31,7 +31,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   List<String> extractedItems = [];
   @override
   void initState() {
-    print(widget.dataSrc['id']);
     if (widget.screen == 'myPost') {
       extractedItems = [widget.dataSrc['id'] ?? ''];
     } else {
@@ -41,35 +40,39 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     _loadFavoriteStatus();
     super.initState();
 
-    // Safely handle favorites
-    final favorites = List<String>.from(widget.dataSrc['favorites'] ?? []);
-    isLiked = favorites.contains(userService.userId);
-    likesCount = favorites.length;
+    // Initialize isFollowing
+    final targetUserId = widget.dataSrc['userId'] ?? extractedItems.first;
+    isFollowing = friendController.isFollowing(targetUserId);
   }
 
   Future<void> _loadFavoriteStatus() async {
-    final isFavorite = await firebaseService.isRecipeFavorite(
-        userService.userId, widget.dataSrc['id'] ?? extractedItems.first);
+    final postId = widget.dataSrc['id'] ?? extractedItems.first;
+    final postRef = firestore.collection('posts').doc(postId);
+    final postSnapshot = await postRef.get();
+    final currentData = postSnapshot.data() ?? {};
+    final List<String> likes =
+        List<String>.from(currentData['favorites'] ?? []);
     setState(() {
-      isLiked = isFavorite;
+      isLiked = likes.contains(userService.userId);
+      likesCount = likes.length;
     });
   }
 
   Future<void> toggleFollow() async {
+    final targetUserId = widget.dataSrc['userId'] ?? extractedItems.first;
     if (isFollowing) {
-      friendController.unfollowFriend(userService.userId ?? '',
-          widget.dataSrc['userId'] ?? extractedItems.first, context);
+      await friendController.unfollowFriend(
+          userService.userId ?? '', targetUserId, context);
     } else {
-      friendController.followFriend(
-          userService.userId ?? '',
-          widget.dataSrc['userId'] ?? extractedItems.first,
-          widget.dataSrc['name'] ?? '',
-          context);
+      await friendController.followFriend(userService.userId ?? '',
+          targetUserId, widget.dataSrc['name'] ?? '', context);
     }
 
     // Update the UI immediately
-    friendController
-        .toggleFollowStatus(widget.dataSrc['userId'] ?? extractedItems.first);
+    friendController.toggleFollowStatus(targetUserId);
+    setState(() {
+      isFollowing = friendController.isFollowing(targetUserId);
+    });
   }
 
   /// ✅ Toggle like status & update Firestore
@@ -100,6 +103,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
         .collection(collectionName)
         .doc(widget.dataSrc['id'])
         .update({'favorites': likes});
+
+    // Refresh like status and count from Firestore
+    await _loadFavoriteStatus();
   }
 
   String getTitle() {
@@ -129,6 +135,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
@@ -289,7 +296,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 isLiked
                                     ? Icons.favorite
                                     : Icons.favorite_border,
-                                color: isLiked ? kRed : null,
+                                color: isLiked ? kAccent : null,
                               ),
                             ),
                             const SizedBox(width: 2),
@@ -306,10 +313,87 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 isFollowing
                                     ? Icons.person
                                     : Icons.person_add_alt_1_outlined,
-                                color: isFollowing ? kRed : null,
+                                color: isFollowing ? kAccentLight : null,
                               ),
                             ),
                             const SizedBox(width: 36),
+
+                            // Delete Icon if it's the user's post
+                            if ((widget.dataSrc['userId'] ??
+                                    extractedItems.first) ==
+                                userService.userId)
+                              GestureDetector(
+                                onTap: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                      backgroundColor:
+                                          isDarkMode ? kDarkGrey : kWhite,
+                                      title: Text(
+                                        'Delete Post',
+                                        style: TextStyle(
+                                          color: isDarkMode
+                                              ? kWhite
+                                              : kBlack,
+                                          fontWeight: FontWeight.w400,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                      content: Text(
+                                          'Are you sure you want to delete this post?',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? kWhite
+                                                : kBlack,
+                                          )),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
+                                          child: const Text(
+                                            'Cancel',
+                                            style: const TextStyle(
+                                              color: kAccent,
+                                              fontWeight: FontWeight.w400,
+                                      
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text(
+                                            'Delete',
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.w400,
+
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await postController.deletePostAndImages(
+                                        widget.dataSrc['id'] ??
+                                            extractedItems.first,
+                                        userService.userId ?? '');
+                                    if (context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  }
+                                },
+                                child:
+                                    const Icon(Icons.delete, color: Colors.red),
+                              ),
+                               if ((widget.dataSrc['userId'] ??
+                                    extractedItems.first) ==
+                                userService.userId)
+                               const SizedBox(width: 36),
                           ],
                         ),
                       ),

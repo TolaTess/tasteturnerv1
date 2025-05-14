@@ -122,6 +122,12 @@ class TutorialPopupService {
     final targetSize = renderBox.size;
     final screenSize = MediaQuery.of(context).size;
 
+    // Wrap the original onComplete to always mark tutorial complete
+    void wrappedOnComplete() {
+      markTutorialComplete();
+      onComplete();
+    }
+
     OverlayEntry overlayEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
@@ -130,8 +136,7 @@ class TutorialPopupService {
             child: GestureDetector(
               onTap: () {
                 removeCurrentOverlay();
-                markTutorialComplete();
-                onComplete();
+                wrappedOnComplete();
               },
               child: Container(
                 color: Colors.black.withOpacity(0.5),
@@ -152,7 +157,7 @@ class TutorialPopupService {
                 padding,
                 showArrow,
                 arrowDirection,
-                onComplete,
+                wrappedOnComplete, // Use wrappedOnComplete for the button
               ),
             ),
           ),
@@ -169,7 +174,7 @@ class TutorialPopupService {
       Future.delayed(autoCloseDuration, () {
         if (_currentOverlay == overlayEntry) {
           removeCurrentOverlay();
-          onComplete();
+          wrappedOnComplete();
         }
       });
     }
@@ -443,32 +448,3 @@ class TutorialStep {
     this.arrowDirection = ArrowDirection.UP,
   });
 }
-
-// Updated example usage:
-/*
-final GlobalKey buttonKey1 = GlobalKey();
-final GlobalKey buttonKey2 = GlobalKey();
-
-// In your widget:
-TutorialPopupService().showSequentialTutorials(
-  context: context,
-  tutorials: [
-    TutorialStep(
-      tutorialId: 'add_food_button',
-      message: 'Tap here to add your meals!',
-      targetKey: buttonKey1,
-      onComplete: () {
-        // Handle first tutorial completion
-      },
-    ),
-    TutorialStep(
-      tutorialId: 'settings_button',
-      message: 'Access your settings here',
-      targetKey: buttonKey2,
-      onComplete: () {
-        // Handle second tutorial completion
-      },
-    ),
-  ],
-);
-*/

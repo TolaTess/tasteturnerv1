@@ -29,7 +29,8 @@ class PostController extends GetxController {
   void fetchPosts() async {
     firestore
         .collection('posts')
-        .orderBy('createdAt', descending: true) // Date stored like: "2025-05-10T20:43:36.462566"
+        .orderBy('createdAt',
+            descending: true) // Date stored like: "2025-05-10T20:43:36.462566"
         .snapshots()
         .listen((snapshot) async {
       final fetchedPosts =
@@ -276,6 +277,49 @@ class PostController extends GetxController {
     } catch (e) {
       print('Error uploading post: $e');
       throw Exception('Failed to upload post: $e');
+    }
+  }
+
+  Future<void> deletePostAndImages(String postId, String userId) async {
+    try {
+      final postRef = firestore.collection('posts').doc(postId);
+      final postSnapshot = await postRef.get();
+
+      if (!postSnapshot.exists) {
+        print('Post not found.');
+        return;
+      }
+
+      final postData = postSnapshot.data() as Map<String, dynamic>;
+      final List<dynamic> mediaPaths = postData['mediaPaths'] ?? [];
+
+      // Delete images from Firebase Storage
+      for (var path in mediaPaths) {
+        if (path is String && path.startsWith('http')) {
+          try {
+            final uri = Uri.parse(path);
+            final segments = uri.pathSegments;
+            final imageName = segments.isNotEmpty ? segments.last : null;
+            if (imageName != null) {
+              final ref = firebaseStorage.ref().child('post_images/$imageName');
+              await ref.delete();
+            }
+          } catch (e) {
+            print('Error deleting image from storage: $e');
+          }
+        }
+      }
+
+      // Remove post ID from user's posts array
+      await firestore.collection('users').doc(userId).update({
+        'posts': FieldValue.arrayRemove([postId]),
+      });
+
+      // Delete the post document
+      await postRef.delete();
+    } catch (e) {
+      print('Error deleting post and images: $e');
+      rethrow;
     }
   }
 }

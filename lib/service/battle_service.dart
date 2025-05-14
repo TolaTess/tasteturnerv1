@@ -429,4 +429,59 @@ class BattleService extends GetxController {
       return 0.0;
     }
   }
+
+  Future<void> removeBattleImages({
+    required String battleId,
+    required String userId,
+  }) async {
+    try {
+      final battleDoc = await battlesRef.doc(battleId).get();
+      if (!battleDoc.exists) throw Exception('Battle not found');
+      final data = battleDoc.data() as Map<String, dynamic>;
+      final currentBattle = _getCurrentBattleData(battleDoc);
+      if (currentBattle == null) throw Exception('No active battle found');
+      final firstDateKey = data['dates'].keys.first;
+
+      // Get participant's mediaPaths
+      final participants =
+          currentBattle['participants'] as Map<String, dynamic>?;
+      final participant = participants != null
+          ? participants[userId] as Map<String, dynamic>?
+          : null;
+      final mediaPaths = participant != null
+          ? participant['mediaPaths'] as List<dynamic>?
+          : null;
+
+      // Delete images from Firebase Storage
+      if (mediaPaths != null) {
+        for (var path in mediaPaths) {
+          if (path is String && path.startsWith('http')) {
+            try {
+              final uri = Uri.parse(path);
+              final segments = uri.pathSegments;
+              final imageName = segments.isNotEmpty ? segments.last : null;
+              if (imageName != null) {
+                final ref = FirebaseStorage.instance
+                    .ref()
+                    .child('battles/$battleId/$imageName');
+                await ref.delete();
+              }
+            } catch (e) {
+              print('Error deleting battle image from storage: $e');
+            }
+          }
+        }
+      }
+
+      // Remove mediaPaths field for this participant in Firestore
+      await battlesRef.doc(battleId).update({
+        'dates.$firstDateKey.participants.$userId.mediaPaths':
+            FieldValue.delete(),
+      });
+
+    } catch (e) {
+      print('Error removing battle images: $e');
+      rethrow;
+    }
+  }
 }
