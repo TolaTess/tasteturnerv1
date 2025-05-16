@@ -680,7 +680,10 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     child: Text(
                       isMealSpin
                           ? 'Save to Meal Plan'
-                          : 'Generate Meal with Ingredients!',
+                          : (userService.currentUser?.isPremium ?? false) ||
+                                  isInFreeTrial
+                              ? 'Generate Meal with ingredients!'
+                              : 'Go Premium to generate a meal with ingredients!',
                       style: TextStyle(
                         fontSize: isMealSpin ? 14 : 12,
                         fontWeight: FontWeight.w500,

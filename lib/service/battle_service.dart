@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../helper/notifications_helper.dart';
 
 import '../data_models/post_model.dart';
 
@@ -449,29 +450,11 @@ class BattleService extends GetxController {
           ? participants[userId] as Map<String, dynamic>?
           : null;
       final mediaPaths = participant != null
-          ? participant['mediaPaths'] as List<dynamic>?
-          : null;
+          ? List<String>.from(participant['mediaPaths'] ?? [])
+          : <String>[];
 
-      // Delete images from Firebase Storage
-      if (mediaPaths != null) {
-        for (var path in mediaPaths) {
-          if (path is String && path.startsWith('http')) {
-            try {
-              final uri = Uri.parse(path);
-              final segments = uri.pathSegments;
-              final imageName = segments.isNotEmpty ? segments.last : null;
-              if (imageName != null) {
-                final ref = FirebaseStorage.instance
-                    .ref()
-                    .child('battles/$battleId/$imageName');
-                await ref.delete();
-              }
-            } catch (e) {
-              print('Error deleting battle image from storage: $e');
-            }
-          }
-        }
-      }
+      // Use utility to delete images from storage
+      await deleteImagesFromStorage(mediaPaths, folder: 'battles/$battleId');
 
       // Remove mediaPaths field for this participant in Firestore
       await battlesRef.doc(battleId).update({
@@ -479,6 +462,11 @@ class BattleService extends GetxController {
             FieldValue.delete(),
       });
 
+      // Move battle from uploaded to ongoing for the user
+      await firestore.collection('userBattles').doc(userId).update({
+        'dates.$firstDateKey.uploaded': FieldValue.arrayRemove([battleId]),
+        'dates.$firstDateKey.ongoing': FieldValue.arrayUnion([battleId]),
+      });
     } catch (e) {
       print('Error removing battle images: $e');
       rethrow;

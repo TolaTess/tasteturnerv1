@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/helper/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -104,6 +105,15 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
   /// Spins the wheel with a dynamic speed and ensures it stops at a different position
   void spin({double? withSpeed}) {
     widget.playSound();
+
+    // Log spin event to Firebase
+    FirebaseAnalytics.instance.logEvent(
+      name: 'spin_wheel',
+      parameters: {
+        'speed': withSpeed ?? widget.defaultSpeed,
+        'num_labels': widget.labels.length,
+      },
+    );
 
     if (timer != null) timer?.cancel();
 

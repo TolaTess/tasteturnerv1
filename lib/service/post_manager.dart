@@ -10,6 +10,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 import '../constants.dart';
 import '../data_models/post_model.dart';
+import '../helper/notifications_helper.dart';
+import 'battle_service.dart';
 
 class PostController extends GetxController {
   static PostController instance = Get.find();
@@ -291,24 +293,11 @@ class PostController extends GetxController {
       }
 
       final postData = postSnapshot.data() as Map<String, dynamic>;
-      final List<dynamic> mediaPaths = postData['mediaPaths'] ?? [];
+      final List<String> mediaPaths =
+          List<String>.from(postData['mediaPaths'] ?? []);
 
-      // Delete images from Firebase Storage
-      for (var path in mediaPaths) {
-        if (path is String && path.startsWith('http')) {
-          try {
-            final uri = Uri.parse(path);
-            final segments = uri.pathSegments;
-            final imageName = segments.isNotEmpty ? segments.last : null;
-            if (imageName != null) {
-              final ref = firebaseStorage.ref().child('post_images/$imageName');
-              await ref.delete();
-            }
-          } catch (e) {
-            print('Error deleting image from storage: $e');
-          }
-        }
-      }
+      // Use utility to delete images
+      await deleteImagesFromStorage(mediaPaths);
 
       // Remove post ID from user's posts array
       await firestore.collection('users').doc(userId).update({
@@ -321,5 +310,20 @@ class PostController extends GetxController {
       print('Error deleting post and images: $e');
       rethrow;
     }
+  }
+
+  Future<void> deleteAnyPost({
+    required String postId,
+    required String userId,
+    bool isBattle = false,
+    String? battleId,
+  }) async {
+    if (isBattle && battleId != null) {
+      // Remove battle-specific references and images
+      await BattleService.instance
+          .removeBattleImages(battleId: battleId, userId: userId);
+    }
+    // Remove the post and its images from posts collection and user
+    await deletePostAndImages(postId, userId);
   }
 }

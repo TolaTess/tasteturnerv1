@@ -11,6 +11,8 @@ class Post {
   final String? category;
   final List<String> favorites;
   final DateTime? createdAt;
+  final bool? isBattle;
+  final String? battleId;
 
   Post({
     required this.id,
@@ -23,6 +25,8 @@ class Post {
     this.category,
     this.favorites = const [],
     this.createdAt,
+    this.isBattle,
+    this.battleId,
   });
 
   // Factory method to create Post instance from Firestore document
@@ -35,8 +39,13 @@ class Post {
       name: data['name'] ?? '',
       category: data['category'] ?? '',
       favorites: List<String>.from(data['favorites'] ?? []),
-      createdAt:
-          data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : data['createdAt'] is String
+              ? DateTime.tryParse(data['createdAt'])
+              : null,
+      isBattle: data['isBattle'] ?? false,
+      battleId: data['battleId'] ?? '',
     );
   }
 
@@ -51,6 +60,8 @@ class Post {
       favorites: List<String>.from(data['favorites'] ?? []),
       createdAt:
           data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
+      isBattle: data['isBattle'] ?? false,
+      battleId: data['battleId'] ?? '',
     );
   }
 
@@ -64,6 +75,8 @@ class Post {
       'category': category,
       'favorites': favorites,
       'createdAt': createdAt?.toIso8601String(),
+      'isBattle': isBattle,
+      'battleId': battleId,
     };
   }
 
@@ -75,6 +88,8 @@ class Post {
     String? category,
     List<String>? favorites,
     DateTime? createdAt,
+    bool? isBattle,
+    String? battleId,
   }) {
     return Post(
       id: id ?? this.id,
@@ -84,6 +99,8 @@ class Post {
       category: category ?? this.category,
       favorites: favorites ?? this.favorites,
       createdAt: createdAt ?? this.createdAt,
+      isBattle: isBattle ?? this.isBattle,
+      battleId: battleId ?? this.battleId,
     );
   }
 }

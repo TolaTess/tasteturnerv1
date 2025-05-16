@@ -95,7 +95,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   void initState() {
     super.initState();
 
-    final categoryDatasIngredient = helperController.category;
+    final categoryDatasIngredient = helperController.macros;
     if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
@@ -176,6 +176,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         mediaPaths: uploadedImageUrls,
         name: userService.currentUser?.displayName ?? '',
         category: widget.isMainPost ? selectedCategory : widget.battleCategory,
+        isBattle: widget.isMainPost ? false : true,
+        battleId: widget.isMainPost ? '' : widget.battleId,
       );
 
       if (widget.isMainPost) {
@@ -211,7 +213,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final categoryDatas = helperController.category;
+    final categoryDatas = helperController.macros;
 
     return Scaffold(
       appBar: AppBar(

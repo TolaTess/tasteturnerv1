@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -52,10 +53,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     final currentData = postSnapshot.data() ?? {};
     final List<String> likes =
         List<String>.from(currentData['favorites'] ?? []);
-    setState(() {
-      isLiked = likes.contains(userService.userId);
-      likesCount = likes.length;
-    });
+    if (mounted) {
+      setState(() {
+        isLiked = likes.contains(userService.userId);
+        likesCount = likes.length;
+      });
+    }
   }
 
   Future<void> toggleFollow() async {
@@ -70,9 +73,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
     // Update the UI immediately
     friendController.toggleFollowStatus(targetUserId);
-    setState(() {
-      isFollowing = friendController.isFollowing(targetUserId);
-    });
+    if (mounted) {
+      setState(() {
+        isFollowing = friendController.isFollowing(targetUserId);
+      });
+    }
   }
 
   /// ✅ Toggle like status & update Firestore
@@ -86,17 +91,19 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     final currentData = postSnapshot.data() ?? {};
     List<String> likes = List<String>.from(currentData['favorites'] ?? []);
 
-    setState(() {
-      if (likes.contains(userService.userId)) {
-        likes.remove(userService.userId ?? '');
+    if (mounted) {
+      setState(() {
+        if (likes.contains(userService.userId)) {
+          likes.remove(userService.userId ?? '');
         isLiked = false;
         likesCount--;
       } else {
         likes.add(userService.userId ?? '');
         isLiked = true;
         likesCount++;
-      }
-    });
+        }
+      });
+    }
 
     // Use the correct collection reference for the update
     await firestore
@@ -135,6 +142,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('build');
+    print(widget.dataSrc['id']);
+    print(widget.dataSrc['isBattle']);
+    print(widget.dataSrc['battleId']);
+
+
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
@@ -378,12 +391,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     ),
                                   );
                                   if (confirm == true) {
-                                    await postController.deletePostAndImages(
-                                        widget.dataSrc['id'] ??
-                                            extractedItems.first,
-                                        userService.userId ?? '');
+                                    await postController.deleteAnyPost(
+                                      postId: widget.dataSrc['id'] ??
+                                          extractedItems.first,
+                                      userId: userService.userId ?? '',
+                                      isBattle: widget.dataSrc['isBattle'] ?? false,
+                                      battleId: widget.dataSrc['battleId'] ?? '',
+                                    );
                                     if (context.mounted) {
-                                      Navigator.of(context).pop();
+                                      Get.to(() => const BottomNavSec(
+                                            selectedIndex: 1,
+                                          ));
                                     }
                                   }
                                 },

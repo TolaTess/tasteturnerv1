@@ -23,6 +23,7 @@ import 'service/battle_service.dart';
 import 'themes/theme_provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,6 +100,8 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
   const MyApp({super.key});
 
   // This widget is the root of your application.

@@ -256,7 +256,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                       mainAxisExtent:
                                           (MediaQuery.of(context).size.height *
                                                   0.22)
-                                              .clamp(160, 260),
+                                              .clamp(150, 260),
                                       crossAxisSpacing: 15,
                                       childAspectRatio: 0.8,
                                     ),
@@ -267,7 +267,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                         onTap: () async {
                                           final ingredientId =
                                               battleList[index]['id'];
-                                          print('ingredientId: $ingredientId');
                                           final ingredientData =
                                               await macroManager
                                                   .fetchIngredient(

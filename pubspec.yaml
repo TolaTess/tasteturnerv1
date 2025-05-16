@@ -66,6 +66,7 @@ dependencies:
   timezone: ^0.10.0
   firebase_storage: ^12.3.5
   sign_in_with_apple: ^7.0.0  # Updated to latest version
+  firebase_analytics: ^11.0.0
 
 
 
