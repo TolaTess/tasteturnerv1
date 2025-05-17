@@ -80,9 +80,7 @@ class _TastyScreenState extends State<TastyScreen> {
   /// Save message to Firestore under chatId/messages
   Future<void> _saveMessageToFirestore(String content, String senderId,
       {List<String>? imageUrls}) async {
-    if (_welcomeMessages.contains(content)) {
-      senderId = 'systemMessage';
-    }
+    // Always save all messages, including system messages
     final messageRef =
         firestore.collection('chats').doc(chatId).collection('messages').doc();
 
@@ -408,13 +406,17 @@ class _TastyScreenState extends State<TastyScreen> {
   // Helper method to check if user can send a message
   bool _canUserSendMessage() {
     final messages = chatController.messages;
-    return messages.isEmpty || messages.last.senderId == 'buddy';
+    return messages.isEmpty ||
+        messages.last.senderId == 'buddy' ||
+        messages.last.senderId == 'systemMessage';
   }
 
   // Helper method to get appropriate hint text
   String _getInputHintText() {
     final messages = chatController.messages;
-    if (messages.isNotEmpty && messages.last.senderId != 'buddy') {
+    if (messages.isNotEmpty &&
+        messages.last.senderId != 'buddy' &&
+        messages.last.senderId != 'systemMessage') {
       return 'Waiting for AI response...';
     }
     return 'Type your message...';
@@ -552,19 +554,16 @@ Greet the user warmly and offer guidance based on:
       // Save to Firestore
       await _saveMessageToFirestore(userInput, currentUserId);
 
-      // Check if we should get AI response
-      if (messages.isNotEmpty &&
-          (messages.last.senderId == 'systemMessage' ||
-              messages.last.senderId == 'buddy')) {
-        print('Skipping AI response - last message was from buddy');
+      // Only trigger Gemini if the last message is from the user
+      if (messages.isNotEmpty && messages.last.senderId != currentUserId) {
+        print('Skipping AI response - last message was not from user');
         return;
       }
     }
 
-    // Get AI response for:
-    // 1. System messages for new chats
-    // 2. User messages when last message wasn't from buddy
-    if (isSystemMessage || messages.last.senderId == currentUserId) {
+    // Only trigger Gemini if the last message is from the user
+    if (isSystemMessage ||
+        (messages.isNotEmpty && messages.last.senderId == currentUserId)) {
       try {
         String response;
         if (!isSystemMessage &&
@@ -575,9 +574,9 @@ Greet the user warmly and offer guidance based on:
               "Is there anything else you'd like to know about what we just discussed? I'm here to help!";
         } else {
           final username = userService.currentUser?.displayName;
-          userInput = "${userInput}, user name is ${username ?? ''}".trim();
+          final prompt = "${userInput}, user name is ${username ?? ''}".trim();
           response = await geminiService.getResponse(
-            userInput,
+            prompt,
             512,
             role: buddyAiRole,
           );
@@ -630,7 +629,13 @@ Greet the user warmly and offer guidance based on:
       chatController.chatId = chatId!;
       chatController.listenToMessages();
       chatController.markMessagesAsRead(chatId!, 'buddy');
-      _sendWelcomeMessage();
+      // Show a system message if the last message is not from the user
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final messages = chatController.messages;
+        if (messages.isEmpty || messages.last.senderId != userService.userId) {
+          _showSystemMessage();
+        }
+      });
     } else {
       // New chat - create it and listen
       await chatController.initializeChat('buddy').then((_) {
@@ -642,36 +647,28 @@ Greet the user warmly and offer guidance based on:
       });
 
       // ONLY send welcome message for completely new chats
+      _showSystemMessage();
       final userContext = _getUserContext();
       final initialPrompt = _createInitialPrompt(userContext);
       await _sendMessageToGemini(initialPrompt, isSystemMessage: true);
     }
   }
 
-  Future<void> _sendWelcomeMessage() async {
-    if (!(isPremium || isInFreeTrial) || chatId == null) return;
-
-    try {
-      final randomMessage = _welcomeMessages[
-          DateTime.now().microsecond % _welcomeMessages.length];
-
-      setState(() {
-        chatController.messages.add(ChatScreenData(
-          messageContent: randomMessage,
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        ));
-      });
-      _onNewMessage();
-
-      // Only save to Firestore if not a welcome message
-      // (But here, this is always a welcome message, so skip saving)
-      // await _saveMessageToFirestore(randomMessage, 'buddy');
-    } catch (e) {
-      print("Error sending welcome message: $e");
-    }
+  void _showSystemMessage() {
+    final randomMessage =
+        _welcomeMessages[DateTime.now().microsecond % _welcomeMessages.length];
+    setState(() {
+      chatController.messages.add(ChatScreenData(
+        messageContent: randomMessage,
+        senderId: 'systemMessage',
+        timestamp: Timestamp.now(),
+        imageUrls: [],
+        messageId: '',
+      ));
+    });
+    _onNewMessage();
+    // Save system message to Firestore
+    _saveMessageToFirestore(randomMessage, 'systemMessage');
   }
 
   // Move this outside the build method
