@@ -19,6 +19,7 @@ class RecipeListCategory extends StatefulWidget {
   final bool? isSpecial;
   final bool isSharedCalendar;
   final String? sharedCalendarId;
+  final bool isBack;
 
   const RecipeListCategory({
     Key? key,
@@ -31,6 +32,7 @@ class RecipeListCategory extends StatefulWidget {
     this.isSpecial,
     this.isSharedCalendar = false,
     this.sharedCalendarId,
+    this.isBack = false,
   }) : super(key: key);
 
   @override
@@ -141,10 +143,14 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                           // Back arrow
                           InkWell(
                             onTap: () {
-                              Get.to(() => const BottomNavSec(
-                                    selectedIndex: 1,
-                                    foodScreenTabIndex: 1,
-                                  ));
+                              if (widget.isBack) {
+                                Get.back();
+                              } else {
+                                Get.to(() => const BottomNavSec(
+                                      selectedIndex: 1,
+                                      foodScreenTabIndex: 1,
+                                    ));
+                              }
                             },
                             child: const IconCircleButton(),
                           ),

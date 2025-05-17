@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:user_messaging_platform/user_messaging_platform.dart';
@@ -177,7 +178,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         // Save to local storage using toJson()
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userData', jsonEncode(newUser.toJson()));
 
         // Create buddy chat
         final String buddyChatId =
@@ -190,14 +190,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         await prefs.setString('buddyChatId', buddyChatId);
 
+        final formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+        await helperController.saveMealPlan(
+            widget.userId, formattedDate, 'welcome_day');
+
+        await prefs.setBool('is_first_time_user', true);
+
         // Close loading dialog
         Get.back();
 
         // Only navigate if all the above operations succeeded
         Get.offAll(() => const BottomNavSec());
 
-        // Request UMP consent
-        await requestUMPConsent();
+        
+
+        try {
+          await requestUMPConsent();
+        } catch (e) {
+          print("Error requesting UMP consent: $e");
+        }
+
       } catch (e) {
         // Close loading dialog
         Get.back();

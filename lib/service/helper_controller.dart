@@ -9,8 +9,7 @@ class HelperController extends GetxController {
   final RxList<Map<String, dynamic>> plans = RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> category =
       RxList<Map<String, dynamic>>([]);
-  final RxList<Map<String, dynamic>> macros =
-      RxList<Map<String, dynamic>>([]);
+  final RxList<Map<String, dynamic>> macros = RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> headers = RxList<Map<String, dynamic>>([]);
   RxMap<String, dynamic> winners = <String, dynamic>{}.obs;
 
@@ -277,5 +276,22 @@ class HelperController extends GetxController {
       print('Error saving winners: $e');
       throw Exception('Failed to save winners: $e');
     }
+  }
+
+  Future<void> saveMealPlan(
+      String userId, String formattedDate, String dayType) async {
+    await firestore
+        .collection('mealPlans')
+        .doc(userId)
+        .collection('date')
+        .doc(formattedDate)
+        .set({
+      'userId': userId,
+      'dayType': dayType,
+      'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
+      'date': formattedDate,
+      'meals': FieldValue.arrayUnion(
+          []), // Only initialize if meals field doesn't exist
+    }, SetOptions(merge: true));
   }
 }

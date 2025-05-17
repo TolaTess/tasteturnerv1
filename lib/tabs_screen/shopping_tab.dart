@@ -190,7 +190,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                     child: Row(
                                       children: [
                                         Text(
-                                          _selectedDay ?? 'Select Day',
+                                          _selectedDay == null ||
+                                                  _selectedDay == ''
+                                              ? 'Select Day'
+                                              : _selectedDay!,
                                           style: const TextStyle(
                                             color: kAccent,
                                             fontWeight: FontWeight.w600,

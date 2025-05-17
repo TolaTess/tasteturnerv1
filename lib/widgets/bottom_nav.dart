@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
+import '../service/tasty_popup_service.dart';
 import '../tabs_screen/food_tab_screen.dart';
 import '../tabs_screen/spin_tab_screen.dart';
 import '../tabs_screen/home_screen.dart';
@@ -23,12 +24,32 @@ class BottomNavSec extends StatefulWidget {
 class _BottomNavSecState extends State<BottomNavSec> {
   late int _selectedIndex;
   late int _currentTabIndex;
+  final GlobalKey _tastyButtonKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.selectedIndex;
     _currentTabIndex = widget.foodScreenTabIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showBottomNavTutorial();
+    });
+  }
+
+  void _showBottomNavTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      sequenceKey: 'bottom_nav_tutorial',
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'tasty_button',
+          message: 'Tap here to go to the home screen!',
+          targetKey: _tastyButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.DOWN,
+        ),
+      ],
+    );
   }
 
   @override
@@ -59,6 +80,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
               _currentTabIndex = 0;
             });
           },
+          key: _tastyButtonKey,
           backgroundColor: kPrimaryColor,
           child: Container(
             width: 56,

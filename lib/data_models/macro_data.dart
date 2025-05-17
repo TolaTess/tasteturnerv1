@@ -10,6 +10,7 @@ class MacroData {
   final Map<String, String> storageOptions;
   final bool isAntiInflammatory;
   bool isSelected;
+  final List<String> alt;
 
   MacroData({
     this.id,
@@ -24,6 +25,7 @@ class MacroData {
     this.storageOptions = const {},
     this.isAntiInflammatory = false,
     this.isSelected = false,
+    this.alt = const [],
   });
 
   // Convert to JSON for storing in Firestore or other NoSQL databases
@@ -40,6 +42,7 @@ class MacroData {
       'techniques': techniques,
       'storageOptions': storageOptions,
       'isAntiInflammatory': isAntiInflammatory,
+      'alt': alt,
     };
   }
 
@@ -70,6 +73,10 @@ class MacroData {
               json['storageOptions'] as Map<dynamic, dynamic>)
           : {},
       isAntiInflammatory: json['isAntiInflammatory'] as bool? ?? false,
+      alt: (json['alt'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [], // Safely cast
     );
   }
 }

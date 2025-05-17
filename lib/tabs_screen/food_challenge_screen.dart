@@ -8,6 +8,7 @@ import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 import '../screens/profile_screen.dart';
 import '../pages/upload_battle.dart';
+import '../service/tasty_popup_service.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/premium_widget.dart';
@@ -27,6 +28,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   List<Map<String, dynamic>> battleList = [];
   Timer? _tastyPopupTimer;
   final GlobalKey _addJoinButtonKey = GlobalKey();
+  final GlobalKey _addInspirationButtonKey = GlobalKey();
   bool showBattle = false;
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
   @override
@@ -79,14 +81,25 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   }
 
   void _showAddJoinTutorial() {
-    tastyPopupService.showTutorialPopup(
+    tastyPopupService.showSequentialTutorials(
       context: context,
-      tutorialId: 'add_join_button',
-      message: 'Tap here to join our weekly food battle!',
-      targetKey: _addJoinButtonKey,
-      onComplete: () {
-        // Optional: Add any actions to perform after the tutorial is completed
-      },
+      sequenceKey: 'food_tab_tutorial',
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_join_button',
+          message: 'Check weekly battles and join in to win!',
+          targetKey: _addJoinButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.UP,
+        ),
+        TutorialStep(
+          tutorialId: 'add_inspiration_button',
+          message: 'Add visuals to inspire others!',
+          targetKey: _addInspirationButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.DOWN,
+        ),
+      ],  
     );
   }
 
@@ -184,9 +197,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       SizedBox(
                         height: getPercentageHeight(1, context),
                       ),
-                      const Text(
+                      Text(
+                        key: _addJoinButtonKey,
                         ingredientBattle,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 18,
                         ),
@@ -383,7 +397,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                                           // Case 3: Deadline not over and user hasn't joined
                                           return SecondaryButton(
-                                            key: _addJoinButtonKey,
                                             text: "Join Now",
                                             press: () async {
                                               String userId =
@@ -563,7 +576,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
-                       userService.currentUser?.isPremium ?? false
+                userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : const SizedBox(height: 5),
 
@@ -578,7 +591,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         isDiv: false,
                       ),
 
-               
                 // ------------------------------------Premium / Ads-------------------------------------
 
                 Padding(
@@ -603,6 +615,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       ),
                       const SizedBox(width: 10),
                       IconButton(
+                        key: _addInspirationButtonKey,
                         icon: const Icon(Icons.add, color: kAccent),
                         onPressed: () => Get.to(
                           () => const UploadBattleImageScreen(

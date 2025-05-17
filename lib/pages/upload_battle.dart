@@ -221,7 +221,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
               : "Post Image"),
           leading: InkWell(
-            onTap: () => Get.back(),
+            onTap: () => widget.isMainPost ? Get.to(() => const BottomNavSec(selectedIndex: 1)) : Get.back(),
             child: const IconCircleButton(
               isRemoveContainer: true,
             ),

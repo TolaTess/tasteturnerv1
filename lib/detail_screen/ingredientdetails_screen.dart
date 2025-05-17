@@ -162,7 +162,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   SizedBox(
                     height: getPercentageWidth(9, context),
                     child: ListView.builder(
-                      padding:  const EdgeInsets.all(5),
+                      padding: const EdgeInsets.all(5),
                       shrinkWrap: true,
                       itemCount: widget.item.techniques.length,
                       scrollDirection: Axis.horizontal,
@@ -208,6 +208,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                           searchIngredient: widget.item.title,
                           isFilter: true,
                           screen: 'ingredient',
+                          isBack: true,
                         ),
                       ),
                     );
@@ -354,9 +355,6 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         isDiv: false,
                       ),
 
-                isPremium ?? userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),

@@ -69,6 +69,7 @@ class _MessageScreenState extends State<MessageScreen>
 // In your widget build or initState:
     tastyPopupService.showSequentialTutorials(
       context: context,
+      sequenceKey: 'message_screen_tutorial',
       tutorials: [
         TutorialStep(
           tutorialId: 'add_buddy_button',

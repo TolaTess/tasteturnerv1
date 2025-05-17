@@ -61,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _showAddMealTutorial() {
     tastyPopupService.showSequentialTutorials(
       context: context,
+      sequenceKey: 'home_screen_tutorial',
       tutorials: [
         TutorialStep(
           tutorialId: 'add_meal_button',
@@ -119,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   bool _isTodayShoppingDay() {
-    if (_shoppingDay == null) return false;
+    if (_shoppingDay == null || _shoppingDay == '') return false;
     final today = DateTime.now();
     final days = [
       'Monday',

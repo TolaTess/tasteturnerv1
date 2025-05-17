@@ -10,6 +10,7 @@ import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
+import '../widgets/premium_widget.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
 
@@ -91,11 +92,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   void _showAddSpinTutorial() {
     tastyPopupService.showSequentialTutorials(
       context: context,
+      sequenceKey: 'spin_wheel_tutorial',
       tutorials: [
         TutorialStep(
           tutorialId: 'add_switch_button',
           message: 'Tap here to switch view from ingredient to meal spin!',
           targetKey: _addSwitchButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.UP,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
@@ -104,6 +108,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           tutorialId: 'add_spin_button',
           message: 'Double tap on the wheel for a spontaneous meal!',
           targetKey: _addSpinButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.DOWN,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
@@ -397,7 +403,29 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
-        const SizedBox(height: 35),
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : const SizedBox(height: 5),
+
+        // ------------------------------------Premium / Ads------------------------------------
+
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : PremiumSection(
+                isPremium: userService.currentUser?.isPremium ?? false,
+                titleOne: joinChallenges,
+                titleTwo: premium,
+                isDiv: false,
+              ),
+
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox.shrink()
+            : const SizedBox(height: 10),
+
+        // ------------------------------------Premium / Ads-------------------------------------
+        userService.currentUser?.isPremium ?? false
+            ? const SizedBox(height: 35)
+            : const SizedBox.shrink(),
 
         //category options
         CategorySelector(

@@ -31,7 +31,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
   List<Meal> favouriteMealList = [];
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
-  final GlobalKey _addSpinButtonKey = GlobalKey();
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
   @override
   void initState() {
@@ -57,28 +56,12 @@ class _RecipeScreenState extends State<RecipeScreen> {
         mealList.where((meal) => meal.userId == userService.userId).toList();
 
     _fetchFavouriteMeals();
-    // Show Tasty popup after a short delay
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAddSpinTutorial();
-    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _fetchFavouriteMeals();
-  }
-
-  void _showAddSpinTutorial() {
-    tastyPopupService.showTutorialPopup(
-      context: context,
-      tutorialId: 'add_spin_button',
-      message: 'Tap here to spin the wheel for get a spontaneous meal!',
-      targetKey: _addSpinButtonKey,
-      onComplete: () {
-        // Optional: Add any actions to perform after the tutorial is completed
-      },
-    );
   }
 
   Future<void> _fetchFavouriteMeals() async {

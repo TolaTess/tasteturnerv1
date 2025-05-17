@@ -13,6 +13,7 @@ import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../screens/friend_screen.dart';
+import '../service/tasty_popup_service.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
@@ -50,6 +51,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   final CalendarSharingService calendarSharingService =
       CalendarSharingService();
   Map<DateTime, List<String>> birthdays = {};
+  final GlobalKey _addMealButtonKey = GlobalKey();
+  final GlobalKey _toggleCalendarButtonKey = GlobalKey();
+  final GlobalKey _sharedCalendarButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -62,6 +66,39 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (widget.initialTabIndex == 1) {
       _initializeBuddyData();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showMealDesignTutorial();
+    });
+  }
+
+  void _showMealDesignTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      sequenceKey: 'meal_design_tutorial',
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'toggle_calendar_button',
+          message: 'Tap to toggle between personal and shared calendar!',
+          targetKey: _toggleCalendarButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.UP,
+        ),
+        TutorialStep(
+          tutorialId: 'shared_calendar_button',
+          message: 'Tap to share your calendar with friends!',
+          targetKey: _sharedCalendarButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.UP,
+        ),
+        TutorialStep(
+          tutorialId: 'add_meal_button',
+          message: 'Tap to edit or add your meal!',
+          targetKey: _addMealButtonKey,
+          autoCloseDuration: const Duration(seconds: 5),
+          arrowDirection: ArrowDirection.DOWN,
+        ),
+      ],
+    );
   }
 
   void _setupDataListeners() {
@@ -411,6 +448,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ),
                   const SizedBox(width: 7),
                   IconButton(
+                    key: _toggleCalendarButtonKey,
                     icon: Icon(
                       showSharedCalendars
                           ? Icons.people_outline
@@ -430,6 +468,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ),
 
                   IconButton(
+                    key: _sharedCalendarButtonKey,
                     icon: const Icon(
                       Icons.share,
                       size: 18,
@@ -635,6 +674,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                       ),
                                       if (hasSpecialMeal)
                                         Positioned(
+                                          key: _addMealButtonKey,
                                           right: 2,
                                           top: 2,
                                           child: Icon(
@@ -1218,19 +1258,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         }, SetOptions(merge: true));
       } else {
         // For personal calendar
-        await firestore
-            .collection('mealPlans')
-            .doc(userId)
-            .collection('date')
-            .doc(formattedDate)
-            .set({
-          'userId': userId,
-          'dayType': dayType,
-          'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
-          'date': formattedDate,
-          'meals': FieldValue.arrayUnion(
-              []), // Only initialize if meals field doesn't exist
-        }, SetOptions(merge: true));
+        await helperController.saveMealPlan(userId, formattedDate, dayType);
       }
       if (!mounted) return;
       setState(() {
@@ -1277,6 +1305,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Icons.celebration;
       case 'tasty spin':
         return Icons.restaurant;
+      case 'welcome day':
+        return Icons.check_circle;
       default:
         return Icons.restaurant;
     }
@@ -1294,6 +1324,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Colors.orange;
       case 'tasty spin':
         return Colors.red;
+      case 'welcome day':
+        return Colors.deepPurpleAccent;
       default:
         return isDarkMode ? kWhite : kBlack;
     }

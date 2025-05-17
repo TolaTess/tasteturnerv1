@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tasteturner/tabs_screen/food_challenge_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
+import '../pages/upload_battle.dart';
 import '../screens/createrecipe_screen.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
@@ -87,14 +88,27 @@ class _FoodTabScreenState extends State<FoodTabScreen>
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: InkWell(
-              onTap: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateRecipeScreen(
-                    screenType: recipes,
-                  ),
-                ),
-              ),
+              onTap: () {
+                if (_tabController.index == 0) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UploadBattleImageScreen(
+                        battleId: battleIdConstant,
+                        isMainPost: true,
+                      ),
+                    ),
+                  );
+                } else if (_tabController.index == 1) {
+                  // Replace with your desired screen for tab 1
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateRecipeScreen(),
+                    ),
+                  );
+                }
+              },
               child: const IconCircleButton(
                 icon: Icons.add,
                 h: 30,

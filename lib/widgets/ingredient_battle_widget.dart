@@ -328,7 +328,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               child: Padding(
                 padding: EdgeInsets.all(10.0),
                 child: Text(
-                  'Log more meals to see your ingredient battle!',
+                  'Log more meals to see your top ingredients!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,

@@ -205,6 +205,7 @@ class AuthController extends GetxController {
   Future<void> _setLoggedIn(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isLoggedInKey, value);
+    await prefs.setString('shopping_day', '');
   }
 
   Future<void> registerUser(

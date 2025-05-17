@@ -10,9 +10,18 @@ class TutorialPopupService {
   factory TutorialPopupService() => _instance;
   TutorialPopupService._internal();
 
-  // Single key for first time user check
+  // Restore first time user key logic
   final String _firstTimeUserKey = 'is_first_time_user';
-  final Map<String, bool> _shownTutorials = {};
+
+  final List<String> allTutorialSequenceKeys = [
+    'meal_design_tutorial',
+    'food_tab_tutorial',
+    'home_screen_tutorial',
+    'spin_wheel_tutorial',
+    'message_screen_tutorial',
+    'bottom_nav_tutorial',
+    // Add more as needed
+  ];
 
   ThemeProvider getThemeProvider(BuildContext context) {
     return Provider.of<ThemeProvider>(context, listen: false);
@@ -28,12 +37,14 @@ class TutorialPopupService {
     await prefs.setBool(_firstTimeUserKey, false);
   }
 
-  bool hasShownTutorial(String tutorialId) {
-    return _shownTutorials[tutorialId] ?? false;
+  Future<bool> hasShownTutorial(String tutorialId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('tutorial_shown_$tutorialId') ?? false;
   }
 
-  void markTutorialShown(String tutorialId) {
-    _shownTutorials[tutorialId] = true;
+  Future<void> markTutorialShown(String tutorialId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tutorial_shown_$tutorialId', true);
   }
 
   OverlayEntry? _currentOverlay;
@@ -47,36 +58,33 @@ class TutorialPopupService {
   Future<void> showSequentialTutorials({
     required BuildContext context,
     required List<TutorialStep> tutorials,
-    Duration delayBetween = const Duration(seconds: 2),
+    required String sequenceKey,
+    Duration delayBetween = const Duration(seconds: 3),
   }) async {
     if (_isShowingSequence) return;
     if (!await isFirstTimeUser()) return;
+    if (await isSequenceComplete(sequenceKey)) return;
 
     _isShowingSequence = true;
 
     for (int i = 0; i < tutorials.length; i++) {
       final tutorial = tutorials[i];
-
-      if (!hasShownTutorial(tutorial.tutorialId)) {
-        // Wait for the delay between tutorials (except for the first one)
-        if (i > 0) {
-          await Future.delayed(delayBetween);
-        }
-
-        // Check if we're still in sequence (user hasn't cancelled)
+      if (!await hasShownTutorial(tutorial.tutorialId)) {
+        if (i > 0) await Future.delayed(delayBetween);
         if (!_isShowingSequence) break;
-
         await showTutorialPopup(
           context: context,
           tutorialId: tutorial.tutorialId,
           message: tutorial.message,
           targetKey: tutorial.targetKey,
-          onComplete: () {
+          onComplete: () async {
             tutorial.onComplete?.call();
-            // Don't mark sequence complete until the last tutorial
             if (i == tutorials.length - 1) {
               _isShowingSequence = false;
-              markTutorialComplete();
+              await markSequenceComplete(sequenceKey);
+              if (await areAllSequencesComplete()) {
+                await markTutorialComplete();
+              }
             }
           },
           autoCloseDuration: tutorial.autoCloseDuration,
@@ -86,7 +94,6 @@ class TutorialPopupService {
         );
       }
     }
-
     _isShowingSequence = false;
   }
 
@@ -106,7 +113,7 @@ class TutorialPopupService {
     Duration autoCloseDuration = const Duration(seconds: 5),
     ArrowDirection arrowDirection = ArrowDirection.UP,
   }) async {
-    if (!await isFirstTimeUser() || hasShownTutorial(tutorialId)) {
+    if (await hasShownTutorial(tutorialId)) {
       return;
     }
 
@@ -122,12 +129,6 @@ class TutorialPopupService {
     final targetSize = renderBox.size;
     final screenSize = MediaQuery.of(context).size;
 
-    // Wrap the original onComplete to always mark tutorial complete
-    void wrappedOnComplete() {
-      markTutorialComplete();
-      onComplete();
-    }
-
     OverlayEntry overlayEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
@@ -136,7 +137,7 @@ class TutorialPopupService {
             child: GestureDetector(
               onTap: () {
                 removeCurrentOverlay();
-                wrappedOnComplete();
+                onComplete();
               },
               child: Container(
                 color: Colors.black.withOpacity(0.5),
@@ -157,7 +158,7 @@ class TutorialPopupService {
                 padding,
                 showArrow,
                 arrowDirection,
-                wrappedOnComplete, // Use wrappedOnComplete for the button
+                onComplete,
               ),
             ),
           ),
@@ -167,14 +168,14 @@ class TutorialPopupService {
 
     _currentOverlay = overlayEntry;
     Overlay.of(context).insert(overlayEntry);
-    markTutorialShown(tutorialId);
+    await markTutorialShown(tutorialId);
 
     // Auto close after duration if specified
     if (autoCloseDuration != Duration.zero) {
       Future.delayed(autoCloseDuration, () {
         if (_currentOverlay == overlayEntry) {
           removeCurrentOverlay();
-          wrappedOnComplete();
+          onComplete();
         }
       });
     }
@@ -367,6 +368,23 @@ class TutorialPopupService {
         if (top < 20) top = 20;
         return top;
     }
+  }
+
+  Future<bool> isSequenceComplete(String sequenceKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('sequence_complete_$sequenceKey') ?? false;
+  }
+
+  Future<void> markSequenceComplete(String sequenceKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('sequence_complete_$sequenceKey', true);
+  }
+
+  Future<bool> areAllSequencesComplete() async {
+    for (final key in allTutorialSequenceKeys) {
+      if (!await isSequenceComplete(key)) return false;
+    }
+    return true;
   }
 }
 

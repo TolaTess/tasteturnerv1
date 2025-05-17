@@ -480,8 +480,6 @@ class ChatItem extends StatelessWidget {
     final status = friendRequest['status'] as String? ?? 'pending';
     final friendName = friendRequest['friendName'] as String? ?? 'Friend';
     final date = friendRequest['date'] as String?;
-    final senderId = friendRequest['senderId'] as String?;
-    final recipientId = friendRequest['recipientId'] as String?;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
