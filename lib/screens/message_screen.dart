@@ -28,6 +28,7 @@ class _MessageScreenState extends State<MessageScreen>
   late ScrollController _scrollController;
   final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addFriendButtonKey = GlobalKey();
+  bool isInFreeTrial = false;
 
   bool lastStatus = true;
 
@@ -58,6 +59,12 @@ class _MessageScreenState extends State<MessageScreen>
     }
 
     friendController.getAllFriendData(userService.userId ?? '');
+    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
     super.initState();
     // Show tutorial popup after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,9 +106,6 @@ class _MessageScreenState extends State<MessageScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final freeTrialDate = userService.currentUser?.freeTrialDate;
-    final isInFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -255,7 +259,6 @@ class _MessageScreenState extends State<MessageScreen>
       floatingActionButton: buildTastyFloatingActionButton(
         context: context,
         buttonKey: _addBuddyKey,
-        userService: userService,
         themeProvider: themeProvider,
         isInFreeTrial: isInFreeTrial,
       ),

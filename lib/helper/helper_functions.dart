@@ -4,21 +4,19 @@ import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
-import '../service/user_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/optimized_image.dart';
 
 Widget buildTastyFloatingActionButton({
   required BuildContext context,
   required Key? buttonKey,
-  required UserService userService,
   required ThemeProvider themeProvider,
   required bool isInFreeTrial,
 }) {
   return FloatingActionButton(
     key: buttonKey,
     onPressed: () {
-      if (userService.currentUser?.isPremium ?? false || isInFreeTrial) {
+      if (isInFreeTrial || userService.currentUser!.isPremium) {
         Navigator.push(
           context,
           MaterialPageRoute(
