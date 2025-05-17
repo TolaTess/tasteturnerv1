@@ -278,15 +278,17 @@ Color checkSeason(String season) {
     case 'fall-winter':
       return kBlue;
     case 'spring-summer':
-      return kAccent.withOpacity(kOpacity);
+      return kAccent;
+    case 'spring-fall':
+      return kBlue;
     case 'spring':
-      return kAccent.withOpacity(kOpacity);
+      return kAccent;
     case 'summer':
-      return kOrange.withOpacity(kOpacity);
+      return kOrange;
     case 'autumn':
-      return kRed.withOpacity(kOpacity);
+      return kRed;
     case 'all-year':
-      return kGreen.withOpacity(kOpacity);
+      return kGreen;
     default:
       return kWhite;
   }

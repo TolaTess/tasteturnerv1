@@ -1,3 +1,4 @@
+import '../helper/helper_functions.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/search_button.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ class IngredientFeatures extends StatefulWidget {
 class _IngredientFeaturesState extends State<IngredientFeatures> {
   final Set<String> headerSet = {};
   final TextEditingController _searchController = TextEditingController();
+  late final ScrollController _horizontalScrollController;
   Set<String> _selectedIngredients = {};
   List<MacroData> _filteredItems = [];
   int _displayedItemCount = 10;
@@ -32,6 +34,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   @override
   void initState() {
     super.initState();
+    _horizontalScrollController = ScrollController();
     for (var item in widget.items) {
       headerSet.addAll(item.features.keys);
     }
@@ -59,6 +62,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
   @override
   void dispose() {
+    _horizontalScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -173,7 +177,13 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             child: const IconCircleButton(),
           ),
         ),
-        title: const Text('Ingredient Features'),
+        title: const Text(
+          'Ingredient Features',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 20,
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -196,7 +206,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                   'Ingredients',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 20,
+                    fontSize: 18,
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
@@ -237,195 +247,262 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
           // Table
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 75),
-              scrollDirection: Axis.vertical,
+            child: Scrollbar(
+              thumbVisibility: true,
+              trackVisibility: true,
               child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 75, right: 20, left: 20),
+                scrollDirection: Axis.vertical,
                 child: Column(
                   children: [
-                    DataTable(
-                      columns: [
-                        DataColumn(
-                          label: Text(
-                            'Save to list',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 16,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
-                          ),
-                        ),
-                        const DataColumn(label: Text('')),
-                        ...headers
-                            .map((header) => DataColumn(
-                                headingRowAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                label: Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      //todo - header page
-                                    },
-                                    child: Center(
-                                      child: Text(
-                                        removeDashWithSpace(header),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          color: isDarkMode
-                                              ? kPrimaryColor
-                                              : kBlack,
+                    // Horizontal RawScrollbar at the top, above the header
+                    RawScrollbar(
+                      controller: _horizontalScrollController,
+                      thumbVisibility: true,
+                      thickness: 8,
+                      radius: const Radius.circular(8),
+                      thumbColor: kAccentLight,
+                      child: SingleChildScrollView(
+                        controller: _horizontalScrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: Builder(
+                          builder: (context) {
+                            // Calculate total table width
+                            final double checkboxColWidth = 60;
+                            final double titleColWidth = 100;
+                            final double featureColWidth =
+                                getPercentageWidth(20, context);
+                            final double totalTableWidth = checkboxColWidth +
+                                titleColWidth +
+                                headers.length * featureColWidth;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Custom header row
+                                Container(
+                                  color: kAccentLight.withOpacity(0.1),
+                                  child: SizedBox(
+                                    width: totalTableWidth,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: checkboxColWidth,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          child: const Text(
+                                            'Check \nto save',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14,
+                                              color: kAccentLight,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                )))
-                            .toList(),
-                      ],
-                      rows: sortedItems.map((item) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Theme(
-                                data: Theme.of(context).copyWith(
-                                  unselectedWidgetColor:
-                                      isDarkMode ? Colors.white : Colors.black,
-                                ),
-                                child: Checkbox(
-                                  value:
-                                      _selectedIngredients.contains(item.title),
-                                  onChanged: (_) =>
-                                      _toggleSelection(item.title),
-                                  activeColor: kAccent,
-                                  checkColor: isDarkMode ? kWhite : kBlack,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          IngredientDetailsScreen(
-                                        item: item,
-                                        ingredientItems: widget.items,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(top: 6, bottom: 6),
-                                  child: Text(
-                                    capitalizeFirstLetter(item.title),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            ...headers.map((header) {
-                              final featureValue = item.features[header];
-                              return DataCell(
-                                SizedBox(
-                                  width: getPercentageWidth(20, context),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      //todo - cell item page
-                                    },
-                                    child: Center(
-                                      child: header.toLowerCase() == "rainbow"
-                                          ? CircleAvatar(
-                                              radius: 10,
-                                              backgroundColor:
-                                                  checkRainbowGroup(
-                                                      featureValue.toString()),
-                                            )
-                                          : header.toLowerCase() == "season"
-                                              ? Text(
-                                                  textAlign: TextAlign.center,
-                                                  featureValue != null
-                                                      ? featureValue
-                                                          .toString()
-                                                          .toUpperCase()
-                                                      : '-',
+                                        Container(width: titleColWidth),
+                                        ...headers.map(
+                                          (header) => Container(
+                                            width: featureColWidth,
+                                            alignment: Alignment.center,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                //todo - header page
+                                              },
+                                              child: Center(
+                                                child: Text(
+                                                  removeDashWithSpace(header),
                                                   style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      color: checkSeason(
-                                                          featureValue
-                                                              .toString())),
-                                                )
-                                              : header.toLowerCase() == "water"
-                                                  ? Row(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Expanded(
-                                                          child: SizedBox(
-                                                            width:
-                                                                getPercentageWidth(
-                                                                    80,
-                                                                    context),
-                                                            child:
-                                                                LinearProgressIndicator(
-                                                              value: (double.tryParse(
-                                                                          featureValue
-                                                                              .toString()) ??
-                                                                      0) /
-                                                                  100,
-                                                              backgroundColor:
-                                                                  kBlue.withOpacity(
-                                                                      kOpacity),
-                                                              color: kBlue
-                                                                  .withOpacity(
-                                                                      kOpacity),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 3),
-                                                        Text(
-                                                          featureValue != null
-                                                              ? '${featureValue.toString()}%'
-                                                              : '-',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize: 9),
-                                                        ),
-                                                      ],
-                                                    )
-                                                  : header.toLowerCase() ==
-                                                          "vitamin levels"
-                                                      ? Icon(
-                                                          Icons.local_florist,
-                                                          color: featureValue !=
-                                                                      null &&
-                                                                  featureValue ==
-                                                                      "High"
-                                                              ? Colors.green
-                                                              : Colors.red,
-                                                        )
-                                                      : Text(
-                                                          featureValue != null
-                                                              ? featureValue
-                                                                  .toString()
-                                                              : '-',
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
+                                                    fontWeight: FontWeight.w500,
+                                                    color: isDarkMode
+                                                        ? kPrimaryColor
+                                                        : kBlack,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                          ],
-                        );
-                      }).toList(),
+                                Divider(
+                                  height: 1,
+                                  color: kAccentLight.withOpacity(0.1),
+                                ),
+                                // Table body (rows)
+                                SizedBox(
+                                  height:
+                                      400, // or use MediaQuery to set max height
+                                  width: totalTableWidth,
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: sortedItems.length,
+                                    itemBuilder: (context, rowIndex) {
+                                      final item = sortedItems[rowIndex];
+                                      return Row(
+                                        children: [
+                                          Container(
+                                            width: checkboxColWidth,
+                                            alignment: Alignment.center,
+                                            child: Theme(
+                                              data: Theme.of(context).copyWith(
+                                                unselectedWidgetColor:
+                                                    isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black,
+                                              ),
+                                              child: Checkbox(
+                                                value: _selectedIngredients
+                                                    .contains(item.title),
+                                                onChanged: (_) =>
+                                                    _toggleSelection(
+                                                        item.title),
+                                                activeColor: kAccent,
+                                                checkColor: isDarkMode
+                                                    ? kWhite
+                                                    : kBlack,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            width: titleColWidth,
+                                            alignment: Alignment.centerLeft,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        IngredientDetailsScreen(
+                                                      item: item,
+                                                      ingredientItems:
+                                                          widget.items,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 6, bottom: 6),
+                                                child: Text(
+                                                  capitalizeFirstLetter(
+                                                      item.title),
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          ...headers.map((header) {
+                                            final featureValue =
+                                                item.features[header];
+                                            return Container(
+                                              width: featureColWidth,
+                                              alignment: Alignment.center,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  showFeatureDialog(
+                                                      context,
+                                                      isDarkMode,
+                                                      header,
+                                                      featureValue);
+                                                },
+                                                child: Center(
+                                                  child: header.toLowerCase() ==
+                                                          "rainbow"
+                                                      ? CircleAvatar(
+                                                          radius: 10,
+                                                          backgroundColor:
+                                                              checkRainbowGroup(
+                                                                  featureValue
+                                                                      .toString()),
+                                                        )
+                                                      : header.toLowerCase() ==
+                                                              "season"
+                                                          ? Text(
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              featureValue !=
+                                                                      null
+                                                                  ? featureValue
+                                                                      .toString()
+                                                                      .toUpperCase()
+                                                                  : '-',
+                                                              style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                  color: checkSeason(
+                                                                      featureValue
+                                                                          .toString())),
+                                                            )
+                                                          : header.toLowerCase() ==
+                                                                  "water"
+                                                              ? Row(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .center,
+                                                                  children: [
+                                                                    Expanded(
+                                                                      child:
+                                                                          SizedBox(
+                                                                        width: getPercentageWidth(
+                                                                            80,
+                                                                            context),
+                                                                        child:
+                                                                            LinearProgressIndicator(
+                                                                          value:
+                                                                              (double.tryParse(featureValue.toString()) ?? 0) / 100,
+                                                                          backgroundColor:
+                                                                              kBlue.withOpacity(kOpacity),
+                                                                          color:
+                                                                              kBlueLight.withOpacity(kOpacity),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                        width:
+                                                                            3),
+                                                                    Text(
+                                                                      featureValue !=
+                                                                              null
+                                                                          ? '${featureValue.toString()}'
+                                                                          : '-',
+                                                                      style: const TextStyle(
+                                                                          fontSize:
+                                                                              10),
+                                                                    ),
+                                                                  ],
+                                                                )
+                                                              : Text(
+                                                                  featureValue !=
+                                                                          null
+                                                                      ? capitalizeFirstLetter(
+                                                                              featureValue)
+                                                                          .toString()
+                                                                      : '-',
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ],
                 ),

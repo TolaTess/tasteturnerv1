@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../widgets/icon_widget.dart';
@@ -427,7 +428,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
                           gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             mainAxisSpacing: 5,
                             crossAxisSpacing: 15,
@@ -540,52 +541,6 @@ class TopFeatures extends StatelessWidget {
   final Map<String, dynamic> dataSrc;
   final bool isTechniqie;
 
-  String _getFeatureDescription(String key, dynamic value) {
-    switch (key.toLowerCase()) {
-      case 'season':
-        return 'Best harvested and consumed during $value season.\nThis is when the ingredient is at its peak freshness and flavor.';
-      case 'water':
-        return 'Contains $value water content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
-      case 'rainbow':
-        return 'Natural color: $value\nColor indicates presence of different phytonutrients and antioxidants.';
-      case 'fiber':
-        return 'Contains $value fiber content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
-      case 'g_i':
-        return 'Glycemic Index: $value\nGlycemic index measures how quickly a food raises blood sugar levels.';
-      case 'freezer':
-        return 'Store in freezer for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
-      case 'fridge':
-        return 'Store in refrigerator for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
-      case 'countertop':
-        return 'Store at room temperature for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
-      default:
-        return '$key: $value';
-    }
-  }
-
-  String _getFeatureIcon(String key) {
-    switch (key.toLowerCase()) {
-      case 'season':
-        return '🌱';
-      case 'water':
-        return '💧';
-      case 'rainbow':
-        return '🎨';
-      case 'fiber':
-        return '⚖️';
-      case 'g_i':
-        return '🍬';
-      case 'freezer':
-        return '🧊';
-      case 'fridge':
-        return '❄️';
-      case 'countertop':
-        return '🍽️';
-      default:
-        return '📌';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final entry = dataSrc.entries.first;
@@ -609,50 +564,7 @@ class TopFeatures extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-              title: Row(
-                children: [
-                  Text(
-                    _getFeatureIcon(entry.key),
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    entry.key.toUpperCase(),
-                    style: const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                _getFeatureDescription(entry.key, entry.value),
-                style: TextStyle(
-                  height: 1.5,
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(color: kAccent),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+        showFeatureDialog(context, isDarkMode, entry.key, entry.value);
       },
       child: entry.value.toString().toLowerCase() == 'na' ||
               entry.value.toString().toLowerCase() == 'all'
@@ -668,7 +580,7 @@ class TopFeatures extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _getFeatureIcon(entry.key),
+                    getFeatureIcon(entry.key),
                     style: const TextStyle(
                       fontSize: 16,
                     ),

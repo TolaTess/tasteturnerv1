@@ -462,3 +462,96 @@ Widget showPremiumDialog(
     ],
   );
 }
+
+String getFeatureDescription(String key, dynamic value) {
+  switch (key.toLowerCase()) {
+    case 'season':
+      return 'Best harvested and consumed during $value season.\nThis is when the ingredient is at its peak freshness and flavor.';
+    case 'water':
+      return 'Contains $value water content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
+    case 'rainbow':
+      return 'Natural color: $value\nColor indicates presence of different phytonutrients and antioxidants.';
+    case 'fiber':
+      return 'Contains $value fiber content in 100g.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
+    case 'g_i':
+      return 'Glycemic Index: $value\nGlycemic index measures how quickly a food raises blood sugar levels.';
+    case 'freezer':
+      return 'Store in freezer for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
+    case 'fridge':
+      return 'Store in refrigerator for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
+    case 'countertop':
+      return 'Store at room temperature for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
+    default:
+      return '$key: $value';
+  }
+}
+
+String getFeatureIcon(String key) {
+  switch (key.toLowerCase()) {
+    case 'season':
+      return '🌱';
+    case 'water':
+      return '💧';
+    case 'rainbow':
+      return '🎨';
+    case 'fiber':
+      return '⚖️';
+    case 'g_i':
+      return '🍬';
+    case 'freezer':
+      return '🧊';
+    case 'fridge':
+      return '❄️';
+    case 'countertop':
+      return '🍽️';
+    default:
+      return '📌';
+  }
+}
+
+Future<void> showFeatureDialog(BuildContext context, bool isDarkMode, String key, String value) async {
+  await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+              title: Row(
+                children: [
+                  Text(
+                    getFeatureIcon(key),
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    key.toUpperCase(),
+                    style: const TextStyle(
+                      color: kAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                getFeatureDescription(key, value),
+                style: TextStyle(
+                  height: 1.5,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(color: kAccent),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+}
