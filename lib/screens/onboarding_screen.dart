@@ -188,7 +188,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           SetOptions(merge: true),
         );
 
-        await prefs.setString('buddyChatId', buddyChatId);
+        userService.setBuddyChatId(buddyChatId);
 
         final formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
 

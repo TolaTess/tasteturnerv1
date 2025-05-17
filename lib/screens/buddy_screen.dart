@@ -80,6 +80,9 @@ class _TastyScreenState extends State<TastyScreen> {
   /// Save message to Firestore under chatId/messages
   Future<void> _saveMessageToFirestore(String content, String senderId,
       {List<String>? imageUrls}) async {
+    if (_welcomeMessages.contains(content)) {
+      senderId = 'systemMessage';
+    }
     final messageRef =
         firestore.collection('chats').doc(chatId).collection('messages').doc();
 
@@ -350,49 +353,54 @@ class _TastyScreenState extends State<TastyScreen> {
   }
 
   Widget _buildInputSection(bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      child: Row(
-        children: [
-          Expanded(
-            child: SafeTextFormField(
-              controller: textController,
-              enabled: _canUserSendMessage(),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: isDarkMode ? kLightGrey : kWhite,
-                enabledBorder: outlineInputBorder(20),
-                focusedBorder: outlineInputBorder(20),
-                border: outlineInputBorder(20),
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                hintText: _getInputHintText(),
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        child: Row(
+          children: [
+            Expanded(
+              child: SafeTextFormField(
+                controller: textController,
+                enabled: _canUserSendMessage(),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDarkMode ? kLightGrey : kWhite,
+                  enabledBorder: outlineInputBorder(20),
+                  focusedBorder: outlineInputBorder(20),
+                  border: outlineInputBorder(20),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  hintText: _getInputHintText(),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Obx(() {
-            final canSend = _canUserSendMessage();
-            return InkWell(
-              onTap: canSend
-                  ? () async {
-                      final messageText = textController.text.trim();
-                      if (messageText.isNotEmpty) {
-                        await _sendMessageToGemini(messageText);
-                        textController.clear();
+            const SizedBox(width: 8),
+            Obx(() {
+              final canSend = _canUserSendMessage();
+              return InkWell(
+                onTap: canSend
+                    ? () async {
+                        final messageText = textController.text.trim();
+                        if (messageText.isNotEmpty) {
+                          await _sendMessageToGemini(messageText);
+                          textController.clear();
+                        }
                       }
-                    }
-                  : null,
-              child: IconCircleButton(
-                icon: Icons.send,
-                h: 40,
-                w: 40,
-                colorL: canSend ? kAccent : kLightGrey,
-                colorD: canSend ? kAccent : kLightGrey,
-              ),
-            );
-          }),
-        ],
+                    : null,
+                child: IconCircleButton(
+                  icon: Icons.send,
+                  h: 40,
+                  w: 40,
+                  colorL: canSend ? kAccent : kLightGrey,
+                  colorD: canSend ? kAccent : kLightGrey,
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -414,6 +422,8 @@ class _TastyScreenState extends State<TastyScreen> {
 
   // Helper method to get user context
   Map<String, dynamic> _getUserContext() {
+    print(
+        'userService.currentUser?.toMap(): ${userService.currentUser?.toMap()}');
     return {
       'displayName': userService.currentUser?.displayName ?? 'there',
       'fitnessGoal':
@@ -455,7 +465,7 @@ Greet the user warmly and offer guidance based on:
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
-    if (chatId == null || (!isPremium && !isInFreeTrial)) return;
+    if (chatId == null || !(isPremium || isInFreeTrial)) return;
 
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
@@ -498,7 +508,6 @@ Greet the user warmly and offer guidance based on:
             messageId: '',
           ));
         });
-        print('onmessagesend');
         _onNewMessage();
         await _saveMessageToFirestore(aiResponse, 'buddy');
 
@@ -544,9 +553,9 @@ Greet the user warmly and offer guidance based on:
       await _saveMessageToFirestore(userInput, currentUserId);
 
       // Check if we should get AI response
-      if (messages.length > 1 &&
-          messages[messages.length - 1].senderId == currentUserId &&
-          messages[messages.length - 2].senderId == 'buddy') {
+      if (messages.isNotEmpty &&
+          (messages.last.senderId == 'systemMessage' ||
+              messages.last.senderId == 'buddy')) {
         print('Skipping AI response - last message was from buddy');
         return;
       }
@@ -559,13 +568,14 @@ Greet the user warmly and offer guidance based on:
       try {
         String response;
         if (!isSystemMessage &&
-            messages.length > 1 &&
-            messages[messages.length - 1].senderId == currentUserId &&
-            messages[messages.length - 2].senderId == 'buddy') {
+            messages.isNotEmpty &&
+            messages.last.senderId == 'systemMessage') {
           // If this is a follow-up question from the user
           response =
               "Is there anything else you'd like to know about what we just discussed? I'm here to help!";
         } else {
+          final username = userService.currentUser?.displayName;
+          userInput = "${userInput}, user name is ${username ?? ''}".trim();
           response = await geminiService.getResponse(
             userInput,
             512,
@@ -595,12 +605,25 @@ Greet the user warmly and offer guidance based on:
           'Failed to get AI response. Please try again.',
           context,
         );
+        // Add a fallback AI message so the user can type again
+        setState(() {
+          messages.add(ChatScreenData(
+            messageContent: "Sorry, I couldn't respond. Please try again.",
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          ));
+        });
+        _onNewMessage();
+        await _saveMessageToFirestore(
+            "Sorry, I couldn't respond. Please try again.", 'buddy');
       }
     }
   }
 
   Future<void> _initializeChatWithBuddy() async {
-    if (!isPremium || !isInFreeTrial) return;
+    if (!(isPremium || isInFreeTrial)) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
       // Existing chat - just listen to messages and mark as read
@@ -626,7 +649,7 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _sendWelcomeMessage() async {
-    if (!isPremium || !isInFreeTrial || chatId == null) return;
+    if (!(isPremium || isInFreeTrial) || chatId == null) return;
 
     try {
       final randomMessage = _welcomeMessages[
@@ -643,7 +666,9 @@ Greet the user warmly and offer guidance based on:
       });
       _onNewMessage();
 
-      await _saveMessageToFirestore(randomMessage, 'buddy');
+      // Only save to Firestore if not a welcome message
+      // (But here, this is always a welcome message, so skip saving)
+      // await _saveMessageToFirestore(randomMessage, 'buddy');
     } catch (e) {
       print("Error sending welcome message: $e");
     }
