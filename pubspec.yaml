@@ -67,6 +67,8 @@ dependencies:
   firebase_storage: ^12.3.5
   sign_in_with_apple: ^7.0.0  # Updated to latest version
   firebase_analytics: ^11.0.0
+  user_messaging_platform: ^1.1.0
+  google_mobile_ads: ^5.0.0
 
 
 

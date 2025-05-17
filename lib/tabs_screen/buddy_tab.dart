@@ -4,12 +4,12 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../service/meal_manager.dart';
+import '../widgets/premium_widget.dart';
 import '../widgets/secondary_button.dart';
 
 class BuddyTab extends StatefulWidget {
@@ -182,6 +182,8 @@ class _BuddyTabState extends State<BuddyTab> {
   }
 
   Widget _buildDefaultView(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
     String tastyMessage = "It's $appNameBuddy Time!";
     String tastyMessage2 =
         "Let's craft a perfect meal plan for a healthier you.";
@@ -205,11 +207,33 @@ class _BuddyTabState extends State<BuddyTab> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // ------------------------------------Premium / Ads------------------------------------
               SizedBox(
-                height: getPercentageHeight(8, context),
+                height: getPercentageHeight(2, context),
               ),
+              userService.currentUser?.isPremium ?? false
+                  ? const SizedBox.shrink()
+                  : PremiumSection(
+                      isPremium: userService.currentUser?.isPremium ?? false,
+                      titleOne: joinChallenges,
+                      titleTwo: premium,
+                      isDiv: false,
+                    ),
+
+              userService.currentUser?.isPremium ?? false
+                  ? const SizedBox.shrink()
+                  : const SizedBox(height: 10),
+
+              // ------------------------------------Premium / Ads-------------------------------------
+              userService.currentUser?.isPremium ?? false
+                  ? const SizedBox.shrink()
+                  : const SizedBox(height: 5),
+              SizedBox(
+                height: getPercentageHeight(2, context),
+              ),
+
               TweenAnimationBuilder(
-                tween: Tween<double>(begin: 0.8, end: 1.2),
+                tween: Tween<double>(begin: 0.8, end: userService.currentUser?.isPremium ?? false ? 1.2: 1.0),
                 duration: const Duration(seconds: 2),
                 curve: Curves.easeInOut,
                 builder: (context, double scale, child) {
@@ -219,8 +243,8 @@ class _BuddyTabState extends State<BuddyTab> {
                   );
                 },
                 child: Container(
-                  width: 170,
-                  height: 170,
+                  width: userService.currentUser?.isPremium ?? false ? 170 : 120,
+                  height: userService.currentUser?.isPremium ?? false ? 170 : 120,
                   decoration: const BoxDecoration(
                     color: kAccentLight,
                     shape: BoxShape.circle,
@@ -232,7 +256,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 ),
               ),
               SizedBox(
-                height: getPercentageHeight(5, context),
+                height: getPercentageHeight(3, context),
               ),
               Text(
                 isPremium ? tastyMessage : tastyMessage1,

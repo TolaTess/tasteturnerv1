@@ -24,6 +24,7 @@ import 'themes/theme_provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +89,8 @@ void main() async {
       ),
     ],
   );
+
+  await MobileAds.instance.initialize();
 
   runApp(
     MultiProvider(

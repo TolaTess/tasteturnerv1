@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:user_messaging_platform/user_messaging_platform.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
@@ -13,6 +14,7 @@ import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final String userId;
@@ -193,6 +195,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         // Only navigate if all the above operations succeeded
         Get.offAll(() => const BottomNavSec());
+
+        // Request UMP consent
+        await requestUMPConsent();
       } catch (e) {
         // Close loading dialog
         Get.back();
@@ -370,6 +375,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         'title': 'Spin the Wheel',
         'description': 'Discover exciting new recipes and meal ideas',
         'icon': Icons.refresh
+      },
+      {
+        'title': 'Plan in Advance',
+        'description':
+            'Add your special days and share them with your friends and family',
+        'icon': Icons.calendar_month
       },
       {
         'title': 'Chat with Tasty',
@@ -740,7 +751,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               border: outlineInputBorder(10),
               labelStyle: const TextStyle(color: Color(0xffefefef)),
               hintStyle: const TextStyle(color: kLightGrey),
-              hintText: "Enter your height",
+              hintText: "Enter your weight",
               floatingLabelBehavior: FloatingLabelBehavior.always,
               contentPadding: const EdgeInsets.only(
                 top: 10,
@@ -824,6 +835,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> requestUMPConsent() async {
+    final info =
+        await UserMessagingPlatform.instance.requestConsentInfoUpdate();
+
+    // Show the consent form if consent is required
+    if (info.consentStatus == ConsentStatus.required) {
+      final updatedInfo =
+          await UserMessagingPlatform.instance.showConsentForm();
+      await _setFirebaseConsent(updatedInfo);
+    } else {
+      await _setFirebaseConsent(info);
+    }
+  }
+
+  Future<void> _setFirebaseConsent(ConsentInformation info) async {
+    // You may need to check the actual consent status for your use case
+    final granted = info.consentStatus == ConsentStatus.obtained;
+    await FirebaseAnalytics.instance.setConsent(
+      adStorageConsentGranted: granted,
+      analyticsStorageConsentGranted: granted,
     );
   }
 }

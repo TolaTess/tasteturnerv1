@@ -28,11 +28,43 @@ class _VoteScreenState extends State<VoteScreen> {
   int? selectedIndex;
   late String currentCategory;
   String selectedCategoryId = '';
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
 
   @override
   void initState() {
     super.initState();
+
+    // Ensure battleDetails is a String
+    final battleDetailsRaw = firebaseService.generalData['battleDetails'];
+    final String battleDetails = battleDetailsRaw is String
+        ? battleDetailsRaw
+        : (battleDetailsRaw?.toString() ?? '');
+    final splitBattleDetails = battleDetails
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final generalCategory = {
+      'id': 'general',
+      'name': 'General',
+      'category': 'General'
+    };
+
+    _categoryDatasIngredient = splitBattleDetails
+        .map((detail) => {
+              'id': detail.toLowerCase(),
+              'name': capitalizeFirstLetter(detail),
+              'category': capitalizeFirstLetter(detail),
+            })
+        .toList();
+
+    if (_categoryDatasIngredient.isEmpty ||
+        _categoryDatasIngredient.first['id'] != 'general') {
+      _categoryDatasIngredient.insert(0, generalCategory);
+    }
     currentCategory = widget.category;
+
     _fetchCandidates(currentCategory);
   }
 
@@ -259,7 +291,6 @@ class _VoteScreenState extends State<VoteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categoryDatas = helperController.category;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final dateInPast = DateTime.now()
         .isAfter(DateTime.parse(firebaseService.generalData['currentBattle']));
@@ -289,7 +320,7 @@ class _VoteScreenState extends State<VoteScreen> {
             children: [
               const SizedBox(height: 10),
               CategorySelector(
-                categories: categoryDatas,
+                categories: _categoryDatasIngredient,
                 selectedCategoryId: selectedCategoryId,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,

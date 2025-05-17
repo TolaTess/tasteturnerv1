@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/premium_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-class PremiumSection extends StatelessWidget {
-  final bool isPremium, isDiv, isPost;
+class PremiumSection extends StatefulWidget {
+  final bool isPremium, isDiv;
 
   final String titleOne;
   final String titleTwo;
@@ -15,17 +16,43 @@ class PremiumSection extends StatelessWidget {
     this.isDiv = false,
     this.titleOne = joinChallenges,
     this.titleTwo = premium,
-    this.isPost = false,
   });
+
+  @override
+  State<PremiumSection> createState() => _PremiumSectionState();
+}
+
+class _PremiumSectionState extends State<PremiumSection> {
+  late BannerAd _bannerAd;
+
+  //test ios - ca-app-pub-3940256099942544/2435281174
+  //test android - ca-app-pub-3940256099942544/9214589741
+
+  @override
+  void initState() {
+    super.initState();
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/2435281174',
+      size: AdSize.banner,
+      request: AdRequest(),
+      listener: BannerAdListener(),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    if (isPremium) return const SizedBox.shrink();
+    if (widget.isPremium) return const SizedBox.shrink();
 
     return Column(
       children: [
-        isDiv
+        widget.isDiv
             ? Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 5,
@@ -41,18 +68,16 @@ class PremiumSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Container(
-            width: isPost
-                  ? 40
-                : double.infinity, 
-            height: isPost ? 40 : null, 
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            width: double.infinity,
+            height: null,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: kLightGrey.withOpacity(0.7),
+              color: kAccentLight.withOpacity(0.7),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
                   color: isDarkMode
-                      ? kLightGrey.withOpacity(0.4)
+                      ? kAccentLight.withOpacity(0.4)
                       : kDarkGrey.withOpacity(0.2),
                   spreadRadius: 0.6,
                   blurRadius: 8,
@@ -68,45 +93,16 @@ class PremiumSection extends StatelessWidget {
                   ),
                 );
               },
-              child: isPost
-                  ? _buildSquareLayout()
-                  : _buildRowLayout(),
+              child: _buildRowLayout(),
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  /// ✅ Square Layout for Posts
-  Widget _buildSquareLayout() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          titleOne,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: kWhite.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            titleTwo,
-            style: const TextStyle(
-              fontWeight: FontWeight.w400,
-              fontSize: 14,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: SizedBox(
+            width: _bannerAd.size.width.toDouble(),
+            height: _bannerAd.size.height.toDouble(),
+            child: AdWidget(ad: _bannerAd),
           ),
         ),
       ],
@@ -116,33 +112,29 @@ class PremiumSection extends StatelessWidget {
   /// ✅ Original Row Layout
   Widget _buildRowLayout() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         Text(
-          titleOne,
+          widget.titleOne,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 16,
+            fontSize: 12,
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: kWhite.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            titleTwo,
-            style: const TextStyle(
-              fontWeight: FontWeight.w400,
-              fontSize: 14,
-            ),
+        Text(
+          widget.titleTwo,
+          style: const TextStyle(
+            fontWeight: FontWeight.w400,
+            fontSize: 12,
           ),
         ),
       ],
     );
   }
 }
+
+//android - ca-app-pub-5248381217574361~5625594673
+//banner - ca-app-pub-5248381217574361/7370755334
+
+//ios - ca-app-pub-5248381217574361~2048493509
+//banner - ca-app-pub-5248381217574361/1819353243

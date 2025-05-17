@@ -10,6 +10,7 @@ import '../screens/profile_screen.dart';
 import '../pages/upload_battle.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
+import '../widgets/premium_widget.dart';
 import '../widgets/secondary_button.dart';
 import '../widgets/category_selector.dart';
 
@@ -562,6 +563,23 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
+                       userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : const SizedBox(height: 5),
+
+                // ------------------------------------Premium / Ads------------------------------------
+
+                userService.currentUser?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : PremiumSection(
+                        isPremium: userService.currentUser?.isPremium ?? false,
+                        titleOne: joinChallenges,
+                        titleTwo: premium,
+                        isDiv: false,
+                      ),
+
+               
+                // ------------------------------------Premium / Ads-------------------------------------
 
                 Padding(
                   padding: const EdgeInsets.only(left: 15.0, right: 5.0),
