@@ -486,7 +486,7 @@ class VoteItemCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(height: isLarge ? 16 : 8),
+                      SizedBox(height: isLarge ? 16 : 4),
                       Text(
                         '${votePercentage.toStringAsFixed(1)}%',
                         style: TextStyle(
@@ -495,7 +495,7 @@ class VoteItemCard extends StatelessWidget {
                           color: isDarkMode ? kWhite : kBlack,
                         ),
                       ),
-                      SizedBox(height: isLarge ? 16 : 8),
+                      SizedBox(height: isLarge ? 16 : 4),
                       Container(
                         height: isLarge ? 120 : 60,
                         width: isLarge ? 120 : 60,
@@ -524,7 +524,7 @@ class VoteItemCard extends StatelessWidget {
                                 ),
                         ),
                       ),
-                      SizedBox(height: isLarge ? 16 : 8),
+                      SizedBox(height: isLarge ? 16 : 4),
                       Flexible(
                         child: Padding(
                           padding:
@@ -542,7 +542,7 @@ class VoteItemCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(height: isLarge ? 16 : 8),
+                      SizedBox(height: isLarge ? 16 : 4),
                     ],
                   ),
                 ],

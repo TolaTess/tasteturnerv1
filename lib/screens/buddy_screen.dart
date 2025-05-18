@@ -424,9 +424,7 @@ class _TastyScreenState extends State<TastyScreen> {
 
   // Helper method to get user context
   Map<String, dynamic> _getUserContext() {
-    print(
-        'userService.currentUser?.toMap(): ${userService.currentUser?.toMap()}');
-    return {
+  return {
       'displayName': userService.currentUser?.displayName ?? 'there',
       'fitnessGoal':
           userService.currentUser?.settings['fitnessGoal'] ?? 'General Fitness',

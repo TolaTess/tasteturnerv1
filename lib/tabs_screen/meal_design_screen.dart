@@ -18,6 +18,7 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../widgets/premium_widget.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
@@ -51,7 +52,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   final CalendarSharingService calendarSharingService =
       CalendarSharingService();
   Map<DateTime, List<String>> birthdays = {};
-  final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _toggleCalendarButtonKey = GlobalKey();
   final GlobalKey _sharedCalendarButtonKey = GlobalKey();
 
@@ -89,13 +89,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           targetKey: _sharedCalendarButtonKey,
           autoCloseDuration: const Duration(seconds: 5),
           arrowDirection: ArrowDirection.UP,
-        ),
-        TutorialStep(
-          tutorialId: 'add_meal_button',
-          message: 'Tap to edit or add your meal!',
-          targetKey: _addMealButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.DOWN,
         ),
       ],
     );
@@ -674,7 +667,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                       ),
                                       if (hasSpecialMeal)
                                         Positioned(
-                                          key: _addMealButtonKey,
                                           right: 2,
                                           top: 2,
                                           child: Icon(
@@ -727,6 +719,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ],
             ),
           ),
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : const SizedBox(height: 10),
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : PremiumSection(
+                  isPremium: userService.currentUser?.isPremium ?? false,
+                  titleOne: joinChallenges,
+                  titleTwo: premium,
+                  isDiv: false,
+                ),
+          userService.currentUser?.isPremium ?? false
+              ? const SizedBox.shrink()
+              : const SizedBox(height: 5),
+
+          // ------------------------------------Premium / Ads-------------------------------------
 
           // Meals List Section
           _buildMealsList(),
@@ -908,6 +916,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildMealsRow(
       List<Meal> meals, String birthdayName, bool isDarkMode) {
+    final normalizedDate =
+        DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    if (dayTypes[normalizedDate] == null) {
+      setState(() {
+        selectedDate = DateTime.now();
+      });
+    }
     if (meals.isEmpty) {
       return Center(
         child: Column(
@@ -918,9 +933,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ],
             const SizedBox(height: 40),
             Text(
-              getRelativeDayString(selectedDate) == 'Today' ||
-                      getRelativeDayString(selectedDate) == 'Tomorrow'
-                  ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+              getRelativeDayString(normalizedDate) == 'Today' ||
+                      getRelativeDayString(normalizedDate) == 'Tomorrow'
+                  ? 'No meals planned for ${getRelativeDayString(normalizedDate)}'
                   : 'No meals planned for this day',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -931,10 +946,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             const SizedBox(width: 10),
             Text(
               textAlign: TextAlign.center,
-              'Enjoy your ${capitalizeFirstLetter(dayTypes[selectedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
+              'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
               style: TextStyle(
                 color: _getDayTypeColor(
-                    dayTypes[selectedDate]?.replaceAll('_', ' ') ??
+                    dayTypes[normalizedDate]?.replaceAll('_', ' ') ??
                         'regular_day',
                     isDarkMode),
                 fontSize: 16,
@@ -984,10 +999,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               aspectRatio: 1,
                               child: ClipOval(
                                 child: meal.mediaPaths.isNotEmpty
-                                    ? Image.network(
-                                        meal.mediaPaths.first.startsWith('http')
-                                            ? meal.mediaPaths.first
-                                            : extPlaceholderImage,
+                                    ? Image.asset(
+                                        getAssetImageForItem(
+                                            meal.mediaPaths.first),
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) =>

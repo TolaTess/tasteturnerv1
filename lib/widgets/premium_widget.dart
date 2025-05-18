@@ -66,7 +66,7 @@ class _PremiumSectionState extends State<PremiumSection> {
 
         /// ✅ Wrap in a Container with Conditional Dimensions
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Container(
             width: double.infinity,
             height: null,
@@ -98,7 +98,7 @@ class _PremiumSectionState extends State<PremiumSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          padding: const EdgeInsets.only(top: 4.0),
           child: SizedBox(
             width: _bannerAd.size.width.toDouble(),
             height: _bannerAd.size.height.toDouble(),
@@ -132,6 +132,8 @@ class _PremiumSectionState extends State<PremiumSection> {
     );
   }
 }
+
+//prod
 
 //android - ca-app-pub-5248381217574361~5625594673
 //banner - ca-app-pub-5248381217574361/7370755334

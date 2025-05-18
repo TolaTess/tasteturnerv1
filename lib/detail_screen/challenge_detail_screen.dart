@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/friend_screen.dart';
+import '../screens/user_profile_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/icon_widget.dart';
@@ -95,12 +97,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       setState(() {
         if (likes.contains(userService.userId)) {
           likes.remove(userService.userId ?? '');
-        isLiked = false;
-        likesCount--;
-      } else {
-        likes.add(userService.userId ?? '');
-        isLiked = true;
-        likesCount++;
+          isLiked = false;
+          likesCount--;
+        } else {
+          likes.add(userService.userId ?? '');
+          isLiked = true;
+          likesCount++;
         }
       });
     }
@@ -125,7 +127,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     if (widget.screen == 'battle_post') {
       return widget.dataSrc['name']?.toString().isNotEmpty == true
           ? widget.dataSrc['name'].toString()
-          : 'Food Battle';
+          : 'Food Battle ${widget.dataSrc['category']?.toString().isNotEmpty == true ? ' - ${widget.dataSrc['category'].toString()}' : ''}';
     } else if (widget.screen == 'myPost') {
       if (widget.dataSrc['name']?.toString().isNotEmpty != true) {
         return 'My Post';
@@ -142,12 +144,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('build');
-    print(widget.dataSrc['id']);
-    print(widget.dataSrc['isBattle']);
-    print(widget.dataSrc['battleId']);
-
-
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
@@ -283,6 +279,27 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const SizedBox(width: 36),
+                            // User Profile
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => UserProfileScreen(
+                                    userId: widget.dataSrc['userId'] ??
+                                        extractedItems.first,
+                                  ),
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 13,
+                                backgroundColor: kAccent.withOpacity(kOpacity),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: kWhite,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 36),
 
                             // Share Icon (Optional - Add functionality if needed)
                             GestureDetector(
@@ -324,7 +341,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                               onTap: toggleFollow,
                               child: Icon(
                                 isFollowing
-                                    ? Icons.person
+                                    ? Icons.people
                                     : Icons.person_add_alt_1_outlined,
                                 color: isFollowing ? kAccentLight : null,
                               ),
@@ -348,9 +365,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       title: Text(
                                         'Delete Post',
                                         style: TextStyle(
-                                          color: isDarkMode
-                                              ? kWhite
-                                              : kBlack,
+                                          color: isDarkMode ? kWhite : kBlack,
                                           fontWeight: FontWeight.w400,
                                           fontSize: 18,
                                         ),
@@ -358,9 +373,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       content: Text(
                                           'Are you sure you want to delete this post?',
                                           style: TextStyle(
-                                            color: isDarkMode
-                                                ? kWhite
-                                                : kBlack,
+                                            color: isDarkMode ? kWhite : kBlack,
                                           )),
                                       actions: [
                                         TextButton(
@@ -371,7 +384,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                             style: const TextStyle(
                                               color: kAccent,
                                               fontWeight: FontWeight.w400,
-                                      
                                             ),
                                           ),
                                         ),
@@ -383,7 +395,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                             style: TextStyle(
                                               color: Colors.red,
                                               fontWeight: FontWeight.w400,
-
                                             ),
                                           ),
                                         ),
@@ -395,8 +406,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       postId: widget.dataSrc['id'] ??
                                           extractedItems.first,
                                       userId: userService.userId ?? '',
-                                      isBattle: widget.dataSrc['isBattle'] ?? false,
-                                      battleId: widget.dataSrc['battleId'] ?? '',
+                                      isBattle:
+                                          widget.dataSrc['isBattle'] ?? false,
+                                      battleId:
+                                          widget.dataSrc['battleId'] ?? '',
                                     );
                                     if (context.mounted) {
                                       Get.to(() => const BottomNavSec(
@@ -408,10 +421,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 child:
                                     const Icon(Icons.delete, color: Colors.red),
                               ),
-                               if ((widget.dataSrc['userId'] ??
+                            if ((widget.dataSrc['userId'] ??
                                     extractedItems.first) ==
                                 userService.userId)
-                               const SizedBox(width: 36),
+                              const SizedBox(width: 36),
                           ],
                         ),
                       ),
