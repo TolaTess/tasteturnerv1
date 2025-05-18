@@ -613,10 +613,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                   birthdays.containsKey(normalizedDate);
                               final isUserBirthday =
                                   _isUserBirthday(normalizedDate);
+                              final dayType =
+                                  dayTypes[normalizedDate] ?? 'regular_day';
 
                               return GestureDetector(
-                                onTap:
-                                    isPastDate ? null : () => _selectDate(date),
+                                onTap: () {
+                                  if (hasSpecialMeal) {
+                                    if (isPastDate) {
+                                      _showSpecialDayDetails(
+                                          context, normalizedDate, dayType);
+                                    } else {
+                                      _selectDate(date);
+                                    }
+                                  } else if (!isPastDate) {
+                                    _selectDate(date);
+                                  }
+                                },
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: hasSpecialMeal
@@ -745,6 +757,27 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   void _shareCalendar() async {
+    // Check if user is premium or has free share left
+    final userDoc =
+        await firestore.collection('users').doc(userService.userId).get();
+    final isPremium = userService.currentUser?.isPremium ?? false;
+    int calendarShares = 0;
+    if (userDoc.exists) {
+      final data = userDoc.data() as Map<String, dynamic>;
+      calendarShares = (data['calendarShares'] ?? 0) as int;
+    }
+    if (!isPremium && calendarShares >= 1) {
+      // Show upgrade dialog
+      showDialog(
+        context: context,
+        builder: (context) => showPremiumDialog(
+            context,
+            getThemeProvider(context).isDarkMode,
+            'Premium Feature',
+            'Already used 1 free shared Calender, please upgrade to premium to share more calenders with friends!'),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -1483,6 +1516,40 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _showSpecialDayDetails(
+      BuildContext context, DateTime date, String dayType) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor:
+            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(
+          'Special Day',
+          style: TextStyle(
+              color: getThemeProvider(context).isDarkMode ? kWhite : kBlack),
+        ),
+        content: Text(
+          dayType == 'welcome_day'
+              ? 'This was your Welcome Day!'
+              : 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.',
+          style: TextStyle(
+              color: _getDayTypeColor(dayType.replaceAll('_', ' '),
+                  getThemeProvider(context).isDarkMode)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: kAccent),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

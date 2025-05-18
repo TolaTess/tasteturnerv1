@@ -222,8 +222,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           child: Text(
                             textAlign: TextAlign.center,
                             'SAVE ${((1 - yearlyPerMonth / monthlyPerMonth) * 100).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              fontSize: 12,
+                            style: TextStyle(
+                              fontSize: getPercentageHeight(1.2, context),
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
