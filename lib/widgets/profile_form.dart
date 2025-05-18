@@ -87,7 +87,7 @@ class EditProfileForm extends StatelessWidget {
               border: outlineInputBorder(20),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           // Save Button
           Row(
@@ -99,6 +99,7 @@ class EditProfileForm extends StatelessWidget {
                       ? "Premium Access"
                       : "Go Premium",
                   type: AppButtonType.follow,
+                  width: userService.currentUser?.isPremium == true ? 44 : 40,
                   onPressed: () {
                     if (userService.currentUser?.isPremium == true) {
                       // Do nothing if already premium
@@ -117,6 +118,8 @@ class EditProfileForm extends StatelessWidget {
                   child: AppButton(
                       text: "Save",
                       onPressed: press,
+                      width:
+                          userService.currentUser?.isPremium == true ? 44 : 40,
                       type: AppButtonType.secondary)),
             ],
           ),

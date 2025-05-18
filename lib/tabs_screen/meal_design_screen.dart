@@ -943,6 +943,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         _buildMealsRow(personalMeals, birthdayName, isDarkMode),
         if (showSharedCalendars && sharedPlans.isNotEmpty)
           _buildMealsRow(sharedPlans, birthdayName, isDarkMode),
+        const SizedBox(height: 75),
       ],
     );
   }
@@ -956,6 +957,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         selectedDate = DateTime.now();
       });
     }
+    print('dayTypes[normalizedDate]: ${dayTypes[normalizedDate]}');
     if (meals.isEmpty) {
       return Center(
         child: Column(
@@ -979,7 +981,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             const SizedBox(width: 10),
             Text(
               textAlign: TextAlign.center,
-              'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
+              dayTypes[normalizedDate] == 'welcome_day'
+                  ? 'Welcome to ${appName}!'
+                  : 'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
               style: TextStyle(
                 color: _getDayTypeColor(
                     dayTypes[normalizedDate]?.replaceAll('_', ' ') ??
@@ -1391,7 +1395,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             if (_isUserBirthday(date)) ...[
               getBirthdayTextContainer('You', false),
             ],
-            if (birthdayName.isEmpty && !_isUserBirthday(date) ) ...[
+            if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
               Icon(
                 Icons.restaurant,
                 size: 48,
@@ -1534,7 +1538,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         ),
         content: Text(
           dayType == 'welcome_day'
-              ? 'This was your Welcome Day!'
+              ? 'This was your first day with TastyTurner!'
               : 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.',
           style: TextStyle(
               color: _getDayTypeColor(dayType.replaceAll('_', ' '),

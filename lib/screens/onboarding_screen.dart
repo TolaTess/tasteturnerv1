@@ -450,14 +450,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: "What are your goals?",
       child1: Theme(
         data: ThemeData(
-          checkboxTheme: CheckboxThemeData(
+          radioTheme: RadioThemeData(
             fillColor: WidgetStateProperty.resolveWith<Color>((states) {
               if (states.contains(WidgetState.selected)) {
                 return kAccentLight;
               }
               return kWhite;
             }),
-            checkColor: WidgetStateProperty.all<Color>(kWhite),
           ),
         ),
         child: Container(
@@ -468,20 +467,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           child: Column(
             children: healthGoals.map((goal) {
-              return CheckboxListTile(
+              return RadioListTile<String>(
                 title: Text(
                   goal,
                   style: const TextStyle(color: kWhite),
                 ),
-                value: selectedGoals.contains(goal),
+                value: goal,
+                groupValue:
+                    selectedGoals.isNotEmpty ? selectedGoals.first : null,
                 onChanged: (value) {
                   setState(() {
-                    value!
-                        ? selectedGoals.add(goal)
-                        : selectedGoals.remove(goal);
+                    selectedGoals = value != null ? [value] : [];
                     _validateInputs();
                   });
                 },
+                activeColor: kAccentLight,
               );
             }).toList(),
           ),
