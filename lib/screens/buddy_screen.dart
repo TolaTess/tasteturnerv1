@@ -248,9 +248,9 @@ class _TastyScreenState extends State<TastyScreen> {
                                   },
                                   child: const IconCircleButton(),
                                 ),
-                              const CircleAvatar(
-                                backgroundColor: kAccentLight,
-                                backgroundImage: AssetImage(
+                              CircleAvatar(
+                                backgroundColor: kAccentLight.withOpacity(0.5),
+                                backgroundImage: const AssetImage(
                                   tastyImage, // Adjust the path to your tasty image
                                 ),
                                 radius: 20,

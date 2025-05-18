@@ -3,6 +3,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/form.dart';
 import '../widgets/primary_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EmailSignupScreen extends StatefulWidget {
   const EmailSignupScreen({
@@ -109,8 +110,8 @@ class _SignUpFormState extends State<SignUpForm> {
       return;
     }
 
-    authController.registerUser(context, widget.emailController.text,
-        widget.passwordController.text);
+    authController.registerUser(
+        context, widget.emailController.text, widget.passwordController.text);
   }
 
   @override
@@ -267,19 +268,25 @@ class TermsOfServiceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: const SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              "Terms of Service",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          children: [
+            Center(
+              child: Text(
+                "Terms of Service",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kAccent),
+                textAlign: TextAlign.center,
+              ),
             ),
             SizedBox(height: 20),
-            Text(
-              "Welcome to our $appName. By using this application, you agree to the following terms:",
-              style: TextStyle(fontSize: 16),
+            Center(
+              child: Text(
+                "Welcome to our $appName. \n \nBy using this application, you agree to the following terms:",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
             ),
             SizedBox(height: 16),
             Text(
@@ -300,9 +307,33 @@ class TermsOfServiceScreen extends StatelessWidget {
             Text(
                 "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes."),
             SizedBox(height: 16),
-            Text(
-              "Last updated: 2025",
-              style: TextStyle(fontStyle: FontStyle.italic),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Last updated: 2025",
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+                SizedBox(height: 16),
+                Center(
+                  child: InkWell(
+                    onTap: () async {
+                      final Uri url =
+                          Uri.parse('https://tasteturner.com/privacy');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      }
+                    },
+                    child: const Text(
+                      'View Privacy Policy',
+                      style: TextStyle(
+                        color: kAccentLight,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

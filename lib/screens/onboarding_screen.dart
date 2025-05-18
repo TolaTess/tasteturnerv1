@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:user_messaging_platform/user_messaging_platform.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
@@ -16,6 +15,7 @@ import '../pages/safe_text_field.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final String userId;
@@ -203,14 +203,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         // Only navigate if all the above operations succeeded
         Get.offAll(() => const BottomNavSec());
 
-        
-
         try {
           await requestUMPConsent();
         } catch (e) {
           print("Error requesting UMP consent: $e");
         }
-
       } catch (e) {
         // Close loading dialog
         Get.back();
@@ -852,25 +849,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> requestUMPConsent() async {
-    final info =
-        await UserMessagingPlatform.instance.requestConsentInfoUpdate();
-
-    // Show the consent form if consent is required
-    if (info.consentStatus == ConsentStatus.required) {
-      final updatedInfo =
-          await UserMessagingPlatform.instance.showConsentForm();
-      await _setFirebaseConsent(updatedInfo);
-    } else {
-      await _setFirebaseConsent(info);
-    }
+    final params = ConsentRequestParameters();
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      params,
+      () {
+        // Consent info updated successfully
+        ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+          if (formError != null) {
+            print('formError: $formError');
+            // Consent gathering failed, but you can still check if ads can be requested
+            _setFirebaseConsent();
+          } else {
+            print('formError: null');
+            // Consent has been gathered
+            _setFirebaseConsent();
+          }
+        });
+      },
+      (FormError error) {
+        // Handle the error updating consent info
+        // Optionally, you can still check if ads can be requested
+        _setFirebaseConsent();
+      },
+    );
   }
 
-  Future<void> _setFirebaseConsent(ConsentInformation info) async {
-    // You may need to check the actual consent status for your use case
-    final granted = info.consentStatus == ConsentStatus.obtained;
+  Future<void> _setFirebaseConsent() async {
+    final canRequest = await ConsentInformation.instance.canRequestAds();
+    print('canRequest: $canRequest');
     await FirebaseAnalytics.instance.setConsent(
-      adStorageConsentGranted: granted,
-      analyticsStorageConsentGranted: granted,
+      adStorageConsentGranted: canRequest,
+      analyticsStorageConsentGranted: canRequest,
     );
   }
 }

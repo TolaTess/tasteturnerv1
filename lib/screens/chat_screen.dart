@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -101,9 +102,9 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _handleCalendarShare(Map<String, dynamic> data) {
+  Future<void> _handleCalendarShare(Map<String, dynamic> data) async {
     final type = data['type'] as String;
-    print('data: $data');
+    print('type: ${userService.userId}');
 
     String date;
     String message;
@@ -117,7 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
       message = 'I\'d like to share my meal plan for $date with you.';
     }
 
-    chatController.sendMessage(
+    await chatController.sendMessage(
       messageContent: message,
       shareRequest: {
         'type': type,
@@ -128,6 +129,15 @@ class _ChatScreenState extends State<ChatScreen> {
         'header': data['header'] as String?,
       },
     );
+    // If allowed, increment share count for non-premium users
+    if (!(userService.currentUser?.isPremium ?? false)) {
+      await firestore.collection('users').doc(userService.userId).set(
+        {
+          'calendarShares': FieldValue.increment(1),
+        },
+        SetOptions(merge: true),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -445,7 +455,8 @@ class ChatItem extends StatelessWidget {
 
               // Show Friend Request if available
               if (dataSrc.friendRequest != null)
-                _buildFriendRequest(context, isDarkMode, chatId, dataSrc.messageId),
+                _buildFriendRequest(
+                    context, isDarkMode, chatId, dataSrc.messageId),
 
               const SizedBox(height: 4),
 
@@ -517,7 +528,8 @@ class ChatItem extends StatelessWidget {
                     );
                   },
                   child: const Text('Accept'),
-                  style: TextButton.styleFrom(foregroundColor: isDarkMode ? kWhite : kDarkGrey),
+                  style: TextButton.styleFrom(
+                      foregroundColor: isDarkMode ? kWhite : kDarkGrey),
                 ),
               if (status == 'accepted')
                 const Padding(

@@ -85,12 +85,12 @@ class _BottomNavSecState extends State<BottomNavSec> {
           child: Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
-              color: kAccentLight,
+            decoration: BoxDecoration(
+              color: kAccentLight.withOpacity(0.6),
               shape: BoxShape.circle,
-              image: DecorationImage(
-                image: AssetImage(tastyImage),
-                fit: BoxFit.cover,
+              image: const DecorationImage(
+                image: AssetImage(tastyImage),  
+                fit: BoxFit.cover,  
               ),
             ),
           ),

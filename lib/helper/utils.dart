@@ -527,8 +527,8 @@ Widget noItemTastyWidget(
           builder: (context, value, child) {
             return Transform.translate(
               offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
-              child: const CircleAvatar(
-                backgroundColor: kAccentLight,
+              child: CircleAvatar(
+                backgroundColor: kAccentLight.withOpacity(0.5),
                 radius: 18,
                 backgroundImage: AssetImage(tastyImage),
               ),

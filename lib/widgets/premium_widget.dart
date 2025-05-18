@@ -3,6 +3,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/premium_screen.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:io';
 
 class PremiumSection extends StatefulWidget {
   final bool isPremium, isDiv;
@@ -25,14 +26,21 @@ class PremiumSection extends StatefulWidget {
 class _PremiumSectionState extends State<PremiumSection> {
   late BannerAd _bannerAd;
 
-  //test ios - ca-app-pub-3940256099942544/2435281174
-  //test android - ca-app-pub-3940256099942544/9214589741
-
   @override
   void initState() {
     super.initState();
+    String adUnitId;
+    if (Platform.isAndroid) {
+      adUnitId =
+          'ca-app-pub-3940256099942544/9214589741'; // <-- your Android ad unit
+    } else if (Platform.isIOS) {
+      adUnitId =
+          'ca-app-pub-3940256099942544/2435281174'; // <-- your iOS ad unit
+    } else {
+      adUnitId = ''; // fallback or test id
+    }
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/2435281174',
+      adUnitId: adUnitId,
       size: AdSize.banner,
       request: AdRequest(),
       listener: BannerAdListener(),

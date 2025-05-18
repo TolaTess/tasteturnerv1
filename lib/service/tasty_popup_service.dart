@@ -276,10 +276,10 @@ class TutorialPopupService {
         children: [
           Row(
             children: [
-              const CircleAvatar(
-                backgroundColor: kAccentLight,
+              CircleAvatar(
+                backgroundColor: kAccentLight.withOpacity(0.5),
                 radius: 15,
-                backgroundImage: AssetImage(tastyImage),
+                backgroundImage: const AssetImage(tastyImage),
               ),
               const SizedBox(width: 8),
               Expanded(

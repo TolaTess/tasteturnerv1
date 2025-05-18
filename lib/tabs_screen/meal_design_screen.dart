@@ -774,7 +774,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             context,
             getThemeProvider(context).isDarkMode,
             'Premium Feature',
-            'Already used 1 free shared Calender, please upgrade to premium to share more calenders with friends!'),
+            'Please upgrade to premium to share more calenders!'),
       );
       return;
     }
@@ -1391,7 +1391,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             if (_isUserBirthday(date)) ...[
               getBirthdayTextContainer('You', false),
             ],
-            if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
+            if (birthdayName.isEmpty && !_isUserBirthday(date) ) ...[
               Icon(
                 Icons.restaurant,
                 size: 48,

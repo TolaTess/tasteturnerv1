@@ -5,7 +5,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../screens/premium_screen.dart';
-import '../themes/theme_provider.dart'; 
+import '../themes/theme_provider.dart';
 import 'primary_button.dart';
 
 class EditProfileForm extends StatelessWidget {
@@ -98,7 +98,7 @@ class EditProfileForm extends StatelessWidget {
                   text: userService.currentUser?.isPremium == true
                       ? "Premium Access"
                       : "Go Premium",
-                  type: AppButtonType.secondary,
+                  type: AppButtonType.follow,
                   onPressed: () {
                     if (userService.currentUser?.isPremium == true) {
                       // Do nothing if already premium
@@ -117,8 +117,7 @@ class EditProfileForm extends StatelessWidget {
                   child: AppButton(
                       text: "Save",
                       onPressed: press,
-                      width: 100,
-                      type: AppButtonType.primary)),
+                      type: AppButtonType.secondary)),
             ],
           ),
           const SizedBox(height: 20),

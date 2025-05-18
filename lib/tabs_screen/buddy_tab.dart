@@ -245,10 +245,10 @@ class _BuddyTabState extends State<BuddyTab> {
                 child: Container(
                   width: userService.currentUser?.isPremium ?? false ? 170 : 120,
                   height: userService.currentUser?.isPremium ?? false ? 170 : 120,
-                  decoration: const BoxDecoration(
-                    color: kAccentLight,
+                  decoration: BoxDecoration(
+                    color: kAccentLight.withOpacity(0.5)  ,  
                     shape: BoxShape.circle,
-                    image: DecorationImage(
+                    image: const DecorationImage( 
                       image: AssetImage(tastyImage),
                       fit: BoxFit.cover,
                     ),
@@ -387,9 +387,9 @@ class _BuddyTabState extends State<BuddyTab> {
                         MaterialPageRoute(
                             builder: (context) => const TastyScreen()),
                       ),
-                      child: const CircleAvatar(
-                        backgroundColor: kAccentLight,
-                        backgroundImage: AssetImage(tastyImage),
+                      child: CircleAvatar(
+                        backgroundColor: kAccentLight.withOpacity(0.5),
+                        backgroundImage: const AssetImage(tastyImage),
                         radius: 22,
                       ),
                     ),

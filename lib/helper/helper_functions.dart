@@ -38,10 +38,10 @@ Widget buildTastyFloatingActionButton({
     child: Container(
       width: 56,
       height: 56,
-      decoration: const BoxDecoration(
-        color: kAccentLight,
+      decoration: BoxDecoration(
+        color: kAccentLight.withOpacity(0.5),
         shape: BoxShape.circle,
-        image: DecorationImage(
+        image: const DecorationImage(
           image: AssetImage(tastyImage),
           fit: BoxFit.cover,
         ),
@@ -507,49 +507,50 @@ String getFeatureIcon(String key) {
   }
 }
 
-Future<void> showFeatureDialog(BuildContext context, bool isDarkMode, String key, String value) async {
+Future<void> showFeatureDialog(
+    BuildContext context, bool isDarkMode, String key, String value) async {
   await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          children: [
+            Text(
+              getFeatureIcon(key),
+              style: const TextStyle(fontSize: 24),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              key.toUpperCase(),
+              style: const TextStyle(
+                color: kAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
-              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-              title: Row(
-                children: [
-                  Text(
-                    getFeatureIcon(key),
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    key.toUpperCase(),
-                    style: const TextStyle(
-                      color: kAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                getFeatureDescription(key, value),
-                style: TextStyle(
-                  height: 1.5,
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(color: kAccent),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+            ),
+          ],
+        ),
+        content: Text(
+          getFeatureDescription(key, value),
+          style: TextStyle(
+            height: 1.5,
+            color: isDarkMode ? kWhite : kBlack,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: kAccent),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

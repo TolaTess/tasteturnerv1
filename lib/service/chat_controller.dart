@@ -235,17 +235,6 @@ class ChatController extends GetxController {
       await messageDoc.reference.update({
         'shareRequest.status': 'accepted',
       });
-
-      // If allowed, increment share count for non-premium users
-      if (!(userService.currentUser?.isPremium ?? false)) {
-        await firestore.collection('users').doc(userService.userId).set(
-          {
-            'calendarShares': FieldValue.increment(1),
-          },
-          SetOptions(merge: true),
-        );
-      }
-
       // Send acceptance message
       await sendMessage(
         messageContent: 'I accepted your calendar share!',
