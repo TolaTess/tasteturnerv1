@@ -245,9 +245,11 @@ class _SignUpFormState extends State<SignUpForm> {
             padding: const EdgeInsets.symmetric(
               horizontal: 20,
             ),
-            child: PrimaryButton(
+            child: AppButton(
               text: "Sign Up",
-              press: _handleSignUp,
+              onPressed: _handleSignUp,
+              type: AppButtonType.primary,
+              width: 100,
             ),
           ),
 

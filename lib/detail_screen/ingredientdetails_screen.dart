@@ -7,7 +7,7 @@ import '../helper/utils.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 import '../widgets/title_section.dart';
 
 class IngredientDetailsScreen extends StatefulWidget {
@@ -474,11 +474,12 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Flexible(
-            child: SecondaryButton(
+            child: AppButton(
               text: isInShoppingList
                   ? "Remove from Shopping List"
                   : "Add to Shopping List",
-              press: _toggleShoppingList,
+              onPressed: _toggleShoppingList,
+              type: AppButtonType.secondary,
             ),
           ),
         ]),

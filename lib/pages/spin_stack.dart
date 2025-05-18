@@ -13,7 +13,7 @@ import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 import '../widgets/spinning_math.dart';
 
 class SpinWheelWidget extends StatefulWidget {
@@ -220,7 +220,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                     setState(() {
                       selectedLabel = label;
                     });
-                
+
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -248,16 +248,21 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                               color: isDarkMode ? kBlue : kAccent,
                             ),
                           ),
+                          actionsAlignment: MainAxisAlignment.spaceBetween,
                           actions: [
-                            SecondaryButton(
-                              press: () {
+                            AppButton(
+                              type: AppButtonType.follow,
+                              width: 30,
+                              onPressed: () {
                                 Navigator.of(context).pop();
                                 _tryAgainLabel();
                               },
                               text: "Try Again",
                             ),
-                            SecondaryButton(
-                              press: () {
+                            AppButton(
+                              type: AppButtonType.follow,
+                              width: 30,
+                              onPressed: () {
                                 Navigator.of(context).pop();
                                 _acceptSelectedLabel(label);
                               },

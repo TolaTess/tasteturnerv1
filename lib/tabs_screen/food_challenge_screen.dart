@@ -12,7 +12,7 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 import '../widgets/category_selector.dart';
 
 class FoodChallengeScreen extends StatefulWidget {
@@ -99,7 +99,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
           autoCloseDuration: const Duration(seconds: 5),
           arrowDirection: ArrowDirection.DOWN,
         ),
-      ],  
+      ],
     );
   }
 
@@ -396,9 +396,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                           }
 
                                           // Case 3: Deadline not over and user hasn't joined
-                                          return SecondaryButton(
+                                          return AppButton(
                                             text: "Join Now",
-                                            press: () async {
+                                            type: AppButtonType.secondary,
+                                            onPressed: () async {
                                               String userId =
                                                   userService.userId ?? '';
                                               String battleId =

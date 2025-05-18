@@ -10,7 +10,7 @@ import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../service/meal_manager.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -283,14 +283,16 @@ class _BuddyTabState extends State<BuddyTab> {
               ),
               const SizedBox(height: 20),
               if (isPremium || isInFreeTrial)
-                SecondaryButton(
+                AppButton(
                   text: 'Get Meal Plan',
-                  press: () => _checkAndNavigateToGenerate(context),
+                  onPressed: () => _checkAndNavigateToGenerate(context),
+                  type: AppButtonType.secondary,
                 )
               else
-                SecondaryButton(
+                AppButton(
                   text: goPremium,
-                  press: () => Navigator.push(
+                  type: AppButtonType.secondary,
+                  onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const PremiumScreen(),

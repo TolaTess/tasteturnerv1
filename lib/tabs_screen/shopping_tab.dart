@@ -60,7 +60,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
     await notificationService.scheduleWeeklyReminder(
       id: 1001, // Unique ID for shopping reminder
       title: 'Shopping Reminder',
-      body: 'Today is your shopping day! Don\'t forget to shop!',
+      body: 'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
       weekday: weekday,
       hour: 10,
       minute: 0,

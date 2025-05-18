@@ -372,6 +372,9 @@ class _TastyScreenState extends State<TastyScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   hintText: _getInputHintText(),
+                  hintStyle: TextStyle(
+                    color: isDarkMode ? kWhite.withOpacity(0.5) : kDarkGrey.withOpacity(0.5),
+                  ),
                 ),
               ),
             ),

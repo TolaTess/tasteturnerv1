@@ -8,9 +8,9 @@ import '../data_models/profilescreen_data.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
-import '../widgets/follow_button.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/primary_button.dart';
 import '../widgets/title_section.dart';
 import 'badges_screen.dart';
 import 'chat_screen.dart';
@@ -210,11 +210,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   .contains(newUserid);
                             }
 
-                            return FollowButton(
-                              h: 40,
-                              w: 120,
-                              title: isFollowing ? 'Unfollow' : follow,
-                              press: () {
+                            return AppButton(
+                              height: 4.5,
+                              width: 30,
+                              type: AppButtonType.follow,
+                              text: isFollowing ? 'Unfollow' : follow,
+                              onPressed: () {
                                 if (isFollowing) {
                                   friendController.unfollowFriend(
                                       userService.userId ?? '',
@@ -238,10 +239,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           Obx(() {
                             bool isFollowing = friendController.followingList
                                 .contains(newUserid);
-                            return FollowButton(
-                              h: 40,
-                              w: 120,
-                              press: () async {
+                            return AppButton  (
+                              height: 4.5,
+                              width: 30,
+                              type: AppButtonType.follow,
+                              text: 'Message',
+                              onPressed: () async {
                                 if (isFollowing) {
                                   Navigator.push(
                                     context,
@@ -261,7 +264,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   );
                                 }
                               },
-                              title: 'Message',
                             );
                           }),
                         ],

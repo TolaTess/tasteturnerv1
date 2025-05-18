@@ -5,10 +5,8 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../screens/premium_screen.dart';
-import '../themes/theme_provider.dart';
-import 'email_button.dart';
+import '../themes/theme_provider.dart'; 
 import 'primary_button.dart';
-import 'secondary_button.dart';
 
 class EditProfileForm extends StatelessWidget {
   const EditProfileForm({
@@ -51,7 +49,7 @@ class EditProfileForm extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-             // Edit Bio
+          // Edit Bio
           SafeTextFormField(
             controller: dobController,
             style: const TextStyle(color: kLightGrey),
@@ -82,8 +80,8 @@ class EditProfileForm extends StatelessWidget {
               hintText: "How do you feel?",
               hintStyle: const TextStyle(color: kLightGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
-              suffixIcon: const CustomSuffixIcon(
-                  svgIcon: "assets/images/svg/book.svg"),
+              suffixIcon:
+                  const CustomSuffixIcon(svgIcon: "assets/images/svg/book.svg"),
               enabledBorder: outlineInputBorder(20),
               focusedBorder: outlineInputBorder(20),
               border: outlineInputBorder(20),
@@ -96,10 +94,12 @@ class EditProfileForm extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: SecondaryButton(text: userService.currentUser?.isPremium == true
-                          ? "Premium Access"
-                          : "Go Premium",
-                      press: () {
+                child: AppButton(
+                  text: userService.currentUser?.isPremium == true
+                      ? "Premium Access"
+                      : "Go Premium",
+                  type: AppButtonType.secondary,
+                  onPressed: () {
                     if (userService.currentUser?.isPremium == true) {
                       // Do nothing if already premium
                     } else {
@@ -110,9 +110,15 @@ class EditProfileForm extends StatelessWidget {
                         ),
                       );
                     }
-                  },),
+                  },
+                ),
               ),
-              Flexible(child: PrimaryButton(text: "Save", press: press)),
+              Flexible(
+                  child: AppButton(
+                      text: "Save",
+                      onPressed: press,
+                      width: 100,
+                      type: AppButtonType.primary)),
             ],
           ),
           const SizedBox(height: 20),

@@ -710,11 +710,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ? const Center(
                         child: CircularProgressIndicator(),
                       )
-                    : PrimaryButton(
+                    : AppButton(
                         text: screen == 'addManual'
                             ? 'Add to $foodType'
-                            : submitRecipe,
-                        press: _uploadMeal,
+                            : 'Submit Recipe',
+                        onPressed: _uploadMeal,
+                        type: AppButtonType.primary,
+                        width: 100,
                       ),
 
                 SizedBox(

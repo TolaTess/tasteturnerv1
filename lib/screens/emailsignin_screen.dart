@@ -152,10 +152,12 @@ class _SigninFormState extends State<SigninForm> {
           const SizedBox(height: 40),
 
           //Sign in button
-          PrimaryButton(
+          AppButton(
             text: "Sign In",
-            press: () => authController.loginUser(
+            onPressed: () => authController.loginUser(
                 context, emailController.text, passwordController.text),
+            type: AppButtonType.primary,
+            width: 100,
           ),
         ],
       ),

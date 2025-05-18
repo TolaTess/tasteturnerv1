@@ -352,17 +352,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 45),
+                    const SizedBox(height: 25),
 
                     // Premium Plan Cards
                     _buildPriceCard(isDarkMode),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 30),
 
                     // Action Button
                     if (!isUserPremium)
-                      PrimaryButton(
+                      AppButton(
                         text: 'Go Ad-Free Now',
-                        press: () async {
+                        type: AppButtonType.primary,
+                        width: 100,
+                        onPressed: () async {
                           final userId = userService.userId;
                           if (userId != null) {
                             try {
@@ -387,6 +389,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           }
                         },
                       ),
+                    const SizedBox(height: 20),
 
                     if (isUserPremium)
                       GestureDetector(

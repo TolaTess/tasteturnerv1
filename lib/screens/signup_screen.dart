@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../widgets/primary_button.dart';
 import 'emailsignin_screen.dart';
-import '../widgets/email_button.dart';
 import 'emailsignup_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -202,9 +202,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
                  //sign up with email
 
-                  EmailButton(
-                    text: "Sign Up with email",
-                    press: () => Navigator.push(
+                  AppButton(
+                    text: "Sign Up with email", 
+                    type: AppButtonType.email,
+                    width: 100,
+                    icon: Icons.email,
+                    borderRadius: 50,
+                    onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const EmailSignupScreen(),

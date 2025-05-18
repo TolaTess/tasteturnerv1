@@ -9,7 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 
 class ChooseDietScreen extends StatefulWidget {
   const ChooseDietScreen({
@@ -664,9 +664,10 @@ Include:
                 horizontal: 20,
                 vertical: 16,
               ),
-              child: SecondaryButton(
+              child: AppButton(
                 text: "Generate",
-                press: () => _showMealPlanOptionsDialog(),
+                onPressed: () => _showMealPlanOptionsDialog(),
+                type: AppButtonType.secondary,
               ),
             )
           : null,
@@ -723,9 +724,7 @@ class DietItem extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(4.0),
               child: Text(
-                dataSrc['name'] == 'All'
-                    ? 'General'
-                    : dataSrc['name'],
+                dataSrc['name'] == 'All' ? 'General' : dataSrc['name'],
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

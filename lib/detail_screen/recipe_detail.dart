@@ -5,9 +5,8 @@ import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/profile_screen.dart';
-import '../widgets/secondary_button.dart';
+import '../widgets/primary_button.dart';
 import '../constants.dart';
-import '../widgets/follow_button.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../data_models/user_meal.dart';
@@ -389,9 +388,10 @@ class RatingBox extends StatelessWidget {
             const SizedBox(
               height: 15,
             ),
-            SecondaryButton(
+            AppButton(
               text: send,
-              press: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context),
+              type: AppButtonType.secondary,
             )
           ]),
     );
@@ -452,7 +452,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
               children: [
                 //Recipe tittle
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(10, context)),
                   child: Text(
                     capitalizeFirstLetter(widget.meal.title),
                     textAlign: TextAlign.center,
@@ -481,7 +481,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10)),
                         child: Padding(
-                          padding: const EdgeInsets.all(4),
+                          padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
                           child: Icon(
                             _isFavorited
                                 ? Icons.favorite
@@ -532,7 +532,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       label: const Text('Add Meal'),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
                       ),
                     ),
                     // Edit button if user is the owner
@@ -543,11 +543,12 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         label: const Text('Edit Meal'),
                         style: TextButton.styleFrom(
                           foregroundColor: kAccent,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete, color: kRed),
+                        iconSize: getPercentageWidth(5, context),
                         tooltip: 'Delete Meal',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
@@ -709,11 +710,12 @@ class _RecipeProfileState extends State<RecipeProfile> {
                       friendController.followingList.contains(widget.profileId);
                 }
 
-                return FollowButton(
-                  h: 35,
-                  w: 90,
-                  title: isFollowing ? 'Unfollow' : follow,
-                  press: () {
+                return AppButton(
+                  height: 4.5,
+                  width: 30,
+                  type: AppButtonType.follow,
+                  text: isFollowing ? 'Unfollow' : follow,
+                  onPressed: () {
                     if (isFollowing) {
                       friendController.unfollowFriend(
                           userService.userId ?? '', widget.profileId, context);
