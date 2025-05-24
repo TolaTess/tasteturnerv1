@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'dart:async';
+import 'package:collection/collection.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -19,10 +22,28 @@ class _PremiumScreenState extends State<PremiumScreen> {
   bool isYearlySelected =
       true; // Default to yearly as it's usually the better deal
 
+  // In-app purchase variables
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
+  List<ProductDetails> _products = [];
+  bool _purchaseInProgress = false;
+  String? _purchaseError;
+
+  // Product IDs for App Store and Google Play
+  static const String _monthlyId = 'premium_monthly';
+  static const String _yearlyId = 'premium_yearly';
+
   @override
   void initState() {
     super.initState();
     _fetchPlan();
+    _initInAppPurchase();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchPlan() async {
@@ -53,6 +74,89 @@ class _PremiumScreenState extends State<PremiumScreen> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _initInAppPurchase() async {
+    final available = await _inAppPurchase.isAvailable();
+    if (!available) {
+      setState(() {
+        _purchaseError = 'In-app purchases are not available.';
+      });
+      return;
+    }
+    // Listen to purchase updates
+    _subscription =
+        _inAppPurchase.purchaseStream.listen(_onPurchaseUpdate, onDone: () {
+      _subscription?.cancel();
+    }, onError: (error) {
+      setState(() {
+        _purchaseError = 'Purchase error: $error';
+      });
+    });
+    // Query products
+    const ids = <String>{_monthlyId, _yearlyId};
+    final response = await _inAppPurchase.queryProductDetails(ids);
+    if (response.error != null) {
+      setState(() {
+        _purchaseError =
+            'Error fetching products: \\${response.error!.message}';
+      });
+    } else {
+      setState(() {
+        _products = response.productDetails.toList();
+      });
+    }
+  }
+
+  void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
+    for (final purchaseDetails in purchaseDetailsList) {
+      if (purchaseDetails.status == PurchaseStatus.purchased ||
+          purchaseDetails.status == PurchaseStatus.restored) {
+        // Grant premium
+        final userId = userService.userId;
+        if (userId != null) {
+          final selectedPlan =
+              purchaseDetails.productID == _yearlyId ? 'year' : 'month';
+          await authController.updateIsPremiumStatus(
+              context, userId, true, selectedPlan);
+        }
+        setState(() {
+          _purchaseInProgress = false;
+        });
+        if (purchaseDetails.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchaseDetails);
+        }
+        Navigator.pop(context);
+      } else if (purchaseDetails.status == PurchaseStatus.error) {
+        setState(() {
+          _purchaseInProgress = false;
+          _purchaseError = purchaseDetails.error?.message ?? 'Unknown error';
+        });
+      } else if (purchaseDetails.status == PurchaseStatus.canceled) {
+        setState(() {
+          _purchaseInProgress = false;
+          _purchaseError = 'Purchase cancelled.';
+        });
+      }
+    }
+  }
+
+  Future<void> _buyPremium() async {
+    setState(() {
+      _purchaseInProgress = true;
+      _purchaseError = null;
+    });
+    final productId = isYearlySelected ? _yearlyId : _monthlyId;
+    final product = _products.firstWhereOrNull((p) => p.id == productId);
+    if (product == null) {
+      setState(() {
+        _purchaseInProgress = false;
+        _purchaseError = 'Product not found.';
+      });
+      return;
+    }
+    final purchaseParam = PurchaseParam(productDetails: product);
+    await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
   }
 
   Widget _buildPriceCard(bool isDarkMode) {
@@ -360,34 +464,25 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
                     // Action Button
                     if (!isUserPremium)
-                      AppButton(
-                        text: 'Go Ad-Free Now',
-                        type: AppButtonType.primary,
-                        width: 100,
-                        onPressed: () async {
-                          final userId = userService.userId;
-                          if (userId != null) {
-                            try {
-                              // Update premium status with selected plan
-                              final selectedPlan =
-                                  isYearlySelected ? 'year' : 'month';
-                              await authController.updateIsPremiumStatus(
-                                  context, userId, true, selectedPlan);
-
-                              Navigator.pop(context);
-                            } catch (e) {
-                              print("Error updating Premium: $e");
-                              if (mounted) {
-                                showTastySnackbar(
-                                  'Please try again.',
-                                  'Error: $e',
-                                  context,
-                                  backgroundColor: kRed,
-                                );
-                              }
-                            }
-                          }
-                        },
+                      Column(
+                        children: [
+                          if (_purchaseError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Text(_purchaseError!,
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          AppButton(
+                            text: _purchaseInProgress
+                                ? 'Processing...'
+                                : 'Go Ad-Free Now',
+                            type: AppButtonType.primary,
+                            width: 100,
+                            isLoading: _purchaseInProgress,
+                            onPressed:
+                                _purchaseInProgress ? () {} : _buyPremium,
+                          ),
+                        ],
                       ),
                     const SizedBox(height: 20),
 
