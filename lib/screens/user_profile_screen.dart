@@ -222,6 +222,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       newUserid,
                                       context);
                                 } else {
+                                  if (userService.userId == newUserid) {
+                                    showTastySnackbar(
+                                      'Cannot Follow Yourself',
+                                      'You cannot follow yourself.',
+                                      context,
+                                    );
+                                    return;
+                                  }
                                   friendController.followFriend(
                                       userService.userId ?? '',
                                       newUserid,

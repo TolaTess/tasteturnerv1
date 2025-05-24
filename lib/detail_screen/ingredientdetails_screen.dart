@@ -428,11 +428,11 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
+                              SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
-                            mainAxisSpacing: 5,
-                            crossAxisSpacing: 15,
-                            childAspectRatio: 0.55,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: getPercentageWidth(1, context),
+                            childAspectRatio: 0.5,
                           ),
                           itemCount: widget.ingredientItems.length > 3
                               ? 3

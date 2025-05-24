@@ -275,7 +275,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                                 Navigator.of(context).pop();
                                 _tryAgainLabel();
                               },
-                              text: "Try Again",
+                              text: "Skip",
                             ),
                             AppButton(
                               type: AppButtonType.follow,
@@ -694,7 +694,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           : (userService.currentUser?.isPremium ?? false) ||
                                   isInFreeTrial
                               ? 'Generate Meal with ingredients!'
-                              : 'Go Premium to generate a meal with ingredients!',
+                              : 'Go Premium to generate a meal!',
                       style: TextStyle(
                         fontSize: isMealSpin ? 14 : 12,
                         fontWeight: FontWeight.w500,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../tabs_screen/food_tab_screen.dart';
@@ -72,32 +73,42 @@ class _BottomNavSecState extends State<BottomNavSec> {
       extendBody: true,
       floatingActionButton: Visibility(
         visible: !keyboardIsOpen && _selectedIndex != 2,
-        child: FloatingActionButton(
-          heroTag: "uniqueHeroTagfb",
-          onPressed: () {
-            setState(() {
-              _selectedIndex = 2;
-              _currentTabIndex = 0;
-            });
-          },
-          key: _tastyButtonKey,
-          backgroundColor: kPrimaryColor,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: themeProvider.isDarkMode ? kDarkGrey : kWhite,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: kAccent.withOpacity(0.5),
-                  blurRadius: 5,
-                  offset: const Offset(0, 5),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: kAccent.withOpacity(0.3),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: getPercentageWidth(14, context),
+            height: getPercentageHeight(14, context),
+            child: FloatingActionButton(
+              heroTag: "uniqueHeroTagfb",
+              onPressed: () {
+                setState(() {
+                  _selectedIndex = 2;
+                  _currentTabIndex = 0;
+                });
+              },
+              key: _tastyButtonKey,
+              backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
+              elevation: 5,
+              child: Container(
+                width: getPercentageWidth(12, context),
+                height: getPercentageHeight(12, context),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: DecorationImage(
+                    image: AssetImage(tastyImage),
+                    fit: BoxFit.contain,
+                  ),
                 ),
-              ],
-              image: const DecorationImage(
-                image: AssetImage(tastyImage),
-                fit: BoxFit.cover,
               ),
             ),
           ),
@@ -105,7 +116,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Container(
-        height: screenSize.height * 0.1, // Responsive height
+        height: getPercentageHeight(10, context), // Responsive height
         child: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 6,
@@ -167,8 +178,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
       child: Container(
         alignment: Alignment.center,
         padding: EdgeInsets.symmetric(
-          vertical: MediaQuery.of(context).size.height * 0.015,
-          horizontal: MediaQuery.of(context).size.width * 0.02,
+          vertical: getPercentageHeight(1, context),
+          horizontal: getPercentageWidth(1, context),
         ),
         child: _selectedIndex == activeIdx
             ? SvgPicture.asset(

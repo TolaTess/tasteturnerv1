@@ -302,11 +302,13 @@ class _BuddyTabState extends State<BuddyTab> {
                   text: 'Get Meal Plan',
                   onPressed: () => _checkAndNavigateToGenerate(context),
                   type: AppButtonType.secondary,
+                  width: 50
                 )
               else
                 AppButton(
                   text: goPremium,
                   type: AppButtonType.secondary,
+                  width: 50,
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(

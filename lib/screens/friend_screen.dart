@@ -105,9 +105,9 @@ class _FriendScreenState extends State<FriendScreen> {
                 padding: const EdgeInsets.all(16.0),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 24,
-                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.5,
                 ),
                 itemCount: filteredFriends.length,
                 itemBuilder: (context, index) {
@@ -143,16 +143,18 @@ class _FriendScreenState extends State<FriendScreen> {
                       children: [
                         buildFriendAvatar(friend.profileImage),
                         const SizedBox(height: 8),
-                        Text(
-                          friend.displayName ?? '',
-                          style: TextStyle(
-                            color: themeProvider.isDarkMode ? kWhite : kBlack,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                        Flexible(
+                          child: Text(
+                            friend.displayName ?? '',
+                            style: TextStyle(
+                              color: themeProvider.isDarkMode ? kWhite : kBlack,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

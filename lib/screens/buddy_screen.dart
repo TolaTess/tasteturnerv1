@@ -140,71 +140,89 @@ class _TastyScreenState extends State<TastyScreen> {
   }
 
   Widget _buildPremiumPrompt(ThemeProvider themeProvider) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.workspace_premium,
-            size: 80,
-            color: kAccent,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Premium Feature',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: themeProvider.isDarkMode ? kWhite : kBlack,
+    return Stack(
+      children: [
+        Positioned(
+          top: 20,
+          left: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: IconButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const IconCircleButton(),
             ),
           ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
+        ),
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.workspace_premium,
+                size: 80,
+                color: kAccent,
               ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kAccent,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PremiumScreen(),
+              const SizedBox(height: 20),
+              Text(
+                'Premium Feature',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
-              );
-            },
-            child: const Text(
-              'Go Premium',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: kWhite,
               ),
-            ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PremiumScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Go Premium',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kWhite,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    if (isPremium || isInFreeTrial) {
+    if (isPremium || !isInFreeTrial) {
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(

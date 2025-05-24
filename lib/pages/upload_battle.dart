@@ -8,11 +8,13 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
@@ -91,12 +93,22 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     return tempPath;
   }
 
+
   @override
   void initState() {
     super.initState();
 
+    final generalCategory = {
+      'id': 'general',
+      'name': 'General',
+      'category': 'General'
+    };
+
     final categoryDatasIngredient = helperController.macros;
     if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      if (categoryDatasIngredient.first['id'] != 'general') {
+        categoryDatasIngredient.insert(0, generalCategory);
+      }
       selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
     }
@@ -221,7 +233,9 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
               : "Post Image"),
           leading: InkWell(
-            onTap: () => widget.isMainPost ? Get.to(() => const BottomNavSec(selectedIndex: 1)) : Get.back(),
+            onTap: () => widget.isMainPost
+                ? Get.to(() => const BottomNavSec(selectedIndex: 1))
+                : Get.back(),
             child: const IconCircleButton(
               isRemoveContainer: true,
             ),
@@ -291,10 +305,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       imageQuality: 80,
                     );
                     if (photo != null) {
-                      setState(() {
-                        _selectedImages = [photo];
-                        _recentImage = photo;
-                      });
+                      final XFile? cropped = await cropImage(photo);
+                      if (cropped != null) {
+                        setState(() {
+                          _selectedImages = [cropped];
+                          _recentImage = cropped;
+                        });
+                      }
                     }
                   },
                   icon: const Icon(Icons.camera, size: 30),
@@ -305,10 +322,19 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                     List<XFile> pickedImages =
                         await openMultiImagePickerModal(context: context);
                     if (pickedImages.isNotEmpty) {
-                      setState(() {
-                        _selectedImages = pickedImages;
-                        _recentImage = _selectedImages.first;
-                      });
+                      List<XFile> croppedImages = [];
+                      for (final img in pickedImages) {
+                        final XFile? cropped = await cropImage(img);
+                        if (cropped != null) {
+                          croppedImages.add(cropped);
+                        }
+                      }
+                      if (croppedImages.isNotEmpty) {
+                        setState(() {
+                          _selectedImages = croppedImages;
+                          _recentImage = croppedImages.first;
+                        });
+                      }
                     }
                   },
                   icon: const Icon(Icons.add, size: 30),

@@ -165,20 +165,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: getPercentageHeight(2, context),
-                ),
-
-                //category options
-                CategorySelector(
-                  categories: _categoryDatasIngredient,
-                  selectedCategoryId: selectedCategoryId,
-                  onCategorySelected: _updateCategoryData,
-                  isDarkMode: isDarkMode,
-                  accentColor: kAccentLight,
-                  darkModeAccentColor: kDarkModeAccent,
-                ),
-
-                SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
 
@@ -574,6 +560,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     ),
                   ],
                 ),
+
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
@@ -593,7 +580,19 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       ),
 
                 // ------------------------------------Premium / Ads-------------------------------------
+                SizedBox(
+                  height: getPercentageHeight(2, context),
+                ),
 
+                //category options
+                CategorySelector(
+                  categories: _categoryDatasIngredient,
+                  selectedCategoryId: selectedCategoryId,
+                  onCategorySelected: _updateCategoryData,
+                  isDarkMode: isDarkMode,
+                  accentColor: kAccentLight,
+                  darkModeAccentColor: kDarkModeAccent,
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 15.0, right: 5.0),
                   child: Row(

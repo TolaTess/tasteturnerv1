@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../screens/buddy_screen.dart';
@@ -553,4 +555,27 @@ Future<void> showFeatureDialog(
       );
     },
   );
+}
+
+Future<XFile?> cropImage(XFile imageFile) async {
+  final croppedFile = await ImageCropper().cropImage(
+    sourcePath: imageFile.path,
+    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+    uiSettings: [
+      AndroidUiSettings(
+        toolbarTitle: 'Edit Image',
+        toolbarColor: Colors.deepOrange,
+        toolbarWidgetColor: Colors.white,
+        initAspectRatio: CropAspectRatioPreset.original,
+        lockAspectRatio: false,
+      ),
+      IOSUiSettings(
+        title: 'Edit Image',
+      ),
+    ],
+  );
+  if (croppedFile != null) {
+    return XFile(croppedFile.path);
+  }
+  return null;
 }

@@ -221,7 +221,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: getPercentageHeight(2, context)),
                       if (selectedCuisine != 'Balanced') ...[
                         Text(
                           'Number of dishes:',
@@ -231,7 +231,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                 : kDarkGrey,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: getPercentageHeight(2, context)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -246,6 +246,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                      fontSize: getPercentageWidth(4, context),
                                     ),
                                   ),
                                   Row(
@@ -255,7 +256,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon:
-                                            const Icon(Icons.remove, size: 20),
+                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (proteinDishes > 0)
@@ -263,7 +264,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           });
                                         },
                                       ),
-                                      const SizedBox(width: 8),
+                                        SizedBox(width: getPercentageWidth(1, context)),
                                       Text(
                                         '$proteinDishes',
                                         style: TextStyle(
@@ -271,13 +272,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                          fontSize: getPercentageWidth(4, context),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon: const Icon(Icons.add, size: 20),
+                                          icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             proteinDishes++;
@@ -294,12 +296,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Grains',
+                                    'Carbs',
                                     style: TextStyle(
                                       color:
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                          fontSize: getPercentageWidth(4, context),
                                     ),
                                   ),
                                   Row(
@@ -309,14 +312,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon:
-                                            const Icon(Icons.remove, size: 20),
+                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (grainDishes > 0) grainDishes--;
                                           });
                                         },
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: getPercentageWidth(1, context)),
                                       Text(
                                         '$grainDishes',
                                         style: TextStyle(
@@ -324,13 +327,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                          fontSize: getPercentageWidth(4, context),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon: const Icon(Icons.add, size: 20),
+                                        icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             grainDishes++;
@@ -347,12 +351,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Vegetables',
+                                    'Veggies',
                                     style: TextStyle(
                                       color:
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                          fontSize: getPercentageWidth(4, context),
                                     ),
                                   ),
                                   Row(
@@ -362,14 +367,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon:
-                                            const Icon(Icons.remove, size: 20),
+                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (vegDishes > 0) vegDishes--;
                                           });
                                         },
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: getPercentageWidth(1, context)),
                                       Text(
                                         '$vegDishes',
                                         style: TextStyle(
@@ -377,13 +382,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
+                                          fontSize: getPercentageWidth(4, context),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon: const Icon(Icons.add, size: 20),
+                                        icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
                                         onPressed: () {
                                           setState(() {
                                             vegDishes++;

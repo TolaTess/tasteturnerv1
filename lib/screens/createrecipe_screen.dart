@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../widgets/bottom_nav.dart';
@@ -572,10 +573,19 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           await openMultiImagePickerModal(context: context);
 
                       if (pickedImages.isNotEmpty) {
-                        setState(() {
-                          _selectedImages = pickedImages;
-                          _recentImage = _selectedImages.first;
-                        });
+                        List<XFile> croppedImages = [];
+                        for (final img in pickedImages) {
+                          final XFile? cropped = await cropImage(img);
+                          if (cropped != null) {
+                            croppedImages.add(cropped);
+                          }
+                        }
+                        if (croppedImages.isNotEmpty) {
+                          setState(() {
+                            _selectedImages = croppedImages;
+                            _recentImage = croppedImages.first;
+                          });
+                        }
                       }
                     },
                     child: _recentImage != null

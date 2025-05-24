@@ -230,14 +230,12 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
   }
 
   Future<void> _sendImages() async {
-    if (selectedImages.isEmpty) {
-      showTastySnackbar(
+    if (selectedImages.isEmpty) showTastySnackbar(
         'No Image Selected',
         'Please select at least one image',
         context,
       );
-      return;
-    }
+   
     final List<File> files = [];
     for (var asset in selectedImages) {
       final file = await _getFile(asset);
@@ -378,7 +376,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,
-                    foregroundColor: isDarkMode ? kWhite : kAccent,
+                    foregroundColor: isDarkMode ? kWhite : kLightGrey,
                   ),
                   onPressed: _sendImages,
                 ),
@@ -559,7 +557,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       color: isDarkMode ? kDarkGrey : kWhite,
-      height: MediaQuery.of(context).size.height * 0.8,
+      height: MediaQuery.of(context).size.height * 0.6,
       padding: const EdgeInsets.all(8),
       child: Column(
         children: [

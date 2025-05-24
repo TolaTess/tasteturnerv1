@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
+import '../data_models/post_model.dart';
 import '../data_models/user_data_model.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
@@ -277,21 +278,50 @@ class _ChatScreenState extends State<ChatScreen> {
     List<String> uploadedUrls = [];
 
     for (File image in images) {
-      final String fileName =
-          'chats/$chatId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final Reference storageRef = firebaseStorage.ref().child(fileName);
+      try {
+        final String fileName =
+            'chats/\\$chatId/\\${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final Reference storageRef = firebaseStorage.ref().child(fileName);
 
-      final uploadTask = storageRef.putFile(image);
-      final snapshot = await uploadTask;
-      final imageUrl = await snapshot.ref.getDownloadURL();
+        final uploadTask = storageRef.putFile(image);
+        final snapshot = await uploadTask;
+        final imageUrl = await snapshot.ref.getDownloadURL();
 
-      uploadedUrls.add(imageUrl);
+        uploadedUrls.add(imageUrl);
+      } catch (e, stack) {
+        print('Error uploading image: \\${e}');
+        print(stack);
+      }
     }
+
+    final postRef = firestore.collection('posts').doc();
+    final postId = postRef.id;
+    final messageContent =
+        'Shared caption: ${capitalizeFirstLetter(caption ?? '')} /${postId} /${'post'} /${'private'}';
+
+    final post = Post(
+      id: postId,
+      userId: userService.userId ?? '',
+      mediaPaths: uploadedUrls,
+      name: userService.currentUser?.displayName ?? '',
+      category: 'general',
+      isBattle: false,
+      battleId: 'private',
+      createdAt: DateTime.now(),
+    );
+
+    WriteBatch batch = firestore.batch();
+    batch.set(postRef, post.toFirestore());
+    batch.update(firestore.collection('users').doc(userService.userId), {
+      'posts': FieldValue.arrayUnion([postRef.id]),
+    });
+    await batch.commit();
 
     // Send text + images together as a single message or separate depending on your logic
     await chatController.sendMessage(
-      messageContent: caption,
+      messageContent: messageContent,
       imageUrls: uploadedUrls,
+      isPrivate: true,
     );
     _onNewMessage();
   }

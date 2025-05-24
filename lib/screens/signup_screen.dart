@@ -17,7 +17,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final List<String> words = ["Health", "Goals", "Cook", "Taste"];
+  final List<String> words = ["Plan", "Cook", "Eat", "Taste"];
 
   int _index = 0;
   Timer? _timer;
@@ -83,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                       // ✅ Actual Image
                       SizedBox(
-                        width: 100,
+                        width: 80,
                         child: Image.asset(
                           'assets/images/tasty/tasty.png',
                           fit: BoxFit.contain,
@@ -96,7 +96,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 28,
+                      horizontal: 20,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -114,33 +114,24 @@ class _SignupScreenState extends State<SignupScreen> {
                                 child: child,
                               );
                             },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(
-                                  20,
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(10),
-                              child: Text(
-                                words[_index],
-                                key: ValueKey<String>(words[_index]),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: kDarkGrey,
-                                ),
+                            child: Text(
+                              words[_index],
+                              key: ValueKey<String>(words[_index]),
+                              style: TextStyle(
+                                fontSize: getPercentageWidth(5, context),
+                                fontWeight: FontWeight.w600,
+                                color: kDarkGrey,
                               ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 8), // ✅ Adjust spacing
-                        const Text(
+                        Text(
                           "with Confidence",
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: getPercentageWidth(5, context),
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: kWhite,
                           ),
                         ),
                       ],

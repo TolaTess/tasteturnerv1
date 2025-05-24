@@ -202,10 +202,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
               // Challenge Thumbnail
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     double sideLength = constraints.maxWidth; // Make it square

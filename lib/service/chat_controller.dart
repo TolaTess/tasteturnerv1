@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
+import '../data_models/post_model.dart';
+import '../helper/utils.dart';
 
 class ChatController extends GetxController {
   static ChatController instance = Get.find();
@@ -151,6 +153,7 @@ class ChatController extends GetxController {
     String? messageContent,
     List<String>? imageUrls,
     Map<String, dynamic>? shareRequest,
+    bool isPrivate = false,
   }) async {
     try {
       final currentUserId = userService.userId ?? '';
@@ -321,6 +324,14 @@ class ChatController extends GetxController {
     final senderId = friendRequest['senderId'];
     final recipientId = friendRequest['recipientId'];
 
+    if (senderId == userService.userId) {
+      showTastySnackbar(
+        'Cannot Accept Friend Request',
+        'You cannot accept your own friend request.',
+        Get.context!,
+      );
+      return;
+    }
     // Update message status
     await messageRef.update({'friendRequest.status': 'accepted'});
 

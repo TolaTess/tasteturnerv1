@@ -14,68 +14,72 @@ class HelpSupport extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Help & Support'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Center(
-              child: Text(
-                'Frequently Asked Questions',
-                style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: kAccent),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildFAQItem('How do I use the spin feature?',
-                'Double tap to start spinning, and tap once to stop. It\'s that simple!'),
-            _buildFAQItem('How do I use the calendar and sharing features?',
-                'You can add your special days to the calendar and share them with friends and family by clicking the share icon. Switch between personal and shared calendar views by clicking the person icon.'),
-            _buildFAQItem('What is the ingredient battle?',
-                'The ingredient battle is our weekly challenge that encourages you to explore different ingredients and get creative with cooking. Join the challenge and earn points for a chance to win vouchers to your favorite restaurants!'),
-            const SizedBox(height: 16),
-            Center(
-              child: InkWell(
-                onTap: () async {
-                  final Uri url = Uri.parse('https://tasteturner.com');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url);
-                  }
-                },
-                child: const Text(
-                  'View our website',
-                  style: TextStyle(
-                    color: kAccentLight,
-                    fontSize: 16,
-                    decoration: TextDecoration.underline,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: Text(
+                    'Frequently Asked Questions',
+                    style: TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold, color: kAccent),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Center(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  backgroundColor: isDarkMode
-                      ? kDarkModeAccent.withOpacity(0.50)
-                      : kAccent.withOpacity(0.50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+                const SizedBox(height: 16),
+                _buildFAQItem('How do I use the spin feature?',
+                    'Double tap to start spinning, and tap once to stop. It\'s that simple!'),
+                _buildFAQItem('How do I use the calendar and sharing features?',
+                    'You can add your special days to the calendar and share them with friends and family by clicking the share icon. Switch between personal and shared calendar views by clicking the person icon.'),
+                _buildFAQItem('What is the ingredient battle?',
+                    'The ingredient battle is our weekly challenge that encourages you to explore different ingredients and get creative with cooking. Join the challenge and earn points for a chance to win vouchers to your favorite restaurants!'),
+                const SizedBox(height: 16),
+                Center(
+                  child: InkWell(
+                    onTap: () async {
+                      final Uri url = Uri.parse('https://tasteturner.com');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      }
+                    },
+                    child: const Text(
+                      'View our website',
+                      style: TextStyle(
+                        color: kAccentLight,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ),
-                onPressed: () async {
-                  final Uri emailLaunchUri = Uri(
-                    scheme: 'mailto',
-                    path: 'support@tasteturner.com',
-                  );
-                  await launchUrl(emailLaunchUri);
-                },
-                child: const Text('Contact Support'),
-              ),
+                const SizedBox(height: 30),
+                Center(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      backgroundColor: isDarkMode
+                          ? kDarkModeAccent.withOpacity(0.50)
+                          : kAccent.withOpacity(0.50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                    ),
+                    onPressed: () async {
+                      final Uri emailLaunchUri = Uri(
+                        scheme: 'mailto',
+                        path: 'support@tasteturner.com',
+                      );
+                      await launchUrl(emailLaunchUri);
+                    },
+                    child: const Text('Contact Support'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -720,7 +720,6 @@ class _RecipeProfileState extends State<RecipeProfile> {
 
                 return AppButton(
                   height: 4.5,
-                  width: 30,
                   type: AppButtonType.follow,
                   text: isFollowing ? 'Unfollow' : follow,
                   onPressed: () {

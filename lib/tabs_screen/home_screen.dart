@@ -218,11 +218,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             },
                             child: CircleAvatar(
                               key: _addProfileButtonKey,
-                              radius: 25,
+                              radius: getPercentageWidth(6, context),
                               backgroundColor: kAccent.withOpacity(kOpacity),
                               child: CircleAvatar(
                                 backgroundImage: getAvatarImage(avatarUrl),
-                                radius: 23,
+                                radius: getPercentageWidth(5.5, context),
                               ),
                             ),
                           );
@@ -233,15 +233,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               '$greeting ${currentUser.displayName}!',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 17,
+                                fontSize: getPercentageWidth(4.5, context),
                               ),
                             ),
                             Text(
                               inspiration,
-                              style: const TextStyle(
-                                fontSize: 11,
+                              style: TextStyle(
+                                fontSize: getPercentageWidth(3, context),
                                 fontWeight: FontWeight.w400,
                                 color: kLightGrey,
                                 overflow: TextOverflow.ellipsis,
@@ -265,14 +265,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           },
                           child: IconCircleButton(
                             icon: Icons.message,
-                            h: 40,
-                            w: 40,
+                            h: getPercentageWidth(11, context),
+                            w: getPercentageWidth(11, context), 
                             colorD: kAccent.withOpacity(0.6),
                             colorL: kDarkGrey.withOpacity(0.6),
                             isRemoveContainer: true,
                           ),
                         ),
-                        const SizedBox(width: 5),
+                        SizedBox(width: getPercentageWidth(1, context)),
 
                         // Unread Count Badge
                         Obx(() {
@@ -298,16 +298,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                           if (unreadCount >= 1) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(1, context), vertical: getPercentageWidth(0.5, context)),
                               decoration: BoxDecoration(
                                 color: kRed,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 unreadCount.toString(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
+                                  fontSize: getPercentageWidth(3, context),
                                 ),
                               ),
                             );
@@ -337,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.3, context)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -378,14 +379,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            DateFormat('d MMMM').format(currentDate),
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.amber[700],
+                          if (getRelativeDayString(currentDate) != 'Today' && 
+                              getRelativeDayString(currentDate) != 'Yesterday')
+                            Text(
+                              DateFormat('d MMMM').format(currentDate),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.amber[700],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       IconButton(

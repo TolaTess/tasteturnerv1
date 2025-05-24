@@ -472,14 +472,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
                   // Shared calendar selector
                   if (showSharedCalendars)
-                    Expanded(
+                    Flexible(
                       child: FutureBuilder<List<SharedCalendar>>(
                         future: calendarSharingService
                             .fetchSharedCalendarsForUser(userService.userId!),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return const CircularProgressIndicator(color: kAccent);
+                            return const CircularProgressIndicator(
+                                color: kAccent);
                           }
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
                             return Text(
@@ -493,6 +494,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           }
                           final calendars = snapshot.data!;
                           return DropdownButton<String>(
+                            isExpanded: true,
                             dropdownColor: getThemeProvider(context).isDarkMode
                                 ? kAccent
                                 : kBackgroundColor,
@@ -504,6 +506,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             style: TextStyle(
                               fontSize: 14,
                               color: isDarkMode ? kWhite : kDarkGrey,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             items: calendars
                                 .map((cal) => DropdownMenuItem(
@@ -1197,10 +1200,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 'What type of day is this?',
                 style: TextStyle(
                   color: isDarkMode ? kWhite : kBlack,
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(4, context),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: getPercentageWidth(1.5, context)),
               ...[
                 'Regular Day',
                 'Cheat Day',
@@ -1208,73 +1211,90 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 'Workout Boost',
                 'Special Celebration'
               ].map(
-                (type) => ListTile(
-                  selected: selectedDayType ==
-                      type.toLowerCase().replaceAll(' ', '_'),
-                  selectedTileColor: kAccentLight.withOpacity(0.1),
-                  title: Text(
-                    type,
-                    style: TextStyle(
-                      color: isDarkMode ? kWhite : kBlack,
-                      fontSize: 16,
+                (type) => Flexible(
+                  child: ListTile(
+                    selected: selectedDayType ==
+                        type.toLowerCase().replaceAll(' ', '_'),
+                    selectedTileColor: kAccentLight.withOpacity(0.1),
+                    title: Text(
+                      type,
+                      style: TextStyle(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontSize: getPercentageWidth(4, context),
+                      ),
                     ),
+                    leading: Icon(
+                      _getDayTypeIcon(type),
+                      color: _getDayTypeColor(type, isDarkMode),
+                    ),
+                    onTap: () {
+                      if (!mounted) return;
+                      setState(() {
+                        selectedDayType =
+                            type.toLowerCase().replaceAll(' ', '_');
+                      });
+                    },
                   ),
-                  leading: Icon(
-                    _getDayTypeIcon(type),
-                    color: _getDayTypeColor(type, isDarkMode),
-                  ),
-                  onTap: () {
-                    if (!mounted) return;
-                    setState(() {
-                      selectedDayType = type.toLowerCase().replaceAll(' ', '_');
-                    });
-                  },
                 ),
               ),
             ],
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.close, size: 20),
-              onPressed: () => Navigator.pop(context),
-              color: isDarkMode ? kWhite : kBlack,
-            ),
-            if (isPersonalCalendar)
-              IconButton(
-                icon: const Icon(Icons.share, size: 18),
-                onPressed: () async {
-                  Navigator.pop(context);
-                  Get.to(() => FriendScreen(
-                        dataSrc: {
-                          'type': 'specific_date',
-                          'screen': 'meal_design',
-                          'date': selectedDate.toString(),
-                        },
-                      ));
-                  await _loadMealPlans();
-                },
-                color: isDarkMode ? kWhite : kBlack,
-              ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(
-                    context, {'dayType': selectedDayType, 'action': 'save'});
-                await _loadMealPlans();
-              },
-              child: const Text(
-                'Save',
-                style: TextStyle(color: kAccentLight),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context,
-                    {'dayType': selectedDayType, 'action': 'add_meal'});
-              },
-              child: const Text(
-                'Add Meal',
-                style: TextStyle(color: kAccent),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.close, size: getPercentageWidth(5, context)),
+                  onPressed: () => Navigator.pop(context),
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+                if (isPersonalCalendar)
+                  IconButton(
+                    icon:
+                        Icon(Icons.share, size: getPercentageWidth(4, context)),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      Get.to(() => FriendScreen(
+                            dataSrc: {
+                              'type': 'specific_date',
+                              'screen': 'meal_design',
+                              'date': selectedDate.toString(),
+                            },
+                          ));
+                      await _loadMealPlans();
+                    },
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                Flexible(
+                  child: TextButton(
+                    onPressed: () async {
+                      Navigator.pop(context,
+                          {'dayType': selectedDayType, 'action': 'save'});
+                      await _loadMealPlans();
+                    },
+                    child: Text(
+                      'Save',
+                      style: TextStyle(
+                          color: kAccentLight,
+                          fontSize: getPercentageWidth(4, context)),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context,
+                          {'dayType': selectedDayType, 'action': 'add_meal'});
+                    },
+                    child: Text(
+                      'Add Meal',
+                      style: TextStyle(
+                          color: kAccent,
+                          fontSize: getPercentageWidth(4, context)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -72,7 +72,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
           final data = doc.data();
           data['id'] = doc.id;
           return data;
-        }).toList();
+        }).where((data) => data['battleId'] != 'private').toList();
       } else {
         setState(() {
           searchContentDatas = [];

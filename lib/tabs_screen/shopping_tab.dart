@@ -79,23 +79,36 @@ class _ShoppingTabState extends State<ShoppingTab> {
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: _daysOfWeek.map((day) {
-              return ListTile(
-                title: Text(day,
-                    style: TextStyle(
-                      color: isDarkMode ? kWhite : kBlack,
-                    )),
-                trailing: _selectedDay == day
-                    ? const Icon(Icons.check, color: kAccent)
-                    : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _saveSelectedDay(day);
-                },
-              );
-            }).toList(),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _daysOfWeek.map((day) {
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _saveSelectedDay(day);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          day,
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (_selectedDay == day)
+                          const Icon(Icons.check, color: kAccent, size: 18)
+                      ],
+                    ),
+                  ),
+                );    
+                
+              }).toList(),
+            ),
           ),
         );
       },

@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/avatar_upload.dart';
 import '../widgets/profile_form.dart';
@@ -98,6 +99,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           await openMultiImagePickerModal(context: context);
 
                       if (pickedImages.isNotEmpty) {
+                        List<XFile> croppedImages = [];
+                        for (final img in pickedImages) {
+                          final XFile? cropped = await cropImage(img);
+                          if (cropped != null) {
+                            croppedImages.add(cropped);
+                          }
+                        }
                         setState(() {
                           _selectedImages = pickedImages;
                           _recentImage = _selectedImages.first;
