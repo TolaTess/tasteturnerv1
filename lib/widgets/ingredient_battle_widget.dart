@@ -373,11 +373,14 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Ingredient Tug-of-War',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const Expanded(
+                    child: Text(
+                      'Ingredient Tug-of-War',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (_showBadge.value)
@@ -393,16 +396,20 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.emoji_events,
                                 size: 16, color: kAccent),
                             const SizedBox(width: 4),
-                            Text(
-                              _badgeTitle.value,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: kAccent,
+                            Flexible(
+                              child: Text(
+                                _badgeTitle.value,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: kAccent,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],

@@ -230,15 +230,21 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
   }
 
   Future<void> _sendImages() async {
-    if (selectedImages.isEmpty) return;
-
+    if (selectedImages.isEmpty) {
+      showTastySnackbar(
+        'No Image Selected',
+        'Please select at least one image',
+        context,
+      );
+      return;
+    }
     final List<File> files = [];
     for (var asset in selectedImages) {
       final file = await _getFile(asset);
       if (file != null) {
         final compressedFile = await _compressImage(file);
         if (compressedFile != null) {
-          files.add(compressedFile as File);
+          files.add(File(compressedFile.path));
         } else {
           files.add(file); // fallback if compression fails
         }
@@ -255,110 +261,131 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        color: isDarkMode ? kDarkGrey : kBackgroundColor,
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Select Images',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _loadedImages.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(
-                    color: kAccent,
-                  ))
-                : GridView.builder(
-                    controller: _scrollController,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: _loadedImages.length + (_isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= _loadedImages.length) {
-                        return const Center(
-                          child: CircularProgressIndicator(color: kAccent),
-                        );
-                      }
-
-                      final asset = _loadedImages[index];
-                      final isSelected = selectedImages.contains(asset);
-
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              selectedImages.remove(asset);
-                            } else {
-                              selectedImages.add(asset);
+    final double modalHeight = MediaQuery.of(context).size.height * 0.90;
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: ClipRRect(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            FocusScope.of(context).unfocus();
+          },
+          child: Container(
+            height: modalHeight,
+            color: isDarkMode ? kDarkGrey : kBackgroundColor,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                const Text(
+                  'Select Images',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _loadedImages.isEmpty
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                          color: kAccent,
+                        ))
+                      : GridView.builder(
+                          controller: _scrollController,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount:
+                              _loadedImages.length + (_isLoading ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index >= _loadedImages.length) {
+                              return const Center(
+                                child:
+                                    CircularProgressIndicator(color: kAccent),
+                              );
                             }
-                          });
-                        },
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: AssetEntityImage(
-                                asset,
-                                isOriginal: false,
-                                thumbnailSize: const ThumbnailSize.square(200),
-                                thumbnailFormat: ThumbnailFormat.jpeg,
-                                fit: BoxFit.cover,
+
+                            final asset = _loadedImages[index];
+                            final isSelected = selectedImages.contains(asset);
+
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedImages.remove(asset);
+                                  } else {
+                                    selectedImages.add(asset);
+                                  }
+                                });
+                              },
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: AssetEntityImage(
+                                      asset,
+                                      isOriginal: false,
+                                      thumbnailSize:
+                                          const ThumbnailSize.square(200),
+                                      thumbnailFormat: ThumbnailFormat.jpeg,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: Icon(Icons.check_circle,
+                                          color: kAccent, size: 24),
+                                    ),
+                                ],
                               ),
-                            ),
-                            if (isSelected)
-                              const Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Icon(Icons.check_circle,
-                                    color: kAccent, size: 24),
-                              ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
+                ),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: CircularProgressIndicator(color: kAccent),
                   ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(color: kAccent),
+                const SizedBox(height: 12),
+                SafeTextFormField(
+                  controller: captionController,
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: isDarkMode ? kLightGrey : kWhite,
+                    enabledBorder: outlineInputBorder(20),
+                    focusedBorder: outlineInputBorder(20),
+                    border: outlineInputBorder(20),
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
+                    hintText: 'Type your caption...',
+                    hintStyle: TextStyle(
+                      color: isDarkMode
+                          ? kWhite.withOpacity(0.5)
+                          : kBlack.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.send),
+                  label: const Text('Send'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,
+                    foregroundColor: isDarkMode ? kWhite : kAccent,
+                  ),
+                  onPressed: _sendImages,
+                ),
+              ],
             ),
-          const SizedBox(height: 12),
-          SafeTextFormField(
-            controller: captionController,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: isDarkMode ? kLightGrey : kWhite,
-              enabledBorder: outlineInputBorder(20),
-              focusedBorder: outlineInputBorder(20),
-              border: outlineInputBorder(20),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              hintText: 'Type your caption...',
-            ),
           ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send),
-            label: const Text('Send'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,
-              foregroundColor: isDarkMode ? kWhite : kAccent,
-            ),
-            onPressed: _sendImages,
-          ),
-        ],
+        ),
       ),
     );
   }

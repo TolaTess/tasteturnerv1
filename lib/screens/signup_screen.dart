@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -83,11 +84,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       // ✅ Actual Image
                       SizedBox(
                         width: 100,
-                      child: Image.asset(
-                        'assets/images/tasty/tasty.png',
-                        fit: BoxFit.contain,
+                        child: Image.asset(
+                          'assets/images/tasty/tasty.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                    ),
                     ],
                   ),
                   const SizedBox(
@@ -151,30 +152,32 @@ class _SignupScreenState extends State<SignupScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      // sign up with google
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => authController.signInWithApple(context),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(9, context),
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                                color: kWhite,
-                              borderRadius: BorderRadius.circular(
-                                50,
+                      // sign up with Apple
+                      if (Platform.isIOS)
+                        Expanded(
+                          child: InkWell(
+                            onTap: () =>
+                                authController.signInWithApple(context),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(9, context),
+                                vertical: 12,
                               ),
-                            ),
-                            child: SvgPicture.asset(
-                              "assets/images/svg/apple.svg",
-                              height: 24,
+                              decoration: BoxDecoration(
+                                color: kWhite,
+                                borderRadius: BorderRadius.circular(
+                                  50,
+                                ),
+                              ),
+                              child: SvgPicture.asset(
+                                "assets/images/svg/apple.svg",
+                                height: 24,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  
-                      // sign up with Apple
+
+                      // sign up with Google
                       Expanded(
                         child: InkWell(
                           onTap: () => authController.signInWithGoogle(context),
@@ -200,10 +203,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                 //sign up with email
+                  //sign up with email
 
                   AppButton(
-                    text: "Sign Up with email", 
+                    text: "Sign Up with email",
                     type: AppButtonType.email,
                     width: 100,
                     icon: Icons.email,

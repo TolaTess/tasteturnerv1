@@ -32,8 +32,9 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: SingleChildScrollView(
-        child: SizedBox(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -276,7 +277,8 @@ class TermsOfServiceScreen extends StatelessWidget {
             Center(
               child: Text(
                 "Terms of Service",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kAccent),
+                style: TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold, color: kAccent),
                 textAlign: TextAlign.center,
               ),
             ),

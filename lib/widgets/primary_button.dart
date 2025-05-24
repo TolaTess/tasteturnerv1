@@ -83,7 +83,7 @@ class AppButton extends StatelessWidget {
         ),
         onPressed: isLoading ? null : onPressed,
         child: isLoading
-            ? const CircularProgressIndicator()
+            ? const CircularProgressIndicator(color: kAccent)
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,

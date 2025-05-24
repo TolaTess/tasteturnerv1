@@ -708,7 +708,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 //Submit button
                 isUploading
                     ? const Center(
-                        child: CircularProgressIndicator(),
+                        child: CircularProgressIndicator(color: kAccent),
                       )
                     : AppButton(
                         text: screen == 'addManual'

@@ -12,8 +12,6 @@ import '../screens/splash_screen.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-import 'tasty_popup_service.dart';
-
 class AuthController extends GetxController {
   static AuthController instance = Get.find();
 
@@ -205,7 +203,6 @@ class AuthController extends GetxController {
   Future<void> _setLoggedIn(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isLoggedInKey, value);
-    await prefs.setString('shopping_day', '');
   }
 
   Future<void> registerUser(
@@ -391,8 +388,20 @@ class AuthController extends GetxController {
 
   Future<void> signOut() async {
     try {
+      final today = DateTime.now().toIso8601String();
+      final yesterday =
+          DateTime.now().subtract(Duration(days: 1)).toIso8601String();
+      final prefs = await SharedPreferences.getInstance();
       await FirebaseAuth.instance.signOut();
       await _setLoggedIn(false);
+      await prefs.setString('shopping_day', '');
+      await prefs.setString('top_ingredient_1', '');
+      await prefs.setString('top_ingredient_2', '');
+      await prefs.setInt('count_1', 0);
+      await prefs.setInt('count_2', 0);
+      await prefs.setBool('ingredient_battle_new_week', true);
+      await prefs.setBool('routine_notification_shown_$today', true);
+      await prefs.setBool('routine_badge_$yesterday', false);
       userService.clearUser();
       Get.offAll(() => const SplashScreen());
     } catch (e) {

@@ -183,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Show a loading state if user data isn't available yet
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: kAccent),
         ),
       );
     }
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // ------------------------------------Premium / Ads-------------------------------------
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
-                    : const SizedBox(height: 5),
+                    : const SizedBox(height: 10),
 
                 if (_isTodayShoppingDay())
                   Container(
@@ -536,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 10),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 const SizedBox(height: 8),
 

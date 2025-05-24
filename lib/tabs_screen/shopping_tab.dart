@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
-import '../screens/favorite_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';

@@ -328,8 +328,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 ),
               ),
               child: isUploading
-                  ? CircularProgressIndicator(
-                      color: isDarkMode ? kAccent : kDarkGrey,
+                  ? const CircularProgressIndicator(
+                      color: kAccent,
                     )
                   : const Text("Upload Images"),
             ),

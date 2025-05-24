@@ -2,9 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/friend_screen.dart';
 import '../screens/user_profile_screen.dart';
@@ -44,12 +44,18 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     super.initState();
 
     // Initialize isFollowing
-    final targetUserId = widget.dataSrc['userId'] ?? extractedItems.first;
+    final targetUserId = widget.dataSrc['userId'] ??
+        (extractedItems.isNotEmpty
+            ? extractedItems.first
+            : ''); // fallback to '' if empty
     isFollowing = friendController.isFollowing(targetUserId);
   }
 
   Future<void> _loadFavoriteStatus() async {
-    final postId = widget.dataSrc['id'] ?? extractedItems.first;
+    final postId = widget.dataSrc['id'] ??
+        (extractedItems.isNotEmpty
+            ? extractedItems.first
+            : ''); // fallback to '' if empty
     final postRef = firestore.collection('posts').doc(postId);
     final postSnapshot = await postRef.get();
     final currentData = postSnapshot.data() ?? {};
@@ -64,7 +70,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   }
 
   Future<void> toggleFollow() async {
-    final targetUserId = widget.dataSrc['userId'] ?? extractedItems.first;
+    final targetUserId = widget.dataSrc['userId'] ??
+        (extractedItems.isNotEmpty
+            ? extractedItems.first
+            : ''); // fallback to '' if empty
     if (isFollowing) {
       await friendController.unfollowFriend(
           userService.userId ?? '', targetUserId, context);
@@ -130,7 +139,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           : 'Food Battle ${widget.dataSrc['category']?.toString().isNotEmpty == true ? ' - ${widget.dataSrc['category'].toString()}' : ''}';
     } else if (widget.screen == 'myPost') {
       if (widget.dataSrc['name']?.toString().isNotEmpty != true) {
-        return 'My Post';
+        return widget.dataSrc['senderId'] == userService.userId
+            ? 'My Post'
+            : 'Post';
       }
       final postName = widget.dataSrc['name'].toString();
       final userName = userService.currentUser?.displayName ?? '';
@@ -145,6 +156,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    // Real-time post stream for likes
+    Stream<DocumentSnapshot<Map<String, dynamic>>> postStream() {
+      final postId = widget.dataSrc['id'] ??
+          (extractedItems.isNotEmpty ? extractedItems.first : '');
+      return firestore.collection('posts').doc(postId).snapshots();
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
@@ -278,7 +296,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SizedBox(width: 36),
+                            SizedBox(width: getPercentageWidth(7, context)),
                             // User Profile
                             GestureDetector(
                               onTap: () => Navigator.push(
@@ -286,7 +304,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 MaterialPageRoute(
                                   builder: (context) => UserProfileScreen(
                                     userId: widget.dataSrc['userId'] ??
-                                        extractedItems.first,
+                                        (extractedItems.isNotEmpty
+                                            ? extractedItems.first
+                                            : ''),
                                   ),
                                 ),
                               ),
@@ -299,7 +319,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 36),
+                            SizedBox(width: getPercentageWidth(7, context)),
 
                             // Share Icon (Optional - Add functionality if needed)
                             GestureDetector(
@@ -317,40 +337,66 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                               child: const Icon(Icons.share),
                             ),
 
-                            const SizedBox(width: 36),
+                            SizedBox(width: getPercentageWidth(7, context)),
 
-                            // Favorite Icon with Toggle
-                            GestureDetector(
-                              onTap: toggleLikePost,
-                              child: Icon(
-                                isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isLiked ? kAccent : null,
-                              ),
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              "$likesCount",
+                            // Favorite Icon with Toggle (real-time)
+                            StreamBuilder<
+                                DocumentSnapshot<Map<String, dynamic>>>(
+                              stream: postStream(),
+                              builder: (context, snapshot) {
+                                final data = snapshot.data?.data() ?? {};
+                                final List<String> likes =
+                                    List<String>.from(data['favorites'] ?? []);
+                                final bool isLiked =
+                                    likes.contains(userService.userId);
+                                final int likesCount = likes.length;
+                                return Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: toggleLikePost,
+                                      child: Icon(
+                                        isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isLiked ? kAccent : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text("$likesCount"),
+                                  ],
+                                );
+                              },
                             ),
 
-                            const SizedBox(width: 36),
+                            SizedBox(width: getPercentageWidth(7, context)),
 
-                            // Follow Icon with Toggle
-                            GestureDetector(
-                              onTap: toggleFollow,
-                              child: Icon(
-                                isFollowing
-                                    ? Icons.people
-                                    : Icons.person_add_alt_1_outlined,
-                                color: isFollowing ? kAccentLight : null,
-                              ),
-                            ),
-                            const SizedBox(width: 36),
+                            // Follow Icon with Toggle (real-time)
+                            if (widget.dataSrc['userId'] != userService.userId)
+                              Obx(() {
+                                final targetUserId = widget.dataSrc['userId'] ??
+                                    (extractedItems.isNotEmpty
+                                        ? extractedItems.first
+                                        : '');
+                                final isFollowing =
+                                    friendController.isFollowing(targetUserId);
+                                return GestureDetector(
+                                  onTap: toggleFollow,
+                                  child: Icon(
+                                    isFollowing
+                                        ? Icons.people
+                                        : Icons.person_add_alt_1_outlined,
+                                    color: isFollowing ? kAccentLight : null,
+                                  ),
+                                );
+                              }),
+                            if (widget.dataSrc['userId'] != userService.userId)
+                              SizedBox(width: getPercentageWidth(7, context)),
 
                             // Delete Icon if it's the user's post
                             if ((widget.dataSrc['userId'] ??
-                                    extractedItems.first) ==
+                                    (extractedItems.isNotEmpty
+                                        ? extractedItems.first
+                                        : '')) ==
                                 userService.userId)
                               GestureDetector(
                                 onTap: () async {
@@ -404,7 +450,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   if (confirm == true) {
                                     await postController.deleteAnyPost(
                                       postId: widget.dataSrc['id'] ??
-                                          extractedItems.first,
+                                          (extractedItems.isNotEmpty
+                                              ? extractedItems.first
+                                              : ''),
                                       userId: userService.userId ?? '',
                                       isBattle:
                                           widget.dataSrc['isBattle'] ?? false,
@@ -422,9 +470,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     const Icon(Icons.delete, color: Colors.red),
                               ),
                             if ((widget.dataSrc['userId'] ??
-                                    extractedItems.first) ==
+                                    (extractedItems.isNotEmpty
+                                        ? extractedItems.first
+                                        : '')) ==
                                 userService.userId)
-                              const SizedBox(width: 36),
+                              SizedBox(width: getPercentageWidth(7, context)),
                           ],
                         ),
                       ),

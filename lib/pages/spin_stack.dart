@@ -24,6 +24,7 @@ class SpinWheelWidget extends StatefulWidget {
   final bool isMealSpin;
   final VoidCallback playSound;
   final VoidCallback stopSound;
+  final bool funMode;
 
   SpinWheelWidget({
     super.key,
@@ -34,6 +35,7 @@ class SpinWheelWidget extends StatefulWidget {
     this.isMealSpin = false,
     required this.playSound,
     required this.stopSound,
+    this.funMode = false,
   });
 
   @override
@@ -61,11 +63,24 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   @override
   void dispose() {
     if (acceptedItems.isNotEmpty) {
-      // Save the context before disposal
       final BuildContext currentContext = context;
 
       Future.microtask(() async {
         try {
+          // If customLabel is not empty, show a different snackbar and skip saving
+          if (widget.customLabels != null &&
+              widget.customLabels!.isNotEmpty &&
+              widget.funMode) {
+            if (!widget.isMealSpin) {
+              showTastySnackbar(
+                'Not Saved',
+                'Hope it was a fun spin.',
+                currentContext,
+              );
+            }
+            return;
+          }
+
           final List<MacroData> ingredientList =
               await macroManager.fetchAndEnsureIngredientsExist(acceptedItems);
 
@@ -74,7 +89,6 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             ingredientList,
           );
 
-          // removed mounted check so it can show even if widget is disposed
           if (!widget.isMealSpin) {
             showTastySnackbar(
               'Success',
@@ -160,7 +174,9 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   void _tryAgainLabel() {
     setState(() {
       availableLabels.remove(selectedLabel);
-      _maintainAvailableLabels();
+      if (widget.customLabels == null || widget.customLabels!.isEmpty) {
+        _maintainAvailableLabels();
+      }
       selectedLabel = null;
     });
   }
@@ -171,7 +187,9 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         acceptedItems.add(label);
       }
       availableLabels.remove(label);
-      _maintainAvailableLabels();
+      if (widget.customLabels == null || widget.customLabels!.isEmpty) {
+        _maintainAvailableLabels();
+      }
       selectedLabel = null;
     });
   }
@@ -426,28 +444,16 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               .doc(userId)
                               .collection('date')
                               .doc(date);
-
-                          final docSnapshot = await docRef.get();
-                          List<String> existingMealIds = [];
-                          if (docSnapshot.exists) {
-                            final data = docSnapshot.data();
-                            if (data != null && data['meals'] != null) {
-                              existingMealIds =
-                                  List<String>.from(data['meals']);
-                            }
-                          }
                           // Add new meal ID if not null
                           if (selectedMealId != null) {
-                            existingMealIds.add(selectedMealId);
+                            await docRef.set({
+                              'userId': userId,
+                              'dayType': 'chef_tasty',
+                              'isSpecial': true,
+                              'date': date,
+                              'meals': FieldValue.arrayUnion([selectedMealId]),
+                            }, SetOptions(merge: true));
                           }
-
-                          await docRef.set({
-                            'userId': userId,
-                            'dayType': 'tasty_spin',
-                            'isSpecial': true,
-                            'date': date,
-                            'meals': existingMealIds,
-                          }, SetOptions(merge: true));
 
                           if (mounted) {
                             Navigator.of(context).pop();

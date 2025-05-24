@@ -174,7 +174,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
       future: _routineItems,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: kAccent));
         }
 
         if (snapshot.hasError) {

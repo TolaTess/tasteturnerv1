@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
+import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../widgets/circle_image.dart';
 import '../widgets/icon_widget.dart';
@@ -37,7 +37,6 @@ class _MealSpinListState extends State<MealSpinList> {
       // Use the indices from `_selectedItems` to get the selected items
       final selectedItems =
           _selectedItems.map((index) => widget.mealList[index]).toList();
-
       if (selectedItems.isEmpty) {
         if (mounted) {
           showTastySnackbar(
@@ -52,7 +51,10 @@ class _MealSpinListState extends State<MealSpinList> {
       // Save the selected items to meal plan
       await mealManager.addMealPlan(
         DateTime.now(),
-        selectedItems.map((item) => item['mealId'] as String).toList(),
+        selectedItems
+            .map(
+                (item) => item is Meal ? item.mealId : item['mealId'] as String)
+            .toList(),
       );
 
       if (mounted) {

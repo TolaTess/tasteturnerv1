@@ -133,7 +133,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   @override
   void dispose() {
-    if (!_funMode) {
+    if (_funMode) {
       customController.dispose();
     }
     _audioPlayer.dispose();
@@ -217,6 +217,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                       .map((i) => i.trim())
                       .where((i) => i.isNotEmpty)
                       .toList();
+                  _funMode = true;
                   Navigator.pop(context, items);
                 },
                 child: const Text(
@@ -340,8 +341,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         showIngredientSpin
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
-                        style: TextStyle(
-                            fontSize: 18, color: isDarkMode ? kWhite : kAccent),
+                        style: const TextStyle(fontSize: 18, color: kAccent),
                       ),
                     ),
                     IconButton(
@@ -393,6 +393,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             isMealSpin: false,
             playSound: _playSound,
             stopSound: _stopSound,
+            funMode: _funMode,
           ),
         ),
       ],

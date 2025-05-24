@@ -63,8 +63,17 @@ class _BuddyTabState extends State<BuddyTab> {
     try {
       final List<String> stringMealIds =
           mealIds.map((id) => id.toString()).toList();
-      final meals = await MealManager.instance.getMealsByMealIds(stringMealIds);
-      return meals.map((meal) => meal.toJson()).toList();
+      final snapshot = await firestore
+          .collection('meals')
+          .where(FieldPath.documentId, whereIn: stringMealIds)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => {
+                ...doc.data(),
+                'mealId': doc.id,
+              })
+          .toList();
     } catch (e) {
       return [];
     }
@@ -233,7 +242,11 @@ class _BuddyTabState extends State<BuddyTab> {
               ),
 
               TweenAnimationBuilder(
-                tween: Tween<double>(begin: 0.8, end: userService.currentUser?.isPremium ?? false ? 1.2: 1.0),
+                tween: Tween<double>(
+                    begin: 0.8,
+                    end: userService.currentUser?.isPremium ?? false
+                        ? 1.2
+                        : 1.0),
                 duration: const Duration(seconds: 2),
                 curve: Curves.easeInOut,
                 builder: (context, double scale, child) {
@@ -243,12 +256,14 @@ class _BuddyTabState extends State<BuddyTab> {
                   );
                 },
                 child: Container(
-                  width: userService.currentUser?.isPremium ?? false ? 170 : 120,
-                  height: userService.currentUser?.isPremium ?? false ? 170 : 120,
+                  width:
+                      userService.currentUser?.isPremium ?? false ? 170 : 120,
+                  height:
+                      userService.currentUser?.isPremium ?? false ? 170 : 120,
                   decoration: BoxDecoration(
-                    color: kAccentLight.withOpacity(0.5)  ,  
+                    color: kAccentLight.withOpacity(0.5),
                     shape: BoxShape.circle,
-                    image: const DecorationImage( 
+                    image: const DecorationImage(
                       image: AssetImage(tastyImage),
                       fit: BoxFit.cover,
                     ),
@@ -385,7 +400,8 @@ class _BuddyTabState extends State<BuddyTab> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const TastyScreen()),
+                            builder: (context) =>
+                                const TastyScreen(screen: 'message')),
                       ),
                       child: CircleAvatar(
                         backgroundColor: kAccentLight.withOpacity(0.5),

@@ -208,138 +208,146 @@ class _TastyScreenState extends State<TastyScreen> {
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(child: CircularProgressIndicator(color: kAccent)),
         );
       }
       return Scaffold(
         body: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 45),
-              Row(
-                children: [
-                  if (isPremium || isInFreeTrial)
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.all(16),
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: themeProvider.isDarkMode ? kLightGrey : kWhite,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ExpansionTile(
-                          collapsedIconColor:
-                              themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                          iconColor:
-                              themeProvider.isDarkMode ? kWhite : kDarkGrey,
-                          title: Row(
-                            children: [
-                              if (widget.screen == 'message')
-                                InkWell(
-                                  onTap: () {
-                                    Get.back();
-                                  },
-                                  child: const IconCircleButton(),
-                                ),
-                              CircleAvatar(
-                                backgroundColor: kAccentLight.withOpacity(0.5),
-                                backgroundImage: const AssetImage(
-                                  tastyImage, // Adjust the path to your tasty image
-                                ),
-                                radius: 20,
-                              ),
-                              const SizedBox(width: 15),
-                              Text(
-                                "Tasty Menu:",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: themeProvider.isDarkMode
-                                          ? kWhite
-                                          : kDarkGrey,
-                                    ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              FocusScope.of(context).unfocus();
+            },
+            child: Column(
+              children: [
+                const SizedBox(height: 45),
+                Row(
+                  children: [
+                    if (isPremium || isInFreeTrial)
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color:
+                                themeProvider.isDarkMode ? kLightGrey : kWhite,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          initiallyExpanded: false,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          child: ExpansionTile(
+                            collapsedIconColor:
+                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                            iconColor:
+                                themeProvider.isDarkMode ? kWhite : kDarkGrey,
+                            title: Row(
                               children: [
-                                _buildFeatureItem(
-                                    context,
-                                    "💬 Chat about your fitness goals and progress",
-                                    "Ask for advice, motivation, or meal planning",
-                                    themeProvider.isDarkMode),
-                                _buildFeatureItem(
-                                    context,
-                                    "🎡 Type 'spin' to use the ingredient wheel",
-                                    "Get random food suggestions based on your macros",
-                                    themeProvider.isDarkMode),
-                                _buildFeatureItem(
-                                    context,
-                                    "📊 Discuss your nutrition and workout plans",
-                                    "Get personalized recommendations for your goals",
-                                    themeProvider.isDarkMode),
+                                if (widget.screen == 'message')
+                                  InkWell(
+                                    onTap: () {
+                                      Get.back();
+                                    },
+                                    child: const IconCircleButton(),
+                                  ),
+                                CircleAvatar(
+                                  backgroundColor:
+                                      kAccentLight.withOpacity(0.5),
+                                  backgroundImage: const AssetImage(
+                                    tastyImage, // Adjust the path to your tasty image
+                                  ),
+                                  radius: 20,
+                                ),
+                                const SizedBox(width: 15),
+                                Text(
+                                  "Tasty Menu:",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: themeProvider.isDarkMode
+                                            ? kWhite
+                                            : kDarkGrey,
+                                      ),
+                                ),
                               ],
                             ),
-                          ],
+                            initiallyExpanded: false,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildFeatureItem(
+                                      context,
+                                      "💬 Chat about your fitness goals and progress",
+                                      "Ask for advice, motivation, or meal planning",
+                                      themeProvider.isDarkMode),
+                                  _buildFeatureItem(
+                                      context,
+                                      "🎡 Type 'spin' to use the ingredient wheel",
+                                      "Get random food suggestions based on your macros",
+                                      themeProvider.isDarkMode),
+                                  _buildFeatureItem(
+                                      context,
+                                      "📊 Discuss your nutrition and workout plans",
+                                      "Get personalized recommendations for your goals",
+                                      themeProvider.isDarkMode),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              Expanded(
-                child: Obx(() {
-                  final messages = chatController.messages;
+                  ],
+                ),
+                Expanded(
+                  child: Obx(() {
+                    final messages = chatController.messages;
 
-                  if (messages.isEmpty) {
-                    return noItemTastyWidget(
-                      "No messages yet.",
-                      "Start a conversation with Tasty!.",
-                      context,
-                      false,
-                      'buddy',
-                    );
-                  }
-
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_scrollController.hasClients) {
-                      _scrollController
-                          .jumpTo(_scrollController.position.maxScrollExtent);
-                    }
-                  });
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    itemCount: messages.length,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      return ChatItem(
-                        dataSrc: message,
-                        isMe: message.senderId == userService.userId,
-                        chatController: chatController,
-                        chatId: chatId!,
+                    if (messages.isEmpty) {
+                      return noItemTastyWidget(
+                        "No messages yet.",
+                        "Start a conversation with Tasty!.",
+                        context,
+                        false,
+                        'buddy',
                       );
-                    },
-                  );
-                }),
-              ),
-              _buildInputSection(themeProvider.isDarkMode),
-              SizedBox(
-                height: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-            ],
+                    }
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scrollController.hasClients) {
+                        _scrollController
+                            .jumpTo(_scrollController.position.maxScrollExtent);
+                      }
+                    });
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      itemCount: messages.length,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        return ChatItem(
+                          dataSrc: message,
+                          isMe: message.senderId == userService.userId,
+                          chatController: chatController,
+                          chatId: chatId!,
+                        );
+                      },
+                    );
+                  }),
+                ),
+                _buildInputSection(themeProvider.isDarkMode),
+                SizedBox(
+                  height: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -362,6 +370,11 @@ class _TastyScreenState extends State<TastyScreen> {
             Expanded(
               child: SafeTextFormField(
                 controller: textController,
+                keyboardType: TextInputType.multiline,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
                 enabled: _canUserSendMessage(),
                 decoration: InputDecoration(
                   filled: true,
@@ -373,7 +386,9 @@ class _TastyScreenState extends State<TastyScreen> {
                       const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   hintText: _getInputHintText(),
                   hintStyle: TextStyle(
-                    color: isDarkMode ? kWhite.withOpacity(0.5) : kDarkGrey.withOpacity(0.5),
+                    color: isDarkMode
+                        ? kWhite.withOpacity(0.5)
+                        : kDarkGrey.withOpacity(0.5),
                   ),
                 ),
               ),
@@ -427,7 +442,7 @@ class _TastyScreenState extends State<TastyScreen> {
 
   // Helper method to get user context
   Map<String, dynamic> _getUserContext() {
-  return {
+    return {
       'displayName': userService.currentUser?.displayName ?? 'there',
       'fitnessGoal':
           userService.currentUser?.settings['fitnessGoal'] ?? 'General Fitness',

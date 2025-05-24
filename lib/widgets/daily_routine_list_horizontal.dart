@@ -191,7 +191,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
       if (items.isEmpty) {
         return const SizedBox(
           height: 60,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: CircularProgressIndicator(color: kAccent)),
         );
       }
       return Container(

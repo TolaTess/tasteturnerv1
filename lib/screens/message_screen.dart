@@ -320,72 +320,80 @@ class _MessageItemState extends State<MessageItem> {
         padding: const EdgeInsets.only(bottom: 20),
         child: InkWell(
           onTap: widget.press,
-          child: Row(
+          child: Column(
             children: [
-              // Avatar
-              buildFriendAvatar(friend?.profileImage),
-              const SizedBox(width: 16),
-
-              // Name and Last Message
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      friend?.displayName ?? 'Loading...',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      lastMessage,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Time and Badge
-              Column(
+              Row(
                 children: [
-                  Text(
-                    lastMessageTime ?? '',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 10,
+                  // Avatar
+                  buildFriendAvatar(friend?.profileImage),
+                  const SizedBox(width: 16),
+              
+                  // Name and Last Message
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          friend?.displayName ?? 'Loading...',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          lastMessage,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                  unreadCount > 0
-                      ? Container(
-                          height: 22,
-                          width: 22,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: kAccent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              width: 1,
-                              color: Colors.white,
-                            ),
-                          ),
-                          child: Text(
-                            unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
+                  const SizedBox(width: 16),
+              
+                  // Time and Badge
+                  Column(
+                    children: [
+                      Text(
+                        lastMessageTime ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 10,
+                        ),
+                      ),
+                      unreadCount > 0
+                          ? Container(
+                              height: 22,
+                              width: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: kAccent,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  width: 1,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              child: Text(
+                                unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ],
+                  ),
                 ],
+              ),
+              Divider(
+                color: getThemeProvider(context).isDarkMode ? kWhite.withOpacity(0.2) : kBlack.withOpacity(0.2),
+                height: 1,
               ),
             ],
           ),

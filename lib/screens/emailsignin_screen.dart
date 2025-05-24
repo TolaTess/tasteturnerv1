@@ -12,32 +12,35 @@ class EmailSigninScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: const SizedBox(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 16),
-              Text(
-                "Sign In",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
+      body: const SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SizedBox(height: 16),
+                Text(
+                  "Sign In",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                "Welcome back! \n \nA delectable treat is just a tap away.",
-                style: TextStyle(
-                  fontSize: 16,
+                SizedBox(height: 16),
+                Text(
+                  "Welcome back! \n \nA delectable treat is just a tap away.",
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              SizedBox(height: 24),
-              SigninForm(),
-            ],
+                SizedBox(height: 24),
+                SigninForm(),
+              ],
+            ),
           ),
         ),
       ),

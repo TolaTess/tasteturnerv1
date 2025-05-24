@@ -362,19 +362,20 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: InkWell(
-              onTap: () => _addMealPlan(context, isDarkMode, true, ''),
-              child: const IconCircleButton(
-                icon: Icons.add,
-                h: 30,
-                w: 30,
-                colorD: kAccent,
-                isRemoveContainer: false,
+          if (_tabController.index == 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: InkWell(
+                onTap: () => _addMealPlan(context, isDarkMode, true, ''),
+                child: const IconCircleButton(
+                  icon: Icons.add,
+                  h: 30,
+                  w: 30,
+                  colorD: kAccent,
+                  isRemoveContainer: false,
+                ),
               ),
             ),
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -478,7 +479,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return const CircularProgressIndicator();
+                            return const CircularProgressIndicator(color: kAccent);
                           }
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
                             return Text(
@@ -957,7 +958,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         selectedDate = DateTime.now();
       });
     }
-    print('dayTypes[normalizedDate]: ${dayTypes[normalizedDate]}');
     if (meals.isEmpty) {
       return Center(
         child: Column(
@@ -1354,10 +1354,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Icons.fitness_center;
       case 'special celebration':
         return Icons.celebration;
-      case 'tasty spin':
+      case 'chef tasty':
         return Icons.restaurant;
       case 'welcome day':
         return Icons.check_circle;
+      case 'spin special':
+        return Icons.restaurant;
       default:
         return Icons.restaurant;
     }
@@ -1373,10 +1375,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         return Colors.blue;
       case 'special celebration':
         return Colors.orange;
-      case 'tasty spin':
+      case 'chef tasty':
         return Colors.red;
       case 'welcome day':
         return Colors.deepPurpleAccent;
+      case 'spin special':
+        return Colors.red;
       default:
         return isDarkMode ? kWhite : kBlack;
     }

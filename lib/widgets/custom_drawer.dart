@@ -118,7 +118,7 @@ class CustomDrawer extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) {
-                      return const TastyScreen();
+                      return const TastyScreen(screen: 'message');
                     },
                   ),
                 );

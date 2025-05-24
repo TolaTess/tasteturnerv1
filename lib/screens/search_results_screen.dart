@@ -101,10 +101,12 @@ class _SearchResultGridState extends State<SearchResultGrid> {
           List<Meal> filteredMeals = [];
           if (widget.screen == 'ingredient') {
             filteredMeals = allMeals
-                .where((meal) => (meal.ingredients).keys.any((ingredient) =>
-                    ingredient
-                        .toLowerCase()
-                        .contains(widget.search.toLowerCase())))
+                .where((meal) => 
+                    meal.title.toLowerCase().contains(widget.search.toLowerCase()) ||
+                    (meal.ingredients).keys.any((ingredient) =>
+                        ingredient
+                            .toLowerCase()
+                            .contains(widget.search.toLowerCase())))
                 .toList();
           } else {
             filteredMeals = allMeals

@@ -452,14 +452,24 @@ class _RecipeTittleState extends State<RecipeTittle> {
               children: [
                 //Recipe tittle
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(10, context)),
-                  child: Text(
-                    capitalizeFirstLetter(widget.meal.title),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(10, context)),
+                  child: Column(
+                    children: [
+                      Text(
+                        capitalizeFirstLetter(widget.meal.title),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        " $serves: ${widget.meal.serveQty}",
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(
@@ -470,18 +480,14 @@ class _RecipeTittleState extends State<RecipeTittle> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(width: getPercentageWidth(2, context)),
-                    Text(
-                      " $serves: ${widget.meal.serveQty}",
-                      style: const TextStyle(fontSize: 15),
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
                     GestureDetector(
                       onTap: _toggleFavorite,
                       child: Container(
                         decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10)),
                         child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(1.5, context)),
                           child: Icon(
                             _isFavorited
                                 ? Icons.favorite
@@ -529,25 +535,27 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         }
                       },
                       icon: const Icon(Icons.add, size: 19),
-                      label: const Text('Add Meal'),
+                      label: const Text('Today\'s Meal'),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
-                        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(1.5, context)),
                       ),
                     ),
                     // Edit button if user is the owner
                     if (userService.userId == widget.meal.userId) ...[
                       TextButton.icon(
                         onPressed: widget.onEdit,
-                        icon: const Icon(Icons.edit, size: 19),
+                        icon: const Icon(Icons.edit, size: 18),
                         label: const Text('Edit Meal'),
                         style: TextButton.styleFrom(
                           foregroundColor: kAccent,
-                          padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.5, context)),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(1.5, context)),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: kRed),
+                        icon: const Icon(Icons.delete_outline, color: kRed),
                         iconSize: getPercentageWidth(5, context),
                         tooltip: 'Delete Meal',
                         onPressed: () async {

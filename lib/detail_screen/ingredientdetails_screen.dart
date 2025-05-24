@@ -360,7 +360,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ? const SizedBox.shrink()
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 // ------------------------------------Premium------------------------------------
-
+                const SizedBox(height: 10),
                 widget.isRefresh
                     ? const SizedBox(height: 10)
                     : const SizedBox.shrink(),
@@ -470,7 +470,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: 4,
+          vertical: 1,
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Flexible(
@@ -479,7 +479,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   ? "Remove from Shopping List"
                   : "Add to Shopping List",
               onPressed: _toggleShoppingList,
-              type: AppButtonType.secondary,
+              type: AppButtonType.primary,
+              width: 100,
             ),
           ),
         ]),

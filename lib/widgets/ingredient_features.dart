@@ -230,6 +230,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
+                                color: kAccent,
                                 strokeWidth: 2,
                                 valueColor:
                                     AlwaysStoppedAnimation<Color>(kWhite),

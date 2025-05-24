@@ -93,33 +93,29 @@ class EditProfileForm extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: AppButton(
-                  text: userService.currentUser?.isPremium == true
-                      ? "Premium Access"
-                      : "Go Premium",
-                  type: AppButtonType.follow,
-                  width: userService.currentUser?.isPremium == true ? 44 : 40,
-                  onPressed: () {
-                    if (userService.currentUser?.isPremium == true) {
-                      // Do nothing if already premium
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PremiumScreen(),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
+              userService.currentUser?.isPremium == true
+                  ? const SizedBox.shrink()
+                  : Expanded(
+                      child: AppButton(
+                        text: "Go Premium",
+                        type: AppButtonType.follow,
+                        width: 40,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PremiumScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
               Flexible(
                   child: AppButton(
                       text: "Save",
                       onPressed: press,
                       width:
-                          userService.currentUser?.isPremium == true ? 44 : 40,
+                          userService.currentUser?.isPremium == true ? 100 : 40,
                       type: AppButtonType.secondary)),
             ],
           ),

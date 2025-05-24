@@ -51,7 +51,8 @@ class MealManager extends GetxController {
     }
     try {
       QuerySnapshot snapshot;
-      if (category.toLowerCase() == 'balanced' || category.toLowerCase() == 'all') {
+      if (category.toLowerCase() == 'balanced' ||
+          category.toLowerCase() == 'all') {
         snapshot = await firestore.collection('meals').get();
       } else {
         snapshot = await firestore
@@ -384,19 +385,34 @@ class MealManager extends GetxController {
   Future<void> addMealPlan(DateTime date, List<String> mealIds) async {
     try {
       final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-
-      final mealPlan = {
-        'date': formattedDate,
-        'meals': mealIds,
-        'isSpecial': false,
-      };
-
-      await firestore
+      final docRef = firestore
           .collection('mealPlans')
           .doc(userService.userId!)
           .collection('date')
-          .doc(formattedDate)
-          .set(mealPlan, SetOptions(merge: true));
+          .doc(formattedDate);
+
+      // Get existing meal plan document
+      final docSnapshot = await docRef.get();
+      List<String> existingMealIds = [];
+      
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        if (data != null && data['meals'] != null) {
+          existingMealIds = List<String>.from(data['meals']);
+        }
+      }
+
+      // Merge existing and new meal IDs, removing duplicates
+      final mergedMealIds = {...existingMealIds, ...mealIds}.toList();
+
+      final mealPlan = {
+        'date': formattedDate,
+        'meals': mergedMealIds,
+        'isSpecial': true,
+        'dayType': 'spin_special',
+      };
+
+      await docRef.set(mealPlan, SetOptions(merge: true));
     } catch (e) {
       print('Error adding meal plan: $e');
     }

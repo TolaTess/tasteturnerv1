@@ -226,43 +226,49 @@ class _ChatScreenState extends State<ChatScreen> {
               false,
               '',
             )
-          : Column(
-              children: [
-                Expanded(
-                  child: Obx(() {
-                    final messages = chatController.messages;
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                FocusScope.of(context).unfocus();
+              },
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Obx(() {
+                      final messages = chatController.messages;
 
-                    if (messages.isEmpty) {
-                      return const Center(
-                        child: Text("No messages yet."),
-                      );
-                    }
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scrollController.hasClients) {
-                        _scrollController
-                            .jumpTo(_scrollController.position.maxScrollExtent);
-                      }
-                    });
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: messages.length,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        return ChatItem(
-                          dataSrc: message,
-                          isMe: message.senderId == userService.userId,
-                          chatController: chatController,
-                          chatId: chatId!,
+                      if (messages.isEmpty) {
+                        return const Center(
+                          child: Text("No messages yet."),
                         );
-                      },
-                    );
-                  }),
-                ),
-                _buildInputSection(isDarkMode),
-              ],
+                      }
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(
+                              _scrollController.position.maxScrollExtent);
+                        }
+                      });
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        itemCount: messages.length,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          return ChatItem(
+                            dataSrc: message,
+                            isMe: message.senderId == userService.userId,
+                            chatController: chatController,
+                            chatId: chatId!,
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                  _buildInputSection(isDarkMode),
+                ],
+              ),
             ),
     );
   }
@@ -317,6 +323,11 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: SafeTextFormField(
               controller: textController,
+              keyboardType: TextInputType.multiline,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: isDarkMode ? kLightGrey : kWhite,
@@ -326,6 +337,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 contentPadding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 hintText: 'Type your caption...',
+                hintStyle: TextStyle(
+                  color: isDarkMode
+                      ? kWhite.withOpacity(0.5)
+                      : kBlack.withOpacity(0.5),
+                ),
               ),
             ),
           ),
@@ -369,6 +385,11 @@ class ChatItem extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     double screenWidth = MediaQuery.of(context).size.width;
     List<String> extractedItems = extractSlashedItems(dataSrc.messageContent);
+    if (extractedItems.isEmpty) {
+      extractedItems.add(dataSrc.messageId);
+      extractedItems.add('name');
+      extractedItems.add('post');
+    }
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
       child: Align(
