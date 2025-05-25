@@ -38,32 +38,32 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              const Padding(
+              SizedBox(height: getPercentageHeight(2, context)),
+              Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: 20,
+                  horizontal: getPercentageWidth(5, context),
                 ),
                 child: Text(
                   "Sign Up",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: getPercentageWidth(5.5, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Padding(
+              SizedBox(height: getPercentageHeight(2, context)),
+              Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: 20,
+                  horizontal: getPercentageWidth(5, context),
                 ),
                 child: Text(
                   "Save delicious recipes and get personilized content.",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getPercentageWidth(4, context),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: getPercentageHeight(2, context)),
               SignUpForm(
                 emailController: emailController,
                 passwordController: passwordController,
@@ -124,8 +124,8 @@ class _SignUpFormState extends State<SignUpForm> {
         children: [
           // Email form field
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(5, context),
             ),
             child: EmailField(
               kHint: "Your Email",
@@ -133,12 +133,12 @@ class _SignUpFormState extends State<SignUpForm> {
               controller: widget.emailController,
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           // Password form field
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(5, context),
             ),
             child: PasswordField(
               kHint: "Password",
@@ -146,12 +146,12 @@ class _SignUpFormState extends State<SignUpForm> {
               controller: widget.passwordController,
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           // Password form field
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(5, context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,20 +162,20 @@ class _SignUpFormState extends State<SignUpForm> {
                   controller: widget.confirmPasswordController,
                 ),
                 if (showPasswordError)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
+                  Padding(
+                    padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
                     child: Text(
                       "Passwords do not match",
                       style: TextStyle(
                         color: Colors.red,
-                        fontSize: 12,
+                        fontSize: getPercentageWidth(3, context),
                       ),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           //TOR
           Column(
@@ -228,24 +228,24 @@ class _SignUpFormState extends State<SignUpForm> {
                 ],
               ),
               if (showTermsError)
-                const Padding(
-                  padding: EdgeInsets.only(left: 12.0, top: 4.0),
+                Padding(
+                  padding: EdgeInsets.only(left: getPercentageWidth(3, context), top: getPercentageHeight(1, context)),
                   child: Text(
                     "Please accept the terms and conditions to continue",
                     style: TextStyle(
                       color: Colors.red,
-                      fontSize: 12,
+                      fontSize: getPercentageWidth(3, context),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: getPercentageHeight(2, context)),
 
           //Sign up button
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(5, context),
             ),
             child: AppButton(
               text: "Sign Up",
@@ -255,7 +255,7 @@ class _SignUpFormState extends State<SignUpForm> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: getPercentageHeight(2, context)),
         ],
       ),
     );
@@ -270,7 +270,7 @@ class TermsOfServiceScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(getPercentageWidth(5, context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -278,37 +278,37 @@ class TermsOfServiceScreen extends StatelessWidget {
               child: Text(
                 "Terms of Service",
                 style: TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold, color: kAccent),
+                    fontSize: getPercentageWidth(5.5, context), fontWeight: FontWeight.bold, color: kAccent),
                 textAlign: TextAlign.center,
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: getPercentageHeight(2, context)),
             Center(
               child: Text(
                 "Welcome to our $appName. \n \nBy using this application, you agree to the following terms:",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: getPercentageWidth(4, context)),
               ),
             ),
-            SizedBox(height: 16),
+            SizedBox(height: getPercentageHeight(2, context)),
             Text(
                 "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice."),
-            SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
                 "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice."),
-            SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
                 "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate."),
-            SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
                 "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent."),
-            SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
                 "5. You are responsible for maintaining the confidentiality of your account information."),
-            SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
                 "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes."),
-            SizedBox(height: 16),
+            SizedBox(height: getPercentageHeight(2, context)),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -316,7 +316,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   "Last updated: 2025",
                   style: TextStyle(fontStyle: FontStyle.italic),
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: getPercentageHeight(2, context)),
                 Center(
                   child: InkWell(
                     onTap: () async {
@@ -335,6 +335,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(5, context)),
               ],
             ),
           ],

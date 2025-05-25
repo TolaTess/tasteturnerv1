@@ -564,47 +564,47 @@ Include:
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(5, context),   
           ),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
+                SizedBox(height: getPercentageHeight(2, context)),
                 if (!widget.isOnboarding)
                   InkWell(
                     onTap: () => Navigator.pop(context),
                     child: const IconCircleButton(),
                   ),
-                if (!widget.isOnboarding) const SizedBox(height: 24),
+                if (!widget.isOnboarding) SizedBox(height: getPercentageHeight(2, context)),
 
-                const Text(
+                Text(
                   textAlign: TextAlign.center,
                   "Tell us your dietary preferences?",
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: getPercentageWidth(5, context),   
                     overflow: TextOverflow.ellipsis,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text(
+                  SizedBox(height: getPercentageHeight(2, context)),
+                Text(
                   textAlign: TextAlign.center,
                   "We'll exclusively display recipes aligned with your chosen diet.",
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: getPercentageWidth(3.5, context), 
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: getPercentageHeight(2, context)),
 
                 //choose diet
                 GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 100,
-                    mainAxisExtent: 90,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: getPercentageWidth(25, context),
+                    mainAxisExtent: getPercentageHeight(14, context), 
                     mainAxisSpacing: 5,
                     crossAxisSpacing: 5,
                   ),
@@ -626,18 +626,18 @@ Include:
                     );
                   },
                 ),
-                const SizedBox(
-                  height: 32,
+                SizedBox(
+                  height: getPercentageHeight(4, context),
                 ),
 
                 //choose alergy
-                const Text(
+                     Text(
                   "Any allergies?",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getPercentageWidth(4, context), 
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: getPercentageHeight(2, context)),
 
                 Wrap(
                   children: List.generate(
@@ -666,9 +666,9 @@ Include:
       ),
       bottomNavigationBar: !widget.isOnboarding
           ? Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(5, context),     
+                vertical: getPercentageHeight(1, context),
               ),
               child: AppButton(
                 text: "Generate",
@@ -721,18 +721,18 @@ class DietItem extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: Image.asset(
                   getAssetImageForItem(dataSrc['name']),
-                  width: 85,
-                  height: 60,
+                  width: getPercentageWidth(20, context),
+                  height: getPercentageHeight(12, context),
                   fit: BoxFit.cover,
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(4.0),
+              padding: EdgeInsets.all(getPercentageWidth(1, context)),
               child: Text(
                 dataSrc['name'] == 'All' ? 'General' : dataSrc['name'],
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: getPercentageWidth(2.5, context),
                   fontWeight: FontWeight.w600,
                   color:
                       getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
@@ -764,7 +764,7 @@ class AllergyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 16, bottom: 16),
+      padding: EdgeInsets.only(right: getPercentageWidth(4, context), bottom: getPercentageHeight(2, context)),
       child: InkWell(
         onTap: () => onSelected(dataSrc.allergy),
         splashColor: kPrimaryColor.withOpacity(0.4),
@@ -772,9 +772,9 @@ class AllergyItem extends StatelessWidget {
           Radius.circular(50),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(2, context), 
+            vertical: getPercentageHeight(1, context),
           ),
           decoration: BoxDecoration(
             borderRadius: const BorderRadius.all(
@@ -793,7 +793,7 @@ class AllergyItem extends StatelessWidget {
             dataSrc.allergy,
             style: TextStyle(
               color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-              fontSize: 14,
+              fontSize: getPercentageWidth(3, context),
               fontWeight: FontWeight.w600,
             ),
           ),

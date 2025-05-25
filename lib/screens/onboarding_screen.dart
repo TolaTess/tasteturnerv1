@@ -149,7 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           "currentWeight": "${weightController.text} $selectedWeightUnit",
           'fitnessGoal': selectedGoals.isNotEmpty
               ? selectedGoals.first
-              : 'General Fitness',
+              : 'Meal Planning',
           'targetSteps': '10000',
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
         },
@@ -283,7 +283,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(getPercentageWidth(5, context)),
                 child: _buildNavigationButtons(),
               ),
             ],
@@ -298,7 +298,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return _buildPage(
       title: "Welcome to $appName!",
       child1: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -314,20 +314,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             focusedBorder: outlineInputBorder(10),
             border: outlineInputBorder(10),
             labelStyle: const TextStyle(color: Color(0xffefefef)),
-            hintStyle: const TextStyle(color: kLightGrey),
+            hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3.5, context)),  
             hintText: "Enter your name",
             floatingLabelBehavior: FloatingLabelBehavior.always,
-            contentPadding: const EdgeInsets.only(
-              top: 16,
-              bottom: 16,
-              right: 10,
-              left: 10,
+            contentPadding: EdgeInsets.only(
+              top: getPercentageHeight(1.5, context),
+              bottom: getPercentageHeight(1.5, context),
+              right: getPercentageWidth(2, context),
+              left: getPercentageWidth(2, context),
             ),
           ),
         ),
       ),
       child2: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -342,14 +342,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             focusedBorder: outlineInputBorder(10),
             border: outlineInputBorder(10),
             labelStyle: const TextStyle(color: Color(0xffefefef)),
-            hintStyle: const TextStyle(color: kLightGrey),
+            hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3.5, context)),  
             hintText: "Enter your date of birth (MM-dd) (optional)",
             floatingLabelBehavior: FloatingLabelBehavior.always,
-            contentPadding: const EdgeInsets.only(
-              top: 16,
-              bottom: 16,
-              right: 10,
-              left: 10,
+            contentPadding: EdgeInsets.only(
+              top: getPercentageHeight(1.5, context),
+              bottom: getPercentageHeight(1.5, context),
+              right: getPercentageWidth(2, context),
+              left: getPercentageWidth(2, context),
             ),
           ),
         ),
@@ -404,7 +404,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: "Key Features",
       description: "Here's are some of the features you can use with $appName:",
       child1: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -412,26 +412,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           children: features
               .map((feature) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: EdgeInsets.symmetric(vertical: getPercentageHeight(1, context)),
                     child: ListTile(
                       leading: Icon(
                         feature['icon'] as IconData,
                         color: kAccentLight,
-                        size: 32,
+                        size: getPercentageWidth(8, context),
                       ),
                       title: Text(
                         feature['title'] as String,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: kWhite,
-                          fontSize: 18,
+                          fontSize: getPercentageWidth(4, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
                         feature['description'] as String,
-                        style: const TextStyle(
+                          style: TextStyle(
                           color: kWhite,
-                          fontSize: 14,
+                          fontSize: getPercentageWidth(3.5, context),
                         ),
                       ),
                     ),
@@ -447,7 +447,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Goals Selection Page
   Widget _buildGoalsPage() {
     return _buildPage(
-      title: "What are your goals?",
+      title: "How can we help you?",
       child1: Theme(
         data: ThemeData(
           radioTheme: RadioThemeData(
@@ -460,7 +460,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
         child: Container(
-          padding: const EdgeInsets.all(7),
+            padding: EdgeInsets.all(getPercentageWidth(5, context)),
           decoration: BoxDecoration(
             color: kDarkGrey,
             borderRadius: BorderRadius.circular(10),
@@ -470,7 +470,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               return RadioListTile<String>(
                 title: Text(
                   goal,
-                  style: const TextStyle(color: kWhite),
+                  style: TextStyle(color: kWhite, fontSize: getPercentageWidth(4, context)),
                 ),
                 value: goal,
                 groupValue:
@@ -487,7 +487,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
-      description: 'Select your goals to help us personalize your experience.',
+      description: 'When you select a goal, we will tailor our recommendations to your needs.',
       child2: const SizedBox.shrink(),
       child3: const SizedBox.shrink(),
     );
@@ -500,7 +500,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description:
           "Enter your weight details to keep track of your progress (optional).",
       child1: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -508,15 +508,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Current Weight:",
               style: TextStyle(
                 color: kWhite,
-                fontSize: 16,
+                fontSize: getPercentageWidth(4, context),
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: getPercentageHeight(1, context)),
             _buildMeasurementInput(
               weightController,
               ["kg", "lb"],
@@ -535,7 +535,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
       ),
       child2: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -543,15 +543,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+                Text(
               "Target Weight:",
               style: TextStyle(
                 color: kWhite,
-                fontSize: 16,
+                fontSize: getPercentageWidth(4, context),
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: getPercentageHeight(1, context)),
             _buildMeasurementInput(
               targetWeightController,
               ["kg", "lb"],
@@ -579,7 +579,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: "App Settings",
       description: "Customize your app experience and enable features.",
       child1: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color: kDarkGrey,
           borderRadius: BorderRadius.circular(10),
@@ -587,19 +587,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           children: [
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 "Enable Dark Mode",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(4, context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 "Switch between light and dark theme",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: 12,
+                  fontSize: getPercentageWidth(3, context),
                 ),
               ),
               value:
@@ -616,21 +616,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               inactiveThumbColor:
                   getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
             ),
-            const Divider(color: kWhite, height: 32),
+            Divider(color: kWhite, height: getPercentageHeight(4, context)),  
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 "Enable AI Assistant",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: 16,
+                      fontSize: getPercentageWidth(4, context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 "Go Premium for personalized AI guidance and premium features - 30 days free trial",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: 12,
+                  fontSize: getPercentageWidth(3, context),
                 ),
               ),
               value: enableAITrial,
@@ -664,76 +664,39 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             title.contains("Welcome to $appName!")
-                ? const SizedBox(height: 70)
-                : const SizedBox(height: 30),
+                ? SizedBox(height: getPercentageHeight(7, context))
+                : SizedBox(height: getPercentageHeight(3, context)),
             title.isNotEmpty
                 ? Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 20,
+                    style: TextStyle(
+                      fontSize: getPercentageWidth(5, context),
                       overflow: TextOverflow.ellipsis,
                       fontWeight: FontWeight.w600,
                     ),
                   )
                 : const SizedBox.shrink(),
-            const SizedBox(height: 20),
+            SizedBox(height: getPercentageHeight(2, context)),
             Text(
               description,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: getPercentageWidth(3.5, context),
                 color:
                     getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
               ),
             ),
-            const SizedBox(height: 50),
+            SizedBox(height: getPercentageHeight(5, context)),
             child1,
-            const SizedBox(height: 20),
+            SizedBox(height: getPercentageHeight(2, context)),
             child2,
-            const SizedBox(height: 20),
+            SizedBox(height: getPercentageHeight(2, context)),
             child3,
-            title.contains("Your Measurements")
-                ? const SizedBox(height: 10)
-                : const SizedBox(height: 50),
-            if (!title.contains("Key Features") &&
-                !title.contains("What are your goals?") &&
-                !title.contains("App Settings"))
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0.8, end: 1.0),
-                duration: const Duration(milliseconds: 1500),
-                curve: Curves.elasticOut,
-                builder: (context, scale, child) {
-                  return Transform.scale(
-                    scale: scale,
-                    child: AnimatedBuilder(
-                      animation: _bounceController,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(
-                            sin(DateTime.now().millisecondsSinceEpoch / 300) *
-                                3,
-                            cos(DateTime.now().millisecondsSinceEpoch / 300) *
-                                3,
-                          ),
-                          child: child,
-                        );
-                      },
-                      child: const CircleAvatar(
-                        backgroundColor: kAccentLight,
-                        radius: 100,
-                        backgroundImage: AssetImage(
-                          'assets/images/tasty/tasty.png',
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
           ],
         ),
       ),
@@ -759,31 +722,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               enabledBorder: outlineInputBorder(10),
               focusedBorder: outlineInputBorder(10),
               border: outlineInputBorder(10),
-              labelStyle: const TextStyle(color: Color(0xffefefef)),
-              hintStyle: const TextStyle(color: kLightGrey),
+              labelStyle: const TextStyle(color: Color(0xffefefef) ),
+              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3.5, context)),
               hintText: "Enter your weight",
               floatingLabelBehavior: FloatingLabelBehavior.always,
-              contentPadding: const EdgeInsets.only(
-                top: 10,
-                bottom: 10,
-                right: 10,
-                left: 10,
+              contentPadding: EdgeInsets.only(
+                top: getPercentageHeight(1.5, context),
+                bottom: getPercentageHeight(1.5, context),
+                right: getPercentageWidth(2, context),
+                left: getPercentageWidth(2, context),
               ),
             ),
             onChanged: onTextChanged,
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: getPercentageWidth(2, context)),
         Container(
           decoration: BoxDecoration(
             color: kWhite,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: kDarkGrey,
-              width: 1.5,
+              width: getPercentageWidth(0.5, context),
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context)),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: selectedUnit,
@@ -792,7 +755,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         value: u,
                         child: Text(
                           u,
-                          style: const TextStyle(color: kDarkGrey),
+                          style: TextStyle(color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
                         ),
                       ))
                   .toList(),
@@ -802,7 +765,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 }
               },
               dropdownColor: kWhite,
-              icon: const Icon(Icons.arrow_drop_down, color: kDarkGrey),
+              icon: Icon(Icons.arrow_drop_down, color: kDarkGrey, size: getPercentageWidth(4, context)),
             ),
           ),
         ),
@@ -826,10 +789,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Navigation Buttons
   Widget _buildNavigationButtons() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(5, context), vertical: getPercentageHeight(1, context)),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: Size.fromHeight(getPercentageHeight(7, context)),
           backgroundColor: _isNextEnabled ? kAccent : kLightGrey,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
@@ -837,9 +800,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 5 ? "Finish" : "Next",
+              _currentPage == 5 ? "Finish" : "Next",
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: getPercentageWidth(4, context),
             fontWeight: FontWeight.w600,
             color: _isNextEnabled ? kWhite : kDarkGrey,
           ),
@@ -850,7 +814,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Future<void> requestUMPConsent() async {
     final params = ConsentRequestParameters();
-    ConsentInformation.instance.requestConsentInfoUpdate(
+    ConsentInformation.instance.requestConsentInfoUpdate( 
       params,
       () {
         // Consent info updated successfully
