@@ -378,7 +378,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Go Premium'),
+        title: Text( isUserPremium ? 'Your Plan' : 'Go Premium'),
         centerTitle: true,
       ),
       body: isLoading

@@ -62,6 +62,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _fetchFavouriteMeals();
+    _updateIngredientList(selectedCategory);
   }
 
   Future<void> _fetchFavouriteMeals() async {

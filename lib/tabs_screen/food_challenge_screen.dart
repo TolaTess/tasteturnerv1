@@ -36,7 +36,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     super.initState();
     _setupDataListeners();
 
-     _categoryDatasIngredient = [...helperController.macros];
+    _categoryDatasIngredient = [...helperController.macros];
     final generalCategory = {
       'id': 'general',
       'name': 'General',
@@ -289,7 +289,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                 : FutureBuilder<bool>(
                                     future: macroManager.isUserInBattle(
                                         userService.userId ?? '',
-                                        'general'),
+                                        battleList.first['categoryId']),
                                     builder: (context, snapshot) {
                                       if (!snapshot.hasData) {
                                         return const CircularProgressIndicator(
@@ -351,9 +351,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     ? 'Manage in profile screen'
                                                     : 'Vote for your favorite dish!',
                                                 style: TextStyle(
-                                                  fontSize:
-                                                      getPercentageWidth(4,
-                                                          context),
+                                                  fontSize: getPercentageWidth(
+                                                      4, context),
                                                   color: kAccentLight,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -560,9 +559,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       ),
 
                 // ------------------------------------Premium / Ads-------------------------------------
-                SizedBox(
-                  height: getPercentageHeight(2, context),
-                ),
+                userService.currentUser?.isPremium ?? false
+                    ? SizedBox(
+                        height: getPercentageHeight(1.5, context),
+                      )
+                    : SizedBox(
+                        height: getPercentageHeight(2.5, context),
+                      ),
 
                 //category options
                 CategorySelector(
@@ -572,6 +575,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   isDarkMode: isDarkMode,
                   accentColor: kAccentLight,
                   darkModeAccentColor: kDarkModeAccent,
+                ),
+                SizedBox(
+                  height: getPercentageHeight(1.5, context),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 15.0, right: 5.0),
@@ -606,6 +612,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       ),
                     ],
                   ),
+                ),
+                SizedBox(
+                  height: getPercentageHeight(1.5, context),
                 ),
 
                 //food challenge

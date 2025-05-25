@@ -70,6 +70,15 @@ class _SearchResultGridState extends State<SearchResultGrid> {
     _hasMore.value = true;
     _localMealsDisplayed.value = _localPageSize;
 
+    final querySnapshot = await firestore
+        .collection('meals')
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    final allMeals = querySnapshot.docs
+        .map((doc) => Meal.fromJson(doc.id, doc.data()))
+        .toList();
+
     try {
       if (widget.search.isNotEmpty) {
         // Special case: show only user's meals if search == 'myMeals'
@@ -87,26 +96,25 @@ class _SearchResultGridState extends State<SearchResultGrid> {
           _apiMeals.addAll(myMeals);
           _hasMore.value = false;
           _localMealsDisplayed.value = myMeals.length;
+        } else if (widget.search.toLowerCase() == 'all' ||
+            widget.search.toLowerCase() == 'general') {
+          // Treat as no search: use local meals, paginated
+          _apiMeals.clear();
+          _hasMore.value = mealManager.meals.length > _localPageSize;
+          _localMealsDisplayed.value = _localPageSize;
+          _isLoading.value = false;
+          return;
         } else {
-          // Search Firestore for all meals matching the search, ordered by createdAt desc
-          final querySnapshot = await firestore
-              .collection('meals')
-              .orderBy('createdAt', descending: true)
-              .get();
-
-          final allMeals = querySnapshot.docs
-              .map((doc) => Meal.fromJson(doc.id, doc.data()))
-              .toList();
-
           List<Meal> filteredMeals = [];
           if (widget.screen == 'ingredient') {
             filteredMeals = allMeals
-                .where((meal) => 
-                    meal.title.toLowerCase().contains(widget.search.toLowerCase()) ||
-                    (meal.ingredients).keys.any((ingredient) =>
-                        ingredient
-                            .toLowerCase()
-                            .contains(widget.search.toLowerCase())))
+                .where((meal) =>
+                    meal.title
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase()) ||
+                    (meal.ingredients).keys.any((ingredient) => ingredient
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase())))
                 .toList();
           } else {
             filteredMeals = allMeals
@@ -135,11 +143,13 @@ class _SearchResultGridState extends State<SearchResultGrid> {
   }
 
   List<Meal> _getFilteredMeals() {
-    if (widget.search.isNotEmpty) {
+    if (widget.search.isNotEmpty &&
+        widget.search.toLowerCase() != 'all' &&
+        widget.search.toLowerCase() != 'general') {
       // For search, just show the Firestore (api) meals, already sorted
       return _apiMeals;
     } else {
-      // For normal browsing, show local meals (recent first) and then API meals
+      // For normal browsing or 'all'/'general', show local meals paginated
       final localMeals = mealManager.meals;
       final sortedLocalMeals = [...localMeals];
       sortedLocalMeals.sort((a, b) => b.createdAt.compareTo(a.createdAt));

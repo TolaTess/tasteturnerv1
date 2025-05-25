@@ -12,6 +12,7 @@ import 'data_models/profilescreen_data.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
 import 'service/battle_management.dart';
+import 'service/calendar_sharing_service.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
@@ -47,6 +48,7 @@ void main() async {
     Get.put(FirebaseService());
     // Get.put(HealthService());
     Get.put(BattleService());
+    Get.put(CalendarSharingService());
 
     Get.lazyPut(() => MealManager());
     Get.lazyPut(() => PostController());

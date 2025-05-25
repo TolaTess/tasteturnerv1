@@ -340,7 +340,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
               );
             }),
           ),
-          const SizedBox(height: 10),
           // ------------------------------------Premium / Ads------------------------------------
           userService.currentUser?.isPremium ?? false
               ? const SizedBox.shrink()

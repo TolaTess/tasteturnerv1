@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
@@ -43,6 +44,26 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = '';
   List<String> selectedMealIds = [];
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
+  String selectedCategory = 'general';
+  String selectedCategoryId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _onRefresh();
+    _searchController.text = widget.searchIngredient;
+    _categoryDatasIngredient = [...helperController.category];
+
+    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await firebaseService.fetchGeneralData();
+  }
 
   @override
   void dispose() {
@@ -57,6 +78,14 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       } else {
         selectedMealIds.add(mealId);
       }
+    });
+  }
+
+  void _updateCategoryData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryId = categoryId;
+      selectedCategory = category;
     });
   }
 
@@ -120,6 +149,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -178,20 +208,38 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    widget.isFilter
+                        ? const SizedBox.shrink()
+                        : SizedBox(height: getPercentageHeight(2, context)),
 
                     // Search bar
                     widget.isFilter
                         ? const SizedBox.shrink()
                         : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(1.5, context)),
                             child: SearchButton2(
                               controller: _searchController,
                               onChanged: _onSearchChanged,
                               kText: searchMealHint,
                             ),
                           ),
-                    const SizedBox(height: 10),
+                    widget.isFilter
+                        ? const SizedBox.shrink()
+                        : SizedBox(height: getPercentageHeight(2, context)),
+
+                    // Category selector
+                    widget.isFilter
+                        ? const SizedBox.shrink()
+                        : CategorySelector(
+                            categories: _categoryDatasIngredient,
+                            selectedCategoryId: selectedCategoryId,
+                            onCategorySelected: _updateCategoryData,
+                            isDarkMode: isDarkMode,
+                            accentColor: kAccentLight,
+                            darkModeAccentColor: kDarkModeAccent,
+                          ),
+                    SizedBox(height: getPercentageHeight(2, context)),
                   ],
                 ),
               ),
@@ -200,8 +248,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
             // Recipes list per category
 
             SearchResultGrid(
-              search:
-                  searchQuery.isEmpty ? widget.searchIngredient : searchQuery,
+              search: searchQuery.isEmpty && widget.searchIngredient.isEmpty
+                  ? selectedCategory
+                  : (searchQuery.isEmpty
+                      ? widget.searchIngredient
+                      : searchQuery),
               enableSelection: widget.isMealplan,
               selectedMealIds: selectedMealIds,
               onMealToggle: toggleMealSelection,

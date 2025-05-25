@@ -4,6 +4,7 @@ import '../data_models/meal_model.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../screens/friend_screen.dart';
 import '../screens/profile_screen.dart';
 import '../widgets/primary_button.dart';
 import '../constants.dart';
@@ -12,26 +13,46 @@ import '../screens/user_profile_screen.dart';
 import '../data_models/user_meal.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({super.key, required this.mealData});
+  const RecipeDetailScreen(
+      {super.key, required this.mealData, this.screen = 'recipe'});
 
   final Meal mealData;
+  final String screen;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  late Meal _meal;
+  Meal? _meal;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _meal = widget.mealData;
+    if (widget.screen == 'share_recipe') {
+      _getMeal();
+    } else {
+      _meal = widget.mealData;
+    }
     friendController.updateUserData(widget.mealData.userId);
+  }
+
+  Future<void> _getMeal() async {
+    setState(() => _loading = true);
+    final meal = await mealManager.getMealbyMealID(widget.mealData.mealId);
+    if (!mounted) return;
+    setState(() {
+      _meal = meal;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_meal == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Scaffold(
       body: Obx(() {
         final mealUser = friendController.userProfileData.value;
@@ -41,19 +62,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             slivers: [
               // Custom app bar > recipe image, back button, more action button, and drawer
               SlvAppBar(
-                meal: _meal,
+                meal: _meal!,
               ),
 
               // Recipe title, time to cook, serves, rating, and recipe description
               RecipeTittle(
-                meal: _meal,
+                meal: _meal!,
                 onEdit: () async {
                   final updatedMeal = await Navigator.push<Meal>(
                     context,
                     MaterialPageRoute(
                       builder: (context) => CreateRecipeScreen(
                         screenType: 'edit',
-                        meal: _meal,
+                        meal: _meal!,
                       ),
                     ),
                   );
@@ -65,7 +86,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     // Refetch from Firestore in case of update
                     final doc = await firestore
                         .collection('meals')
-                        .doc(_meal.mealId)
+                        .doc(_meal!.mealId)
                         .get();
                     if (doc.exists) {
                       setState(() {
@@ -78,33 +99,33 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
               // Chef profile: avatar, name, location, and follow button
               RecipeProfile(
-                profileId: _meal.userId,
+                profileId: _meal!.userId,
                 mealUser: mealUser,
               ),
 
               // Nutrition facts (sliver) grid view
               NutritionFacts(
-                meal: _meal,
+                meal: _meal!,
               ),
 
               // Ingredients title
               IngredientsTittle(
-                meal: _meal,
+                meal: _meal!,
               ),
 
               // Ingredients details
               IngredientsDetail(
-                meal: _meal,
+                meal: _meal!,
               ),
 
               // Directions title
               DirectionsTittle(
-                meal: _meal,
+                meal: _meal!,
               ),
 
               // Directions detail
               DirectionsDetail(
-                meal: _meal,
+                meal: _meal!,
               ),
             ],
           ),
@@ -168,10 +189,10 @@ class SlvAppBar extends StatelessWidget {
       }),
 
       bottom: PreferredSize(
-        preferredSize: Size.fromHeight(10),
+        preferredSize: Size.fromHeight(getPercentageHeight(10, context)),
         child: Container(
           width: double.infinity,
-          height: 50,
+          height: getPercentageHeight(10, context),
           decoration: BoxDecoration(
             color: isDarkMode ? kDarkGrey : kWhite,
             borderRadius: const BorderRadius.only(
@@ -181,219 +202,20 @@ class SlvAppBar extends StatelessWidget {
           ),
           child: Column(
             children: [
-              const SizedBox(
-                height: 15,
+              SizedBox(
+                height: getPercentageHeight(1, context),
               ),
 
               //drawer
               Container(
-                width: 80,
-                height: 4,
+                width: getPercentageWidth(20, context),
+                height: getPercentageHeight(0.5, context),
                 color: isDarkMode ? kLightGrey : kAccent,
               )
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-//Recipe Pop Menu
-
-class RecipePopMenu extends StatelessWidget {
-  const RecipePopMenu({
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton(
-      //more action button
-      icon: const Icon(
-        Icons.more_horiz,
-        color: Colors.black,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(
-          Radius.circular(10),
-        ),
-      ),
-      itemBuilder: (context) {
-        return [
-          //share button
-          const PopupMenuItem<int>(
-            value: 0,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.share,
-                  color: Colors.black,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text(share),
-              ],
-            ),
-          ),
-          //rate button
-          const PopupMenuItem<int>(
-            value: 1,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.star,
-                  color: Colors.black,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text(rate),
-              ],
-            ),
-          ),
-          //review button
-          const PopupMenuItem<int>(
-            value: 2,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.reviews,
-                  color: Colors.black,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text(review),
-              ],
-            ),
-          ),
-          //favorite button
-          const PopupMenuItem<int>(
-            value: 3,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.favorite,
-                  color: Colors.black,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text(favorite),
-              ],
-            ),
-          ),
-        ];
-      },
-      onSelected: ((value) {
-        if (value == 0) {
-          print("Share menu is selected.");
-          //you can use flutter share package
-        } else if (value == 1) {
-          //Modal buttom sheet to call rating box
-          showModalBottomSheet(
-              shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30))),
-              context: context,
-              builder: (BuildContext context) {
-                return const RatingBox();
-              });
-        } else if (value == 2) {
-          //Go to recipe review screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateRecipeScreen(
-                screenType: 'details',
-              ),
-            ),
-          );
-        } else if (value == 3) {
-          print("Favorite menu is selected.");
-          // call API to favorite/unfavorite recipe
-        }
-      }),
-    );
-  }
-}
-
-//rating box
-
-class RatingBox extends StatelessWidget {
-  const RatingBox({
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(30), topRight: Radius.circular(30))),
-      child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              rateRecipe,
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            // star rating
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 80),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Icon(
-                    Icons.star_border_outlined,
-                    color: Colors.amber,
-                    size: 45,
-                  ),
-                  Icon(
-                    Icons.star_border_outlined,
-                    color: Colors.amber,
-                    size: 45,
-                  ),
-                  Icon(
-                    Icons.star_border_outlined,
-                    color: Colors.amber,
-                    size: 45,
-                  ),
-                  Icon(
-                    Icons.star_border_outlined,
-                    color: Colors.amber,
-                    size: 45,
-                  ),
-                  Icon(
-                    Icons.star_border_outlined,
-                    color: Colors.amber,
-                    size: 45,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(
-              height: 15,
-            ),
-            AppButton(
-              text: send,
-              onPressed: () => Navigator.pop(context),
-              type: AppButtonType.secondary,
-            )
-          ]),
     );
   }
 }
@@ -427,6 +249,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
   Future<void> _loadFavoriteStatus() async {
     final isFavorite =
         await firebaseService.isRecipeFavorite(_userId, widget.meal.mealId);
+    if (!mounted) return;
     setState(() {
       _isFavorited = isFavorite;
     });
@@ -434,6 +257,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
 
   Future<void> _toggleFavorite() async {
     await firebaseService.toggleFavorite(_userId, widget.meal.mealId);
+    if (!mounted) return;
     setState(() {
       _isFavorited = !_isFavorited;
     });
@@ -459,22 +283,22 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       Text(
                         capitalizeFirstLetter(widget.meal.title),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: getPercentageWidth(4, context),
                           fontWeight: FontWeight.bold,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      SizedBox(height: getPercentageHeight(0.5, context)),
                       Text(
                         " $serves: ${widget.meal.serveQty}",
-                        style: const TextStyle(fontSize: 13),
+                        style:
+                            TextStyle(fontSize: getPercentageWidth(3, context)),
                       ),
                     ],
                   ),
                 ),
-                SizedBox(
-                  height: getPercentageHeight(1, context),
-                ),
+                SizedBox(height: getPercentageHeight(1, context)),
                 //time, serve, rating
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -493,7 +317,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: kRed,
-                            size: 19,
+                            size: getPercentageWidth(5, context),
                           ),
                         ),
                       ),
@@ -534,20 +358,56 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           }
                         }
                       },
-                      icon: const Icon(Icons.add, size: 19),
-                      label: const Text('Today\'s Meal'),
+                      icon:
+                          Icon(Icons.add, size: getPercentageWidth(5, context)),
+                      label: Text('Today\'s Meal',
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(3.5, context))),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
                         padding: EdgeInsets.symmetric(
                             horizontal: getPercentageWidth(1.5, context)),
                       ),
                     ),
+                    SizedBox(width: getPercentageWidth(1.5, context)),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FriendScreen(
+                            dataSrc: {
+                              ...widget.meal.toJson(),
+                              'mealId': widget.meal.mealId
+                            },
+                            screen: 'share_recipe',
+                          ),
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(1.5, context)),
+                          child: Icon(
+                            Icons.share,
+                            color: kAccentLight,
+                            size: getPercentageWidth(4.5, context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: getPercentageWidth(1.5, context)),
+
                     // Edit button if user is the owner
                     if (userService.userId == widget.meal.userId) ...[
                       TextButton.icon(
                         onPressed: widget.onEdit,
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: const Text('Edit Meal'),
+                        icon: Icon(Icons.edit,
+                            size: getPercentageWidth(4, context)),
+                        label: Text('Edit Meal',
+                            style: TextStyle(
+                                fontSize: getPercentageWidth(3.5, context))),
                         style: TextButton.styleFrom(
                           foregroundColor: kAccent,
                           padding: EdgeInsets.symmetric(
@@ -555,26 +415,38 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: kRed),
+                        icon: Icon(Icons.delete_outline, color: kRed),
                         iconSize: getPercentageWidth(5, context),
                         tooltip: 'Delete Meal',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Delete Meal'),
-                              content: const Text(
-                                  'Are you sure you want to delete this meal? This action cannot be undone.'),
+                              title: Text('Delete Meal',
+                                  style: TextStyle(
+                                      fontSize:
+                                          getPercentageWidth(3, context))),
+                              content: Text(
+                                  'Are you sure you want to delete this meal? This action cannot be undone.',
+                                  style: TextStyle(
+                                      fontSize:
+                                          getPercentageWidth(3, context))),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                                  child: Text('Cancel',
+                                      style: TextStyle(
+                                          fontSize:
+                                              getPercentageWidth(3, context))),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Delete',
-                                      style: TextStyle(color: kRed)),
+                                  child: Text('Delete',
+                                      style: TextStyle(
+                                          color: kRed,
+                                          fontSize:
+                                              getPercentageWidth(3, context))),
                                 ),
                               ],
                             ),
@@ -600,8 +472,8 @@ class _RecipeTittleState extends State<RecipeTittle> {
                     ],
                   ],
                 ),
-                const SizedBox(
-                  height: 15,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
               ],
             ),
@@ -639,7 +511,11 @@ class _RecipeProfileState extends State<RecipeProfile> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: EdgeInsets.only(
+        left: getPercentageWidth(5, context),
+        right: getPercentageWidth(5, context),
+        top: getPercentageHeight(2, context),
+      ),
       sliver: SliverToBoxAdapter(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -671,7 +547,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                     }
                   },
                   child: CircleAvatar(
-                    radius: 25,
+                    radius: getPercentageWidth(6, context),
                     backgroundColor: kAccent.withOpacity(kOpacity),
                     child: CircleAvatar(
                       backgroundImage: widget.mealUser?.profileImage != null &&
@@ -680,13 +556,12 @@ class _RecipeProfileState extends State<RecipeProfile> {
                           ? NetworkImage(widget.mealUser!.profileImage!)
                           : const AssetImage(intPlaceholderImage)
                               as ImageProvider,
-                      radius: 22,
+                      radius: getPercentageWidth(5.5, context),
                     ),
                   ),
                 ),
-
-                const SizedBox(
-                  width: 10,
+                SizedBox(
+                  width: getPercentageWidth(2, context),
                 ),
                 //name and location
                 Column(
@@ -696,7 +571,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                       capitalizeFirstLetter(
                           widget.mealUser?.displayName ?? appName),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: getPercentageWidth(4, context),
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.bold,
                       ),
@@ -771,9 +646,11 @@ class NutritionFacts extends StatelessWidget {
         nutritionMap.entries.toList();
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 20,
+      padding: EdgeInsets.only(
+        left: getPercentageWidth(3, context),
+        right: getPercentageWidth(3, context),
+        top: getPercentageHeight(3, context),
+        bottom: getPercentageHeight(5, context),
       ),
       sliver: SliverGrid(
         delegate: SliverChildBuilderDelegate(
@@ -784,7 +661,8 @@ class NutritionFacts extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(3, context)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -811,11 +689,11 @@ class NutritionFacts extends StatelessWidget {
           },
           childCount: nutritionEntries.length,
         ),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          mainAxisExtent: 50,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
+          mainAxisExtent: getPercentageHeight(8, context),
+          crossAxisSpacing: getPercentageWidth(4, context),
+          mainAxisSpacing: getPercentageHeight(1, context),
         ),
       ),
     );
@@ -837,13 +715,15 @@ class IngredientsTittle extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(3, context),
+            vertical: getPercentageHeight(3, context)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(ingredients,
                 style: TextStyle(
-                    fontSize: 18,
+                    fontSize: getPercentageWidth(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
             Text("${meal.ingredients.length} $items")
@@ -869,7 +749,9 @@ class IngredientsDetail extends StatelessWidget {
     return SliverToBoxAdapter(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 20, top: 20),
+        padding: EdgeInsets.only(
+            left: getPercentageWidth(3, context),
+            top: getPercentageHeight(1, context)),
         child: Row(
           children: [
             // Generate IngredientsCard using the map entries
@@ -908,23 +790,30 @@ class IngredientsCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 8.0, left: 8.0, right: 8.0),
+          padding: EdgeInsets.only(
+              bottom: getPercentageHeight(1, context),
+              left: getPercentageWidth(1, context),
+              right: getPercentageWidth(1, context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(
-                height: 10,
+              SizedBox(
+                height: getPercentageHeight(1, context),
               ),
               //ingredient title
               Text(
-                ingredientName,
+                capitalizeFirstLetter(ingredientName),
                 style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: getPercentageWidth(3.5, context),
+                    fontWeight: FontWeight.w700,
                     color: isDarkMode ? kWhite : kBlack),
               ),
               //ingredient quantity
-              Text(ingredientQty)
+              Text(ingredientQty,
+                  style: TextStyle(
+                      fontSize: getPercentageWidth(3, context),
+                      fontWeight: FontWeight.w500,
+                      color: isDarkMode ? kWhite : kBlack))
             ],
           ),
         ),
@@ -948,13 +837,15 @@ class DirectionsTittle extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(3, context),
+            vertical: getPercentageHeight(3, context)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(directions,
                 style: TextStyle(
-                    fontSize: 18,
+                    fontSize: getPercentageWidth(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
             Text("${meal.steps.length} steps")
@@ -978,7 +869,7 @@ class DirectionsDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context)),
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
@@ -1010,12 +901,14 @@ class DirectionsCard extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
       decoration: BoxDecoration(
           color: isDarkMode ? kLightGrey : kWhite,
           borderRadius: BorderRadius.circular(10)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+        padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(3, context),
+            vertical: getPercentageHeight(2.5, context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1024,13 +917,13 @@ class DirectionsCard extends StatelessWidget {
               'Step ${index + 1}',
               style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: getPercentageWidth(3.5, context),
                   color: isDarkMode ? kWhite : kBlack),
             ),
             //direction
             Text(
               direction,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: getPercentageWidth(3, context)),
             )
           ],
         ),

@@ -168,9 +168,12 @@ class BattleManagement {
       );
 
       // 3. Update current battle date to next week
-      final nextBattleDate = currentDate.add(const Duration(days: 7)); //13/05/2025
-      final nextDeadlineDate = currentDate.add(const Duration(days: 6)); //12/05/2025
-      final nextAnnounceDate = currentDate.add(const Duration(days: 1)); //14/05/2025
+      final nextBattleDate =
+          currentDate.add(const Duration(days: 7)); //13/05/2025
+      final nextDeadlineDate =
+          currentDate.add(const Duration(days: 6)); //12/05/2025
+      final nextAnnounceDate =
+          currentDate.add(const Duration(days: 1)); //14/05/2025
       await firestore.collection('general').doc('data').set({
         'currentBattle': nextBattleDate.toString().split(' ')[0],
         'isAnnounceDate': nextAnnounceDate.toString().split(' ')[0],

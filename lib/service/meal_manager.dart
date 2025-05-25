@@ -198,6 +198,16 @@ class MealManager extends GetxController {
     }
   }
 
+  getMealbyMealID(String mealId) async {
+    try {
+      final meal = await firestore.collection('meals').doc(mealId).get();
+      return Meal.fromJson(mealId, meal.data() as Map<String, dynamic>);
+    } catch (e) {
+      print('Error getting meal by meal ID: $e');
+      return null;
+    }
+  }
+
   Future<List<Meal>> getMealsByMealIds(List<String> mealIds) async {
     try {
       // Initialize an empty list to hold the Meal objects

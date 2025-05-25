@@ -33,12 +33,15 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
   List<Meal> demoMealsPlanData = [];
   bool? isPremium = false;
   bool isInShoppingList = false;
+  late List<MacroData> _displayIngredientItems;
 
   @override
   void initState() {
     demoMealsPlanData = mealManager.meals;
     isPremium = userService.currentUser?.isPremium;
     _checkIfItemInShoppingList();
+    // Make a local copy of ingredientItems for shuffling
+    _displayIngredientItems = List<MacroData>.from(widget.ingredientItems);
     super.initState();
   }
 
@@ -383,7 +386,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  widget.ingredientItems.shuffle();
+                                  _displayIngredientItems.shuffle();
                                 });
                               },
                               child: Container(
@@ -434,19 +437,19 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             crossAxisSpacing: getPercentageWidth(1, context),
                             childAspectRatio: 0.5,
                           ),
-                          itemCount: widget.ingredientItems.length > 3
+                          itemCount: _displayIngredientItems.length > 3
                               ? 3
-                              : widget.ingredientItems.length,
+                              : _displayIngredientItems.length,
                           itemBuilder: (BuildContext ctx, index) {
                             return RecomendationItem(
-                              dataSrc: widget.ingredientItems[index],
+                              dataSrc: _displayIngredientItems[index],
                               press: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
                                         IngredientDetailsScreen(
-                                      item: widget.ingredientItems[index],
+                                      item: _displayIngredientItems[index],
                                       ingredientItems: const [],
                                       isRefresh: false,
                                     ),

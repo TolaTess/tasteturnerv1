@@ -6,7 +6,7 @@ import '../data_models/user_meal.dart';
 import 'package:intl/intl.dart';
 
 class CalendarSharingService extends GetxController {
-
+  static CalendarSharingService instance = Get.find();
   // Observable lists for real-time updates
   final RxList<ShareRequest> shareRequests = <ShareRequest>[].obs;
   final RxList<SharedCalendar> sharedCalendars = <SharedCalendar>[].obs;
@@ -42,18 +42,8 @@ class CalendarSharingService extends GetxController {
         throw Exception('User not authorized');
 
       // Update the meal plan in the shared calendar
-      await firestore
-          .collection('shared_calendars')
-          .doc(calendarId)
-          .collection('date')
-          .doc(date)
-          .set({
-        'meals': meals.map((m) => m.toFirestore()).toList(),
-        'isSpecial': isSpecial,
-        'dayType': dayType,
-        'lastUpdatedBy': userId,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await newSharedCalendar(calendarId, userId, date, meals, isSpecial,
+          dayType ?? '');
     } catch (e) {
       print('Error adding/updating shared meal: $e');
       throw e;
@@ -114,6 +104,29 @@ class CalendarSharingService extends GetxController {
     }
   }
 
+  Future<void> newSharedCalendar(
+      String calendarId,
+      String userId,
+      String date,
+      List<UserMeal> meals,
+      bool isSpecial,
+      String dayType) async {
+    // Update the meal plan in the shared calendar
+    final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.parse(date));
+    await firestore
+        .collection('shared_calendars')
+        .doc(calendarId)
+        .collection('date')
+        .doc(dateStr)
+        .set({
+      'meals': meals.map((m) => m.toFirestore()).toList(),
+      'isSpecial': isSpecial,
+      'dayType': dayType,
+      'lastUpdatedBy': userId,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   // Get chat messages
   Stream<QuerySnapshot> getChatMessages(String chatId) {
     return firestore
@@ -144,6 +157,23 @@ class CalendarSharingService extends GetxController {
         .get();
     return query.docs.map((doc) => SharedCalendar.fromFirestore(doc)).toList();
   }
+
+  Future<String> createSharedCalendar(String userId, String header) async {
+    final docRef = await firestore.collection('shared_calendars').add({
+      'userIds': [userId],
+      'header': header,
+      'createdAt': FieldValue.serverTimestamp(),
+      'createdBy': userId,
+    });
+    return docRef.id;
+  }
+
+  Future<SharedCalendar?> fetchSharedCalendarById(String calendarId) async {
+    final doc = await firestore.collection('shared_calendars').doc(calendarId).get();
+    if (!doc.exists) return null;
+    return SharedCalendar.fromFirestore(doc);
+  }
+
 
   Future<Map<String, List<UserMeal>>> fetchSharedMealsForCalendarAndDate(
       String calendarId, DateTime date) async {

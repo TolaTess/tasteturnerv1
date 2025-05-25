@@ -61,8 +61,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     // Set default for meal category
     final categoryDatasMeal = helperController.headers;
     if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
-      selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
-      selectedCategoryMeal = categoryDatasMeal[0]['name'] ?? '';
+      selectedCategoryIdMeal = categoryDatasMeal[1]['id'] ?? '';
+      selectedCategoryMeal = categoryDatasMeal[1]['name'] ?? '';
     }
 
     // Set default for ingredient category

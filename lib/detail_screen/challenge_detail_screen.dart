@@ -167,6 +167,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
+            if (widget.screen == 'myPost' ||
+                widget.screen == 'share_recipe') {
+              Get.back();
+              return;
+            }
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(

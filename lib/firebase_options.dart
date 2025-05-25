@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -40,47 +41,47 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBtkWF2vukgufQvnYT49Ts70p63fps5bwA',
-    appId: '1:1047279372959:web:40454bb2caf9332f8330aa',
-    messagingSenderId: '1047279372959',
-    projectId: 'fithify',
-    authDomain: 'fithify.firebaseapp.com',
-    storageBucket: 'fithify.firebasestorage.app',
+  static FirebaseOptions web = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_WEB'] ?? '',
+    appId: dotenv.env['FIREBASE_APP_ID_WEB'] ?? '',
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+    authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN'] ?? '',
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDfGkFC2DThZBdqBdtcBuZWrLrDpSX8NP8',
-    appId: '1:1047279372959:android:7e2221b3acb0b4b88330aa',
-    messagingSenderId: '1047279372959',
-    projectId: 'fithify',
-    storageBucket: 'fithify.firebasestorage.app',
+  static FirebaseOptions android = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_ANDROID'] ?? '',
+    appId: dotenv.env['FIREBASE_APP_ID_ANDROID'] ?? '',
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBhCjA94ZgIRMQpY-D4mpKH-W_7iKa9B9k',
-    appId: '1:1047279372959:ios:3d57c46ecf6309048330aa',
-    messagingSenderId: '1047279372959',
-    projectId: 'fithify',
-    storageBucket: 'fithify.firebasestorage.app',
-    iosBundleId: 'com.tasteturner.fitHify',
+  static FirebaseOptions ios = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_IOS'] ?? '',
+    appId: dotenv.env['FIREBASE_APP_ID_IOS'] ?? '',
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
+    iosBundleId: dotenv.env['FIREBASE_BUNDLE_ID_IOS'] ?? '',
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBhCjA94ZgIRMQpY-D4mpKH-W_7iKa9B9k',
-    appId: '1:1047279372959:ios:b74e8b7f2c9ba5938330aa',
-    messagingSenderId: '1047279372959',
-    projectId: 'fithify',
-    storageBucket: 'fithify.firebasestorage.app',
-    iosBundleId: 'com.tasteturner.fitHify',
+  static FirebaseOptions macos = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_IOS'] ?? '',
+    appId: dotenv.env['FIREBASE_APP_ID_MACOS'] ?? '',
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
+    iosBundleId: dotenv.env['FIREBASE_BUNDLE_ID_IOS'] ?? '',
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBtkWF2vukgufQvnYT49Ts70p63fps5bwA',
-    appId: '1:1047279372959:web:369c4aeed440f2168330aa',
-    messagingSenderId: '1047279372959',
-    projectId: 'fithify',
-    authDomain: 'fithify.firebaseapp.com',
-    storageBucket: 'fithify.firebasestorage.app',
+  static FirebaseOptions windows = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_WEB'] ?? '',
+    appId: dotenv.env['FIREBASE_APP_ID_WINDOWS'] ?? '',
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? '',
+    authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN'] ?? '',
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '',
   );
 }

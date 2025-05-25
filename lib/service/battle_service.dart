@@ -13,42 +13,6 @@ class BattleService extends GetxController {
   // Collection reference
   CollectionReference get battlesRef => firestore.collection('battles');
 
-  // Create a new battle
-  Future<String> createBattle({
-    required String category,
-    required List<String> ingredients,
-  }) async {
-    try {
-      // Create battle document with auto-generated ID
-      final battleRef = battlesRef.doc();
-
-      // Get the next week's date for battle end
-      final now = DateTime.now();
-      final startDate = now.toString().substring(0, 10); // YYYY-MM-DD format
-      final endDate =
-          now.add(const Duration(days: 7)).toString().substring(0, 10);
-
-      await battleRef.set({
-        'category': category,
-        'dates': {
-          startDate: {
-            'status': 'active',
-            'created_at': FieldValue.serverTimestamp(),
-            'ended_at': endDate,
-            'ingredients': ingredients,
-            'voted': [],
-            'participants': {}
-          }
-        }
-      });
-
-      return battleRef.id;
-    } catch (e) {
-      print('Error creating battle: $e');
-      throw Exception('Failed to create battle');
-    }
-  }
-
   // Get current battle date data
   Map<String, dynamic>? _getCurrentBattleData(DocumentSnapshot battleDoc) {
     // Step 1: Extract data and dates

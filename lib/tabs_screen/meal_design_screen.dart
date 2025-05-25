@@ -230,8 +230,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
       // Filter documents by date range in the app
       final filteredDocs = userMealPlansQuery.docs.where((doc) {
-        final data = doc.data();
-        final dateStr = data['date'] as String?;
+        final data = doc.data() as Map<String, dynamic>?;
+        final dateStr = data?['date'] as String?;
         if (dateStr == null) return false;
 
         try {
@@ -248,15 +248,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       final newDayTypes = <DateTime, String>{};
 
       for (var doc in filteredDocs) {
-        final data = doc.data();
-        final dateStr = data['date'] as String?;
+        final data = doc.data() as Map<String, dynamic>?;
+        final dateStr = data?['date'] as String?;
         if (dateStr == null) continue;
 
         try {
           final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          final mealIds = List<String>.from(data['meals'] ?? []);
-          final isSpecial = data['isSpecial'] ?? false;
-          final dayType = data['dayType'] ?? 'regular_day';
+          final mealIds = List<String>.from(data?['meals'] ?? []);
+          final isSpecial = data?['isSpecial'] ?? false;
+          final dayType = data?['dayType'] ?? 'regular_day';
 
           if (mealIds.isNotEmpty) {
             final meals = await mealManager.getMealsByMealIds(mealIds);
@@ -467,7 +467,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       Icons.share,
                       size: 18,
                     ),
-                    onPressed: () => _shareCalendar(),
+                    onPressed: () => _shareCalendar(''),
                   ),
 
                   // Shared calendar selector
@@ -760,7 +760,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  void _shareCalendar() async {
+  void _shareCalendar(String shareType) async {
     // Check if user is premium or has free share left
     final userDoc =
         await firestore.collection('users').doc(userService.userId).get();
@@ -836,19 +836,34 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     });
                     final newCalId = newCalRef.id;
 
-                    // 2. Fetch all personal calendar items
+                    // 2. Fetch personal calendar items: single day or all days
                     final userId = userService.userId!;
-                    final personalItems = await firestore
-                        .collection('mealPlans')
-                        .doc(userId)
-                        .collection('date')
-                        .get();
+                    QuerySnapshot personalItems;
 
-                    // Only include items from today onwards
+                    if (shareType == 'single_day') {
+                      // Only fetch the selected date
+                      final dateStr =
+                          DateFormat('yyyy-MM-dd').format(selectedDate);
+                      personalItems = await firestore
+                          .collection('mealPlans')
+                          .doc(userId)
+                          .collection('date')
+                          .where(FieldPath.documentId, isEqualTo: dateStr)
+                          .get();
+                    } else {
+                      // Fetch all dates
+                      personalItems = await firestore
+                          .collection('mealPlans')
+                          .doc(userId)
+                          .collection('date')
+                          .get();
+                    }
+
+                    // 3. Only include items from today onwards
                     final today = DateTime.now();
                     final filteredDocs = personalItems.docs.where((doc) {
-                      final data = doc.data();
-                      final dateStr = data['date'] as String?;
+                      final data = doc.data() as Map<String, dynamic>?;
+                      final dateStr = data?['date'] as String?;
                       if (dateStr == null) return false;
                       try {
                         final date = DateFormat('yyyy-MM-dd').parse(dateStr);
@@ -862,10 +877,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       }
                     });
 
-                    // 3. Copy to shared calendar in batches
+                    // 4. Copy to shared calendar in batches
                     final batch = firestore.batch();
                     for (final doc in filteredDocs) {
-                      final data = doc.data();
+                      final data = doc.data() as Map<String, dynamic>?;
                       final dateId = doc.id;
                       final sharedDocRef = firestore
                           .collection('shared_calendars')
@@ -873,14 +888,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           .collection('date')
                           .doc(dateId);
                       batch.set(sharedDocRef, data);
-                      // If >500, commit and start new batch (not shown here for brevity)
                     }
                     await batch.commit();
 
-                    // 4. Navigate to FriendScreen with newCalId
+                    // 5. Navigate to FriendScreen with newCalId
                     Get.to(() => FriendScreen(
                           dataSrc: {
-                            'type': 'entire_calendar',
+                            'type': shareType == 'single_day'
+                                ? 'specific_date'
+                                : 'entire_calendar',
                             'screen': 'meal_design',
                             'calendarId': newCalId,
                             'header': calendarTitle,
@@ -1254,13 +1270,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         Icon(Icons.share, size: getPercentageWidth(4, context)),
                     onPressed: () async {
                       Navigator.pop(context);
-                      Get.to(() => FriendScreen(
-                            dataSrc: {
-                              'type': 'specific_date',
-                              'screen': 'meal_design',
-                              'date': selectedDate.toString(),
-                            },
-                          ));
+                      _shareCalendar('single_day');
                       await _loadMealPlans();
                     },
                     color: isDarkMode ? kWhite : kBlack,

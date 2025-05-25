@@ -5,10 +5,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/data_models/meal_model.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/user_data_model.dart';
 import '../detail_screen/challenge_detail_screen.dart';
+import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
@@ -92,6 +94,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (widget.screen == 'battle_post') {
       message =
           'Shared from ${capitalizeFirstLetter(widget.dataSrc?['name'])} for ${capitalizeFirstLetter(widget.dataSrc?['category'])} Battle /${widget.dataSrc?['id']} /${widget.dataSrc?['name']} /${widget.screen}';
+    } else if (widget.screen == 'share_recipe') {
+      message =
+          'Shared caption: ${capitalizeFirstLetter(widget.dataSrc?['title'])} /${widget.dataSrc?['mealId']} /${widget.dataSrc?['title']} /${widget.screen}';
     } else {
       message =
           'Shared caption: ${capitalizeFirstLetter(widget.dataSrc?['title'])} /${widget.dataSrc?['id']} /${widget.dataSrc?['title']} /${widget.screen}';
@@ -115,8 +120,11 @@ class _ChatScreenState extends State<ChatScreen> {
       date = DateFormat('MMM d, yyyy').format(DateTime.now());
       calendarId = data['calendarId'] as String?;
     } else {
+      print('data: $data');
       date = data['date'] as String? ?? 'No date specified';
       message = 'I\'d like to share my meal plan for $date with you.';
+      calendarId = data['calendarId'] as String?;
+      print('calendarId: $calendarId');
     }
 
     await chatController.sendMessage(
@@ -448,6 +456,18 @@ class ChatItem extends StatelessWidget {
                       child: GestureDetector(
                         onTap: () {
                           if (extractedItems.isNotEmpty &&
+                              extractedItems.last == 'share_recipe') {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RecipeDetailScreen(
+                                  mealData:
+                                      Meal.fromJson(extractedItems[0], {}),
+                                  screen: extractedItems.last,
+                                ),
+                              ),
+                            );
+                          } else if (extractedItems.isNotEmpty &&
                               extractedItems.last == 'post') {
                             // Navigate to PostDetailScreen
                             Navigator.pushReplacement(
@@ -476,17 +496,22 @@ class ChatItem extends StatelessWidget {
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            url,
-                            height: 150,
-                            width: screenWidth * 0.7,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                              intPlaceholderImage,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                          child: url.contains('http')
+                              ? Image.network(
+                                  url,
+                                  height: 150,
+                                  width: screenWidth * 0.7,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Image.asset(
+                                    intPlaceholderImage,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Image.asset(
+                                  getAssetImageForItem(url),
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                       ),
                     );
@@ -610,6 +635,21 @@ class ChatItem extends StatelessWidget {
     final status = shareRequest['status'] as String;
     final type = shareRequest['type'] as String;
     final date = shareRequest['date'] as String?;
+    String formattedDate = '';
+    if (date != null && date.isNotEmpty) {
+      // Try to parse as ISO, otherwise just display as is
+      try {
+        // If date is already in display format, just use it
+        if (RegExp(r'\d{4}-\d{2}-\d{2}').hasMatch(date)) {
+          formattedDate =
+              DateFormat('MMM d, yyyy').format(DateTime.parse(date));
+        } else {
+          formattedDate = date; // Already display format
+        }
+      } catch (e) {
+        formattedDate = date; // Fallback to raw string
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -636,7 +676,7 @@ class ChatItem extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Date: $date',
+              'Date: $formattedDate',
               style: TextStyle(
                 fontSize: 12,
                 color: isDarkMode ? Colors.white70 : Colors.black54,

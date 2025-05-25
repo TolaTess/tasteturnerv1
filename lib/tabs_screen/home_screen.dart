@@ -475,8 +475,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 if (_isTodayShoppingDay())
                   Container(
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.all(16),
+                    margin: EdgeInsets.all(getPercentageWidth(1, context)),
+                    padding: EdgeInsets.all(getPercentageWidth(3, context)),
                     decoration: BoxDecoration(
                       color: kAccent.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
@@ -484,21 +484,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.shopping_cart,
-                            color: kAccent, size: 32),
-                        const SizedBox(width: 16),
-                        const Expanded(
+                          Icon(Icons.shopping_cart,
+                            color: kAccent, size: getPercentageWidth(10, context)),
+                        SizedBox(width: getPercentageWidth(1, context)),
+                        Expanded(
                           child: Text(
                             "It's your shopping day! Don't forget to check your shopping list.",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 16,
+                              fontSize: getPercentageWidth(3.5, context),
                               color: kAccent,
                             ),
                           ),
                         ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
+                            minimumSize: Size(getPercentageWidth(10, context), getPercentageHeight(5, context)),
                             backgroundColor: kAccent,
                             foregroundColor: kWhite,
                             shape: RoundedRectangleBorder(
@@ -514,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             );
                           },
-                          child: const Text('Go'),
+                          child: Text('Go', style: TextStyle(fontSize: getPercentageWidth(3.5, context))),
                         ),
                       ],
                     ),

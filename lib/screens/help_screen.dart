@@ -25,7 +25,9 @@ class HelpSupport extends StatelessWidget {
                   child: Text(
                     'Frequently Asked Questions',
                     style: TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold, color: kAccent),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: kAccent),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -36,24 +38,63 @@ class HelpSupport extends StatelessWidget {
                     'You can add your special days to the calendar and share them with friends and family by clicking the share icon. Switch between personal and shared calendar views by clicking the person icon.'),
                 _buildFAQItem('What is the ingredient battle?',
                     'The ingredient battle is our weekly challenge that encourages you to explore different ingredients and get creative with cooking. Join the challenge and earn points for a chance to win vouchers to your favorite restaurants!'),
-                const SizedBox(height: 16),
-                Center(
-                  child: InkWell(
-                    onTap: () async {
-                      final Uri url = Uri.parse('https://tasteturner.com');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url);
-                      }
-                    },
-                    child: const Text(
-                      'View our website',
-                      style: TextStyle(
-                        color: kAccentLight,
-                        fontSize: 16,
-                        decoration: TextDecoration.underline,
+                SizedBox(height: getPercentageHeight(1, context)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        final Uri url =
+                            Uri.parse('https://tasteturner.com/faq');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url);
+                        }
+                      },
+                      child: Text(
+                        'More FAQs',
+                        style: TextStyle(
+                          color: kAccentLight,
+                          fontSize: getPercentageWidth(4, context),
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
-                  ),
+                    InkWell(
+                      onTap: () async {
+                        final Uri url =
+                            Uri.parse('https://tasteturner.com/privacy');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url);
+                        }
+                      },
+                      child: Text(
+                        'Privacy Policy',
+                        style: TextStyle(
+                          color: kAccentLight,
+                          fontSize: getPercentageWidth(4, context),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: InkWell(
+                        onTap: () async {
+                          final Uri url = Uri.parse('https://tasteturner.com');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url);
+                          }
+                        },
+                        child: Text(
+                          'Our website',
+                          style: TextStyle(
+                            color: kAccentLight,
+                            fontSize: getPercentageWidth(4, context),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 30),
                 Center(
