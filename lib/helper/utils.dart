@@ -513,8 +513,8 @@ const proteins = [
   'lentils'
 ];
 
-Widget noItemTastyWidget(
-    String message, String subtitle, BuildContext context, bool isLinked, String screen) {
+Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
+    bool isLinked, String screen) {
   final themeProvider = getThemeProvider(context);
   return Center(
     child: Column(
@@ -554,14 +554,19 @@ Widget noItemTastyWidget(
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const TastyScreen(),
+                      builder: (context) => const BottomNavSec(
+                        selectedIndex: 2,
+                      ),
                     ),
                   );
                 } else if (screen == 'recipe') {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const RecipeScreen(),
+                      builder: (context) => const BottomNavSec(
+                        selectedIndex: 1,
+                        foodScreenTabIndex: 1,
+                      ),
                     ),
                   );
                 } else if (screen == 'spin') {

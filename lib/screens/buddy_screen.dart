@@ -142,19 +142,20 @@ class _TastyScreenState extends State<TastyScreen> {
   Widget _buildPremiumPrompt(ThemeProvider themeProvider) {
     return Stack(
       children: [
-        Positioned(
-          top: 20,
-          left: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: IconButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const IconCircleButton(),
+        if (widget.screen == 'message')
+          Positioned(
+            top: 20,
+            left: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: IconButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: const IconCircleButton(),
+              ),
             ),
           ),
-        ),
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

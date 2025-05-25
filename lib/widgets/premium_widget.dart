@@ -47,7 +47,7 @@ class _PremiumSectionState extends State<PremiumSection> {
         _loadBannerAd();
       } else if (Platform.isAndroid) {
         // Keep using dotenv for Android
-        _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID_TEST'] ?? '';
+        _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID'] ?? '';
         _loadBannerAd();
       }
     } on PlatformException catch (e) {
