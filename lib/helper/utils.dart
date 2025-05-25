@@ -336,7 +336,7 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
 
   return CupertinoPicker(
     scrollController: FixedExtentScrollController(initialItem: selectedValue),
-    itemExtent: 40,
+    itemExtent: getPercentageHeight(7, context),
     onSelectedItemChanged: onChanged,
     children: List.generate(
       itemCount,
@@ -350,7 +350,7 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
                       ? kBlack
                       : kWhite
                   : kBlack,
-              fontSize: 16),
+              fontSize: getPercentageWidth(4, context)),
         ),
       ),
     ),

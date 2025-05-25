@@ -8,6 +8,7 @@ import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 import '../screens/profile_screen.dart';
 import '../pages/upload_battle.dart';
+import '../service/battle_management.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
@@ -54,6 +55,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showAddJoinTutorial();
+        BattleManagement.instance.startBattleManagement();
       setState(() {
         showBattle = battleList.isNotEmpty;
       });

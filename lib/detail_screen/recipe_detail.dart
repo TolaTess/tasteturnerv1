@@ -422,23 +422,42 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15)),
+                              backgroundColor:
+                                  getThemeProvider(context).isDarkMode
+                                      ? kDarkGrey
+                                      : kWhite,
                               title: Text('Delete Meal',
                                   style: TextStyle(
+                                      color:
+                                          getThemeProvider(context).isDarkMode
+                                              ? kWhite
+                                              : kDarkGrey,
                                       fontSize:
-                                          getPercentageWidth(3, context))),
+                                          getPercentageWidth(4.5, context))),
                               content: Text(
                                   'Are you sure you want to delete this meal? This action cannot be undone.',
                                   style: TextStyle(
+                                      color:
+                                          getThemeProvider(context).isDarkMode
+                                              ? kWhite
+                                              : kDarkGrey,
                                       fontSize:
-                                          getPercentageWidth(3, context))),
+                                          getPercentageWidth(3.5, context))),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
                                   child: Text('Cancel',
                                       style: TextStyle(
+                                          color:
+                                              getThemeProvider(context)
+                                                      .isDarkMode
+                                              ? kWhite
+                                              : kDarkGrey,
                                           fontSize:
-                                              getPercentageWidth(3, context))),
+                                              getPercentageWidth(3.5, context))),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
@@ -446,7 +465,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                       style: TextStyle(
                                           color: kRed,
                                           fontSize:
-                                              getPercentageWidth(3, context))),
+                                              getPercentageWidth(3.5, context))),
                                 ),
                               ],
                             ),

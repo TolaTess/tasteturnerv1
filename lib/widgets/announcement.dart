@@ -90,7 +90,7 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
 
   Widget _buildDivider(bool isDarkMode) {
     return Container(
-      height: widget.height * 0.7,
+      height: widget.height * 0.3,
       width: 1,
       color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -120,7 +120,9 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
             if (hasHeaderContent) ...[
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(1, context),
+                        vertical: getPercentageWidth(1, context)),
                 child: Center(
                   child: Text(
                     widget.title ?? '',
@@ -140,8 +142,9 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
               return Row(
                 children: [
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(1, context),
+                        vertical: getPercentageWidth(1, context)),
                     child: Row(
                       children: [
                         Text(
@@ -165,6 +168,7 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
                             ),
                           );
                         }).toList(),
+                        SizedBox(width: getPercentageWidth(10, context)),
                       ],
                     ),
                   ),

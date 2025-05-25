@@ -26,7 +26,7 @@ class BattleManagement {
       currentBattleDate.year,
       currentBattleDate.month,
       currentBattleDate.day,
-      13, // 11:00
+      11, // 11:00
       33,
     );
 
@@ -128,7 +128,7 @@ class BattleManagement {
       }
 
       // 2. Save winners to Firestore
-      final currentDate = DateTime.parse(
+      DateTime currentDate = DateTime.parse(
           firebaseService.generalData['currentBattle'] as String);
       final weekId = 'week_${currentDate.toString().split(' ')[0]}';
 
@@ -168,12 +168,12 @@ class BattleManagement {
       );
 
       // 3. Update current battle date to next week
-      final nextBattleDate =
-          currentDate.add(const Duration(days: 7)); //13/05/2025
-      final nextDeadlineDate =
-          currentDate.add(const Duration(days: 6)); //12/05/2025
       final nextAnnounceDate =
-          currentDate.add(const Duration(days: 1)); //14/05/2025
+          currentDate.add(const Duration(days: 1)); //03/06/2025
+      final nextDeadlineDate =
+          currentDate.add(const Duration(days: 6)); //08/06/2025
+      final nextBattleDate =
+          currentDate.add(const Duration(days: 7)); //09/06/2025
       await firestore.collection('general').doc('data').set({
         'currentBattle': nextBattleDate.toString().split(' ')[0],
         'isAnnounceDate': nextAnnounceDate.toString().split(' ')[0],
@@ -193,10 +193,8 @@ class BattleManagement {
   int _calculatePoints(int position) {
     switch (position) {
       case 0: // 1st place
-        return 50;
-      case 1: // 2nd place
         return 30;
-      case 2: // 3rd place
+      case 1: // 2nd place
         return 20;
       default:
         return 0;
@@ -209,8 +207,6 @@ class BattleManagement {
         return '1st';
       case 1:
         return '2nd';
-      case 2:
-        return '3rd';
       default:
         return '';
     }
@@ -250,26 +246,22 @@ class BattleManagement {
       switch (position) {
         case '1st':
           message =
-              '🏆 Congratulations! You won 1st place in the $category battle! Your points has been updated';
+              '🏆 Congratulations! You won 1st place in the battle! Your points has been updated';
           break;
         case '2nd':
           message =
-              '🥈 Amazing! You secured 2nd place in the $category battle! Your points has been updated';
-          break;
-        case '3rd':
-          message =
-              '🥉 Well done! You got 3rd place in the $category battle! Your points has been updated';
+              '🥈 Amazing! You secured 2nd place in the battle! Your points has been updated';
           break;
         default:
-          message =
-              'Congratulations on your achievement in the $category battle!';
+          message = 'Well done on taking part in the battle!';
       }
-
-      await notificationService.showNotification(
-        id: DateTime.now().millisecondsSinceEpoch % 100000,
-        title: 'Battle Results',
-        body: message,
-      );
+      if (userId == userService.userId) {
+        await notificationService.showNotification(
+          id: DateTime.now().millisecondsSinceEpoch % 100000,
+          title: 'Battle Results',
+          body: message,
+        );
+      }
 
       print(
           'Notification sent to winner $displayName ($position place in $category)');

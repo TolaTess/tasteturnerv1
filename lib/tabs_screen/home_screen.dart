@@ -266,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: IconCircleButton(
                             icon: Icons.message,
                             h: getPercentageWidth(11, context),
-                            w: getPercentageWidth(11, context), 
+                            w: getPercentageWidth(11, context),
                             colorD: kAccent.withOpacity(0.6),
                             colorL: kDarkGrey.withOpacity(0.6),
                             isRemoveContainer: true,
@@ -299,7 +299,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (unreadCount >= 1) {
                             return Container(
                               padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(1, context), vertical: getPercentageWidth(0.5, context)),
+                                  horizontal: getPercentageWidth(1, context),
+                                  vertical: getPercentageWidth(0.5, context)),
                               decoration: BoxDecoration(
                                 color: kRed,
                                 borderRadius: BorderRadius.circular(12),
@@ -338,7 +339,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.3, context)),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(0.3, context)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -355,7 +357,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ).subtract(const Duration(days: 1));
                             });
                             _initializeMealDataByDate(); // Fetch data for new date
-                            // _initializeRoutineDataByDate();
                           }
                         },
                         icon: Icon(
@@ -379,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (getRelativeDayString(currentDate) != 'Today' && 
+                          if (getRelativeDayString(currentDate) != 'Today' &&
                               getRelativeDayString(currentDate) != 'Yesterday')
                             Text(
                               DateFormat('d MMMM').format(currentDate),
@@ -484,8 +485,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     child: Row(
                       children: [
-                          Icon(Icons.shopping_cart,
-                            color: kAccent, size: getPercentageWidth(10, context)),
+                        Icon(Icons.shopping_cart,
+                            color: kAccent,
+                            size: getPercentageWidth(10, context)),
                         SizedBox(width: getPercentageWidth(1, context)),
                         Expanded(
                           child: Text(
@@ -499,7 +501,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            minimumSize: Size(getPercentageWidth(10, context), getPercentageHeight(5, context)),
+                            minimumSize: Size(getPercentageWidth(10, context),
+                                getPercentageHeight(5, context)),
                             backgroundColor: kAccent,
                             foregroundColor: kWhite,
                             shape: RoundedRectangleBorder(
@@ -515,7 +518,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             );
                           },
-                          child: Text('Go', style: TextStyle(fontSize: getPercentageWidth(3.5, context))),
+                          child: Text('Go',
+                              style: TextStyle(
+                                  fontSize: getPercentageWidth(3.5, context))),
                         ),
                       ],
                     ),

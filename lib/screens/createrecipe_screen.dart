@@ -288,8 +288,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 //Recipe Title
                 Text(
                   screen == 'addManual' ? '$foodType Title' : recipeTitle,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: getPercentageWidth(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -308,14 +308,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: const TextStyle(color: kLightGrey),
+                    hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
                     hintText: recipeHint,
                     floatingLabelBehavior: FloatingLabelBehavior.always,
-                    contentPadding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      right: 10,
-                      left: 10,
+                    contentPadding: EdgeInsets.only(
+                      top: getPercentageHeight(1.5, context),
+                      bottom: getPercentageHeight(1.5, context),
+                      right: getPercentageWidth(2, context),
+                      left: getPercentageWidth(2, context),
                     ),
                   ),
                 ),
@@ -332,14 +332,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "Serving Size",
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: getPercentageHeight(1, context)),
                           SafeTextFormField(
                             controller: serveQtyController,
                             style: const TextStyle(color: kDarkGrey),
@@ -350,9 +350,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               enabledBorder: outlineInputBorder(10),
                               focusedBorder: outlineInputBorder(10),
                               border: outlineInputBorder(10),
-                              hintStyle: const TextStyle(color: kLightGrey),
+                              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
                               hintText: '1',
-                              contentPadding: const EdgeInsets.all(8),
+                              contentPadding: EdgeInsets.only(
+                                top: getPercentageHeight(1.5, context),
+                                bottom: getPercentageHeight(1.5, context),
+                                right: getPercentageWidth(2, context),
+                                left: getPercentageWidth(2, context),
+                              ),
                             ),
                           ),
                         ],
@@ -369,14 +374,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "Unit",
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: getPercentageHeight(1, context)),
                           DropdownButtonFormField<String>(
                             value: selectedServing,
                             decoration: InputDecoration(
@@ -387,7 +392,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               enabledBorder: outlineInputBorder(10),
                               focusedBorder: outlineInputBorder(10),
                               border: outlineInputBorder(10),
-                              contentPadding: const EdgeInsets.all(8),
+                                      contentPadding: EdgeInsets.only(
+                                top: getPercentageHeight(1.5, context),
+                                bottom: getPercentageHeight(1.5, context),
+                                right: getPercentageWidth(2, context),
+                                left: getPercentageWidth(2, context),
+                              ),
                             ),
                             items: unitOptions.map((String value) {
                               return DropdownMenuItem<String>(
@@ -415,10 +425,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
 
                 //Calories Time
-                const Text(
+                Text(
                   'Calories',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: getPercentageWidth(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -438,14 +448,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: const TextStyle(color: kLightGrey),
+                    hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
                     hintText: 'Enter total calories',
                     floatingLabelBehavior: FloatingLabelBehavior.always,
-                    contentPadding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      right: 10,
-                      left: 10,
+                    contentPadding: EdgeInsets.only(
+                      top: getPercentageHeight(1.5, context),
+                      bottom: getPercentageHeight(1.5, context),
+                      right: getPercentageWidth(2, context),
+                      left: getPercentageWidth(2, context),
                     ),
                   ),
                 ),
@@ -456,10 +466,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 //Ingredients
 
-                const Text(
+                    Text(
                   ingredients,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: getPercentageWidth(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -479,22 +489,37 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                             shape: outlineInputBorder(10),
                             margin: const EdgeInsets.symmetric(vertical: 8),
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.only(
+                                top: getPercentageHeight(1.5, context),
+                                bottom: getPercentageHeight(1.5, context),
+                                right: getPercentageWidth(2, context),
+                                left: getPercentageWidth(2, context),
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: SafeTextFormField(
-                                      decoration: const InputDecoration(
-                                          labelText: "Ingredient"),
+                                      decoration: InputDecoration(
+                                          labelText: "Ingredient",
+                                          labelStyle: TextStyle(
+                                            fontSize: getPercentageWidth(4, context),
+                                            color: kAccent,
+                                          ),
+                                          hintStyle: TextStyle(
+                                            fontSize: getPercentageWidth(3.5, context),
+                                            color: kLightGrey.withValues(alpha: 0.5),
+                                          ),
+                                          hintText: "Enter ingredient",
+                                          ),
                                       onChanged: (value) {
                                         ingredientsList[index]["name"] = value;
                                       },
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
+                                  SizedBox(width: getPercentageWidth(2, context)),
                                   // Quantity Picker
                                   SizedBox(
-                                    width: 80,
+                                    width: getPercentageWidth(15, context),
                                     child: buildPicker(context, 21,
                                         ingredientQuantities[index], (val) {
                                       setState(() {
@@ -502,10 +527,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                       });
                                     }, true),
                                   ),
-                                  const SizedBox(width: 10),
+                                        SizedBox(width: getPercentageWidth(2, context)),
                                   // Unit Picker
                                   SizedBox(
-                                    width: 80,
+                                    width: getPercentageWidth(15, context),
                                     child: buildPicker(
                                       context,
                                       unitOptions.length,
@@ -535,14 +560,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(56),
+                        minimumSize: Size.fromHeight(getPercentageHeight(7, context)),
                         backgroundColor: isDarkMode ? kLightGrey : kDarkGrey,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                         ),
                       ),
-                      icon: const Icon(Icons.add),
-                      label: const Text("Add Ingredient"),
+                      icon: Icon(Icons.add),
+                      label: Text("Add Ingredient"),
                       onPressed: _addIngredient,
                     ),
                   ],
@@ -552,11 +577,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 ),
 
                 //Add Cover Image
-                const Center(
+                Center(
                   child: Text(
                     addCoverImage,
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: getPercentageWidth(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -599,9 +624,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                             fit: BoxFit.cover,
                           )
                         : DottedBorder(
-                            radius: const Radius.circular(30),
+                            radius: Radius.circular(30),
                             color: kLightGrey,
-                            dashPattern: const [5, 2],
+                            dashPattern: [5, 2],
                             child: Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(5, context),
@@ -633,17 +658,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 if (screen != 'addManual') ...[
                   //Cooking Instructions
-                  const Text(
+                  Text(
                     cookingInstructions,
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: getPercentageWidth(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Text(
+                  Text(
                     notes,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: getPercentageWidth(3, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -660,14 +685,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
-                      hintStyle: const TextStyle(color: kLightGrey),
+                      hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
                       hintText: cookingInstructionsHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      contentPadding: const EdgeInsets.only(
-                        top: 16,
-                        bottom: 16,
-                        right: 10,
-                        left: 10,
+                      contentPadding: EdgeInsets.only(
+                        top: getPercentageHeight(1.5, context),
+                        bottom: getPercentageHeight(1.5, context),
+                        right: getPercentageWidth(2, context),
+                        left: getPercentageWidth(2, context),
                       ),
                     ),
                   ),
@@ -675,17 +700,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     height: getPercentageHeight(1, context),
                   ),
                   //Notes
-                  const Text(
+                      Text(
                     category,
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: getPercentageWidth(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Text(
+                  Text(
                     snippet,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: getPercentageWidth(3, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -702,14 +727,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
-                      hintStyle: const TextStyle(color: kLightGrey),
+                      hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
                       hintText: notesHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
-                      contentPadding: const EdgeInsets.only(
-                        top: 16,
-                        bottom: 16,
-                        right: 10,
-                        left: 10,
+                      contentPadding: EdgeInsets.only(
+                        top: getPercentageHeight(1.5, context),
+                        bottom: getPercentageHeight(1.5, context),
+                        right: getPercentageWidth(2, context),
+                        left: getPercentageWidth(2, context),
                       ),
                     ),
                   ),
@@ -720,7 +745,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 //Submit button
                 isUploading
-                    ? const Center(
+                      ? Center(
                         child: CircularProgressIndicator(color: kAccent),
                       )
                     : AppButton(
