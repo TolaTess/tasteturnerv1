@@ -370,14 +370,15 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               textColor: kAccent,
               collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
               tilePadding: EdgeInsets.zero,
+              initiallyExpanded: _topIngredient1.isNotEmpty,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Ingredient Tug-of-War',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: getPercentageWidth(4.5, context),
                         fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -398,9 +399,12 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.emoji_events,
-                                size: 16, color: kAccent),
-                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.emoji_events,
+                              size: getPercentageWidth(4, context),
+                              color: kAccent,
+                            ),
+                            SizedBox(width: getPercentageWidth(1, context)),
                             Flexible(
                               child: Text(
                                 _badgeTitle.value,
@@ -427,7 +431,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent1 * 100).round(),
                       child: Container(
-                        height: 60,
+                        height: getPercentageHeight(10, context),
                         decoration: BoxDecoration(
                           color: kAccent,
                           borderRadius: BorderRadius.only(
@@ -456,9 +460,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                               const SizedBox(height: 5),
                               Text(
                                 '${_count1.value} times',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: kWhite,
-                                  fontSize: 12,
+                                  fontSize: getPercentageWidth(3.5, context),
                                 ),
                               ),
                             ],
@@ -469,7 +473,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent2 * 100).round(),
                       child: Container(
-                        height: 60,
+                        height: getPercentageHeight(10, context),
                         decoration: BoxDecoration(
                           color: kAccentLight,
                           borderRadius: BorderRadius.only(

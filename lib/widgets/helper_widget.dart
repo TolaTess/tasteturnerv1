@@ -248,8 +248,8 @@ class StorySlider extends StatelessWidget {
     super.key,
     required this.dataSrc,
     required this.press,
-    this.mHeight = 80,
-    this.mWidth = 80,
+    this.mHeight = 23.5,
+    this.mWidth = 23.5,
   });
 
   final BadgeAchievementData dataSrc;
@@ -265,7 +265,7 @@ class StorySlider extends StatelessWidget {
         children: [
           Flexible(
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -273,7 +273,7 @@ class StorySlider extends StatelessWidget {
                   Opacity(
                     opacity: kMidOpacity,
                     child: CircleAvatar(
-                      radius: mWidth / 2,
+                      radius: (getPercentageWidth(mWidth, context) / 2),
                       backgroundImage: const AssetImage(
                         'assets/images/vegetable_stamp.jpg',
                       ),
@@ -282,7 +282,7 @@ class StorySlider extends StatelessWidget {
 
                   // Title Text on top of the image
                   SizedBox(
-                    width: mWidth,
+                    width: getPercentageWidth(mWidth, context),
                     child: Text(
                       dataSrc.title,
                       style: const TextStyle(

@@ -219,8 +219,8 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                     children: [
                       Text(
                         !_badgeAwarded ? 'Daily Routine' : 'Routine',
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: getPercentageWidth(4.5, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -228,7 +228,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                       IconButton(
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        iconSize: 20,
+                        iconSize: getPercentageWidth(5, context),
                         color: kAccentLight.withOpacity(0.8),
                         onPressed: () async {
                           await Get.to(() => const NutritionSettingsPage(
@@ -255,15 +255,15 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                           Icon(
                             Icons.emoji_events,
                             color: kAccentLight.withOpacity(0.8),
-                            size: 20,
+                            size: getPercentageWidth(5, context),
                           ),
                         const SizedBox(width: 4),
                         Text(
                           'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(controller.yesterday))}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: kAccent,
                             fontWeight: FontWeight.bold,
-                            fontSize: 10,
+                            fontSize: getPercentageWidth(3, context),
                           ),
                         ),
                       ],
@@ -273,7 +273,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 45,
+              height: getPercentageHeight(6.5, context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
@@ -308,7 +308,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                         ),
                         child: Center(
                           child: Text(
-                            item.title,
+                            capitalizeFirstLetter(item.title),
                             style: TextStyle(
                               color: isDarkMode ? kWhite : kBlack,
                               decoration: isCompleted
@@ -317,6 +317,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               decorationColor:
                                   isDarkMode ? kWhite : kAccentLight,
                               decorationThickness: 2,
+                              fontSize: getPercentageWidth(3.5, context),
                             ),
                           ),
                         ),

@@ -538,8 +538,8 @@ Widget noItemTastyWidget(
         const SizedBox(height: 5),
         Text(
           message,
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: getPercentageWidth(4.5, context),
             fontWeight: FontWeight.w400,
             color: kAccentLight,
           ),
@@ -586,7 +586,7 @@ Widget noItemTastyWidget(
             child: Text(
               subtitle,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: getPercentageWidth(3.5, context),
                 fontWeight: FontWeight.w700,
                 color: isLinked
                     ? kAccent

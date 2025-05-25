@@ -48,7 +48,7 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
                   padding: const EdgeInsets.only(left: 20),
                   child: IngredientItem(
                     dataSrc: widget.demoAcceptedData[index],
-                    radius: 45,
+                    radius: getPercentageWidth(11, context),
                     press: () {
                       Navigator.push(
                         context,
@@ -147,7 +147,7 @@ class IngredientItem extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 14,
+                  fontSize: getPercentageWidth(3.5, context),
                   fontWeight: FontWeight.w600,
                   color: isSelected
                       ? isDarkMode

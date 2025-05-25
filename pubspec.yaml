@@ -69,7 +69,7 @@ dependencies:
   firebase_analytics: ^11.0.0
   google_mobile_ads: ^5.0.0
   in_app_purchase: ^3.2.1
-  image_cropper: ^9.1.0
+  crop_your_image: ^0.7.5
 
 
 

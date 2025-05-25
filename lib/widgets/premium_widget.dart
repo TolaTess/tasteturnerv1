@@ -74,11 +74,16 @@ class _PremiumSectionState extends State<PremiumSection> {
 
         /// ✅ Wrap in a Container with Conditional Dimensions
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(7, context),
+          ),
           child: Container(
             width: double.infinity,
             height: null,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(2.5, context),
+              vertical: getPercentageHeight(1, context),
+            ),
             decoration: BoxDecoration(
               color: kAccentLight.withOpacity(0.7),
               borderRadius: BorderRadius.circular(10),
@@ -106,7 +111,9 @@ class _PremiumSectionState extends State<PremiumSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 4.0),
+          padding: EdgeInsets.only(
+            top: getPercentageHeight(1, context),
+          ),
           child: SizedBox(
             width: _bannerAd.size.width.toDouble(),
             height: _bannerAd.size.height.toDouble(),
@@ -124,16 +131,16 @@ class _PremiumSectionState extends State<PremiumSection> {
       children: [
         Text(
           widget.titleOne,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 12,
+            fontSize: getPercentageWidth(3.5, context),
           ),
         ),
         Text(
           widget.titleTwo,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: 12,
+            fontSize: getPercentageWidth(3.5, context),
           ),
         ),
       ],

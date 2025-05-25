@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tasteturner/helper/utils.dart';
-import 'package:tasteturner/screens/message_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
+import '../helper/utils.dart';
 import '../pages/leaderboard.dart';
 import '../pages/settings_screen.dart';
 import '../screens/buddy_screen.dart';
@@ -13,6 +12,7 @@ import '../screens/profile_screen.dart';
 import '../screens/splash_screen.dart';
 import '../themes/theme_provider.dart';
 import '../service/notification_service.dart';
+import 'bottom_nav.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({
@@ -33,18 +33,26 @@ class CustomDrawer extends StatelessWidget {
             ),
             //Custom Header
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 2,
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(4, context),
+                vertical: getPercentageHeight(1, context),
               ),
               child: Row(
                 children: [
-                  buildProfileAvatar(
-                      imageUrl: userService.currentUser!.profileImage ??
-                          intPlaceholderImage,
-                      context: context),
-                  const SizedBox(
-                    width: 12,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const BottomNavSec()),
+                      );
+                    },
+                    child: buildProfileAvatar(
+                        imageUrl: userService.currentUser!.profileImage ??
+                            intPlaceholderImage,
+                        context: context),
+                  ),
+                  SizedBox(
+                    width: getPercentageWidth(3, context),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +61,7 @@ class CustomDrawer extends StatelessWidget {
                         userService.currentUser!.displayName ?? '',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: getPercentageHeight(3, context),
+                          fontSize: getPercentageWidth(4, context),
                         ),
                       ),
                     ],
@@ -79,7 +87,7 @@ class CustomDrawer extends StatelessWidget {
 
             //Premium
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
               child: Container(
                 decoration: BoxDecoration(
                   color: themeProvider.isDarkMode
@@ -236,21 +244,21 @@ class DrawerItem extends StatelessWidget {
       onTap: press,
       child: Padding(
         padding:
-            const EdgeInsets.only(left: 32, right: 20, top: 20, bottom: 20),
+            EdgeInsets.only(left: getPercentageWidth(8, context), right: getPercentageWidth(4, context), top: getPercentageHeight(2, context), bottom: getPercentageHeight(2, context)),
         child: Row(
           children: [
             Icon(
               icon,
-              size: 24,
+              size: getPercentageWidth(6, context),
             ),
-            const SizedBox(
-              width: 20,
+            SizedBox(
+              width: getPercentageWidth(4, context),
             ),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: getPercentageWidth(4, context),
                 ),
               ),
             ),

@@ -24,7 +24,7 @@ class CategorySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: getPercentageHeight(5, context),
       child: ListView.builder(
         itemCount: categories.length,
         scrollDirection: Axis.horizontal,

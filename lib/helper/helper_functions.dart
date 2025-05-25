@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
@@ -8,6 +7,10 @@ import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/optimized_image.dart';
+import 'package:crop_your_image/crop_your_image.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'dart:async';
 
 Widget buildTastyFloatingActionButton({
   required BuildContext context,
@@ -557,25 +560,58 @@ Future<void> showFeatureDialog(
   );
 }
 
-Future<XFile?> cropImage(XFile imageFile) async {
-  final croppedFile = await ImageCropper().cropImage(
-    sourcePath: imageFile.path,
-    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-    uiSettings: [
-      AndroidUiSettings(
-        toolbarTitle: 'Edit Image',
-        toolbarColor: Colors.deepOrange,
-        toolbarWidgetColor: Colors.white,
-        initAspectRatio: CropAspectRatioPreset.original,
-        lockAspectRatio: false,
-      ),
-      IOSUiSettings(
-        title: 'Edit Image',
-      ),
-    ],
+Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
+  final Completer<XFile?> completer = Completer<XFile?>();
+  final CropController controller = CropController();
+  final imageBytes = await imageFile.readAsBytes();
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return AlertDialog(
+        contentPadding: EdgeInsets.zero,
+        content: SizedBox(
+          width: 350,
+          height: 450,
+          child: Crop(
+            controller: controller,
+            image: imageBytes,
+            onCropped: (croppedData) async {
+              final tempDir = await getTemporaryDirectory();
+              final croppedPath =
+                  '${tempDir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              final croppedFile = File(croppedPath);
+              await croppedFile.writeAsBytes(croppedData);
+              Navigator.of(context).pop();
+              completer.complete(XFile(croppedPath));
+            },
+            withCircleUi: false,
+            initialSize: 0.8,
+            baseColor: Colors.black,
+            maskColor: Colors.black.withOpacity(0.5),
+            cornerDotBuilder: (size, edgeAlignment) => Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => controller.crop(),
+            child: const Text('Crop'),
+          ),
+        ],
+      );
+    },
   );
-  if (croppedFile != null) {
-    return XFile(croppedFile.path);
-  }
-  return null;
+  return completer.future;
 }

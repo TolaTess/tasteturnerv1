@@ -396,7 +396,7 @@ class _BuddyTabState extends State<BuddyTab> {
             return SingleChildScrollView(
               child: Column(
                 children: [
-                  const SizedBox(height: 24),
+                  SizedBox(height: getPercentageHeight(2, context)),
                   ListTile(
                     leading: GestureDetector(
                       onTap: () => Navigator.push(
@@ -408,7 +408,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       child: CircleAvatar(
                         backgroundColor: kAccentLight.withOpacity(0.5),
                         backgroundImage: const AssetImage(tastyImage),
-                        radius: 22,
+                            radius: getPercentageWidth(5, context),
                       ),
                     ),
                     title: Text(
@@ -416,6 +416,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       style: TextStyle(
                         color: isDarkMode ? Colors.white : Colors.black,
                         fontWeight: FontWeight.w600,
+                        fontSize: getPercentageWidth(4.5, context),
                       ),
                     ),
                     trailing: TextButton(
@@ -428,11 +429,14 @@ class _BuddyTabState extends State<BuddyTab> {
                       onPressed: () => _checkAndNavigateToGenerate(context),
                       child: Text(
                         'Generate New Plan',
-                        style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getPercentageWidth(3.5, context),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: getPercentageHeight(1, context)),
                   Builder(
                     builder: (context) {
                       String bio = getRandomMealTypeBio(mostCommonCategory);
@@ -441,16 +445,16 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             parts[0] + ':',
-                            style: const TextStyle(
-                              fontSize: 18,
+                                style: TextStyle(
+                              fontSize: getPercentageWidth(4.5, context),
                               fontWeight: FontWeight.w600,
                               color: kAccent,
                             ),
                           ),
                           Text(
                             parts.length > 1 ? parts[1] : '',
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(3.5, context),
                               color: kLightGrey,
                               fontWeight: FontWeight.w500,
                             ),
@@ -459,7 +463,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: getPercentageHeight(2, context)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -467,15 +471,15 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCalories']}',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(5, context),   
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Calories',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: getPercentageWidth(3.5, context),   
                               color: Colors.grey,
                             ),
                           ),
@@ -485,15 +489,15 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Protein',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: getPercentageWidth(3.5, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -503,15 +507,15 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                                  fontSize: getPercentageWidth(5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Carbs',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: getPercentageWidth(3.5, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -521,15 +525,15 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalFat']}g',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Fat',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: TextStyle( 
+                              fontSize: getPercentageWidth(3.5, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -537,11 +541,12 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: getPercentageHeight(2, context)),
                   ...meals.map(
                     (meal) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(4, context),
+                          vertical: getPercentageHeight(1, context)),
                       child: Container(
                         decoration: BoxDecoration(
                           color:
@@ -604,11 +609,13 @@ class _BuddyTabState extends State<BuddyTab> {
                             );
                           },
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
+                            minTileHeight: getPercentageHeight(10, context),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(4, context),
+                                vertical: getPercentageHeight(1, context)),
                             leading: Container(
-                              width: 50,
-                              height: 50,
+                              width: getPercentageWidth(12, context),
+                              height: getPercentageWidth(12, context),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
@@ -624,23 +631,26 @@ class _BuddyTabState extends State<BuddyTab> {
                             ),
                             title: Text(
                               meal['title'] ?? 'Untitled Meal',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
+                                fontSize: getPercentageWidth(4.5, context),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             subtitle: Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.restaurant,
-                                  size: 16,
+                                  size: getPercentageWidth(3, context),
                                   color: Colors.white70,
                                 ),
-                                const SizedBox(width: 4),
+                                SizedBox(width: getPercentageWidth(1, context)),
                                 Text(
                                   '${meal['calories'] ?? 0} kcal',
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.7),
+                                    fontSize: getPercentageWidth(3, context),
                                   ),
                                 ),
                               ],
@@ -650,7 +660,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 130),
+                  SizedBox(height: getPercentageHeight(13, context)),
                 ],
               ),
             );

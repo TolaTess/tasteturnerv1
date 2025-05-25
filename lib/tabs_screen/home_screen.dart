@@ -523,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: 200,
+                  height: 185,
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {

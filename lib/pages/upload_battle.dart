@@ -14,7 +14,6 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
-import 'package:image_cropper/image_cropper.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
@@ -92,7 +91,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
     return tempPath;
   }
-
 
   @override
   void initState() {
@@ -305,7 +303,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       imageQuality: 80,
                     );
                     if (photo != null) {
-                      final XFile? cropped = await cropImage(photo);
+                      final XFile? cropped = await cropImage(photo, context);
                       if (cropped != null) {
                         setState(() {
                           _selectedImages = [cropped];
@@ -324,7 +322,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                     if (pickedImages.isNotEmpty) {
                       List<XFile> croppedImages = [];
                       for (final img in pickedImages) {
-                        final XFile? cropped = await cropImage(img);
+                        final XFile? cropped = await cropImage(img, context);
                         if (cropped != null) {
                           croppedImages.add(cropped);
                         }

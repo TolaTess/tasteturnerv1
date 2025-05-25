@@ -90,14 +90,14 @@ class AppButton extends StatelessWidget {
                 children: [
                   if (icon != null) ...[
                     Icon(icon, color: txtColor),
-                    const SizedBox(width: 8),
+                    SizedBox(width: getPercentageWidth(2, context)),
                   ],
                   Text(
                     text,
                     style: TextStyle(
                       color: txtColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: getPercentageWidth(4, context),
                     ),
                   ),
                 ],

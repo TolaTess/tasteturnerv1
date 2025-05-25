@@ -100,13 +100,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
               pinned: true,
               automaticallyImplyLeading: false,
-              expandedHeight: 220,
+              expandedHeight: getPercentageHeight(35, context),
               title: isShrink
                   ? Text(
                       user?.displayName ?? '',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: getPercentageWidth(4.5, context),
                         color: themeProvider.isDarkMode ? kWhite : kBlack,
                       ),
                     )
@@ -135,56 +135,47 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 background: Column(
                   children: [
                     // Header and Follow Buttons
-                    Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Container(
-                            margin: const EdgeInsets.only(top: 74),
-                            padding: const EdgeInsets.only(top: 70),
-                            decoration: BoxDecoration(
-                              color: kPrimaryColor,
-                              borderRadius: BorderRadius.circular(20),
-                              image: DecorationImage(
-                                image: getImageProvider(user?.profileImage),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 24),
-                                Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: kLightGrey.withOpacity(0.4),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      user?.displayName ?? '',
-                                      style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                          color: kBackgroundColor),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+
+                    Padding(
+                      padding: EdgeInsets.only(
+                          top: getPercentageHeight(3, context),
+                          left: getPercentageWidth(6, context),
+                          right: getPercentageWidth(6, context)),
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                        decoration: BoxDecoration(
+                          color: kLightGrey.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        CircleAvatar(
-                          radius: 52,
-                          backgroundColor: kBackgroundColor,
-                          child: CircleAvatar(
-                            backgroundImage:
-                                getImageProvider(user?.profileImage),
-                            radius: 50,
-                          ),
+                        child: Text(
+                          user?.displayName ?? '',
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(4.5, context),
+                              fontWeight: FontWeight.w600,
+                              color: kBackgroundColor),
                         ),
-                      ],
+                      ),
                     ),
+
+                    Expanded(
+                      child: Container(
+                        margin: EdgeInsets.only(
+                            top: getPercentageHeight(1, context)),
+                        padding: EdgeInsets.only(
+                            left: getPercentageWidth(6, context),
+                            right: getPercentageWidth(6, context),
+                            top: getPercentageHeight(1, context)),
+                        decoration: BoxDecoration(
+                          color: kPrimaryColor,
+                          borderRadius: BorderRadius.circular(20),
+                          image: DecorationImage(
+                            image: getImageProvider(user?.profileImage),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
                   ],
                 ),
               ),
@@ -247,7 +238,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           Obx(() {
                             bool isFollowing = friendController.followingList
                                 .contains(newUserid);
-                            return AppButton  (
+                            return AppButton(
                               height: 4.5,
                               width: 30,
                               type: AppButtonType.follow,
@@ -276,12 +267,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           }),
                         ],
                       ),
-                      const SizedBox(
-                        height: 20,
+                      SizedBox(
+                        height: getPercentageHeight(1.5, context),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: getPercentageHeight(5, context)),
                   if (myBadge.isNotEmpty)
                     TitleSection(
                       title: badges,
@@ -293,23 +284,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                   // Badges Slider
                   if (myBadge.isNotEmpty)
                     SizedBox(
-                      height: 130,
+                      height: getPercentageHeight(20, context),
                       child: ListView.builder(
                         itemCount: myBadge.length > 5
                             ? 5
                             : myBadge.length, // Limit to 5 items
-                        padding: const EdgeInsets.only(right: 10),
+                        padding: EdgeInsets.only(
+                            right: getPercentageWidth(2, context)),
                         scrollDirection: Axis.horizontal,
                         itemBuilder: (context, index) {
                           if (index < myBadge.length) {
                             // Display badges for non-user
                             return Padding(
-                              padding: const EdgeInsets.only(left: 10),
+                              padding: EdgeInsets.only(
+                                  left: getPercentageWidth(2, context)),
                               child: StorySlider(
                                 dataSrc: myBadge[index],
                                 press: () {
@@ -336,12 +329,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       return Column(
                         children: [
                           if (searchContentDatas.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(16.0),
+                            Padding(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(4, context)),
                               child: Text(
                                 "No Posts yet.",
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: getPercentageWidth(4, context),
                                   color: Colors.grey,
                                 ),
                                 textAlign: TextAlign.center,
@@ -352,12 +346,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               physics: const NeverScrollableScrollPhysics(),
                               shrinkWrap: true,
                               gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
+                                mainAxisSpacing: getPercentageWidth(1, context),
+                                crossAxisSpacing:
+                                    getPercentageWidth(1, context),
                               ),
-                              padding: const EdgeInsets.only(top: 4, bottom: 4),
+                              padding: EdgeInsets.only(
+                                  top: getPercentageHeight(1, context),
+                                  bottom: getPercentageHeight(1, context)),
                               itemCount: itemCount,
                               itemBuilder: (BuildContext ctx, index) {
                                 final data = searchContentDatas[index];
@@ -387,13 +384,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 });
                               },
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 1.0),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1, context)),
                                 child: Icon(
                                   showAll
                                       ? Icons.keyboard_arrow_up
                                       : Icons.keyboard_arrow_down,
-                                  size: 36,
+                                  size: getPercentageWidth(9, context),
                                   color: Colors.grey,
                                 ),
                               ),
@@ -403,7 +400,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 72),
+                  SizedBox(height: getPercentageHeight(12, context)),
                 ],
               ),
             ),

@@ -21,22 +21,22 @@ List<MealsData> demoMealsData = [
   MealsData(
     image: 'assets/images/pescatarian.jpg',
     title: "Korean",
-    subtitle: "Delicious Korean dishes for a healthy and sustainable diet",
+    subtitle: "Delicious Korean dishes",
   ),
   MealsData(
     image: 'assets/images/vegetarian.jpg',
     title: "Italian",
-    subtitle: "Delicious Italian dishes for a healthy and sustainable diet",
+    subtitle: "Delicious Italian dishes",
   ),
   MealsData(
     image: 'assets/images/vegan.jpg',
     title: "Japanese",
-    subtitle: "Delicious Japanese dishes for a healthy and sustainable diet",
+    subtitle: "Delicious Japanese dishes",
   ),
   MealsData(
     image: 'assets/images/dessert.jpg',
     title: "African",
-    subtitle: "Delicious African dishes for a healthy and sustainable diet",
+    subtitle: "Delicious African dishes",
   ),
 ];
 

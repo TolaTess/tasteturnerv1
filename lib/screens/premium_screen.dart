@@ -182,7 +182,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       final perMonthPrice = isYearlyPlan ? yearlyPerMonth : monthlyPerMonth;
 
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(getPercentageWidth(4, context)),
         decoration: BoxDecoration(
           color: isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
@@ -196,12 +196,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
             Text(
               isYearlyPlan ? 'Your Yearly Plan' : 'Your Monthly Plan',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: getPercentageWidth(5, context),
                 fontWeight: FontWeight.bold,
                 color: isDarkMode ? kLightGrey : kBlack,
               ),
             ),
-            const SizedBox(height: 15),
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
               '\$${currentPrice.toStringAsFixed(2)}',
               style: const TextStyle(
@@ -214,7 +214,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               Text(
                 '\$${perMonthPrice.toStringAsFixed(2)}/mo',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(4, context),
                   color: isDarkMode ? kLightGrey : kBlack,
                 ),
               ),
@@ -230,7 +230,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
           child: GestureDetector(
             onTap: () => setState(() => isYearlySelected = false),
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: !isYearlySelected
                     ? (isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1))
@@ -248,17 +248,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     'Monthly',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: getPercentageWidth(5, context),
                       fontWeight: FontWeight.bold,
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: getPercentageHeight(1, context)),
                   if (isDiscount && discountPerc > 0)
                     Text(
                       '\$${monthlyPrice.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: getPercentageWidth(4.5, context),
                         decoration: TextDecoration.lineThrough,
                         color: isDarkMode ? Colors.grey : Colors.grey[600],
                       ),
@@ -266,7 +266,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '\$${monthlyPerMonth.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: getPercentageWidth(5, context),
                       fontWeight: FontWeight.bold,
                       color: kAccent,
                     ),
@@ -274,7 +274,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '/month',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: getPercentageWidth(3.5, context),
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
                   ),
@@ -283,12 +283,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: getPercentageWidth(2, context)),
         Expanded(
           child: GestureDetector(
             onTap: () => setState(() => isYearlySelected = true),
             child: Container(
-              padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: isYearlySelected
                     ? (isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1))
@@ -309,16 +309,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       Text(
                         'Yearly',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: getPercentageWidth(5, context),
                           fontWeight: FontWeight.bold,
                           color: isDarkMode ? kLightGrey : kBlack,
                         ),
                       ),
-                      const SizedBox(width: 5),
+                      SizedBox(width: getPercentageWidth(1, context)),
                       Flexible(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(2, context),
+                              vertical: getPercentageHeight(1, context)),
                           decoration: BoxDecoration(
                             color: kAccent,
                             borderRadius: BorderRadius.circular(12),
@@ -336,20 +337,20 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: getPercentageHeight(1, context)),
                   if (isDiscount && discountPerc > 0)
                     Text(
                       '\$${yearlyPrice.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: getPercentageWidth(4.5, context),
                         decoration: TextDecoration.lineThrough,
                         color: isDarkMode ? Colors.grey : Colors.grey[600],
                       ),
                     ),
                   Text(
                     '\$${discountedYearlyPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 24,
+                    style: TextStyle(
+                      fontSize: getPercentageWidth(5, context),
                       fontWeight: FontWeight.bold,
                       color: kAccent,
                     ),
@@ -357,7 +358,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '\$${yearlyPerMonth.toStringAsFixed(2)}/mo',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: getPercentageWidth(3.5, context),
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
                   ),
@@ -387,59 +388,61 @@ class _PremiumScreenState extends State<PremiumScreen> {
             ))
           : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(4, context)),
                 child: Column(
                   children: [
-                    const SizedBox(height: 30),
+                    SizedBox(height: getPercentageHeight(3, context)),
 
                     // Header Text
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         style: TextStyle(
-                            fontSize: 24,
+                            fontSize: getPercentageWidth(5, context),
                             fontWeight: FontWeight.w300,
                             color: isDarkMode ? kLightGrey : kBlack),
                         children: [
-                          const TextSpan(text: 'Welcome '),
+                            TextSpan(text: 'Welcome '),
                           TextSpan(
                             text: user?.displayName ?? '',
                             style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 color: isDarkMode ? kLightGrey : kAccent),
                           ),
-                          const TextSpan(text: ','),
+                          TextSpan(text: ','),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: getPercentageHeight(3, context)),
 
                     Text(
                       isUserPremium
                           ? 'You are currently enjoying an ad-free experience! Along with the below benefits.'
                           : 'Upgrade to Premium for an ad-free experience!',
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: TextStyle(
+                        fontSize: getPercentageWidth(4.5, context),
                         fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: isUserPremium ? 10 : 40),
+                    SizedBox(height: isUserPremium ? getPercentageHeight(1, context) : getPercentageHeight(4, context)),
 
                     // Premium Features
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(4, context)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             isUserPremium ? '' : 'Premium Benefits',
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(4.5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(height: getPercentageHeight(1, context)),
                           if (premiumPlan != null &&
                               premiumPlan!['features'] != null)
                             ListView.builder(
@@ -456,11 +459,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 25),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
                     // Premium Plan Cards
                     _buildPriceCard(isDarkMode),
-                    const SizedBox(height: 30),
+                    SizedBox(height: getPercentageHeight(3, context)),
 
                     // Action Button
                     if (!isUserPremium)
@@ -468,7 +471,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         children: [
                           if (_purchaseError != null)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
+                              padding: EdgeInsets.only(
+                                  bottom: getPercentageHeight(1, context)),
                               child: Text(_purchaseError!,
                                   style: TextStyle(color: Colors.red)),
                             ),
@@ -484,7 +488,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         ],
                       ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
                     if (isUserPremium)
                       GestureDetector(
@@ -509,7 +513,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         child: Text(
                           'Cancel anytime',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: getPercentageWidth(4, context),
                             color: isDarkMode ? kLightGrey : kBlack,
                           ),
                         ),
@@ -531,16 +535,16 @@ class BulletPoint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: EdgeInsets.symmetric(vertical: getPercentageHeight(1, context)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, color: kAccent, size: 20),
-          const SizedBox(width: 8),
+          Icon(Icons.check_circle, color: kAccent, size: getPercentageWidth(2, context)),
+          SizedBox(width: getPercentageWidth(2, context)),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: getPercentageWidth(4, context)),
             ),
           ),
         ],

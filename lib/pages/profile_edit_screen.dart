@@ -101,7 +101,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       if (pickedImages.isNotEmpty) {
                         List<XFile> croppedImages = [];
                         for (final img in pickedImages) {
-                          final XFile? cropped = await cropImage(img);
+                          final XFile? cropped = await cropImage(
+                            img,
+                            context,
+                          );
                           if (cropped != null) {
                             croppedImages.add(cropped);
                           }

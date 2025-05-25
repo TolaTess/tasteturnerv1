@@ -155,8 +155,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 ),
                 more: seeAll,
               ),
-              const SizedBox(
-                height: 24,
+              SizedBox(
+                height: getPercentageHeight(2, context),
               ),
               //rows of Ingredients
               IngredientListViewRecipe(
@@ -165,13 +165,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 isEdit: false,
                 onRemoveItem: (int) {},
               ),
-              const SizedBox(
-                height: 10,
-              ),
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
-              const SizedBox(
-                height: 10,
+              SizedBox(
+                height: getPercentageHeight(2, context),
               ),
               //Search by Meals
               TitleSection(
@@ -315,11 +312,11 @@ class MealsCard extends StatelessWidget {
                     : isFavourite && dataSrc.title == "Lunch"
                         ? "Favourites"
                         : dataSrc.title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: kWhite,
                   fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  shadows: [
+                  fontSize: getPercentageWidth(4.5, context),
+                  shadows: const [
                     Shadow(
                       blurRadius: 15.0,
                       color: kBlack,
@@ -337,9 +334,10 @@ class MealsCard extends StatelessWidget {
                   : isFavourite && dataSrc.title == "Lunch"
                       ? "View your favourites"
                       : dataSrc.subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                 color: kWhite,
-                shadows: [
+                fontSize: getPercentageWidth(3.5, context),
+                shadows: const [
                   Shadow(
                     blurRadius: 15.0,
                     color: kBlack,

@@ -36,36 +36,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     super.initState();
     _setupDataListeners();
 
-    // Ensure battleDetails is a String
-    final battleDetailsRaw = firebaseService.generalData['battleDetails'];
-    final String battleDetails = battleDetailsRaw is String
-        ? battleDetailsRaw
-        : (battleDetailsRaw?.toString() ?? '');
-    final splitBattleDetails = battleDetails
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
+     _categoryDatasIngredient = [...helperController.macros];
     final generalCategory = {
       'id': 'general',
       'name': 'General',
       'category': 'General'
     };
-
-    _categoryDatasIngredient = splitBattleDetails
-        .map((detail) => {
-              'id': detail.toLowerCase(),
-              'name': capitalizeFirstLetter(detail),
-              'category': capitalizeFirstLetter(detail),
-            })
-        .toList();
-
     if (_categoryDatasIngredient.isEmpty ||
         _categoryDatasIngredient.first['id'] != 'general') {
       _categoryDatasIngredient.insert(0, generalCategory);
     }
-
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
@@ -109,7 +89,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
   Future<void> _onRefresh() async {
     await firebaseService.fetchGeneralData();
-    await _updateIngredientList(selectedCategory);
+    await _updateIngredientList();
     if (!mounted) return;
     setState(() {
       showBattle = battleList.isNotEmpty;
@@ -127,13 +107,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     setState(() {
       selectedCategoryId = categoryId;
       selectedCategory = category;
-      _updateIngredientList(category);
     });
   }
 
-  Future<void> _updateIngredientList(String category) async {
+  Future<void> _updateIngredientList() async {
     try {
-      final newBattleList = await macroManager.getIngredientsBattle(category);
+      final newBattleList = await macroManager.getIngredientsBattle('general');
       if (!mounted) return;
       setState(() {
         battleList = newBattleList;
@@ -186,17 +165,17 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       Text(
                         key: _addJoinButtonKey,
                         ingredientBattle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 18,
+                          fontSize: getPercentageWidth(4.5, context),
                         ),
                       ),
                       Text(
                         showBattle
                             ? 'Join the battle to create a masterpiece!'
                             : 'Next battle will start soon! Check back later!',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: getPercentageWidth(3.5, context),
                           color: kAccentLight,
                         ),
                       ),
@@ -219,13 +198,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           // Timer Row
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.hourglass_top_rounded,
                                 color: Color(0xFFDF2D20),
-                                size: 20,
+                                size: getPercentageWidth(5, context),
                               ),
-                              const SizedBox(
-                                width: 4,
+                              SizedBox(
+                                width: getPercentageWidth(1, context),
                               ),
                               Countdown(
                                   targetDate: battleList.isEmpty
@@ -239,7 +218,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                           // GridView for discount data
                           SizedBox(
-                            height: getPercentageHeight(23, context),
+                            height: getPercentageHeight(22, context),
                             child: battleList.isEmpty
                                 ? noItemTastyWidget(
                                     "No battles available yet",
@@ -255,11 +234,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                         SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       mainAxisExtent:
-                                          (MediaQuery.of(context).size.height *
-                                                  0.22)
-                                              .clamp(150, 260),
-                                      crossAxisSpacing: 15,
-                                      childAspectRatio: 0.8,
+                                          getPercentageHeight(21, context),
+                                      crossAxisSpacing:
+                                          getPercentageWidth(1, context),
+                                      childAspectRatio: 0.1,
                                     ),
                                     itemCount: battleList.length,
                                     itemBuilder: (BuildContext ctx, index) {
@@ -311,7 +289,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                 : FutureBuilder<bool>(
                                     future: macroManager.isUserInBattle(
                                         userService.userId ?? '',
-                                        battleList.first['categoryId']),
+                                        'general'),
                                     builder: (context, snapshot) {
                                       if (!snapshot.hasData) {
                                         return const CircularProgressIndicator(
@@ -372,8 +350,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                 !isBattleDeadlineShow
                                                     ? 'Manage in profile screen'
                                                     : 'Vote for your favorite dish!',
-                                                style: const TextStyle(
-                                                  fontSize: 14,
+                                                style: TextStyle(
+                                                  fontSize:
+                                                      getPercentageWidth(4,
+                                                          context),
                                                   color: kAccentLight,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -605,10 +585,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                             isMainPost: true,
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Get Inspired',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: getPercentageWidth(4.5, context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),

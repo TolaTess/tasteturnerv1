@@ -97,8 +97,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         ),
         title: Text(
           capitalizeFirstLetter(widget.item.title),
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: getPercentageWidth(5, context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -161,7 +161,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 //Techniques
                 if (widget.item.techniques.isNotEmpty)
                   SizedBox(
-                    height: getPercentageWidth(9, context),
+                    height: getPercentageWidth(10, context),
                     child: ListView.builder(
                       padding: const EdgeInsets.all(5),
                       shrinkWrap: true,
@@ -556,7 +556,7 @@ class TopFeatures extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w400,
               color: isDarkMode ? kWhite : kBlack,
-              fontSize: 16,
+              fontSize: getPercentageWidth(4.5, context),
             ),
           ),
           const SizedBox(width: 20),
@@ -583,8 +583,8 @@ class TopFeatures extends StatelessWidget {
                 children: [
                   Text(
                     getFeatureIcon(entry.key),
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -593,6 +593,7 @@ class TopFeatures extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? kWhite : kBlack,
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                 ],

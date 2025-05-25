@@ -216,8 +216,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   // Drag handle
                   Container(
                     margin: const EdgeInsets.only(top: 8),
-                    width: 40,
-                    height: 4,
+                    width: getPercentageWidth(10, context),
+                    height: getPercentageHeight(1, context),
                     decoration: BoxDecoration(
                       color: getThemeProvider(context).isDarkMode
                           ? kWhite.withOpacity(0.3)
@@ -227,11 +227,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                   // Meal type header
                   Padding(
-                    padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+                    padding: EdgeInsets.only(
+                        top: getPercentageHeight(4, context),
+                        bottom: getPercentageHeight(2, context)),
                     child: Text(
                       'Add to $mealType',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: getPercentageWidth(4.5, context),
                         fontWeight: FontWeight.w400,
                         color: getThemeProvider(context).isDarkMode
                             ? kWhite
@@ -244,7 +246,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     children: [
                       Flexible(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(4, context)),
                           child: SearchButton2(
                             controller: _searchController,
                             onChanged: (query) {
@@ -255,7 +258,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         ),
                       ),
                       Container(
-                        margin: const EdgeInsets.only(right: 10),
+                        margin: EdgeInsets.only(
+                            right: getPercentageWidth(2, context)),
                         decoration: BoxDecoration(
                           color: kAccent.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(10),
@@ -265,14 +269,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      CreateRecipeScreen(
+                                  builder: (context) => CreateRecipeScreen(
                                     screenType: 'addManual' + foodType,
                                   ),
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.add)),
+                            icon: Icon(Icons.add,
+                                size: getPercentageWidth(6, context))),
                       ),
                     ],
                   ),
@@ -312,16 +316,20 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         borderRadius: BorderRadius.circular(4),
                                         child: Image.network(
                                           result.mediaPaths.first,
-                                          width: 40,
-                                          height: 40,
+                                          width:
+                                              getPercentageWidth(10, context),
+                                          height:
+                                              getPercentageWidth(10, context),
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) =>
                                                   Image.asset(
                                             getAssetImageForItem(
                                                 result.category ?? 'default'),
-                                            width: 40,
-                                            height: 40,
+                                            width:
+                                                getPercentageWidth(10, context),
+                                            height:
+                                                getPercentageWidth(10, context),
                                             fit: BoxFit.cover,
                                           ),
                                         ),
@@ -355,14 +363,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             },
                           ),
                           if (_isSearching.value && _searchResults.isNotEmpty)
-                            const Positioned(
+                            Positioned(
                               left: 0,
                               right: 0,
                               bottom: 16,
                               child: Center(
                                 child: SizedBox(
-                                  width: 24,
-                                  height: 24,
+                                  width: getPercentageWidth(6, context),
+                                  height: getPercentageWidth(6, context),
                                   child: CircularProgressIndicator(
                                     color: kAccent,
                                     strokeWidth: 2.5,
@@ -535,9 +543,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               ),
               content: SingleChildScrollView(
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.95,
+                  width: MediaQuery.of(context).size.width * 0.97,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                    maxHeight: MediaQuery.of(context).size.height * 0.40,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -548,7 +556,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           color: isDarkMode ? kWhite : kBlack,
                         ),
                       ),
-                      const SizedBox(height: 15),
+                      SizedBox(height: getPercentageHeight(1, context)),
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.25,
                         child: Row(
@@ -601,6 +609,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Cancel',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                 ),
@@ -626,6 +635,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Add Another',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                 ),
@@ -669,6 +679,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Save All',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                 ),
@@ -711,7 +722,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               // Selected Items List
               SizedBox(
@@ -727,7 +738,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             // Breakfast Section (Left)
                             Expanded(
                               child: Container(
-                                margin: const EdgeInsets.all(8),
+                                margin: EdgeInsets.all(
+                                    getPercentageWidth(2, context)),
                                 decoration: BoxDecoration(
                                   color: isDarkMode
                                       ? (dailyDataController
@@ -762,10 +774,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           Row(
                                             children: [
                                               Icon(Icons.wb_sunny_outlined,
+                                                  size: getPercentageWidth(
+                                                      6, context),
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kDarkGrey),
-                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                  width: getPercentageWidth(
+                                                      2, context)),
                                               GestureDetector(
                                                 onTap: () {
                                                   setState(() {
@@ -777,7 +793,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                 child: Text(
                                                   'Breakfast',
                                                   style: TextStyle(
-                                                    fontSize: 14,
+                                                    fontSize:
+                                                        getPercentageWidth(
+                                                            3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -796,7 +814,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                     context, 'Breakfast');
                                               },
                                               child: Icon(Icons.add,
-                                                  color: kAccent)),
+                                                  color: kAccent,
+                                                  size: getPercentageWidth(
+                                                      6, context))),
                                         ],
                                       ),
                                     ),
@@ -813,6 +833,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                       ? kWhite.withOpacity(0.5)
                                                       : kDarkGrey
                                                           .withOpacity(0.5),
+                                                  fontSize: getPercentageWidth(
+                                                      3.5, context),
                                                 ),
                                               ),
                                             )
@@ -875,10 +897,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           Row(
                                             children: [
                                               Icon(Icons.wb_cloudy_outlined,
+                                                  size: getPercentageWidth(
+                                                      6, context),
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kDarkGrey),
-                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                  width: getPercentageWidth(
+                                                      2, context)),
                                               GestureDetector(
                                                 onTap: () {
                                                   setState(() {
@@ -890,7 +916,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                 child: Text(
                                                   'Lunch',
                                                   style: TextStyle(
-                                                    fontSize: 14,
+                                                    fontSize:
+                                                        getPercentageWidth(
+                                                            3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -909,7 +937,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                     context, 'Lunch');
                                               },
                                               child: Icon(Icons.add,
-                                                  color: kAccent)),
+                                                  color: kAccent,
+                                                  size: getPercentageWidth(
+                                                      6, context))),
                                         ],
                                       ),
                                     ),
@@ -926,6 +956,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                       ? kWhite.withOpacity(0.5)
                                                       : kDarkGrey
                                                           .withOpacity(0.5),
+                                                  fontSize: getPercentageWidth(
+                                                      3.5, context),
                                                 ),
                                               ),
                                             )
@@ -989,9 +1021,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   Row(
                                     children: [
                                       Icon(Icons.nightlight_outlined,
+                                          size: getPercentageWidth(6, context),
                                           color:
                                               isDarkMode ? kWhite : kDarkGrey),
-                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(2, context)),
                                       GestureDetector(
                                         onTap: () {
                                           setState(() {
@@ -1002,7 +1037,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         child: Text(
                                           'Dinner',
                                           style: TextStyle(
-                                            fontSize: 14,
+                                            fontSize: getPercentageWidth(
+                                                3.5, context),
                                             fontWeight: FontWeight.bold,
                                             color:
                                                 isDarkMode ? kWhite : kDarkGrey,
@@ -1018,7 +1054,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         });
                                         _showSearchResults(context, 'Dinner');
                                       },
-                                      child: Icon(Icons.add, color: kAccent)),
+                                      child: Icon(Icons.add,
+                                          color: kAccent,
+                                          size:
+                                              getPercentageWidth(6, context))),
                                 ],
                               ),
                             ),
@@ -1033,6 +1072,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           color: isDarkMode
                                               ? kWhite.withOpacity(0.5)
                                               : kDarkGrey.withOpacity(0.5),
+                                          fontSize:
+                                              getPercentageWidth(3.5, context),
                                         ),
                                       ),
                                     )

@@ -294,10 +294,11 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(4),
+        padding: EdgeInsets.only(
+            top: getPercentageHeight(1, context),
+            bottom: getPercentageHeight(1, context)),
         child: Column(
           children: [
-            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -314,11 +315,13 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                       children: [
                         Text(
                           eatenCalories.toInt().toString(),
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(3.5, context)),
                         ),
-                        const Text(
+                        Text(
                           "Eaten",
-                          style: TextStyle(fontSize: 12),
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(3, context)),
                         ),
                       ],
                     ),
@@ -355,11 +358,13 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
                         dailyDataController.targetCalories.value
                             .toInt()
                             .toString(),
-                        style: const TextStyle(fontSize: 14),
+                        style: TextStyle(
+                            fontSize: getPercentageWidth(3.5, context)),
                       ),
-                      const Text(
+                      Text(
                         "Target",
-                        style: TextStyle(fontSize: 12),
+                        style:
+                            TextStyle(fontSize: getPercentageWidth(3, context)),
                       ),
                     ],
                   ),
@@ -379,4 +384,3 @@ class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
         date1.day == date2.day;
   }
 }
-

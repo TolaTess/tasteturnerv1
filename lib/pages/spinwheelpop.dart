@@ -341,11 +341,17 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         showIngredientSpin
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
-                        style: const TextStyle(fontSize: 18, color: kAccent),
+                        style: TextStyle(
+                          fontSize: getPercentageWidth(5, context),
+                          color: kAccent,
+                        ),
                       ),
                     ),
                     IconButton(
-                      icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up),
+                      iconSize: getPercentageWidth(6, context),
+                      icon: Icon(
+                        _isMuted ? Icons.volume_off : Icons.volume_up,
+                      ),
                       onPressed: _toggleMute,
                     ),
                   ],

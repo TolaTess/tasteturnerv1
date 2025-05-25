@@ -26,56 +26,12 @@ class VoteScreen extends StatefulWidget {
 class _VoteScreenState extends State<VoteScreen> {
   List<Map<String, dynamic>> candidates = [];
   int? selectedIndex;
-  late String currentCategory;
-  String selectedCategoryId = '';
-  List<Map<String, dynamic>> _categoryDatasIngredient = [];
 
   @override
   void initState() {
     super.initState();
 
-    // Ensure battleDetails is a String
-    final battleDetailsRaw = firebaseService.generalData['battleDetails'];
-    final String battleDetails = battleDetailsRaw is String
-        ? battleDetailsRaw
-        : (battleDetailsRaw?.toString() ?? '');
-    final splitBattleDetails = battleDetails
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    final generalCategory = {
-      'id': 'general',
-      'name': 'General',
-      'category': 'General'
-    };
-
-    _categoryDatasIngredient = splitBattleDetails
-        .map((detail) => {
-              'id': detail.toLowerCase(),
-              'name': capitalizeFirstLetter(detail),
-              'category': capitalizeFirstLetter(detail),
-            })
-        .toList();
-
-    if (_categoryDatasIngredient.isEmpty ||
-        _categoryDatasIngredient.first['id'] != 'general') {
-      _categoryDatasIngredient.insert(0, generalCategory);
-    }
-    currentCategory = widget.category;
-
-    _fetchCandidates(currentCategory);
-  }
-
-  void _updateCategoryData(String categoryId, String category) {
-    if (mounted) {
-      setState(() {
-        selectedCategoryId = categoryId;
-        currentCategory = category;
-        _fetchCandidates(category);
-      });
-    }
+    _fetchCandidates('general');
   }
 
   /// **Fetch candidates based on `category` from Firestore**
@@ -304,11 +260,9 @@ class _VoteScreenState extends State<VoteScreen> {
           child: const IconCircleButton(),
         ),
         title: Text(
-          currentCategory.toLowerCase() == 'all'
-              ? 'Vote: General Battle'
-              : 'Vote: ${capitalizeFirstLetter(currentCategory)}',
-          style: const TextStyle(
-            fontSize: 18,
+          'Vote',
+          style: TextStyle(
+            fontSize: getPercentageWidth(5, context),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -319,14 +273,6 @@ class _VoteScreenState extends State<VoteScreen> {
           child: Column(
             children: [
               const SizedBox(height: 10),
-              CategorySelector(
-                categories: _categoryDatasIngredient,
-                selectedCategoryId: selectedCategoryId,
-                onCategorySelected: _updateCategoryData,
-                isDarkMode: isDarkMode,
-                accentColor: kAccentLight,
-                darkModeAccentColor: kDarkModeAccent,
-              ),
               if (dateInPast) ...[
                 const SizedBox(height: 60),
                 noItemTastyWidget(

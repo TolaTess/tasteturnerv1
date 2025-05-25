@@ -30,7 +30,7 @@ class IconCircleButton extends StatelessWidget {
     return isRemoveContainer
         ? Icon(
             icon,
-            size: h * 0.7,
+            size: h * 0.6,
             color: isColorChange
                 ? kAccent.withValues(alpha: kOpacity)
                 : themeProvider.isDarkMode
@@ -54,7 +54,7 @@ class IconCircleButton extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              size: h * 0.7,
+              size: h * 0.6,
               color: isColorChange
                   ? kAccent.withValues(alpha: kOpacity)
                   : themeProvider.isDarkMode

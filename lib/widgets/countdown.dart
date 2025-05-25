@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../helper/utils.dart';
 
 class Countdown extends StatefulWidget {
   final DateTime targetDate;
@@ -57,8 +58,8 @@ class _CountdownState extends State<Countdown> {
       '$days days, ${hours.toString().padLeft(2, '0')}:'
       '${minutes.toString().padLeft(2, '0')}:'
       '${seconds.toString().padLeft(2, '0')}',
-      style: const TextStyle(
-        fontSize: 16,
+      style: TextStyle(
+        fontSize: getPercentageWidth(4, context),
         fontWeight: FontWeight.w500,
         color: Color(0xFFDF2D20),
       ),

@@ -142,7 +142,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  radius: 25,
+                  radius: getPercentageWidth(6, context),
                   backgroundImage: macro.mediaPaths.isNotEmpty &&
                           macro.mediaPaths.first.startsWith('http')
                       ? NetworkImage(macro.mediaPaths.first) as ImageProvider
@@ -154,7 +154,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                 title: Text(
                   capitalizeFirstLetter(macro.title),
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getPercentageWidth(4.5, context),
                     fontWeight: FontWeight.w500,
                     color: purchased
                         ? kAccentLight

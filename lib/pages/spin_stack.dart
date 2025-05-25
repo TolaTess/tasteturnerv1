@@ -218,9 +218,9 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             alignment: Alignment.center,
             children: [
               ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 600,
-                  minWidth: 450,
+                constraints: BoxConstraints(
+                  maxWidth: getPercentageWidth(70, context),
+                  minWidth: getPercentageWidth(50, context),
                 ),
                 child: WidgetSpinningWheel(
                   key: _spinningWheelKey,
@@ -570,7 +570,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           Text(
                             '${widget.acceptedItems.length} ',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: getPercentageWidth(3.5, context),
                               fontWeight: FontWeight.bold,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -578,7 +578,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           Text(
                             'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: getPercentageWidth(3.5, context),
                               fontWeight: FontWeight.w400,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -612,15 +612,18 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                   Text(
                                     capitalizeFirstLetter(
                                         widget.acceptedItems[i]),
-                                    style: const TextStyle(
-                                      fontSize: 16,
+                                    style: TextStyle(
+                                      fontSize: getPercentageWidth(3.5, context),
                                       fontWeight: FontWeight.normal,
                                       color: kAccentLight,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.close,
-                                      size: 16, color: kAccentLight),
+                                  Icon(
+                                    Icons.close,
+                                    size: getPercentageWidth(4.5, context),
+                                    color: kAccentLight,
+                                  ),
                                 ],
                               ),
                             ),
@@ -637,7 +640,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                 Text(
                   '${widget.acceptedItems.length} ${widget.acceptedItems.length == 1 ? 'meal' : 'meals'} accepted',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getPercentageWidth(4.5, context),
                     fontWeight: FontWeight.w800,
                     color: isDarkMode ? kWhite : kBlack,
                   ),
@@ -696,7 +699,9 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               ? 'Generate Meal with ingredients!'
                               : 'Go Premium to generate a meal!',
                       style: TextStyle(
-                        fontSize: isMealSpin ? 14 : 12,
+                        fontSize: isMealSpin
+                            ? getPercentageWidth(3.5, context)
+                            : getPercentageWidth(3.5, context),
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
                       ),

@@ -59,7 +59,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
     await notificationService.scheduleWeeklyReminder(
       id: 1001, // Unique ID for shopping reminder
       title: 'Shopping Reminder',
-      body: 'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
+      body:
+          'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
       weekday: weekday,
       hour: 10,
       minute: 0,
@@ -89,7 +90,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                     _saveSelectedDay(day);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -97,7 +99,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                           day,
                           style: TextStyle(
                             color: isDarkMode ? kWhite : kBlack,
-                            fontSize: 14,
+                            fontSize: getPercentageWidth(3.5, context),
                           ),
                         ),
                         if (_selectedDay == day)
@@ -105,8 +107,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       ],
                     ),
                   ),
-                );    
-                
+                );
               }).toList(),
             ),
           ),
@@ -156,8 +157,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
           // Shopping schedule selector
           Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 5.0, horizontal: 16.0),
+            padding: EdgeInsets.symmetric(
+              vertical: getPercentageHeight(1, context),
+              horizontal: getPercentageWidth(4, context),
+            ),
             child: Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -165,8 +168,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
               ),
               color: isDarkMode ? kDarkGrey : kWhite,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 18.0, horizontal: 20.0),
+                padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(2, context),
+                  horizontal: getPercentageWidth(5, context),
+                ),
                 child: Column(
                   children: [
                     Row(
@@ -174,27 +179,34 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today,
-                                color: kAccent, size: 28),
-                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.calendar_today,
+                              color: kAccent,
+                              size: getPercentageWidth(7, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Shopping Day',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 16,
+                                    fontSize: getPercentageWidth(4.5, context),
                                     color: kAccent,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                SizedBox(
+                                    height: getPercentageHeight(1, context)),
                                 GestureDetector(
-                                  onTap: () => _showDayPicker(
-                                      context, isDarkMode),
+                                  onTap: () =>
+                                      _showDayPicker(context, isDarkMode),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          getPercentageWidth(2.5, context),
+                                      vertical: getPercentageHeight(1, context),
+                                    ),
                                     decoration: BoxDecoration(
                                       color: kAccent.withOpacity(0.08),
                                       borderRadius: BorderRadius.circular(8),
@@ -206,20 +218,28 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                                   _selectedDay == ''
                                               ? 'Select Day'
                                               : _selectedDay!,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: kAccent,
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 15,
+                                            fontSize: getPercentageWidth(
+                                                3.5, context),
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
-                                        const Icon(Icons.edit_calendar,
-                                            color: kAccent, size: 18),
+                                        SizedBox(
+                                            width: getPercentageWidth(
+                                                1.5, context)),
+                                        Icon(
+                                          Icons.edit_calendar,
+                                          color: kAccent,
+                                          size:
+                                              getPercentageWidth(4.5, context),
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                SizedBox(
+                                    height: getPercentageHeight(2, context)),
                               ],
                             ),
                           ],
@@ -227,25 +247,29 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
+                            Text(
                               'Items',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                                fontSize: getPercentageWidth(4.5, context),
                                 color: kAccent,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: getPercentageHeight(1, context)),
                             Row(
                               children: [
-                                const Icon(Icons.shopping_basket,
-                                    color: kAccent, size: 20),
-                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.shopping_basket,
+                                  color: kAccent,
+                                  size: getPercentageWidth(5, context),
+                                ),
+                                SizedBox(width: getPercentageWidth(1, context)),
                                 Obx(
                                   () => Text(
                                     '${macroManager.shoppingList.length}',
-                                    style: const TextStyle(
-                                      fontSize: 18,
+                                    style: TextStyle(
+                                      fontSize:
+                                          getPercentageWidth(4.5, context),
                                       fontWeight: FontWeight.bold,
                                       color: kAccent,
                                     ),
@@ -257,7 +281,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 5),
+                    SizedBox(height: getPercentageHeight(1, context)),
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -269,12 +293,12 @@ class _ShoppingTabState extends State<ShoppingTab> {
                           ),
                         );
                       },
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           textAlign: TextAlign.center,
                           'SEE MORE INGREDIENTS',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: getPercentageWidth(3.5, context),
                             fontWeight: FontWeight.w600,
                             color: kAccentLight,
                           ),
@@ -340,48 +364,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       ? kWhite
                       : kDarkGrey),
           // ------------------------------------Premium / Ads-------------------------------------
-        ],
-      ),
-    );
-  }
-}
-
-// MealCategoryItem widget definition moved from meal_design_screen.dart
-class MealCategoryItem extends StatelessWidget {
-  const MealCategoryItem({
-    super.key,
-    required this.title,
-    required this.press,
-    this.icon = Icons.favorite,
-    this.size = 35,
-    this.image = intPlaceholderImage,
-  });
-
-  final String title, image;
-  final VoidCallback press;
-  final IconData icon;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: press,
-      child: Column(
-        children: [
-          IconCircleButton(
-            h: size,
-            w: size,
-            icon: icon,
-            isRemoveContainer: false,
-          ),
-          const SizedBox(
-            height: 5,
-          ),
-          Text(title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              )),
         ],
       ),
     );
