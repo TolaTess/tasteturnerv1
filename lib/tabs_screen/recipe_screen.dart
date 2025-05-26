@@ -105,8 +105,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                height: 30,
+              SizedBox(
+                height: getPercentageHeight(3, context),
               ),
 
               //category options - here is category widget - chatgpt
@@ -118,8 +118,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 accentColor: kAccentLight,
                 darkModeAccentColor: kDarkModeAccent,
               ),
-              const SizedBox(
-                height: 20,
+              SizedBox(
+                height: getPercentageHeight(2, context),
               ),
 
               // ------------------------------------Premium / Ads------------------------------------
@@ -135,13 +135,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
               userService.currentUser?.isPremium ?? false
                   ? const SizedBox.shrink()
-                  : const SizedBox(height: 10),
+                  : SizedBox(height: getPercentageHeight(1, context)),
               userService.currentUser?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : Divider(color: isDarkMode ? kWhite : kDarkGrey),
               // ------------------------------------Premium / Ads-------------------------------------
 
-              const SizedBox(height: 10),
+              SizedBox(height: getPercentageHeight(1, context)),
               //Search by Ingredients
               TitleSection(
                 title: searchIngredients,
@@ -186,20 +186,21 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 ),
                 more: seeAll,
               ),
-              const SizedBox(
-                height: 20,
+              SizedBox(
+                height: getPercentageHeight(2, context),
               ),
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(5, context)),
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 200,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: getPercentageWidth(45, context),
                     childAspectRatio: 3 / 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+                    crossAxisSpacing: getPercentageWidth(2, context),
+                    mainAxisSpacing: getPercentageHeight(1, context),
                   ),
                   itemCount: demoMealsData.length,
                   itemBuilder: (BuildContext ctx, index) {
@@ -211,8 +212,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                   },
                 ),
               ),
-              const SizedBox(
-                height: 72,
+              SizedBox(
+                height: getPercentageHeight(7, context),
               ),
             ],
           ),
