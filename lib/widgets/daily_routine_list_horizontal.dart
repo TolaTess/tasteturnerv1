@@ -243,8 +243,9 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                 ),
                 if (_badgeAwarded)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context),
+                        vertical: getPercentageHeight(0.5, context)),
                     decoration: BoxDecoration(
                       color: kAccent.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
@@ -273,7 +274,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             SizedBox(
-              height: getPercentageHeight(4.5, context),
+              height: getPercentageHeight(5, context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
@@ -282,14 +283,15 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                   final isCompleted = items[index]['isCompleted'];
                   if (!item.isEnabled) return const SizedBox.shrink();
                   return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.7, context)),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(0.7, context)),
                     child: InkWell(
                       onTap: () =>
                           controller.toggleCompletion(item.title, isCompleted),
                       child: Container(
                         padding: EdgeInsets.symmetric(
                             horizontal: getPercentageWidth(3, context),
-                            vertical: getPercentageHeight(1, context)),
+                            vertical: getPercentageHeight(0.5, context)),
                         decoration: BoxDecoration(
                           color: isCompleted
                               ? isDarkMode
