@@ -51,7 +51,8 @@ class CategorySelector extends StatelessWidget {
                   category['name'].toLowerCase() == 'all'
                       ? 'General'
                       : capitalizeFirstLetter(category['name']),
-                  style: const TextStyle(
+                  style: TextStyle(
+                    fontSize: getPercentageWidth(3, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),

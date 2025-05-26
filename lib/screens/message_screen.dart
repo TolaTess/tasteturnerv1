@@ -149,7 +149,7 @@ class _MessageScreenState extends State<MessageScreen>
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       key: _addFriendButtonKey,
-                      icon: const Icon(Icons.add, size: 28),
+                      icon: const Icon(Icons.people_outlined, size: 28, color: kAccent,),
                       onPressed: () {
                         Navigator.push(
                           context,

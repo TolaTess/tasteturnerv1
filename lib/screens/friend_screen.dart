@@ -7,6 +7,7 @@ import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
+import 'buddy_screen.dart';
 import 'chat_screen.dart';
 
 class FriendScreen extends StatefulWidget {
@@ -126,17 +127,35 @@ class _FriendScreenState extends State<FriendScreen> {
                           ),
                         );
                       } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatScreen(
-                              friendId: friendId,
-                              dataSrc: widget.dataSrc,
-                              screen: widget.screen,
-                              friend: friend,
+                        if (friend.userId == userService.userId) {
+                          showTastySnackbar(
+                            'Cannot Chat with Yourself',
+                            'You cannot chat with yourself.',
+                            context,
+                          );
+                          return;
+                        } else if (friendId == tastyId) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TastyScreen(
+                                screen: 'message',
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                friendId: friendId,
+                                dataSrc: widget.dataSrc,
+                                screen: widget.screen,
+                                friend: friend,
+                              ),
+                            ),
+                          );
+                        }
                       }
                     },
                     child: Column(

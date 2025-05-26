@@ -189,8 +189,8 @@ class DailyRoutineListHorizontal extends StatelessWidget {
       final items = controller.routineItems;
       final _badgeAwarded = controller.badgeAwarded.value;
       if (items.isEmpty) {
-        return const SizedBox(
-          height: 60,
+        return SizedBox(
+          height: getPercentageHeight(6.5, context),
           child: Center(child: CircularProgressIndicator(color: kAccent)),
         );
       }
@@ -220,7 +220,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                       Text(
                         !_badgeAwarded ? 'Daily Routine' : 'Routine',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4.5, context),
+                          fontSize: getPercentageWidth(4, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -257,7 +257,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                             color: kAccentLight.withOpacity(0.8),
                             size: getPercentageWidth(5, context),
                           ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: getPercentageHeight(0.5, context)),
                         Text(
                           'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(controller.yesterday))}',
                           style: TextStyle(
@@ -271,9 +271,9 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: getPercentageHeight(1, context)),
             SizedBox(
-              height: getPercentageHeight(6.5, context),
+              height: getPercentageHeight(4.5, context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
@@ -282,13 +282,14 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                   final isCompleted = items[index]['isCompleted'];
                   if (!item.isEnabled) return const SizedBox.shrink();
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.7, context)),
                     child: InkWell(
                       onTap: () =>
                           controller.toggleCompletion(item.title, isCompleted),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(3, context),
+                            vertical: getPercentageHeight(1, context)),
                         decoration: BoxDecoration(
                           color: isCompleted
                               ? isDarkMode
@@ -317,7 +318,8 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               decorationColor:
                                   isDarkMode ? kWhite : kAccentLight,
                               decorationThickness: 2,
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),

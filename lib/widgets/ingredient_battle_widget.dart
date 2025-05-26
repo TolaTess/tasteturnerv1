@@ -348,7 +348,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       final percent2 = total > 0 ? _count2.value / total : 0.5;
 
       return Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(2, context)),
         decoration: BoxDecoration(
           color:
               isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
@@ -378,7 +378,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     child: Text(
                       'Ingredient Tug-of-War',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getPercentageWidth(4, context),
                         fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -423,7 +423,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 ],
               ),
               children: [
-                const SizedBox(height: 15),
+                SizedBox(height: getPercentageHeight(1, context)),
 
                 // Battle visualization
                 Row(
@@ -431,7 +431,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent1 * 100).round(),
                       child: Container(
-                        height: getPercentageHeight(10, context),
+                        height: getPercentageHeight(7, context),
                         decoration: BoxDecoration(
                           color: kAccent,
                           borderRadius: BorderRadius.only(
@@ -451,18 +451,19 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             children: [
                               Text(
                                 _topIngredient1.value,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: getPercentageWidth(3.5, context),
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
                               Text(
                                 '${_count1.value} times',
                                 style: TextStyle(
                                   color: kWhite,
-                                  fontSize: getPercentageWidth(3.5, context),
+                                  fontSize: getPercentageWidth(3, context),
                                 ),
                               ),
                             ],
@@ -473,7 +474,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent2 * 100).round(),
                       child: Container(
-                        height: getPercentageHeight(10, context),
+                        height: getPercentageHeight(7, context),
                         decoration: BoxDecoration(
                           color: kAccentLight,
                           borderRadius: BorderRadius.only(
@@ -493,18 +494,19 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             children: [
                               Text(
                                 _topIngredient2.value,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: getPercentageWidth(3.5, context),
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
                               Text(
                                 '${_count2.value} times',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: kWhite,
-                                  fontSize: 12,
+                                  fontSize: getPercentageWidth(2.5, context),
                                 ),
                               ),
                             ],
@@ -515,11 +517,11 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                   ],
                 ),
 
-                const SizedBox(height: 15),
+                SizedBox(height: getPercentageHeight(1, context)),
                 Text(
                   'Based on your meal in last 7 days',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: getPercentageWidth(2.5, context),
                     fontStyle: FontStyle.italic,
                     color: isDarkMode ? kLightGrey : kDarkGrey,
                   ),

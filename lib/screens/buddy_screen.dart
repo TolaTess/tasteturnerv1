@@ -11,6 +11,7 @@ import 'chat_screen.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/bottom_model.dart';
 import '../screens/premium_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TastyScreen extends StatefulWidget {
   final String screen;
@@ -223,7 +224,7 @@ class _TastyScreenState extends State<TastyScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    if (isPremium || !isInFreeTrial) {
+    if (isPremium || isInFreeTrial) {
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(
@@ -486,7 +487,7 @@ class _TastyScreenState extends State<TastyScreen> {
     return """
 Greet the user warmly and offer guidance based on:
 - Username: ${userContext['displayName']} to address the user
-- Fitness Goal: ${userContext['fitnessGoal']}
+- Goal: ${userContext['fitnessGoal']}
 - Summary of previous chat: ${userContext['chatSummary']}
 - Current Weight: ${userContext['currentWeight']}
 - Goal Weight: ${userContext['goalWeight']}
@@ -656,22 +657,52 @@ Greet the user warmly and offer guidance based on:
     }
   }
 
+  // Helper: Get last Gemini welcome date
+  Future<DateTime?> _getLastGeminiWelcomeDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'last_gemini_welcome_date_${userService.userId}';
+    final dateString = prefs.getString(key);
+    if (dateString == null) return null;
+    return DateTime.tryParse(dateString);
+  }
+
+  // Helper: Set last Gemini welcome date
+  Future<void> _setLastGeminiWelcomeDate(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'last_gemini_welcome_date_${userService.userId}';
+    await prefs.setString(key, date.toIso8601String());
+  }
+
   Future<void> _initializeChatWithBuddy() async {
     if (!(isPremium || isInFreeTrial)) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
+      print('chatId: $chatId');
       // Existing chat - just listen to messages and mark as read
       chatController.chatId = chatId!;
       chatController.listenToMessages();
       chatController.markMessagesAsRead(chatId!, 'buddy');
-      // Show a system message if the last message is not from the user
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Show a Gemini welcome message once per day, or system message if not needed
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         final messages = chatController.messages;
-        if (messages.isEmpty || messages.last.senderId != userService.userId) {
+        final now = DateTime.now();
+        final lastWelcome = await _getLastGeminiWelcomeDate();
+        final isToday = lastWelcome != null &&
+            lastWelcome.year == now.year &&
+            lastWelcome.month == now.month &&
+            lastWelcome.day == now.day;
+        if (!isToday) {
+          final userContext = _getUserContext();
+          final initialPrompt = _createInitialPrompt(userContext);
+          await _sendMessageToGemini(initialPrompt, isSystemMessage: true);
+          await _setLastGeminiWelcomeDate(now);
+        } else if (messages.isEmpty ||
+            messages.last.senderId != userService.userId) {
           _showSystemMessage();
         }
       });
     } else {
+      print('new chat');
       // New chat - create it and listen
       await chatController.initializeChat('buddy').then((_) {
         setState(() {
@@ -686,12 +717,22 @@ Greet the user warmly and offer guidance based on:
       final userContext = _getUserContext();
       final initialPrompt = _createInitialPrompt(userContext);
       await _sendMessageToGemini(initialPrompt, isSystemMessage: true);
+      await _setLastGeminiWelcomeDate(DateTime.now());
     }
   }
 
   void _showSystemMessage() {
+    final messages = chatController.messages;
     final randomMessage =
         _welcomeMessages[DateTime.now().microsecond % _welcomeMessages.length];
+
+    // Only send if last message is not a system message or is different
+    if (messages.isNotEmpty &&
+        messages.last.senderId == 'systemMessage' &&
+        messages.last.messageContent == randomMessage) {
+      return;
+    }
+
     setState(() {
       chatController.messages.add(ChatScreenData(
         messageContent: randomMessage,
@@ -702,7 +743,6 @@ Greet the user warmly and offer guidance based on:
       ));
     });
     _onNewMessage();
-    // Save system message to Firestore
     _saveMessageToFirestore(randomMessage, 'systemMessage');
   }
 

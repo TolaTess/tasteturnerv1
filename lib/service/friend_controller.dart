@@ -141,7 +141,17 @@ class FriendController extends GetxController {
         }
       }
 
-      sendFriendRequest(currentUserId, friendUserId, friendName, context);
+      if (friendUserId != tastyId) {
+        sendFriendRequest(currentUserId, friendUserId, friendName, context);
+      } else {
+        print('following tasty');
+        await firestore
+            .collection('friends')
+            .doc(currentUserId)
+            .set({
+          'following': FieldValue.arrayUnion([friendUserId])
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       showTastySnackbar(
         'Please try again.',

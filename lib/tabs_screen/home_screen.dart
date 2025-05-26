@@ -334,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10),
+            padding: EdgeInsets.symmetric(vertical: getPercentageHeight(0.5, context), horizontal: getPercentageWidth(2, context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -374,18 +374,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           Text(
                             '${getRelativeDayString(currentDate)},',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(4, context), 
                               fontWeight: FontWeight.w400,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: getPercentageWidth(0.5, context)),
                           if (getRelativeDayString(currentDate) != 'Today' &&
                               getRelativeDayString(currentDate) != 'Yesterday')
                             Text(
                               DateFormat('d MMMM').format(currentDate),
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: getPercentageWidth(4, context),
                                 fontWeight: FontWeight.w400,
                                 color: Colors.amber[700],
                               ),
@@ -430,26 +430,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (!allDisabled)
                   DailyRoutineListHorizontal(
                       userId: userService.userId!, date: currentDate),
-                if (!allDisabled) const SizedBox(height: 10),
+                if (!allDisabled) SizedBox(height: getPercentageHeight(1, context)),
                 if (!allDisabled)
                   Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                if (!allDisabled) const SizedBox(height: 5),
+                if (!allDisabled) SizedBox(height: getPercentageHeight(0.5, context)),
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   AnnouncementWidget(
                     title: '🏆 Winners of the week 🏆',
                     announcements: winners,
-                    height: 50, // Optional, defaults to 90
+                    height: getPercentageHeight(5, context), // Optional, defaults to 90
                     onTap: () {
                       // Handle tap
                     },
                   ),
                 if (winners.isNotEmpty && isAnnounceShow)
-                  const SizedBox(height: 10),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
-                    : const SizedBox(height: 5),
+                    : SizedBox(height: getPercentageHeight(0.5, context)),
 
                 // ------------------------------------Premium / Ads------------------------------------
 
@@ -464,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
+                    : SizedBox(height: getPercentageHeight(1, context)),
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
@@ -472,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // ------------------------------------Premium / Ads-------------------------------------
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
-                    : const SizedBox(height: 10),
+                    : SizedBox(height: getPercentageHeight(1, context)),
 
                 if (_isTodayShoppingDay())
                   Container(
@@ -525,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ],
                     ),
                   ),
-                if (_isTodayShoppingDay()) const SizedBox(height: 10),
+                if (_isTodayShoppingDay()) SizedBox(height: getPercentageHeight(1, context)),
 
                 // Nutrition Overview
                 SizedBox(
@@ -545,15 +545,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                SizedBox(height: getPercentageHeight(1, context)),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                const SizedBox(height: 8),
+                SizedBox(height: getPercentageHeight(0.8, context)),
 
                 // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),
 
-                const SizedBox(
-                  height: 60,
+                SizedBox(
+                  height: getPercentageHeight(6, context),
                 ),
               ],
             ),
