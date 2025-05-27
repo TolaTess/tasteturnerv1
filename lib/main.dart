@@ -106,20 +106,31 @@ void main() async {
   } catch (e, stack) {
     runApp(MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('Startup Error')),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
+        appBar: AppBar(title: const Text('There seems to be an error')),
+        body: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('An error occurred during startup:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Oops! Something went wrong.',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Text(e.toString(), style: const TextStyle(color: Colors.red)),
-                const SizedBox(height: 16),
-                const Text('Stack trace:'),
-                Text(stack.toString(), style: const TextStyle(fontSize: 10)),
+                const Text(
+                  'Please close the app and try again in a few minutes.',
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),
