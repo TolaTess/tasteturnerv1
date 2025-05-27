@@ -238,38 +238,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Collect ${pointsToWin} points to get a chance to win a \$50 food voucher!',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: kAccent,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 15,
-                          ),
-                          Text(
-                            'As part of our quarterly $appName challenge!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                              color: getThemeProvider(context).isDarkMode
-                                  ? kWhite
-                                  : kBlack,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
                 ],
               ),
             ),

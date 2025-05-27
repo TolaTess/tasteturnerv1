@@ -88,3 +88,6 @@ migrate_working_dir/
 # Environment files
 .env
 *.env.dart 
+
+keystore.properties
+my-release-key.jks
