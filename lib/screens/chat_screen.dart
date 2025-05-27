@@ -172,6 +172,15 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    // Check if latest message is a pending friend request
+    bool isPendingFriendRequest = false;
+    if (chatController.messages.isNotEmpty) {
+      final lastMsg = chatController.messages.last;
+      if (lastMsg.friendRequest != null &&
+          (lastMsg.friendRequest?['status'] ?? 'pending') == 'pending') {
+        isPendingFriendRequest = true;
+      }
+    }
     return Scaffold(
       appBar: AppBar(
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
@@ -275,7 +284,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }),
                   ),
-                  _buildInputSection(isDarkMode),
+                  _buildInputSection(isDarkMode,
+                      isDisabled: isPendingFriendRequest,
+                      hint: isPendingFriendRequest
+                          ? 'Waiting to accept'
+                          : 'Type your caption...'),
                 ],
               ),
             ),
@@ -334,23 +347,26 @@ class _ChatScreenState extends State<ChatScreen> {
     _onNewMessage();
   }
 
-  Widget _buildInputSection(bool isDarkMode) {
+  Widget _buildInputSection(bool isDarkMode,
+      {bool isDisabled = false, String hint = 'Type your caption...'}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       child: Row(
         children: [
           InkWell(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) {
-                  return CustomImagePickerModal(
-                    onSend: _handleImageSend,
-                  );
-                },
-              );
-            },
+            onTap: isDisabled
+                ? null
+                : () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) {
+                        return CustomImagePickerModal(
+                          onSend: _handleImageSend,
+                        );
+                      },
+                    );
+                  },
             child: const IconCircleButton(
               icon: Icons.camera_alt,
               h: 35,
@@ -362,6 +378,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: SafeTextFormField(
               controller: textController,
               keyboardType: TextInputType.multiline,
+              enabled: !isDisabled,
               style: TextStyle(
                 fontSize: 16,
                 color: isDarkMode ? kWhite : kBlack,
@@ -374,7 +391,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 border: outlineInputBorder(20),
                 contentPadding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                hintText: 'Type your caption...',
+                hintText: hint,
                 hintStyle: TextStyle(
                   color: isDarkMode
                       ? kWhite.withOpacity(0.5)
@@ -385,13 +402,16 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           InkWell(
-            onTap: () async {
-              final messageText = textController.text.trim();
-              if (messageText.isNotEmpty && chatId != null) {
-                await chatController.sendMessage(messageContent: messageText);
-                textController.clear();
-              }
-            },
+            onTap: isDisabled
+                ? null
+                : () async {
+                    final messageText = textController.text.trim();
+                    if (messageText.isNotEmpty && chatId != null) {
+                      await chatController.sendMessage(
+                          messageContent: messageText);
+                      textController.clear();
+                    }
+                  },
             child: const IconCircleButton(
               icon: Icons.send,
               h: 40,

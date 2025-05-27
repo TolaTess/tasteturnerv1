@@ -97,6 +97,108 @@ class _MessageScreenState extends State<MessageScreen>
     );
   }
 
+  void _showDisabledChatsModal(BuildContext context) async {
+    final userId = userService.userId ?? '';
+    final disabledChats = (await chatController.fetchUserChats(userId))
+        .where((chat) => chat['isActive'] == false)
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+          Provider.of<ThemeProvider>(context, listen: false).isDarkMode
+              ? kDarkGrey
+              : kWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: disabledChats.isEmpty
+              ? Center(
+                  child: Text(
+                    'No archived chats',
+                    style: TextStyle(
+                      fontSize: getPercentageHeight(4, context),
+                      fontWeight: FontWeight.w500,
+                      color: Provider.of<ThemeProvider>(context, listen: false)
+                              .isDarkMode
+                          ? kWhite
+                          : kBlack,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: disabledChats.length,
+                  itemBuilder: (context, index) {
+                    final chat = disabledChats[index];
+                    final participants =
+                        List<String>.from(chat['participants'] ?? []);
+                    final friendId = participants.firstWhere(
+                      (id) => id != userId,
+                      orElse: () => '',
+                    );
+                    return ListTile(
+                      leading: Icon(
+                        Icons.chat_bubble_outline,
+                        color: Provider.of<ThemeProvider>(context, listen: false)
+                                .isDarkMode
+                            ? kWhite
+                            : kBlack,
+                      ),
+                      title: FutureBuilder(
+                        future: friendController.getFriendData(friendId),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Text('Loading...');
+                          }
+                          final friend = snapshot.data as UserModel?;
+                          return Text(
+                            friend?.displayName ?? 'Unknown',
+                            style: TextStyle(
+                              fontSize: getPercentageHeight(1.7, context),
+                              fontWeight: FontWeight.w500,
+                              color: Provider.of<ThemeProvider>(context,
+                                          listen: false)
+                                      .isDarkMode
+                                  ? kWhite
+                                  : kBlack,
+                            ),
+                          );
+                        },
+                      ),
+                      subtitle: Text(
+                        chat['lastMessage'] ?? '',
+                        style: TextStyle(
+                          fontSize: getPercentageHeight(1, context),
+                          color:
+                              Provider.of<ThemeProvider>(context, listen: false)
+                                      .isDarkMode
+                                  ? kWhite
+                                  : kBlack,
+                        ),
+                      ),
+                      onTap: () async {
+                        await chatController.disableChats(chat['chatId'], true);
+                        await chatController.loadUserChats(userId);
+                        if (mounted) Navigator.pop(context);
+                        showTastySnackbar(
+                          'Success',
+                          'Chat was restored',
+                          context,
+                        );
+                      },
+                    );
+                  },
+                ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_scrollListener);
@@ -148,8 +250,29 @@ class _MessageScreenState extends State<MessageScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
+                      icon: Icon(
+                        Icons.archive,
+                        size: getPercentageWidth(6, context),
+                        color: kAccent,
+                      ),
+                      onPressed: () {
+                        _showDisabledChatsModal(context);
+                      },
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
                       key: _addFriendButtonKey,
-                      icon: const Icon(Icons.people_outlined, size: 28, color: kAccent,),
+                      icon: Icon(
+                        Icons.people_outlined,
+                          size: getPercentageWidth(6, context),
+                        color: kAccent,
+                      ),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -189,20 +312,42 @@ class _MessageScreenState extends State<MessageScreen>
                     return Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: ListView.builder(
-                          scrollDirection: Axis.vertical,
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: nonBuddyChats.length,
-                          itemBuilder: (context, index) {
-                            final chatSummary = nonBuddyChats[index];
-                            final participants = List<String>.from(
-                                chatSummary['participants'] ?? []);
-                            final friendId = participants.firstWhere(
-                              (id) => id != userService.userId,
-                              orElse: () => '',
-                            );
+                        scrollDirection: Axis.vertical,
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: nonBuddyChats.length,
+                        itemBuilder: (context, index) {
+                          final chatSummary = nonBuddyChats[index];
+                          final participants = List<String>.from(
+                              chatSummary['participants'] ?? []);
+                          final friendId = participants.firstWhere(
+                            (id) => id != userService.userId,
+                            orElse: () => '',
+                          );
+                          final chatId = chatSummary['chatId'] as String;
 
-                            return MessageItem(
+                          return Dismissible(
+                            key: Key(chatId),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
+                              color: Colors.red,
+                              child:
+                                  const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            onDismissed: (direction) async {
+                              await chatController.disableChats(chatId, false);
+                              // Remove from local list for instant feedback
+                              nonBuddyChats.removeAt(index);
+                              chatController.userChats.removeWhere(
+                                  (chat) => chat['chatId'] == chatId);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Chat disabled')),
+                              );
+                            },
+                            child: MessageItem(
                               dataSrc: chatSummary,
                               press: () {
                                 if (friendId.isNotEmpty) {
@@ -242,8 +387,10 @@ class _MessageScreenState extends State<MessageScreen>
                                   }
                                 }
                               },
-                            );
-                          }),
+                            ),
+                          );
+                        },
+                      ),
                     );
                   }),
                 ],
@@ -327,7 +474,7 @@ class _MessageItemState extends State<MessageItem> {
                   // Avatar
                   buildFriendAvatar(friend?.profileImage),
                   const SizedBox(width: 16),
-              
+
                   // Name and Last Message
                   Expanded(
                     child: Column(
@@ -354,7 +501,7 @@ class _MessageItemState extends State<MessageItem> {
                     ),
                   ),
                   const SizedBox(width: 16),
-              
+
                   // Time and Badge
                   Column(
                     children: [
@@ -392,7 +539,10 @@ class _MessageItemState extends State<MessageItem> {
                 ],
               ),
               Divider(
-                color: getThemeProvider(context).isDarkMode ? kWhite.withOpacity(0.2) : kBlack.withOpacity(0.2),
+                color: Provider.of<ThemeProvider>(context, listen: false)
+                        .isDarkMode
+                    ? kWhite.withOpacity(0.2)
+                    : kBlack.withOpacity(0.2),
                 height: 1,
               ),
             ],

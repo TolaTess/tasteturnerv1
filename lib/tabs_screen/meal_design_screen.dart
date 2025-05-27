@@ -1222,6 +1222,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               SizedBox(height: getPercentageWidth(1.5, context)),
               ...[
                 'Regular Day',
+                'Diet Day',
                 'Cheat Day',
                 'Family Dinner',
                 'Workout Boost',
@@ -1378,6 +1379,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     switch (type.toLowerCase()) {
       case 'cheat day':
         return Icons.fastfood;
+      case 'diet day':
+        return Icons.restaurant;
       case 'family dinner':
         return Icons.people;
       case 'workout boost':
@@ -1399,6 +1402,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     switch (type.toLowerCase()) {
       case 'cheat day':
         return Colors.purple;
+      case 'diet day':
+        return Colors.grey.withOpacity(0.7);
       case 'family dinner':
         return Colors.green;
       case 'workout boost':
@@ -1571,9 +1576,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               color: getThemeProvider(context).isDarkMode ? kWhite : kBlack),
         ),
         content: Text(
-          dayType == 'welcome_day'
-              ? 'This was your first day with TastyTurner!'
-              : 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.',
+          caseDayType(dayType),
           style: TextStyle(
               color: _getDayTypeColor(dayType.replaceAll('_', ' '),
                   getThemeProvider(context).isDarkMode)),
@@ -1589,6 +1592,21 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         ],
       ),
     );
+  }
+}
+
+caseDayType(String dayType) {
+  switch (dayType.toLowerCase()) {
+    case 'welcome_day':
+      return 'This was your first day with TastyTurner!';
+    case 'family_dinner':
+      return 'This was a Family Dinner day.';
+    case 'workout_boost':
+      return 'This was a Workout Boost day.';
+    case 'special_celebration':
+      return 'You had a Special Celebration.';
+    default:
+      return 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.';
   }
 }
 

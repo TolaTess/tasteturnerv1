@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
-import '../data_models/post_model.dart';
 import '../helper/utils.dart';
 
 class ChatController extends GetxController {
@@ -68,7 +67,11 @@ class ChatController extends GetxController {
     try {
       final fetchedChats = await fetchUserChats(userId);
 
-      for (var chat in fetchedChats) {
+      // Filter to only active chats
+      final activeChats =
+          fetchedChats.where((chat) => chat['isActive'] != false).toList();
+
+      for (var chat in activeChats) {
         final chatId = chat['chatId'];
         final participants = List<String>.from(chat['participants'] ?? []);
         final otherUserId =
@@ -86,11 +89,18 @@ class ChatController extends GetxController {
         chat['unreadCount'] = unreadCount;
       }
 
-      userChats.value = fetchedChats;
+      userChats.value = activeChats;
     } catch (e) {
       print("Error loading user chats: $e");
       userChats.clear();
     }
+  }
+
+  Future<void> disableChats(String chatId, bool isActive) async {
+    await firestore
+        .collection('chats')
+        .doc(chatId)
+        .update({'isActive': isActive});
   }
 
   Future<void> markMessagesAsRead(String chatId, String otherUserId) async {

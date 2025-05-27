@@ -257,7 +257,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 } else {
                                   showTastySnackbar(
                                     'Follow Required',
-                                    "You need to follow this user to start a chat.",
+                                    "You need to be friends before you can start a chat.",
                                     context,
                                     backgroundColor: Colors.redAccent,
                                   );
