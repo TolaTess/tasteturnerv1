@@ -528,8 +528,8 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             return Transform.translate(
               offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
               child: CircleAvatar(
-                backgroundColor: kAccentLight.withOpacity(0.5),
-                radius: 18,
+                backgroundColor: kAccentLight.withOpacity(0.6),
+                radius: getPercentageWidth(3.5, context),
                 backgroundImage: AssetImage(tastyImage),
               ),
             );
@@ -539,7 +539,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
         Text(
           message,
           style: TextStyle(
-            fontSize: getPercentageWidth(4.5, context),
+            fontSize: getPercentageWidth(4, context),
             fontWeight: FontWeight.w400,
             color: kAccentLight,
           ),
@@ -585,13 +585,22 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
                       builder: (context) => const FriendScreen(),
                     ),
                   );
+                } else if (screen == 'calendar') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BottomNavSec(
+                        selectedIndex: 4,
+                      ),
+                    ),
+                  );
                 }
               }
             },
             child: Text(
               subtitle,
               style: TextStyle(
-                fontSize: getPercentageWidth(3.5, context),
+                fontSize: getPercentageWidth(3, context),
                 fontWeight: FontWeight.w700,
                 color: isLinked
                     ? kAccent

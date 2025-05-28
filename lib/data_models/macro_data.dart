@@ -26,7 +26,7 @@ class MacroData {
     this.isAntiInflammatory = false,
     this.isSelected = false,
     this.alt = const [],
-  });
+    });
 
   // Convert to JSON for storing in Firestore or other NoSQL databases
   Map<String, dynamic> toJson() {
@@ -57,7 +57,8 @@ class MacroData {
       title: json['title'] as String, // Ensure title is String
       type: json['type'] as String, // Ensure type is String
       calories: json['calories'] as int? ?? 0,
-      macros: Map<String, dynamic>.from(json['macros'] as Map<dynamic, dynamic>),
+      macros:
+          Map<String, dynamic>.from(json['macros'] as Map<dynamic, dynamic>),
       categories: (json['categories'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -73,11 +74,40 @@ class MacroData {
               json['storageOptions'] as Map<dynamic, dynamic>)
           : {},
       isAntiInflammatory: json['isAntiInflammatory'] as bool? ?? false,
-      alt: (json['alt'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      alt: (json['alt'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           [], // Safely cast
     );
   }
-}
 
+  MacroData copyWith({
+    String? id,
+    String? title,
+    String? type,
+    List<String>? mediaPaths,
+    int? calories,
+    Map<String, dynamic>? macros,
+    List<String>? categories,
+    Map<String, dynamic>? features,
+    List<String>? techniques,
+    Map<String, String>? storageOptions,
+    bool? isAntiInflammatory,
+    bool? isSelected,
+    List<String>? alt,
+  }) {
+    return MacroData(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      type: type ?? this.type,
+      mediaPaths: mediaPaths ?? this.mediaPaths,
+      calories: calories ?? this.calories,
+      macros: macros ?? this.macros,
+      categories: categories ?? this.categories,
+      features: features ?? this.features,
+      techniques: techniques ?? this.techniques,
+      storageOptions: storageOptions ?? this.storageOptions,
+      isAntiInflammatory: isAntiInflammatory ?? this.isAntiInflammatory,
+      isSelected: isSelected ?? this.isSelected,
+      alt: alt ?? this.alt,
+    );
+  }
+}

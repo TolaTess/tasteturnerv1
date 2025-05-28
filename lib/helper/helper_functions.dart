@@ -136,7 +136,8 @@ String getSharedCalendarHeader(String userName, String friendName) {
   return '$userInitial & $friendName';
 }
 
-Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
+Widget getBirthdayTextContainer(
+    String birthdayName, bool isShrink, BuildContext context) {
   return Container(
     padding: EdgeInsets.symmetric(horizontal: isShrink ? 5 : 10),
     decoration: BoxDecoration(
@@ -151,7 +152,9 @@ Widget getBirthdayTextContainer(String birthdayName, bool isShrink) {
           : '${birthdayName}s birthday is today! 🎂',
       style: TextStyle(
         color: kAccentLight,
-        fontSize: isShrink ? 12 : 14,
+        fontSize: isShrink
+            ? getPercentageWidth(2.5, context)
+            : getPercentageWidth(3, context),
         fontWeight: isShrink ? FontWeight.normal : FontWeight.w400,
         overflow: isShrink ? TextOverflow.ellipsis : TextOverflow.visible,
       ),
@@ -614,4 +617,51 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
     },
   );
   return completer.future;
+}
+
+/// Consolidate grocery items by summing amounts for duplicate names.
+/// Expects a list of maps: [{'name': 'tomato', 'amount': '100g'}, ...]
+/// Returns a map: {'tomato': '200g', ...}
+Map<String, String> consolidateGroceryAmounts(List<Map<String, String>> items) {
+  final Map<String, num> totals = {};
+  final Map<String, String> units = {};
+  final Map<String, String> specialAmounts = {};
+
+  for (final item in items) {
+    final name = item['name']?.toLowerCase().trim();
+    var amountStr = item['amount']?.trim() ?? '';
+    if (name == null || name.isEmpty || amountStr.isEmpty) continue;
+
+    // Check for special amounts like 'pinch' or 'to taste'
+    if (amountStr.toLowerCase().contains('pinch') || 
+        amountStr.toLowerCase().contains('to taste')) {
+      specialAmounts[name] = amountStr;
+      continue;
+    }
+
+    // Extract numeric value and unit (e.g., '100g' -> 100, 'g')
+    final match = RegExp(r'([\d.]+)\s*([a-zA-Z]*)').firstMatch(amountStr);
+    if (match != null) {
+      final value = num.tryParse(match.group(1) ?? '0') ?? 0;
+      final unit = match.group(2) ?? '';
+      totals[name] = (totals[name] ?? 0) + value;
+      units[name] = unit;
+    } else {
+      // If cannot parse, just keep the last value
+      totals[name] = num.tryParse(amountStr) ?? 0;
+      units[name] = '';
+    }
+  }
+
+  // Build consolidated map
+  final Map<String, String> consolidated = {};
+  totals.forEach((name, total) {
+    if (specialAmounts.containsKey(name)) {
+      consolidated[name] = specialAmounts[name]!;
+    } else {
+      final unit = units[name] ?? '';
+      consolidated[name] = unit.isNotEmpty ? '$total$unit' : '$total';
+    }
+  });
+  return consolidated;
 }

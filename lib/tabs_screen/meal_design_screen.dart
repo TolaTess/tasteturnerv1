@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:tasteturner/pages/safe_text_field.dart';
+import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
 import '../helper/helper_functions.dart';
@@ -983,7 +984,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (birthdayName.isNotEmpty && showSharedCalendars) ...[
-              getBirthdayTextContainer(birthdayName, false),
+              getBirthdayTextContainer(birthdayName, false, context),
             ],
             const SizedBox(height: 40),
             Text(
@@ -1429,10 +1430,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (birthdayName.isNotEmpty && showSharedCalendars) ...[
-              getBirthdayTextContainer(birthdayName, false),
+              getBirthdayTextContainer(birthdayName, false, context),
             ],
             if (_isUserBirthday(date)) ...[
-              getBirthdayTextContainer('You', false),
+              getBirthdayTextContainer('You', false, context),
             ],
             if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
               Icon(
@@ -1491,26 +1492,48 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         Text(
                           DateFormat('MMMM d, yyyy').format(date),
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: getPercentageWidth(4, context),
                             fontWeight: FontWeight.bold,
                             color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
                         if (isUserBirthday) ...[
                           const SizedBox(width: 8),
-                          const Icon(Icons.cake, color: kAccent, size: 20),
+                          Icon(Icons.cake,
+                              color: kAccent,
+                              size: getPercentageWidth(4, context)),
+                        ],
+                        if (meals.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const BottomNavSec(
+                                    selectedIndex: 3,
+                                    foodScreenTabIndex: 1,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Icon(Icons.shopping_basket,
+                                color: kAccent,
+                                size: getPercentageWidth(4, context)),
+                          ),
                         ],
                       ],
                     ),
-                    if (isUserBirthday) getBirthdayTextContainer('You', true),
+                    if (isUserBirthday)
+                      getBirthdayTextContainer('You', true, context),
                     if (meals.isNotEmpty)
                       if (birthdayName.isNotEmpty && showSharedCalendars) ...[
-                        getBirthdayTextContainer(birthdayName, true),
+                        getBirthdayTextContainer(birthdayName, true, context),
                       ],
                     Text(
                       '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: getPercentageWidth(3, context),
                         color: isDarkMode ? Colors.white70 : Colors.black54,
                       ),
                     ),

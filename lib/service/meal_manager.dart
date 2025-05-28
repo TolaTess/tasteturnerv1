@@ -10,7 +10,6 @@ import '../service/meal_api_service.dart';
 
 class MealManager extends GetxController {
   static MealManager instance = Get.find();
-
   final RxList<Meal> _meals = <Meal>[].obs;
   List<Meal> get meals => _meals;
 
@@ -390,6 +389,7 @@ class MealManager extends GetxController {
     }
   }
 
+
   //___________________MEAL PLAN____________________________
 
   Future<void> addMealPlan(DateTime date, List<String> mealIds) async {
@@ -404,7 +404,7 @@ class MealManager extends GetxController {
       // Get existing meal plan document
       final docSnapshot = await docRef.get();
       List<String> existingMealIds = [];
-      
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         if (data != null && data['meals'] != null) {
