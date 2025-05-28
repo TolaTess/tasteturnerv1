@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tasteturner/detail_screen/recipe_detail.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
 import '../widgets/category_selector.dart';
@@ -13,6 +15,7 @@ import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
+import '../widgets/goal_diet_widget.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
@@ -32,6 +35,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
+  Map<String, dynamic>? _dietGoalData;
+  bool _isLoadingDietGoal = false;
+  DateTime? _lastFetchDate;
+  List<MacroData> _recommendedIngredients = [];
+  Meal? _featuredMeal;
+  DateTime? _lastPickDate;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +66,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
         mealList.where((meal) => meal.userId == userService.userId).toList();
 
     _fetchFavouriteMeals();
+    _pickDietGoalRecommendationsIfNeeded();
   }
 
   @override
@@ -90,6 +101,100 @@ class _RecipeScreenState extends State<RecipeScreen> {
     });
   }
 
+  void _pickDietGoalRecommendationsIfNeeded({bool force = false}) {
+    final now = DateTime.now();
+    if (!force && _recommendedIngredients.isNotEmpty && _lastPickDate != null) {
+      final daysSince = now.difference(_lastPickDate!).inDays;
+      if (daysSince < 7) return;
+    }
+    _pickDietGoalRecommendations();
+  }
+
+  void _pickDietGoalRecommendations() {
+    setState(() {
+      _isLoadingDietGoal = true;
+    });
+    Future.delayed(Duration.zero, () {
+      final user = userService.currentUser;
+      final String userDiet =
+          user?.settings['dietPreference']?.toString() ?? 'Balanced';
+      final String userGoal =
+          user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
+      final allIngredients = macroManager.ingredient;
+      final allMeals = mealManager.meals;
+      List<MacroData> filteredIngredients = [];
+      List<Meal> filteredMeals = [];
+
+      // Logic for filtering based on goal
+      if (userGoal.toLowerCase().contains('weightloss') ||
+          userGoal.toLowerCase().contains('weight loss')) {
+        filteredIngredients = allIngredients.where((i) {
+          final matchesCategory = i.categories.any((c) =>
+              c.toLowerCase().contains('weightloss') ||
+              c.toLowerCase().contains('low calorie') ||
+              c.toLowerCase().contains('lowcalorie') ||
+              c.toLowerCase().contains('keto') ||
+              c.toLowerCase().contains('vegetarian') ||
+              c.toLowerCase().contains('keto_friendly') ||
+              c.toLowerCase().contains(userDiet.toLowerCase()));
+          final carbsStr = i.macros['carbs']?.toString() ?? '';
+          final carbs = double.tryParse(carbsStr);
+          final isLowCarb = carbs != null ? carbs < 5 : false;
+          return matchesCategory && isLowCarb;
+        }).toList();
+        filteredMeals = allMeals.where((m) {
+          return m.categories.any((c) =>
+              c.toLowerCase().contains('weightloss') ||
+              c.toLowerCase().contains('weight loss') ||
+              c.toLowerCase().contains('low calorie') ||
+              c.toLowerCase().contains('vegetable') ||
+              c.toLowerCase().contains('lowcalorie') ||
+              c.toLowerCase().contains(userDiet.toLowerCase()));
+        }).toList();
+      } else if (userGoal.toLowerCase().contains('weightgain') ||
+          userGoal.toLowerCase().contains('weight gain')) {
+        filteredIngredients = allIngredients.where((i) {
+          return i.categories.any((c) =>
+              c.toLowerCase().contains('weightgain') ||
+              c.toLowerCase().contains('weight gain') ||
+              c.toLowerCase().contains('high calorie') ||
+              c.toLowerCase().contains('highcalorie') ||
+              c.toLowerCase().contains(userDiet.toLowerCase()));
+        }).toList();
+        filteredMeals = allMeals.where((m) {
+          return m.categories.any((c) =>
+              c.toLowerCase().contains('weightgain') ||
+              c.toLowerCase().contains('weight gain') ||
+              c.toLowerCase().contains('high calorie') ||
+              c.toLowerCase().contains('highcalorie') ||
+              c.toLowerCase().contains(userDiet.toLowerCase()));
+        }).toList();
+      } else {
+        // Healthy living or general
+        filteredIngredients = allIngredients;
+        filteredMeals = allMeals;
+      }
+
+      // Fallbacks if not enough filtered
+      if (filteredIngredients.length < 3) {
+        filteredIngredients = allIngredients;
+      }
+      if (filteredMeals.isEmpty) {
+        filteredMeals = allMeals;
+      }
+
+      filteredIngredients.shuffle();
+      filteredMeals.shuffle();
+
+      setState(() {
+        _recommendedIngredients = filteredIngredients.take(3).toList();
+        _featuredMeal = filteredMeals.isNotEmpty ? filteredMeals.first : null;
+        _lastPickDate = DateTime.now();
+        _isLoadingDietGoal = false;
+      });
+    });
+  }
+
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
@@ -99,15 +204,60 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final user = userService.currentUser;
+    final String userDiet =
+        user?.settings['dietPreference']?.toString() ?? 'Balanced';
+    final String userGoal =
+        user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: getPercentageHeight(3, context),
-              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+              _isLoadingDietGoal
+                  ? Center(
+                      child: Padding(
+                      padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                      child: const CircularProgressIndicator(
+                        color: kAccent,
+                      ),
+                    ))
+                  : GoalDietWidget(
+                      diet: userDiet,
+                      goal: userGoal,
+                      topIngredients: _recommendedIngredients,
+                      featuredMeal: _featuredMeal,
+                      onIngredientTap: (ingredient) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => IngredientDetailsScreen(
+                              item: ingredient,
+                              ingredientItems: fullLabelsList,
+                            ),
+                          ),
+                        );
+                      },
+                      onMealTap: (meal) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RecipeDetailScreen(
+                              mealData: meal,
+                              screen: 'recipe',
+                            ),
+                          ),
+                        );
+                      },
+                      onRefresh: _isLoadingDietGoal
+                          ? null
+                          : () =>
+                              _pickDietGoalRecommendationsIfNeeded(force: true),
+                    ),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               //category options - here is category widget - chatgpt
               CategorySelector(

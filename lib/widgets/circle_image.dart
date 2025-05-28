@@ -10,6 +10,7 @@ class IngredientListViewRecipe extends StatefulWidget {
   final bool spin;
   final bool isEdit;
   final Function(int) onRemoveItem;
+  final double radius;
 
   const IngredientListViewRecipe({
     super.key,
@@ -17,6 +18,7 @@ class IngredientListViewRecipe extends StatefulWidget {
     required this.spin,
     required this.isEdit,
     required this.onRemoveItem,
+    this.radius = 9,
   });
 
   @override
@@ -30,7 +32,7 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 119,
+      height: widget.radius < 9 ? 90 : 119,
       child: widget.demoAcceptedData.isEmpty
           ? noItemTastyWidget(
               'No ingredients available',
@@ -41,14 +43,18 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
             )
           : ListView.builder(
               itemCount: widget.demoAcceptedData.length,
-              padding: const EdgeInsets.only(right: 20),
+              padding: EdgeInsets.only(
+                  right: getPercentageWidth(2, context),
+                  top: getPercentageHeight(1, context)),
               scrollDirection: Axis.horizontal,
               itemBuilder: (context, index) {
                 return Padding(
-                  padding: const EdgeInsets.only(left: 20),
+                  padding: EdgeInsets.only(
+                      left: getPercentageWidth(2, context),
+                      right: getPercentageWidth(2, context)),
                   child: IngredientItem(
                     dataSrc: widget.demoAcceptedData[index],
-                    radius: getPercentageWidth(11, context),
+                    radius: widget.radius,
                     press: () {
                       Navigator.push(
                         context,
@@ -119,12 +125,12 @@ class IngredientItem extends StatelessWidget {
                 backgroundImage: imagePath.startsWith('http')
                     ? NetworkImage(imagePath) as ImageProvider
                     : AssetImage(getAssetImageForItem(imagePath)),
-                radius: radius,
+                radius: getPercentageWidth(radius, context),
               ),
               // Gradient overlay
               Container(
-                width: radius * 2,
-                height: radius * 2,
+                width: getPercentageWidth(radius * 2, context),
+                height: getPercentageWidth(radius * 2, context),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -145,8 +151,8 @@ class IngredientItem extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(
-            height: 5,
+          SizedBox(
+            height: getPercentageHeight(0.5, context),
           ),
           Expanded(
             child: Text(
@@ -155,7 +161,7 @@ class IngredientItem extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: getPercentageWidth(3.5, context),
+                  fontSize: getPercentageWidth(radius/2.5, context),
                   fontWeight: FontWeight.w600,
                   color: isSelected
                       ? isDarkMode

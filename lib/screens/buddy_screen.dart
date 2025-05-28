@@ -465,7 +465,7 @@ class _TastyScreenState extends State<TastyScreen> {
     return {
       'displayName': userService.currentUser?.displayName ?? 'there',
       'fitnessGoal':
-          userService.currentUser?.settings['fitnessGoal'] ?? 'Meal Planning',
+          userService.currentUser?.settings['fitnessGoal'] ?? 'Healthy Eating',
       'chatSummary': userService.currentUser?.bio ?? '',
       'currentWeight':
           userService.currentUser?.settings['currentWeight'] ?? 0.0,

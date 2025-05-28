@@ -148,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'startingWeight': "${weightController.text} $selectedWeightUnit",
           "currentWeight": "${weightController.text} $selectedWeightUnit",
           'fitnessGoal':
-              selectedGoals.isNotEmpty ? selectedGoals.first : 'Meal Planning',
+              selectedGoals.isNotEmpty ? selectedGoals.first : 'Healthy Eating',
           'targetSteps': '10000',
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
         },

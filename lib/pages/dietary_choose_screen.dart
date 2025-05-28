@@ -507,8 +507,16 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
         'grainDishes': grainDishes,
         'vegDishes': vegDishes,
         'lastUpdated': FieldValue.serverTimestamp(),
+      },
+      'settings': {
+        'dietPreference': selectedDiet,
       }
     });
+
+    // Update userService settings
+    if (userService.currentUser != null) {
+      userService.currentUser!.settings['dietPreference'] = selectedDiet;
+    }
   }
 
   Future<bool> _fetchUserPreferences(String userId) async {

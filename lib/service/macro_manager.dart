@@ -229,10 +229,8 @@ class MacroManager extends GetxController {
               features: {},
             ),
           );
-          print('existing: ${existing.title}');
           MacroData macro;
           if (existing.title.isEmpty) {
-            print('existing: $existing');
             // Create new MacroData and add to Firestore
             macro = MacroData(
               title: name,
