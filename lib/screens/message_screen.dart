@@ -121,7 +121,7 @@ class _MessageScreenState extends State<MessageScreen>
                   child: Text(
                     'No archived chats',
                     style: TextStyle(
-                      fontSize: getPercentageHeight(4, context),
+                      fontSize: getPercentageHeight(2.5, context),
                       fontWeight: FontWeight.w500,
                       color: Provider.of<ThemeProvider>(context, listen: false)
                               .isDarkMode
@@ -143,10 +143,11 @@ class _MessageScreenState extends State<MessageScreen>
                     return ListTile(
                       leading: Icon(
                         Icons.chat_bubble_outline,
-                        color: Provider.of<ThemeProvider>(context, listen: false)
-                                .isDarkMode
-                            ? kWhite
-                            : kBlack,
+                        color:
+                            Provider.of<ThemeProvider>(context, listen: false)
+                                    .isDarkMode
+                                ? kWhite
+                                : kBlack,
                       ),
                       title: FutureBuilder(
                         future: friendController.getFriendData(friendId),
@@ -246,7 +247,7 @@ class _MessageScreenState extends State<MessageScreen>
               ),
               actions: [
                 Padding(
-                  padding: const EdgeInsets.all(10.0),
+                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
@@ -270,7 +271,7 @@ class _MessageScreenState extends State<MessageScreen>
                       key: _addFriendButtonKey,
                       icon: Icon(
                         Icons.people_outlined,
-                          size: getPercentageWidth(6, context),
+                        size: getPercentageWidth(6, context),
                         color: kAccent,
                       ),
                       onPressed: () {

@@ -618,11 +618,20 @@ class _BuddyTabState extends State<BuddyTab> {
                         },
                       );
                     },
-                    child: Text('Add meals to your plan',
-                        style: TextStyle(
-                            fontSize: getPercentageWidth(3.5, context),
-                            fontStyle: FontStyle.italic,
-                            color: kAccent)),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(4, context),
+                          vertical: getPercentageHeight(1, context)),
+                      child: Text('Add meals to your calendar',
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(4, context),
+                              fontWeight: FontWeight.w600,
+                              color: kAccent)),
+                    ),
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
                   ...meals.map(

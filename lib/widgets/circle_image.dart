@@ -32,7 +32,7 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: widget.radius < 9 ? 90 : 119,
+      height: widget.radius < 9 ? 90 : 123,
       child: widget.demoAcceptedData.isEmpty
           ? noItemTastyWidget(
               'No ingredients available',
@@ -44,8 +44,8 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
           : ListView.builder(
               itemCount: widget.demoAcceptedData.length,
               padding: EdgeInsets.only(
-                  right: getPercentageWidth(2, context),
-                  top: getPercentageHeight(1, context)),
+                right: getPercentageWidth(2, context),
+              ),
               scrollDirection: Axis.horizontal,
               itemBuilder: (context, index) {
                 return Padding(
@@ -157,11 +157,11 @@ class IngredientItem extends StatelessWidget {
           Expanded(
             child: Text(
               textAlign: TextAlign.center,
-              capitalizeFirstLetter(title),
+              capitalizeFirstLetterAndSplitSpace(title),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: getPercentageWidth(radius/2.5, context),
+                  fontSize: getPercentageWidth(radius / 3, context),
                   fontWeight: FontWeight.w600,
                   color: isSelected
                       ? isDarkMode

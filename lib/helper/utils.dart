@@ -42,6 +42,11 @@ String capitalizeFirstLetter(String input) {
   return input[0].toUpperCase() + input.substring(1).toLowerCase();
 }
 
+String capitalizeFirstLetterAndSplitSpace(String input) { 
+  if (input.isEmpty) return '';
+  return input[0].toUpperCase() + input.substring(1).toLowerCase().split(' ').join('\n');
+}
+
 List<String> extractSlashedItems(String messageContent) {
   RegExp regex = RegExp(r'/([^/]+)');
   return regex

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
@@ -30,13 +32,30 @@ class GoalDietWidget extends StatefulWidget {
   State<GoalDietWidget> createState() => _GoalDietWidgetState();
 }
 
-class _GoalDietWidgetState extends State<GoalDietWidget> {
+class _GoalDietWidgetState extends State<GoalDietWidget>
+    with SingleTickerProviderStateMixin {
   bool _expanded = false;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _shakeAnimation = Tween<double>(begin: -0.1, end: 0.1).animate(
+      CurvedAnimation(
+        parent: _shakeController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    print(widget.goal);
     return Card(
       color: isDarkMode ? kDarkGrey : kWhite,
       margin: EdgeInsets.symmetric(
@@ -56,6 +75,12 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
                 setState(() {
                   final wasCollapsed = !_expanded;
                   _expanded = !_expanded;
+                  if (_expanded) {
+                    _shakeController.repeat(reverse: true);
+                  } else {
+                    _shakeController.stop();
+                    _shakeController.reset();
+                  }
                   if (wasCollapsed && _expanded && widget.onRefresh != null) {
                     widget.onRefresh!();
                   }
@@ -101,7 +126,11 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
                   ),
                   Text(
                     widget.goal.isNotEmpty
-                        ? capitalizeFirstLetter(widget.goal)
+                        ? widget.goal.toLowerCase() == "lose weight"
+                            ? 'Weight Loss'
+                            : widget.goal.toLowerCase() == "muscle gain"
+                                ? 'Muscle Gain'
+                                : capitalizeFirstLetter(widget.goal)
                         : 'Not set',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
@@ -119,14 +148,15 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
               SizedBox(height: getPercentageHeight(1, context)),
               Text(
                 widget.goal.toLowerCase() == "lose weight"
-                    ? 'Featured ingredients for Weight Loss'
-                    : 'Featured ingredients',
+                    ? 'Featured Ingredients for Weight Loss'
+                    : 'Featured Ingredients',
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: getPercentageWidth(3, context),
                   color: kAccentLight,
                 ),
               ),
+              SizedBox(height: getPercentageHeight(0.5, context)),
               Row(
                 children: [
                   Expanded(
@@ -136,7 +166,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
                       spin: false,
                       isEdit: false,
                       onRemoveItem: (int) {},
-                      radius: 6,
+                      radius: 7,
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(2, context)),
@@ -152,24 +182,49 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
                           ),
                         );
                       },
-                      child: CircleAvatar(
-                        backgroundColor: kAccent.withOpacity(0.3),
-                        radius: getPercentageWidth(10, context),
-                        child: Text(
-                          'Go\nSpin',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: getPercentageWidth(3, context),
-                            color: kAccent,
-                          ),
-                        ),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0, end: 2 * pi),
+                        duration: const Duration(seconds: 3),
+                        builder: (context, value, child) {
+                          return Transform.rotate(
+                            angle: value,
+                            child: AnimatedBuilder(
+                              animation: _expanded
+                                  ? _shakeAnimation
+                                  : AlwaysStoppedAnimation(0.0),
+                              builder: (context, child) {
+                                return Transform.translate(
+                                  offset: Offset(
+                                      _expanded
+                                          ? sin(_shakeAnimation.value) * 5
+                                          : 0,
+                                      0),
+                                  child: child,
+                                );
+                              },
+                              child: CircleAvatar(
+                                backgroundColor: kAccent.withOpacity(0.3),
+                                radius: getPercentageWidth(10, context),
+                                child: Text(
+                                  'Spin',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: getPercentageWidth(3, context),
+                                    color: kAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ],
               ),
               if (widget.featuredMeal != null) ...[
+                SizedBox(height: getPercentageHeight(1, context)),
                 Text(
                   'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',
                   style: TextStyle(
@@ -266,7 +321,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
 
   Widget buildMealImage(String imageUrl, double width, double height) {
     if (imageUrl.isEmpty) {
-      return Image.asset('assets/images/meal_placeholder.png',
+      return Image.asset(intPlaceholderImage,
           width: width, height: height, fit: BoxFit.cover);
     }
     if (imageUrl.startsWith('http')) {
@@ -276,7 +331,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
         height: height,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return Image.asset('assets/images/meal_placeholder.png',
+          return Image.asset(intPlaceholderImage,
               width: width, height: height, fit: BoxFit.cover);
         },
       );
@@ -284,5 +339,11 @@ class _GoalDietWidgetState extends State<GoalDietWidget> {
       return Image.asset(getAssetImageForItem(imageUrl),
           width: width, height: height, fit: BoxFit.cover);
     }
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
   }
 }

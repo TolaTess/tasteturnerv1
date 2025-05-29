@@ -125,57 +125,92 @@ class _RecipeScreenState extends State<RecipeScreen> {
       List<MacroData> filteredIngredients = [];
       List<Meal> filteredMeals = [];
 
-      // Logic for filtering based on goal
+      // Logic for filtering based on user diet and goal
+      // 1. Filter for items that match the user's diet (category match is required)
+      final dietCategory = userDiet.toLowerCase();
+      List<MacroData> dietIngredients = allIngredients
+          .where((i) =>
+              i.categories.any((c) => c.toLowerCase().contains(dietCategory)))
+          .toList();
+      List<Meal> dietMeals = allMeals
+          .where((m) =>
+              m.categories.any((c) => c.toLowerCase().contains(dietCategory)))
+          .toList();
+
+      // 2. Among those, prefer items that also match the user's goal
+      List<MacroData> preferredIngredients = [];
+      List<Meal> preferredMeals = [];
       if (userGoal.toLowerCase().contains('weightloss') ||
+          userGoal.toLowerCase().contains('lose weight') ||
           userGoal.toLowerCase().contains('weight loss')) {
-        filteredIngredients = allIngredients.where((i) {
-          final matchesCategory = i.categories.any((c) =>
-              c.toLowerCase().contains('weightloss') ||
-              c.toLowerCase().contains('low calorie') ||
-              c.toLowerCase().contains('lowcalorie') ||
-              c.toLowerCase().contains('keto') ||
-              c.toLowerCase().contains('vegetarian') ||
-              c.toLowerCase().contains('keto_friendly') ||
-              c.toLowerCase().contains(userDiet.toLowerCase()));
-          final carbsStr = i.macros['carbs']?.toString() ?? '';
-          final carbs = double.tryParse(carbsStr);
-          final isLowCarb = carbs != null ? carbs < 5 : false;
-          return matchesCategory && isLowCarb;
-        }).toList();
-        filteredMeals = allMeals.where((m) {
-          return m.categories.any((c) =>
+        preferredIngredients = dietIngredients.where((i) {
+          final matchesGoal = i.categories.any((c) =>
               c.toLowerCase().contains('weightloss') ||
               c.toLowerCase().contains('weight loss') ||
               c.toLowerCase().contains('low calorie') ||
-              c.toLowerCase().contains('vegetable') ||
               c.toLowerCase().contains('lowcalorie') ||
-              c.toLowerCase().contains(userDiet.toLowerCase()));
+              c.toLowerCase().contains('diet') ||
+              c.toLowerCase().contains('slimming'));
+          final carbsStr = i.macros['carbs']?.toString() ?? '';
+          final carbs = double.tryParse(carbsStr);
+          final isLowCarb = carbs != null ? carbs < 10 : false;
+          return matchesGoal && isLowCarb;
         }).toList();
+        preferredMeals = dietMeals
+            .where((m) => m.categories.any((c) =>
+                c.toLowerCase().contains('weightloss') ||
+                c.toLowerCase().contains('weight loss') ||
+                c.toLowerCase().contains('low calorie') ||
+                c.toLowerCase().contains('lowcalorie') ||
+                c.toLowerCase().contains('diet') ||
+                c.toLowerCase().contains('slimming')))
+            .toList();
       } else if (userGoal.toLowerCase().contains('weightgain') ||
-          userGoal.toLowerCase().contains('weight gain')) {
-        filteredIngredients = allIngredients.where((i) {
-          return i.categories.any((c) =>
+          userGoal.toLowerCase().contains('muscle gain') ||
+          userGoal.contains('weight gain')) {
+        preferredIngredients = dietIngredients.where((i) {
+          final matchesGoal = i.categories.any((c) =>
               c.toLowerCase().contains('weightgain') ||
               c.toLowerCase().contains('weight gain') ||
               c.toLowerCase().contains('high calorie') ||
-              c.toLowerCase().contains('highcalorie') ||
-              c.toLowerCase().contains(userDiet.toLowerCase()));
+              c.toLowerCase().contains('muscle gain') ||
+              c.toLowerCase().contains('bulking') ||
+              c.toLowerCase().contains('mass gain'));
+          final proteinStr = i.macros['protein']?.toString() ?? '';
+          final protein = double.tryParse(proteinStr);
+          final isHighProtein = protein != null ? protein > 10 : false;
+          return matchesGoal && isHighProtein;
         }).toList();
-        filteredMeals = allMeals.where((m) {
-          return m.categories.any((c) =>
-              c.toLowerCase().contains('weightgain') ||
-              c.toLowerCase().contains('weight gain') ||
-              c.toLowerCase().contains('high calorie') ||
-              c.toLowerCase().contains('highcalorie') ||
-              c.toLowerCase().contains(userDiet.toLowerCase()));
-        }).toList();
+        preferredMeals = dietMeals
+            .where((m) => m.categories.any((c) =>
+                c.toLowerCase().contains('weightgain') ||
+                c.toLowerCase().contains('weight gain') ||
+                c.toLowerCase().contains('high calorie') ||
+                c.toLowerCase().contains('muscle gain') ||
+                c.toLowerCase().contains('bulking') ||
+                c.toLowerCase().contains('mass gain')))
+            .toList();
       } else {
-        // Healthy living or general
-        filteredIngredients = allIngredients;
-        filteredMeals = allMeals;
+        preferredIngredients = dietIngredients;
+        preferredMeals = dietMeals;
       }
 
-      // Fallbacks if not enough filtered
+      // 3. If not enough preferred, fill from diet-matching only
+      filteredIngredients = [...preferredIngredients];
+      if (filteredIngredients.length < 3) {
+        final extra = dietIngredients
+            .where((i) => !filteredIngredients.contains(i))
+            .toList();
+        filteredIngredients.addAll(extra);
+      }
+      filteredMeals = [...preferredMeals];
+      if (filteredMeals.isEmpty) {
+        final extra =
+            dietMeals.where((m) => !filteredMeals.contains(m)).toList();
+        filteredMeals.addAll(extra);
+      }
+
+      // 4. Fallbacks if still not enough
       if (filteredIngredients.length < 3) {
         filteredIngredients = allIngredients;
       }
@@ -319,7 +354,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
               SizedBox(
-                height: getPercentageHeight(2, context),
+                height: getPercentageHeight(1, context),
               ),
               //Search by Meals
               TitleSection(
