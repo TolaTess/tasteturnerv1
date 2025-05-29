@@ -151,6 +151,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               selectedGoals.isNotEmpty ? selectedGoals.first : 'Healthy Eating',
           'targetSteps': '10000',
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
+          'familyMode':
+              selectedGoals.contains('Family Nutrition') ? 'true' : 'false',
         },
         preferences: {
           'diet': selectedDiet,

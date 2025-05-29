@@ -46,6 +46,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   bool showSharedCalendars = false;
   int get _tabCount => 2;
   bool isPremium = userService.currentUser?.isPremium ?? false;
+  String familyMode =
+      userService.currentUser?.settings['familyMode'] ?? 'false';
   final CalendarSharingController sharingController =
       Get.put(CalendarSharingController());
   String? selectedSharedCalendarId;
@@ -434,7 +436,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 children: [
                   // Calendar view toggle
                   Text(
-                    showSharedCalendars ? 'Shared' : 'Personal',
+                    showSharedCalendars
+                        ? 'Shared'
+                        : familyMode == 'true'
+                            ? 'Family'
+                            : 'Personal',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kDarkGrey,
                       fontWeight: FontWeight.bold,
@@ -446,8 +452,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     key: _toggleCalendarButtonKey,
                     icon: Icon(
                       showSharedCalendars
-                          ? Icons.people_outline
-                          : Icons.person_outline,
+                          ? Icons.person_outline
+                          : Icons.people_outline,
                       size: 20,
                     ),
                     onPressed: () {
