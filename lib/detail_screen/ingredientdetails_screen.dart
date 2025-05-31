@@ -475,8 +475,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 1,
+        padding: EdgeInsets.symmetric(
+          vertical: getPercentageHeight(1.5, context),
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Flexible(

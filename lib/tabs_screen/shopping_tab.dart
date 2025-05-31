@@ -168,7 +168,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                               ),
                               title: Text('Update Meal Plan List',
                                   style: TextStyle(
-                                      color: isDarkMode ? kWhite : kBlack,
+                                      color: kAccent,
                                       fontWeight: FontWeight.w600,
                                       fontSize:
                                           getPercentageWidth(4, context))),
@@ -246,7 +246,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   },
                   activeColor: kAccent,
                 ),
-                Text('Selected / Spin List',
+                Text('Shopping List',
                     style: TextStyle(
                         color: !showGroceryList
                             ? kAccent
@@ -440,6 +440,19 @@ class _ShoppingTabState extends State<ShoppingTab> {
               ),
             ),
           ),
+
+          Center(
+            child: Text(
+                showGroceryList
+                    ? 'Your generated shopping list from Meal Plan'
+                    : 'Your selected or spin list',
+                style: TextStyle(
+                    fontSize: getPercentageWidth(3, context),
+                    fontWeight: FontWeight.w400,
+                    color: kAccent)),
+          ),
+
+          SizedBox(height: getPercentageHeight(1, context)),
 
           //Shopping list
           Expanded(

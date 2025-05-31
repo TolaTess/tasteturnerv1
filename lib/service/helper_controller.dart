@@ -294,4 +294,30 @@ class HelperController extends GetxController {
           []), // Only initialize if meals field doesn't exist
     }, SetOptions(merge: true));
   }
+
+  Future<void> saveMealPlanBuddy(String userId, String formattedDate,
+      String dayType, List<String> selectedMealIds) async {
+    // Get existing document to preserve meals if selectedMealIds is empty
+    final docRef = firestore
+        .collection('mealPlans')
+        .doc(userId)
+        .collection('date')
+        .doc(formattedDate);
+
+    final docSnapshot = await docRef.get();
+
+    // If selectedMealIds is empty and doc exists, keep existing meals
+    final List<String> mealsToSave =
+        selectedMealIds.isEmpty && docSnapshot.exists
+            ? (docSnapshot.data()?['meals'] as List<dynamic>).cast<String>()
+            : selectedMealIds;
+
+    await docRef.set({
+      'userId': userId,
+      'dayType': dayType,
+      'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
+      'date': formattedDate,
+      'meals': mealsToSave,
+    }, SetOptions(merge: true));
+  }
 }

@@ -8,9 +8,10 @@ import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
-import '../service/meal_manager.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
+import '../service/helper_controller.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -299,11 +300,10 @@ class _BuddyTabState extends State<BuddyTab> {
               const SizedBox(height: 20),
               if (isPremium || isInFreeTrial)
                 AppButton(
-                  text: 'Get Meal Plan',
-                  onPressed: () => _checkAndNavigateToGenerate(context),
-                  type: AppButtonType.secondary,
-                  width: 50
-                )
+                    text: 'Get Meal Plan',
+                    onPressed: () => _checkAndNavigateToGenerate(context),
+                    type: AppButtonType.secondary,
+                    width: 50)
               else
                 AppButton(
                   text: goPremium,
@@ -408,7 +408,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       child: CircleAvatar(
                         backgroundColor: kAccentLight.withOpacity(0.5),
                         backgroundImage: const AssetImage(tastyImage),
-                            radius: getPercentageWidth(5, context),
+                        radius: getPercentageWidth(5, context),
                       ),
                     ),
                     title: Text(
@@ -445,7 +445,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         children: [
                           Text(
                             parts[0] + ':',
-                                style: TextStyle(
+                            style: TextStyle(
                               fontSize: getPercentageWidth(4.5, context),
                               fontWeight: FontWeight.w600,
                               color: kAccent,
@@ -472,14 +472,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCalories']}',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(5, context),   
+                              fontSize: getPercentageWidth(5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Calories',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),   
+                              fontSize: getPercentageWidth(3.5, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -508,7 +508,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
                             style: TextStyle(
-                                  fontSize: getPercentageWidth(5, context),
+                              fontSize: getPercentageWidth(5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -532,7 +532,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           ),
                           Text(
                             'Fat',
-                            style: TextStyle( 
+                            style: TextStyle(
                               fontSize: getPercentageWidth(3.5, context),
                               color: Colors.grey,
                             ),
@@ -541,7 +541,90 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ],
                   ),
-                  SizedBox(height: getPercentageHeight(2, context)),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  GestureDetector(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final List<DateTime> weekStarts = List.generate(5, (i) {
+                        if (i == 0) return now;
+                        // For subsequent weeks, find next Monday
+                        final nextWeek = now.add(Duration(days: 7 * i));
+                        // Calculate days until next Monday (1 = Monday, 7 = Sunday)
+                        final daysUntilMonday = (8 - nextWeek.weekday) % 7;
+                        return nextWeek.add(Duration(days: daysUntilMonday));
+                      });
+                      final List<String> weekLabels = [
+                        'Today',
+                        'Next week',
+                        'In 2 weeks',
+                        'In 3 weeks',
+                        'In 4 weeks',
+                      ];
+                      showModalBottomSheet(
+                        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                        context: context,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (ctx) {
+                          return SafeArea(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(weekStarts.length, (i) {
+                                final weekStart = weekStarts[i];
+                                final label = weekLabels[i];
+                                final formattedDate =
+                                    DateFormat('yyyy-MM-dd').format(weekStart);
+                                return ListTile(
+                                  title: Text(label,
+                                      style: TextStyle(
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey)),
+                                  subtitle: Text('Start: $formattedDate',
+                                      style: TextStyle(
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey)),
+                                  onTap: () async {
+                                    Navigator.pop(ctx);
+                                    await helperController.saveMealPlanBuddy(
+                                      userService.userId ?? '',
+                                      formattedDate,
+                                      'chef_tasty',
+                                      meals
+                                          .map((meal) =>
+                                              meal['mealId'] as String)
+                                          .toList(),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(
+                                              'Meal plan added for $label')),
+                                    );
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const BottomNavSec(
+                                          selectedIndex: 4,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              }),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: Text('Add meals to your plan',
+                        style: TextStyle(
+                            fontSize: getPercentageWidth(3.5, context),
+                            fontStyle: FontStyle.italic,
+                            color: kAccent)),
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
                   ...meals.map(
                     (meal) => Padding(
                       padding: EdgeInsets.symmetric(
@@ -609,7 +692,7 @@ class _BuddyTabState extends State<BuddyTab> {
                             );
                           },
                           child: ListTile(
-                            minTileHeight: getPercentageHeight(10, context),
+                            minTileHeight: getPercentageHeight(5, context),
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(4, context),
                                 vertical: getPercentageHeight(1, context)),
