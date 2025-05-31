@@ -89,14 +89,22 @@ class IngredientItem extends StatelessWidget {
     String title = '';
     if (dataSrc is Map) {
       imagePath = dataSrc['mediaPaths']?.first ?? '';
-      title = dataSrc['title'] ?? '';
+      title = (dataSrc['title'] ?? '').trim();
+      if (title.isEmpty) {
+        title = 'Unknown';
+      }
     } else {
       try {
-        imagePath = dataSrc.mediaPaths.first ?? '';
-        title = dataSrc.title ?? '';
+        imagePath = dataSrc.mediaPaths.isNotEmpty
+            ? dataSrc.mediaPaths.first
+            : 'placeholder';
+        title = (dataSrc.title ?? '').trim();
+        if (title.isEmpty) {
+          title = 'Unknown';
+        }
       } catch (e) {
         imagePath = '';
-        title = '';
+        title = 'Unknown';
       }
     }
     final isDarkMode = getThemeProvider(context).isDarkMode;

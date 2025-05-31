@@ -90,6 +90,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final imagePath = widget.item.mediaPaths.isNotEmpty
+        ? widget.item.mediaPaths.first
+        : 'placeholder';
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
@@ -120,7 +123,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: Image.asset(
-                    getAssetImageForItem(widget.item.mediaPaths.first),
+                    getAssetImageForItem(imagePath),
                     width: getPercentageWidth(70, context),
                     height: getPercentageWidth(70, context),
                     fit: BoxFit.cover,
@@ -506,6 +509,9 @@ class RecomendationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imagePath = dataSrc.mediaPaths.isNotEmpty
+        ? dataSrc.mediaPaths.first
+        : 'placeholder';
     return GestureDetector(
       onTap: press,
       child: Column(
@@ -513,7 +519,7 @@ class RecomendationItem extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Image.asset(
-              getAssetImageForItem(dataSrc.mediaPaths.first),
+              getAssetImageForItem(imagePath),
               fit: BoxFit.cover,
               height: 160,
             ),

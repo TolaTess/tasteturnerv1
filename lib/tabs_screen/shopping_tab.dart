@@ -446,14 +446,12 @@ class _ShoppingTabState extends State<ShoppingTab> {
             child: Obx(() {
               if (showGroceryList) {
                 if (macroManager.groceryList.isEmpty) {
-                  return noItemTastyWidget(
-                    'No items in grocery list',
-                    'Add meals to your plan to generate a shopping list!',
-                    context,
-                    true,
-                    'calendar',
+                  macroManager.generateGroceryList();
+                  return const Center(
+                    child: CircularProgressIndicator(color: kAccent),
                   );
                 }
+                print('groceryList: ${macroManager.groceryList}');
                 final statusMap = macroManager.groceryList;
                 final itemIds = statusMap.keys.toList();
                 return ShoppingListView(
