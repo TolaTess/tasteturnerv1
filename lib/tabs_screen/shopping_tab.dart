@@ -369,15 +369,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Container(
-                               padding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          getPercentageWidth(3, context),
-                                      vertical: getPercentageHeight(1, context),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: kAccent.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(3, context),
+                                vertical: getPercentageHeight(1, context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: kAccent.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: Row(
                                 children: [
                                   Icon(
@@ -385,7 +384,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                     color: kAccent,
                                     size: getPercentageWidth(5, context),
                                   ),
-                                  SizedBox(width: getPercentageWidth(1, context)),
+                                  SizedBox(
+                                      width: getPercentageWidth(1, context)),
                                   Obx(() {
                                     final statusMap = showGroceryList
                                         ? macroManager.groceryList
@@ -451,7 +451,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
                     child: CircularProgressIndicator(color: kAccent),
                   );
                 }
-                print('groceryList: ${macroManager.groceryList}');
                 final statusMap = macroManager.groceryList;
                 final itemIds = statusMap.keys.toList();
                 return ShoppingListView(
