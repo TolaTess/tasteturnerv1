@@ -165,6 +165,12 @@ class AuthController extends GetxController {
           freeTrialDate = DateTime.tryParse(userDataMap['freeTrialDate']);
         }
 
+        final familyMembersRaw =
+            userDataMap['familyMembers'] as List<dynamic>? ?? [];
+        final familyMembers = familyMembersRaw
+            .map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
+            .toList();
+
         final user = UserModel(
           userId: doc.id,
           displayName: userDataMap['displayName']?.toString() ?? '',
@@ -184,6 +190,8 @@ class AuthController extends GetxController {
           isPremium: userDataMap['isPremium'] as bool? ?? false,
           created_At: createdAt,
           freeTrialDate: freeTrialDate,
+          familyMode: userDataMap['familyMode'] as bool? ?? false,
+          familyMembers: familyMembers,
         );
 
         // Update userService and current user

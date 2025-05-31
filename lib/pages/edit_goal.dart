@@ -76,15 +76,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       // Update the user's settings in Firestore
       authController.updateUserData({'settings': updatedSettings});
 
-      // Schedule weekly weight check reminder
-      NotificationService().scheduleDailyReminder(
-        id: 2001,
-        title: "Weekly Weight Check 📊",
-        body: "Time to track your progress! Update your weight for the week.",
-        hour: 9, // 9 AM
-        minute: 0,
-      );
-
       Get.snackbar('Success', 'Settings updated successfully!',
           snackPosition: SnackPosition.BOTTOM);
 

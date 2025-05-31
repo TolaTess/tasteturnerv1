@@ -242,6 +242,7 @@ class MacroManager extends GetxController {
             );
             final added = await macroManager.addIngredient(macro);
             macro = added ?? macro;
+            print('Added ingredient to Firestore: ${macro.title} with ID: ${macro.id}');
           } else {
             macro = existing;
           }
@@ -746,12 +747,12 @@ class MacroManager extends GetxController {
 
   Future<MacroData?> addIngredient(MacroData ingredient) async {
     try {
-      final docRef =
-          await firestore.collection('ingredients').add(ingredient.toJson());
+      final docRef = await firestore.collection('ingredients').add(ingredient.toJson());
       // Set the id on the MacroData object
       final macroWithId = ingredient.copyWith(id: docRef.id);
       // Optionally, add to local cache
       _demoIngredientData.add(macroWithId);
+      print('Saved ingredient to Firestore: ${macroWithId.title} with ID: ${macroWithId.id}');
       return macroWithId;
     } catch (e) {
       print('Error adding ingredient: $e');

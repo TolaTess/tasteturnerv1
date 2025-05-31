@@ -37,16 +37,17 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     super.initState();
     _setupDataListeners();
 
-    _categoryDatasIngredient = [...helperController.macros];
-    final generalCategory = {
-      'id': 'general',
-      'name': 'General',
-      'category': 'General'
-    };
-    if (_categoryDatasIngredient.isEmpty ||
-        _categoryDatasIngredient.first['id'] != 'general') {
-      _categoryDatasIngredient.insert(0, generalCategory);
+    String familyMode =
+        userService.currentUser?.settings['familyMode'] ?? 'false';
+
+    _categoryDatasIngredient = [...helperController.category];
+
+    if (familyMode == 'true') {
+      // Get all kids categories and add them at index 1
+      final kidsCategories = [...helperController.kidsCategory];
+      _categoryDatasIngredient.insertAll(1, kidsCategories);
     }
+
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
@@ -55,7 +56,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showAddJoinTutorial();
-        BattleManagement.instance.startBattleManagement();
+      BattleManagement.instance.startBattleManagement();
       setState(() {
         showBattle = battleList.isNotEmpty;
       });
@@ -192,7 +193,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: kAccent.withOpacity(kMidOpacity),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(28),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

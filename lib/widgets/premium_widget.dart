@@ -5,7 +5,6 @@ import '../helper/utils.dart';
 import '../screens/premium_screen.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:io';
-import 'package:flutter/services.dart';
 
 class PremiumSection extends StatefulWidget {
   final bool isPremium, isDiv;
@@ -27,7 +26,6 @@ class PremiumSection extends StatefulWidget {
 
 class _PremiumSectionState extends State<PremiumSection> {
   late BannerAd _bannerAd;
-  static const platform = MethodChannel('com.tasteturner.app/config');
   String? _bannerId;
 
   @override
@@ -37,24 +35,12 @@ class _PremiumSectionState extends State<PremiumSection> {
   }
 
   Future<void> _getBannerId() async {
-    try {
-      if (Platform.isIOS) {
-        final String? bannerId =
-            await platform.invokeMethod('getAdMobBannerId');
-        setState(() {
-          _bannerId = bannerId;
-        });
-        _loadBannerAd();
-      } else if (Platform.isAndroid) {
-        // Keep using dotenv for Android
-        _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID_TEST'] ?? '';
-        _loadBannerAd();
-      }
-    } on PlatformException catch (e) {
-      print('Failed to get banner ID: ${e.message}');
-      _bannerId = ''; // fallback to empty string
-      _loadBannerAd();
+    if (Platform.isIOS) {
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS_TEST'] ?? '';
+    } else if (Platform.isAndroid) {
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID_TEST'] ?? '';
     }
+    _loadBannerAd();
   }
 
   void _loadBannerAd() {

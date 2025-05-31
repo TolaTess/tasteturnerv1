@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../constants.dart';
+import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
+import '../pages/family_member.dart';
 import '../pages/safe_text_field.dart';
 import '../screens/premium_screen.dart';
 import '../themes/theme_provider.dart';
@@ -87,7 +89,54 @@ class EditProfileForm extends StatelessWidget {
               border: outlineInputBorder(20),
             ),
           ),
-          SizedBox(height: getPercentageHeight(5, context)),
+          SizedBox(height: getPercentageHeight(2, context)),
+
+          if (userService.currentUser?.familyMode == true)
+            TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FamilyMembersDialog(
+                          initialMembers: userService.currentUser?.familyMembers
+                                  ?.map((e) => {
+                                        'name': e.name,
+                                        'ageGroup': e.ageGroup,
+                                        'fitnessGoal': e.fitnessGoal,
+                                        'foodGoal': e.foodGoal,
+                                      })
+                                  .toList() ??
+                              [],
+                          onMembersChanged: (members) async {
+                            final updatedUser = userService.currentUser!
+                                .copyWith(
+                                    familyMembers: members
+                                        .map((e) => FamilyMember.fromMap(e))
+                                        .toList());
+                            userService.setUser(updatedUser);
+
+                            // Save to Firestore
+                            await firestore
+                                .collection('users')
+                                .doc(updatedUser.userId)
+                                .update({
+                              'familyMembers': updatedUser.familyMembers
+                                  ?.map((f) => f.toMap())
+                                  .toList(),
+                              'familyMode':
+                                  updatedUser.familyMembers?.isNotEmpty ??
+                                      false,
+                            });
+                          }),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Update Family Members',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: kAccent)),
+            ),
+          const SizedBox(height: 20),
 
           // Save Button
           Row(

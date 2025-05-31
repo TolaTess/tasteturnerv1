@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +10,7 @@ import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
+import '../pages/family_member.dart';
 import '../pages/safe_text_field.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
@@ -50,6 +50,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String selectedDiet = '';
   Set<String> selectedAllergies = {};
   String selectedCuisineType = '';
+
+  List<Map<String, String>> familyMembers = [];
 
   @override
   void initState() {
@@ -141,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         isPremium: enableAITrial,
         created_At: DateTime.now(),
         freeTrialDate: DateTime.now().add(const Duration(days: 30)),
-        settings: {
+        settings: <String, dynamic>{
           'waterIntake': '2000',
           'foodGoal': '2000',
           'goalWeight': "${targetWeightController.text} $selectedWeightUnit",
@@ -151,8 +153,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               selectedGoals.isNotEmpty ? selectedGoals.first : 'Healthy Eating',
           'targetSteps': '10000',
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
-          'familyMode':
-              selectedGoals.contains('Family Nutrition') ? 'true' : 'false',
         },
         preferences: {
           'diet': selectedDiet,
@@ -164,6 +164,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'vegDishes': 3,
           'lastUpdated': FieldValue.serverTimestamp(),
         },
+        familyMembers: familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
+        familyMode: familyMembers.isNotEmpty,
       );
 
       try {
@@ -232,7 +234,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+      Get.back();
     }
+  }
+
+  List<Map<String, dynamic>> saveFamilyMembers() {
+    return familyMembers.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   @override
@@ -483,11 +490,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 value: goal,
                 groupValue:
                     selectedGoals.isNotEmpty ? selectedGoals.first : null,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     selectedGoals = value != null ? [value] : [];
                     _validateInputs();
                   });
+                  if (value == "Family Nutrition") {
+                    await showDialog(
+                      context: context,
+                      builder: (context) => FamilyMembersDialog(
+                        initialMembers: familyMembers,
+                        onMembersChanged: (members) {
+                          setState(() {
+                            familyMembers = members;
+                          });
+                        },
+                      ),
+                    );
+                  }
                 },
                 activeColor: kAccentLight,
               );

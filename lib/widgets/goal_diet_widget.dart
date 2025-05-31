@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
@@ -16,6 +17,7 @@ class GoalDietWidget extends StatefulWidget {
   final void Function(MacroData)? onIngredientTap;
   final void Function(Meal)? onMealTap;
   final VoidCallback? onRefresh;
+
 
   const GoalDietWidget({
     super.key,
@@ -37,6 +39,9 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
   bool _expanded = false;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
+  bool showCaloriesAndGoal = true;
+
+  static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
 
   @override
   void initState() {
@@ -51,6 +56,14 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
         curve: Curves.easeInOut,
       ),
     );
+    _loadShowCaloriesPref();
+  }
+
+  Future<void> _loadShowCaloriesPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      showCaloriesAndGoal = prefs.getBool(_showCaloriesPrefKey) ?? true;
+    });
   }
 
   @override
@@ -112,10 +125,12 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(4, context)),
+                    if(showCaloriesAndGoal)
                   Icon(Icons.flag,
                       color: kAccentLight,
                       size: getPercentageWidth(4.5, context)),
-                  SizedBox(width: getPercentageWidth(1, context)),
+                  if (showCaloriesAndGoal) SizedBox(width: getPercentageWidth(1, context)),
+                  if (showCaloriesAndGoal)
                   Text(
                     'Goal: ',
                     style: TextStyle(
@@ -124,6 +139,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                       color: kAccentLight,
                     ),
                   ),
+                  if (showCaloriesAndGoal)
                   Text(
                     widget.goal.isNotEmpty
                         ? widget.goal.toLowerCase() == "lose weight"

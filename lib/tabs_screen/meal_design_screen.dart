@@ -46,8 +46,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   bool showSharedCalendars = false;
   int get _tabCount => 2;
   bool isPremium = userService.currentUser?.isPremium ?? false;
-  String familyMode =
-      userService.currentUser?.settings['familyMode'] ?? 'false';
+  bool familyMode = userService.currentUser?.familyMode ?? false;
   final CalendarSharingController sharingController =
       Get.put(CalendarSharingController());
   String? selectedSharedCalendarId;
@@ -438,7 +437,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   Text(
                     showSharedCalendars
                         ? 'Shared'
-                        : familyMode == 'true'
+                          : familyMode
                             ? 'Family'
                             : 'Personal',
                     style: TextStyle(

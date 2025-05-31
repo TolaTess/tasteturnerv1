@@ -9,11 +9,14 @@ class UserModel {
   List<String> following;
   DateTime? freeTrialDate;
 
-  Map<String, String> settings;
+  Map<String, dynamic> settings;
   Map<String, dynamic> preferences;
   String? userType;
   bool isPremium;
   DateTime? created_At;
+
+  final bool? familyMode;
+  final List<FamilyMember>? familyMembers;
 
   UserModel({
     this.userId,
@@ -28,6 +31,8 @@ class UserModel {
     required this.isPremium,
     this.created_At,
     this.freeTrialDate,
+    this.familyMode = false,
+    this.familyMembers = const [],
   });
 
   // Convert from Firestore document snapshot
@@ -35,11 +40,9 @@ class UserModel {
     final data = snapshot.data() as Map<String, dynamic>;
 
     // Safely convert settings map
-    Map<String, String> settings = {};
+    Map<String, dynamic> settings = {};
     if (data['settings'] != null && data['settings'] is Map) {
-      final rawSettings = data['settings'] as Map;
-      settings = rawSettings.map(
-          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''));
+      settings = Map<String, dynamic>.from(data['settings']);
     }
 
     // Safely convert preferences map
@@ -75,6 +78,11 @@ class UserModel {
       isPremium: data['isPremium'] as bool? ?? false,
       created_At: createdAt,
       freeTrialDate: freeTrialDate,
+      familyMode: data['familyMode'] as bool? ?? false,
+      familyMembers: (data['familyMembers'] as List<dynamic>?)
+              ?.map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -93,6 +101,8 @@ class UserModel {
       'created_At': created_At != null ? Timestamp.fromDate(created_At!) : null,
       'freeTrialDate':
           freeTrialDate != null ? Timestamp.fromDate(freeTrialDate!) : null,
+      'familyMode': familyMode,
+      'familyMembers': familyMembers?.map((f) => f.toMap()).toList(),
     };
   }
 
@@ -105,6 +115,10 @@ class UserModel {
     }
     if (freeTrialDate != null) {
       data['freeTrialDate'] = freeTrialDate!.toIso8601String();
+    }
+
+    if (familyMembers != null) {
+      data['familyMembers'] = familyMembers?.map((f) => f.toMap()).toList();
     }
     // Convert preferences map to be JSON-safe
     if (data['preferences'] != null) {
@@ -120,11 +134,9 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     // Safely convert settings map
-    Map<String, String> settings = {};
+    Map<String, dynamic> settings = {};
     if (map['settings'] != null && map['settings'] is Map) {
-      final rawSettings = map['settings'] as Map;
-      settings = rawSettings.map(
-          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''));
+      settings = Map<String, dynamic>.from(map['settings']);
     }
 
     // Safely convert preferences map
@@ -160,6 +172,60 @@ class UserModel {
       isPremium: map['isPremium'] as bool? ?? false,
       created_At: createdAt,
       freeTrialDate: freeTrialDate,
+      familyMode: map['familyMode'] as bool? ?? false,
+      familyMembers: (map['familyMembers'] as List<dynamic>?)
+              ?.map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
+
+  UserModel copyWith({
+    List<FamilyMember>? familyMembers,
+  }) {
+    return UserModel(
+      displayName: displayName ?? this.displayName,
+      profileImage: profileImage ?? this.profileImage,
+      isPremium: isPremium ?? this.isPremium,
+      familyMembers: familyMembers ?? this.familyMembers,
+      familyMode: familyMode ?? this.familyMode,
+      created_At: created_At ?? this.created_At,
+      freeTrialDate: freeTrialDate ?? this.freeTrialDate,
+      settings: settings ?? this.settings,
+      preferences: preferences ?? this.preferences,
+      userType: userType ?? this.userType,
+      userId: userId ?? this.userId,
+      bio: bio ?? this.bio,
+      dob: dob ?? this.dob,
+      following: following ?? this.following,
+    );
+  }
+}
+
+class FamilyMember {
+  final String name;
+  final String ageGroup;
+  final String fitnessGoal;
+  final String foodGoal;
+
+  FamilyMember({
+    required this.name,
+    required this.ageGroup,
+    required this.fitnessGoal,
+    required this.foodGoal,
+  });
+
+  factory FamilyMember.fromMap(Map<String, dynamic> map) => FamilyMember(
+        name: map['name'] ?? '',
+        ageGroup: map['ageGroup'] ?? '',
+        fitnessGoal: map['fitnessGoal'] ?? '',
+        foodGoal: map['foodGoal'] ?? '',
+      );
+
+  Map<String, dynamic> toMap() => {
+        'name': name,
+        'ageGroup': ageGroup,
+        'fitnessGoal': fitnessGoal,
+        'foodGoal': foodGoal,
+      };
 }

@@ -188,7 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         calculateWeightProgress(startWeight, goalWeight, currentWeight) / 100;
     final fitnessGoal = userService.currentUser?.settings['fitnessGoal'] ?? '';
     final shouldShowGoals = [
-      "Community Engagement",
+      "Family Nutrition",
       "AI Guidance"
     ].contains(fitnessGoal);
 

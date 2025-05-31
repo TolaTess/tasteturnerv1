@@ -11,7 +11,7 @@ import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
-import '../widgets/date_widget.dart';
+import '../widgets/goal_dash_card.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   final ValueNotifier<double> currentNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
+  bool familyMode = userService.currentUser?.settings['familyMode'] == 'true';
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -37,7 +38,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
   String? _shoppingDay;
-
+  int selectedUserIndex = 0;
+  List<Map<String, dynamic>> familyList = [];
   @override
   void initState() {
     super.initState();
@@ -93,18 +95,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     chatController.loadUserChats(userService.userId ?? '');
     await helperController.fetchWinners();
     await firebaseService.fetchGeneralData();
-    if (mounted) setState(() {});
   }
 
   void _initializeMealData() async {
+    Map<String, String> settings = {};
+    userService.currentUser?.settings.forEach((key, value) {
+      settings[key.toString()] = value.toString();
+    });
+    
     await dailyDataController.fetchAllMealData(
-        userService.userId!, userService.currentUser!.settings, DateTime.now());
+        userService.userId!,
+        settings,
+        DateTime.now());
     await firebaseService.fetchGeneralData();
   }
 
   void _initializeMealDataByDate() async {
+    Map<String, String> settings = {};
+    userService.currentUser?.settings.forEach((key, value) {
+      settings[key.toString()] = value.toString(); 
+    });
+
     await dailyDataController.fetchAllMealDataByDate(
-        userService.userId!, userService.currentUser!.settings, currentDate);
+        userService.userId!,
+        settings,
+        currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -334,7 +349,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(vertical: getPercentageHeight(0.5, context), horizontal: getPercentageWidth(2, context)),
+            padding: EdgeInsets.symmetric(
+                vertical: getPercentageHeight(0.5, context),
+                horizontal: getPercentageWidth(2, context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -375,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Text(
                             '${getRelativeDayString(currentDate)},',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context), 
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -430,16 +447,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (!allDisabled)
                   DailyRoutineListHorizontal(
                       userId: userService.userId!, date: currentDate),
-                if (!allDisabled) SizedBox(height: getPercentageHeight(1, context)),
+                if (!allDisabled)
+                  SizedBox(height: getPercentageHeight(1, context)),
                 if (!allDisabled)
                   Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                if (!allDisabled) SizedBox(height: getPercentageHeight(0.5, context)),
+                if (!allDisabled)
+                  SizedBox(height: getPercentageHeight(0.5, context)),
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   AnnouncementWidget(
                     title: '🏆 Winners of the week 🏆',
                     announcements: winners,
-                    height: getPercentageHeight(5, context), // Optional, defaults to 90
+                    height: getPercentageHeight(
+                        5, context), // Optional, defaults to 90
                     onTap: () {
                       // Handle tap
                     },
@@ -525,26 +545,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ],
                     ),
                   ),
-                if (_isTodayShoppingDay()) SizedBox(height: getPercentageHeight(1, context)),
+                if (_isTodayShoppingDay())
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                 // Nutrition Overview
                 SizedBox(
-                  height: 185,
+                  height: getPercentageHeight(35, context),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {
                       currentPage = value;
                     }),
                     children: [
-                      DailyNutritionOverview(
-                        settings: userService.currentUser!.settings,
-                        key: _addMealButtonKey,
+                      DailyNutritionOverview1(
+                        settings: userService.currentUser?.settings ??
+                            {} as Map<String, dynamic>,
                         currentDate: currentDate,
+                        familyMode: familyMode,
                       ),
                     ],
                   ),
                 ),
-
                 SizedBox(height: getPercentageHeight(1, context)),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 SizedBox(height: getPercentageHeight(0.8, context)),

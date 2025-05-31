@@ -38,6 +38,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   XFile? _recentImage;
   String selectedCategory = 'all';
   String selectedCategoryId = '';
+  List<Map<String, dynamic>> categoryDatas = [];
 
   void _updateCategoryData(String categoryId, String category) {
     if (!mounted) return;
@@ -96,19 +97,20 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   void initState() {
     super.initState();
 
-    final generalCategory = {
-      'id': 'general',
-      'name': 'General',
-      'category': 'General'
-    };
+    String familyMode =
+        userService.currentUser?.settings['familyMode'] ?? 'false';
 
-    final categoryDatasIngredient = helperController.macros;
-    if (categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      if (categoryDatasIngredient.first['id'] != 'general') {
-        categoryDatasIngredient.insert(0, generalCategory);
-      }
-      selectedCategoryId = categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = categoryDatasIngredient[0]['name'] ?? '';
+    categoryDatas = [...helperController.category];
+
+    if (familyMode == 'true') {
+      // Get all kids categories and add them at index 1
+      final kidsCategories = [...helperController.kidsCategory];
+      categoryDatas.insertAll(1, kidsCategories);
+    }
+
+    if (categoryDatas.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = categoryDatas[0]['id'] ?? '';
+      selectedCategory = categoryDatas[0]['name'] ?? '';
     }
     _loadGalleryImages();
   }
@@ -223,7 +225,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final categoryDatas = helperController.macros;
 
     return Scaffold(
       appBar: AppBar(
