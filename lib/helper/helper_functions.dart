@@ -327,8 +327,12 @@ List<String> _convertToStringList(dynamic value) {
   return [];
 }
 
-Future<void> saveMealPlanToFirestore(String userId, String date,
-    List<String> mealIds, Map<String, dynamic>? mealPlan) async {
+Future<void> saveMealPlanToFirestore(
+    String userId,
+    String date,
+    List<String> mealIds,
+    Map<String, dynamic>? mealPlan,
+    String selectedDiet) async {
   final docRef = firestore
       .collection('mealPlans')
       .doc(userId)
@@ -356,6 +360,7 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
     'mealIds': mealIds,
     'timestamp':
         Timestamp.fromDate(DateTime.now()), // Use client-side Timestamp
+    'diet': selectedDiet ?? 'general',
   };
 
   // Add nutritionSummary and tips if they exist in mealPlan
@@ -633,7 +638,7 @@ Map<String, String> consolidateGroceryAmounts(List<Map<String, String>> items) {
     if (name == null || name.isEmpty || amountStr.isEmpty) continue;
 
     // Check for special amounts like 'pinch' or 'to taste'
-    if (amountStr.toLowerCase().contains('pinch') || 
+    if (amountStr.toLowerCase().contains('pinch') ||
         amountStr.toLowerCase().contains('to taste')) {
       specialAmounts[name] = amountStr;
       continue;

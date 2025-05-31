@@ -343,8 +343,28 @@ class MacroManager extends GetxController {
           final key = '$id/${entry.value}';
           batchMap[key] = false;
         }
+        // Fetch existing items for the week
+        final docSnapshot = await userMealsRef.get();
+        Map<String, dynamic> existingItems = {};
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data();
+          if (data != null && data['items'] != null) {
+            existingItems = Map<String, dynamic>.from(data['items']);
+          }
+        }
+        // Merge: preserve purchased status for existing keys
+        final Map<String, bool> mergedItems = {
+          ...batchMap,
+          ...existingItems.map((k, v) => MapEntry(k, v == true)),
+        };
+        // For each key in batchMap, if it exists in existingItems, keep its value
+        batchMap.forEach((k, v) {
+          if (existingItems.containsKey(k)) {
+            mergedItems[k] = existingItems[k] == true;
+          }
+        });
         await userMealsRef.set({
-          'items': batchMap,
+          'items': mergedItems,
           'week': currentWeek,
           'year': DateTime.now().year,
           'updated_at': FieldValue.serverTimestamp(),

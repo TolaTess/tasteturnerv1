@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // duration of 5 seconds
     _controller = AnimationController(
-      duration: Duration(seconds: widget.isUser ? 3 : 5),
+      duration: Duration(seconds: widget.isUser ? 2 : 3),
       vsync: this,
     );
 

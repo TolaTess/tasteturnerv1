@@ -126,8 +126,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
       shoppingList = macroManager.ingredient;
     });
     final currentWeek = getCurrentWeek();
-    // Only generate grocery list if it's Sunday or the grocery list is empty
-    if (DateTime.now().weekday == 7 || macroManager.groceryList.isEmpty) {
+    // Only generate grocery list if the grocery list is empty
+    if (macroManager.groceryList.isEmpty) {
       await macroManager.generateGroceryList();
     }
     showGroceryList == true
@@ -173,7 +173,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                       fontSize:
                                           getPercentageWidth(4, context))),
                               content: Text(
-                                  'This will update your meal plan list for this week based on your current meal plan. \nWant to continue?',
+                                  'Shopping List based on your meal plan for this week. \nDo you want to update?',
                                   style: TextStyle(
                                       color: isDarkMode ? kWhite : kBlack,
                                       fontSize:

@@ -233,20 +233,28 @@ String getRandomBio(List<String> type) {
 
   return type[index];
 }
+String getRandomMealTypeBio(String mealType, String diet) {
+  if(diet == mealType) {
+    final List<String> mealTypeBios = [
+      "Feast Mode: Your ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Bite the Day: A ${capitalizeFirstLetter(mealType)} Meal Plan Adventure", 
+      "Dish It Up: Your ${capitalizeFirstLetter(mealType)} Meal Plan Masterpiece",
+      "Chow Down Champion: A ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Savor the Win: Your ${capitalizeFirstLetter(mealType)} Meal Plan"
+    ];
+    final random = Random();
+    return mealTypeBios[random.nextInt(mealTypeBios.length)];
+  }
 
-String getRandomMealTypeBio(String mealType) {
   final List<String> mealTypeBios = [
-    "Feast Mode: Your Special ${capitalizeFirstLetter(mealType)} Meal Plan",
-    "Bite the Day: A ${capitalizeFirstLetter(mealType)} Meal Plan Adventure",
-    "Dish It Up: Your ${capitalizeFirstLetter(mealType)} Meal Plan Masterpiece",
-    "Chow Down Champion: A ${capitalizeFirstLetter(mealType)} focused Meal Plan",
-    "Savor the Win: Your ${capitalizeFirstLetter(mealType)} Meal Plan Gameplan"
+    "Feast Mode: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Meal Plan",
+    "Bite the Day: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Adventure",
+    "Dish It Up: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Masterpiece", 
+    "Chow Down Champion: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan",
+    "Savor the Win: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan"
   ];
-  // Generate a random index
   final random = Random();
-  final index = random.nextInt(mealTypeBios.length);
-
-  return mealTypeBios[index];
+  return mealTypeBios[random.nextInt(mealTypeBios.length)];
 }
 
 Color checkRainbowGroup(String rainbow) {
@@ -451,6 +459,19 @@ const excludedIngredients = [
   'oregano',
   'lemon juice',
   'olive oil',
+  'vegetable oil',
+  'oil',
+  'butter',
+  'ghee',
+  'margarine',
+  'broth',
+  'chicken broth',
+  'beef broth',
+  'vegetable broth',
+  'fish broth',
+  'chicken stock',
+  'beef stock',
+  'vegetable stock',
   'vinegar',
   'soy sauce',
   'ketchup',
@@ -461,8 +482,6 @@ const excludedIngredients = [
   'barbecue sauce',
   'hot sauce',
   'bbq sauce',
-  'barbecue sauce',
-  'butter',
   'cream',
   'cheese',
   'yogurt',
@@ -482,7 +501,15 @@ const excludedIngredients = [
   'hazelnut butter',
   'walnut butter',
   'macadamia nut butter',
-  'peanut'
+  'peanut',
+  'spices',
+  'spice',
+  'herbs',
+  'herb',
+  'water',
+  'milk',
+  'juice',
+  'juices'
 ];
 
 const vegetables = [

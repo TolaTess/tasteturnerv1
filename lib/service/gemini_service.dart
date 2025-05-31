@@ -180,6 +180,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
         "ingredient2": "amount with unit"
       },
       "instructions": ["step1", "step2", ...],
+      "diet": "diet type",
       "nutritionalInfo": {
         "calories": number,
         "protein": number,
@@ -203,6 +204,7 @@ Important:
 - Return ONLY the JSON object. Do not include any markdown formatting, explanations, or code block markers.
 - Ensure all measurements are in metric units and nutritional values are per serving.
 - Format ingredients as key-value pairs where the key is the ingredient name and the value is the amount with unit (e.g., "rice": "1 cup", "chicken breast": "200g")
+- Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free",).
 '''
                 }
               ]

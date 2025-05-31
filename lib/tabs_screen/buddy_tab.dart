@@ -11,7 +11,6 @@ import '../screens/premium_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
-import '../service/helper_controller.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -360,6 +359,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
         final selectedGeneration =
             generations[generations.length - 1]; // Get last generation
+        final diet = selectedGeneration['diet']?.toString() ?? 'general';
         final mealsFuture = _fetchMealsFromIds(selectedGeneration['mealIds']);
 
         return FutureBuilder<List<Map<String, dynamic>>>(
@@ -439,7 +439,7 @@ class _BuddyTabState extends State<BuddyTab> {
                   SizedBox(height: getPercentageHeight(1, context)),
                   Builder(
                     builder: (context) {
-                      String bio = getRandomMealTypeBio(mostCommonCategory);
+                      String bio = getRandomMealTypeBio(mostCommonCategory, diet);
                       List<String> parts = bio.split(': ');
                       return Column(
                         children: [
@@ -692,7 +692,7 @@ class _BuddyTabState extends State<BuddyTab> {
                             );
                           },
                           child: ListTile(
-                            minTileHeight: getPercentageHeight(5, context),
+                            minTileHeight: getPercentageHeight(4, context),
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(4, context),
                                 vertical: getPercentageHeight(1, context)),
@@ -717,7 +717,7 @@ class _BuddyTabState extends State<BuddyTab> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
-                                fontSize: getPercentageWidth(4.5, context),
+                                fontSize: getPercentageWidth(4, context),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),

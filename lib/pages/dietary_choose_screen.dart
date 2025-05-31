@@ -84,8 +84,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Diet: $selectedDiet',
+              Text( selectedDiet != 'All' ? 'Diet: $selectedDiet' : 'Diet: General',
                 style: TextStyle(
                   color:
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -459,7 +458,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final List<String> mealIds =
           await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
-      await saveMealPlanToFirestore(userId, date, mealIds, mealPlan);
+      await saveMealPlanToFirestore(userId, date, mealIds, mealPlan, selectedDiet);
       await _updateUserPreferences(userId);
 
       // Hide loading and navigate back
