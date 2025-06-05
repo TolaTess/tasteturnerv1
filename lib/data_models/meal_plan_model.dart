@@ -1,47 +1,6 @@
+
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'user_meal.dart';
-
-class MealPlan {
-  final String userId;
-  final DateTime date;
-  final List<UserMeal> meals;
-  final bool isSpecial;
-  final String? dayType;
-  final DateTime timestamp;
-
-  MealPlan({
-    required this.userId,
-    required this.date,
-    required this.meals,
-    this.isSpecial = false,
-    this.dayType,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
-
-  factory MealPlan.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return MealPlan(
-      userId: data['userId'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
-      meals: (data['meals'] as List<dynamic>?)
-              ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
-              .toList() ??
-          [],
-      isSpecial: data['isSpecial'] ?? false,
-      dayType: data['dayType'],
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-    );
-  }
-
-  Map<String, dynamic> toFirestore() => {
-        'userId': userId,
-        'date': Timestamp.fromDate(date),
-        'meals': meals.map((m) => m.toFirestore()).toList(),
-        'isSpecial': isSpecial,
-        'dayType': dayType,
-        'timestamp': Timestamp.fromDate(timestamp),
-      };
-}
 
 class ShareRequest {
   final String requestId;

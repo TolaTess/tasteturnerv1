@@ -37,9 +37,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   late TabController _tabController;
   DateTime selectedDate = DateTime.now();
   Map<DateTime, bool> specialMealDays = {};
-  Map<DateTime, List<Meal>> mealPlans = {};
+  Map<DateTime, List<MealWithType>> mealPlans = {};
   Map<DateTime, String> dayTypes = {};
-  Map<DateTime, List<Meal>> sharedMealPlans = {};
+  Map<DateTime, List<MealWithType>> sharedMealPlans = {};
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
@@ -245,7 +245,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         }
       }).toList();
 
-      final newMealPlans = <DateTime, List<Meal>>{};
+      final newMealPlans = <DateTime, List<MealWithType>>{};
       final newSpecialMealDays = <DateTime, bool>{};
       final newDayTypes = <DateTime, String>{};
 
@@ -256,17 +256,24 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
         try {
           final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          final mealIds = List<String>.from(data?['meals'] ?? []);
-          final isSpecial = data?['isSpecial'] ?? false;
-          final dayType = data?['dayType'] ?? 'regular_day';
-
-          if (mealIds.isNotEmpty) {
-            final meals = await mealManager.getMealsByMealIds(mealIds);
-            if (meals.isNotEmpty) {
-              newMealPlans[date] = meals;
+          final mealsList = data?['meals'] as List<dynamic>? ?? [];
+          final List<MealWithType> mealWithTypes = [];
+          for (final item in mealsList) {
+            if (item is String && item.contains('/')) {
+              final parts = item.split('/');
+              final mealId = parts[0];
+              final mealType = parts.length > 1 ? parts[1] : '';
+              final meal = await mealManager.getMealbyMealID(mealId);
+              if (meal != null) {
+                mealWithTypes.add(MealWithType(meal: meal, mealType: mealType));
+              }
             }
           }
-
+          final isSpecial = data?['isSpecial'] ?? false;
+          final dayType = data?['dayType'] ?? 'regular_day';
+          if (mealWithTypes.isNotEmpty) {
+            newMealPlans[date] = mealWithTypes;
+          }
           if (isSpecial) {
             newSpecialMealDays[date] = true;
             newDayTypes[date] = dayType;
@@ -437,7 +444,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   Text(
                     showSharedCalendars
                         ? 'Shared'
-                          : familyMode
+                        : familyMode
                             ? 'Family'
                             : 'Personal',
                     style: TextStyle(
@@ -642,7 +649,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: hasSpecialMeal
-                                        ? _getDayTypeColor(
+                                        ? getDayTypeColor(
                                                 dayTypes[normalizedDate]
                                                         ?.replaceAll(
                                                             '_', ' ') ??
@@ -692,13 +699,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                           right: 2,
                                           top: 2,
                                           child: Icon(
-                                            _getDayTypeIcon(
+                                            getDayTypeIcon(
                                                 dayTypes[normalizedDate]
                                                         ?.replaceAll(
                                                             '_', ' ') ??
                                                     'regular_day'),
                                             size: 8,
-                                            color: _getDayTypeColor(
+                                            color: getDayTypeColor(
                                                 dayTypes[normalizedDate]
                                                         ?.replaceAll(
                                                             '_', ' ') ??
@@ -975,7 +982,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Widget _buildMealsRow(
-      List<Meal> meals, String birthdayName, bool isDarkMode) {
+      List<MealWithType> meals, String birthdayName, bool isDarkMode) {
     final normalizedDate =
         DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
     if (dayTypes[normalizedDate] == null) {
@@ -1005,12 +1012,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
             const SizedBox(width: 10),
             Text(
-              textAlign: TextAlign.center,
               dayTypes[normalizedDate] == 'welcome_day'
                   ? 'Welcome to ${appName}!'
                   : 'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: _getDayTypeColor(
+                color: getDayTypeColor(
                     dayTypes[normalizedDate]?.replaceAll('_', ' ') ??
                         'regular_day',
                     isDarkMode),
@@ -1028,7 +1035,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         scrollDirection: Axis.horizontal,
         itemCount: meals.length,
         itemBuilder: (context, index) {
-          final meal = meals[index];
+          final mealWithType = meals[index];
+          final meal = mealWithType.meal;
+          final mealType = mealWithType.mealType;
           return Container(
             width: 130,
             margin: const EdgeInsets.only(right: 16),
@@ -1112,10 +1121,32 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ],
                     ),
                   ),
-                  // Remove icon (top right)
                   Positioned(
-                    top: -6,
-                    right: -6,
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        getMealTypeIcon(mealType),
+                        color: kAccent,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: -8,
                     child: IconButton(
                       icon: const Icon(Icons.close, size: 25, color: kAccent),
                       tooltip: 'Remove from meal plan',
@@ -1133,10 +1164,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         final doc = await docRef.get();
                         if (doc.exists) {
                           final data = doc.data() as Map<String, dynamic>;
-                          final mealIds =
-                              List<String>.from(data['meals'] ?? []);
-                          mealIds.remove(meal.mealId);
-                          await docRef.update({'meals': mealIds});
+                          final mealsField = data['meals'];
+                          if (mealsField is Map<String, dynamic>) {
+                            mealsField.remove(meal.mealId);
+                            await docRef.update({'meals': mealsField});
+                          }
                         }
                         if (!mounted) return;
                         setState(() {
@@ -1247,8 +1279,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ),
                     ),
                     leading: Icon(
-                      _getDayTypeIcon(type),
-                      color: _getDayTypeColor(type, isDarkMode),
+                      getDayTypeIcon(type),
+                      color: getDayTypeColor(type, isDarkMode),
                     ),
                     onTap: () {
                       if (!mounted) return;
@@ -1369,6 +1401,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               isSharedCalendar: showSharedCalendars,
               sharedCalendarId:
                   showSharedCalendars ? selectedSharedCalendarId : null,
+              isFamilyMode: familyMode
             ),
           ),
         ).then((_) {
@@ -1378,52 +1411,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       }
     } catch (e) {
       print('Error in _addMealPlan: $e');
-    }
-  }
-
-  IconData _getDayTypeIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'cheat day':
-        return Icons.fastfood;
-      case 'diet day':
-        return Icons.restaurant;
-      case 'family dinner':
-        return Icons.people;
-      case 'workout boost':
-        return Icons.fitness_center;
-      case 'special celebration':
-        return Icons.celebration;
-      case 'chef tasty':
-        return Icons.restaurant;
-      case 'welcome day':
-        return Icons.check_circle;
-      case 'spin special':
-        return Icons.restaurant;
-      default:
-        return Icons.restaurant;
-    }
-  }
-
-  Color _getDayTypeColor(String type, bool isDarkMode) {
-    switch (type.toLowerCase()) {
-      case 'cheat day':
-        return Colors.purple;
-      case 'diet day':
-        return Colors.grey.withOpacity(0.7);
-      case 'family dinner':
-        return Colors.green;
-      case 'workout boost':
-        return Colors.blue;
-      case 'special celebration':
-        return Colors.orange;
-      case 'chef tasty':
-        return Colors.red;
-      case 'welcome day':
-        return Colors.deepPurpleAccent;
-      case 'spin special':
-        return Colors.red;
-      default:
-        return isDarkMode ? kWhite : kBlack;
     }
   }
 
@@ -1458,7 +1445,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 fontSize: 16,
               ),
             ),
-            if (!date.isBefore(DateTime.now())) ...[
+            if (!date.isBefore(DateTime.now().subtract(const Duration(days: 1)))) ...[
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () => _addMealPlan(context, isDarkMode, false, ''),
@@ -1475,8 +1462,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  Widget _buildDateHeader(
-      DateTime date, String birthdayName, bool isDarkMode, List<Meal> meals) {
+  Widget _buildDateHeader(DateTime date, String birthdayName, bool isDarkMode,
+      List<MealWithType> meals) {
     final isSpecialDay = specialMealDays[date] ?? false;
     final currentDayType = dayTypes[date] ?? 'regular_day';
     final isUserBirthday = _isUserBirthday(date);
@@ -1553,7 +1540,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _getDayTypeColor(
+                      color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode)
                           .withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
@@ -1562,9 +1549,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getDayTypeIcon(currentDayType.replaceAll('_', ' ')),
+                          getDayTypeIcon(currentDayType.replaceAll('_', ' ')),
                           size: 16,
-                          color: _getDayTypeColor(
+                          color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode),
                         ),
                         const SizedBox(width: 4),
@@ -1572,7 +1559,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           capitalizeFirstLetter(
                               currentDayType.replaceAll('_', ' ')),
                           style: TextStyle(
-                            color: _getDayTypeColor(
+                            color: getDayTypeColor(
                                 currentDayType.replaceAll('_', ' '),
                                 isDarkMode),
                             fontSize: 12,
@@ -1606,7 +1593,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         content: Text(
           caseDayType(dayType),
           style: TextStyle(
-              color: _getDayTypeColor(dayType.replaceAll('_', ' '),
+              color: getDayTypeColor(dayType.replaceAll('_', ' '),
                   getThemeProvider(context).isDarkMode)),
         ),
         actions: [
@@ -1696,4 +1683,20 @@ class SharedMealPlan {
     this.dayType,
     required this.sharedBy,
   });
+}
+
+// Helper to get meal type icon
+IconData getMealTypeIcon(String? type) {
+  switch ((type ?? '').toLowerCase()) {
+    case 'breakfast':
+      return Icons.free_breakfast;
+    case 'lunch':
+      return Icons.lunch_dining;
+    case 'dinner':
+      return Icons.dinner_dining;
+    case 'snack':
+      return Icons.fastfood;
+    default:
+      return Icons.restaurant_menu;
+  }
 }

@@ -21,6 +21,7 @@ class RecipeListCategory extends StatefulWidget {
   final bool isSharedCalendar;
   final String? sharedCalendarId;
   final bool isBack;
+  final bool isFamilyMode;
 
   const RecipeListCategory({
     Key? key,
@@ -34,6 +35,7 @@ class RecipeListCategory extends StatefulWidget {
     this.isSharedCalendar = false,
     this.sharedCalendarId,
     this.isBack = false,
+    this.isFamilyMode = false,
   }) : super(key: key);
 
   @override
@@ -118,6 +120,10 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
       // Check if the document exists
       final docSnapshot = await docRef.get();
+
+      if(widget.isFamilyMode){
+        
+      }
 
       if (docSnapshot.exists) {
         // Update the existing document with the new mealIds
@@ -264,8 +270,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       floatingActionButton: widget.isMealplan
           ? FloatingActionButton(
               onPressed: selectedMealIds.isNotEmpty
-                  ? () =>
-                      addMealsToMealPlan(selectedMealIds, widget.mealPlanDate)
+                  ? () => addMealsToMealPlan(
+                      appendMealTypes(selectedMealIds), widget.mealPlanDate)
                   : null,
               backgroundColor:
                   selectedMealIds.isNotEmpty ? kAccent : kLightGrey,

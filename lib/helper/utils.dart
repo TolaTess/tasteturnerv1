@@ -14,9 +14,7 @@ import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/photo_manager.dart';
-import '../screens/buddy_screen.dart';
 import '../screens/friend_screen.dart';
-import '../tabs_screen/recipe_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 
@@ -42,9 +40,10 @@ String capitalizeFirstLetter(String input) {
   return input[0].toUpperCase() + input.substring(1).toLowerCase();
 }
 
-String capitalizeFirstLetterAndSplitSpace(String input) { 
+String capitalizeFirstLetterAndSplitSpace(String input) {
   if (input.isEmpty) return '';
-  return input[0].toUpperCase() + input.substring(1).toLowerCase().split(' ').join('\n');
+  return input[0].toUpperCase() +
+      input.substring(1).toLowerCase().split(' ').join('\n');
 }
 
 List<String> extractSlashedItems(String messageContent) {
@@ -238,11 +237,12 @@ String getRandomBio(List<String> type) {
 
   return type[index];
 }
+
 String getRandomMealTypeBio(String mealType, String diet) {
-  if(diet == mealType) {
+  if (diet == mealType) {
     final List<String> mealTypeBios = [
       "Feast Mode: Your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Bite the Day: A ${capitalizeFirstLetter(mealType)} Meal Plan Adventure", 
+      "Bite the Day: A ${capitalizeFirstLetter(mealType)} Meal Plan Adventure",
       "Dish It Up: Your ${capitalizeFirstLetter(mealType)} Meal Plan Masterpiece",
       "Chow Down Champion: A ${capitalizeFirstLetter(mealType)} Meal Plan",
       "Savor the Win: Your ${capitalizeFirstLetter(mealType)} Meal Plan"
@@ -254,7 +254,7 @@ String getRandomMealTypeBio(String mealType, String diet) {
   final List<String> mealTypeBios = [
     "Feast Mode: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Meal Plan",
     "Bite the Day: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Adventure",
-    "Dish It Up: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Masterpiece", 
+    "Dish It Up: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Masterpiece",
     "Chow Down Champion: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan",
     "Savor the Win: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan"
   ];
@@ -812,4 +812,63 @@ ImageProvider getImageProvider(String? imageUrl) {
     return NetworkImage(imageUrl);
   }
   return const AssetImage(intPlaceholderImage);
+}
+
+IconData getDayTypeIcon(String type) {
+  switch (type.toLowerCase()) {
+    case 'cheat day':
+      return Icons.fastfood;
+    case 'diet day':
+      return Icons.restaurant;
+    case 'family dinner':
+      return Icons.people;
+    case 'workout boost':
+      return Icons.fitness_center;
+    case 'special celebration':
+      return Icons.celebration;
+    case 'chef tasty':
+      return Icons.restaurant;
+    case 'welcome day':
+      return Icons.check_circle;
+    case 'spin special':
+      return Icons.restaurant;
+    default:
+      return Icons.restaurant;
+  }
+}
+
+Color getDayTypeColor(String type, bool isDarkMode) {
+  switch (type.toLowerCase()) {
+    case 'cheat day':
+      return Colors.purple;
+    case 'diet day':
+      return Colors.grey.withOpacity(0.7);
+    case 'family dinner':
+      return Colors.green;
+    case 'workout boost':
+      return Colors.blue;
+    case 'special celebration':
+      return Colors.orange;
+    case 'chef tasty':
+      return Colors.red;
+    case 'welcome day':
+      return Colors.deepPurpleAccent;
+    case 'spin special':
+      return Colors.red;
+    default:
+      return isDarkMode ? kWhite : kBlack;
+  }
+}
+
+List<String> appendMealTypes(List<String> mealIds) {
+  final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+  final List<String> result = [];
+
+  for (var i = 0; i < mealIds.length; i++) {
+    // Get meal type based on index, cycling through the types
+    final mealType = mealTypes[i % mealTypes.length];
+    result.add('${mealIds[i]}/$mealType');
+  }
+
+  return result;
 }

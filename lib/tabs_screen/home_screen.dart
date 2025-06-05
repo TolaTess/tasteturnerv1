@@ -550,14 +550,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: getPercentageHeight(35, context),
+                  height: getPercentageHeight(50, context),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {
                       currentPage = value;
                     }),
                     children: [
-                      DailyNutritionOverview1(
+                      DailyNutritionOverview(
                         settings: userService.currentUser?.settings ??
                             {} as Map<String, dynamic>,
                         currentDate: currentDate,
@@ -566,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                SizedBox(height: getPercentageHeight(1, context)),
+                
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 SizedBox(height: getPercentageHeight(0.8, context)),
 

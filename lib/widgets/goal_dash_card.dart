@@ -1,18 +1,23 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
+import '../data_models/meal_model.dart';
+import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../data_models/user_data_model.dart';
+import 'date_widget.dart';
 
-class DailyNutritionOverview1 extends StatefulWidget {
+class DailyNutritionOverview extends StatefulWidget {
   final Map<String, dynamic> settings;
   final DateTime currentDate;
   final bool familyMode;
 
-  const DailyNutritionOverview1({
+  const DailyNutritionOverview({
     super.key,
     required this.settings,
     required this.currentDate,
@@ -20,15 +25,17 @@ class DailyNutritionOverview1 extends StatefulWidget {
   });
 
   @override
-  State<DailyNutritionOverview1> createState() =>
+  State<DailyNutritionOverview> createState() =>
       _DailyNutritionOverview1State();
 }
 
-class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
+class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> familyList = [];
   bool showCaloriesAndGoal = true;
   List<Map<String, dynamic>> displayList = [];
+  Map<String, dynamic> mealPlan = {};
+  List<MealWithType> meals = [];
   final colors = [
     kAccent.withOpacity(kMidOpacity),
     kBlue.withOpacity(kMidOpacity),
@@ -45,6 +52,53 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
   void initState() {
     super.initState();
     _loadShowCaloriesPref();
+    loadMeals();
+  }
+
+  Future<void> loadMeals() async {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(widget.currentDate);
+    QuerySnapshot snapshot;
+    if (widget.familyMode) {
+      snapshot = await firestore
+          .collection('shared_calendars')
+          .doc(userService.userId)
+          .collection('date')
+          .where('date', isEqualTo: formattedDate)
+          .get();
+    } else {
+      snapshot = await firestore
+          .collection('mealPlans')
+          .doc(userService.userId)
+          .collection('date')
+          .where('date', isEqualTo: formattedDate)
+          .get();
+    }
+
+    List<MealWithType> mealWithTypes = [];
+
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
+      mealPlan = data ?? {};
+      final mealsList = data?['meals'] as List<dynamic>? ?? [];
+      for (final item in mealsList) {
+        if (item is String && item.contains('/')) {
+          final parts = item.split('/');
+          final mealId = parts[0];
+          final mealType = parts.length > 1 ? parts[1] : '';
+          final meal = await mealManager.getMealbyMealID(mealId);
+          if (meal != null) {
+            mealWithTypes.add(MealWithType(meal: meal, mealType: mealType));
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        meals = mealWithTypes;
+        mealPlan = mealPlan;
+      });
+    }
   }
 
   @override
@@ -85,6 +139,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
     final calorieController =
         TextEditingController(text: user['foodGoal'] ?? '');
 
+    final originalName = user['name'];
+    final originalAgeGroup = user['ageGroup'];
+
     await showDialog(
       context: context,
       builder: (context) {
@@ -102,8 +159,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
             children: [
               TextField(
                 style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                controller: TextEditingController(
-                    text: capitalizeFirstLetter(user['name'] ?? '')),
+                controller: nameController,
                 decoration: InputDecoration(
                     labelText: 'Name',
                     labelStyle: TextStyle(
@@ -154,10 +210,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                 user['fitnessGoal'] = goalController.text;
                 user['foodGoal'] = calorieController.text;
 
-                // Find the index of the member being edited
+                // Find the index using the original values
                 final index = familyList.indexWhere((member) =>
-                    member['name'] == user['name'] &&
-                    member['ageGroup'] == user['ageGroup']);
+                    member['name'] == originalName &&
+                    member['ageGroup'] == originalAgeGroup);
 
                 final updatedFamilyList =
                     List<Map<String, dynamic>>.from(familyList);
@@ -246,37 +302,42 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          radius: getPercentageWidth(6, context),
-                          backgroundColor: isDarkMode
-                              ? kDarkGrey.withOpacity(0.18)
-                              : kWhite.withOpacity(0.25),
-                          child: user['avatar'] != null
-                              ? ClipOval(
-                                  child: Image.asset(
-                                    user['avatar'],
-                                    width: getPercentageWidth(10, context),
-                                    height: getPercentageWidth(10, context),
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Icon(Icons.person,
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                  size: getPercentageWidth(7, context)),
-                        ),
+                        Obx(() {
+                          double eatenCalories = dailyDataController
+                              .eatenCalories.value
+                              .toDouble();
+
+                          double targetCalories =
+                              dailyDataController.targetCalories.value;
+
+                          double remainingValue = targetCalories <= 0
+                              ? 0.0
+                              : (targetCalories - eatenCalories)
+                                  .clamp(0.0, targetCalories);
+
+                          return CustomCircularProgressBar(
+                            valueNotifier:
+                                dailyDataController.dailyValueNotifier,
+                            remainingCalories: remainingValue,
+                            currentDate: widget.currentDate,
+                          );
+                        }),
                         SizedBox(width: getPercentageWidth(3, context)),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                capitalizeFirstLetter(user['name'] ?? ''),
-                                style: TextStyle(
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageWidth(5, context),
+                              if (showCaloriesAndGoal)
+                                Text(
+                                  '${user['foodGoal']} kcal/day',
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? kWhite.withOpacity(0.85)
+                                        : kDarkGrey.withOpacity(0.85),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: getPercentageWidth(4, context),
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -307,23 +368,37 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                         ),
                       ],
                     ),
-                    if (showCaloriesAndGoal &&
-                        (user['foodGoal'] ?? '').isNotEmpty)
+                    if ((user['foodGoal'] ?? '').isNotEmpty && meals.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-                        child: Text(
-                          '${user['foodGoal']} kcal/day',
-                          style: TextStyle(
-                            color: isDarkMode
-                                ? kWhite.withOpacity(0.85)
-                                : kDarkGrey.withOpacity(0.85),
-                            fontWeight: FontWeight.w500,
-                            fontSize: getPercentageWidth(4, context),
-                          ),
+                        child: Row(
+                          children: [
+                            if (meals.isNotEmpty)
+                              Icon(
+                                getDayTypeIcon(
+                                    mealPlan['dayType'].replaceAll('_', ' ')),
+                                size: getPercentageWidth(4, context),
+                                color: getDayTypeColor(
+                                    mealPlan['dayType'].replaceAll('_', ' '),
+                                    isDarkMode),
+                              ),
+                            if (meals.isNotEmpty) const SizedBox(width: 4),
+                            if (meals.isNotEmpty)
+                              Text(
+                                capitalizeFirstLetter(
+                                    mealPlan['dayType'].replaceAll('_', ' ')),
+                                style: TextStyle(
+                                  color: getDayTypeColor(
+                                      mealPlan['dayType'].replaceAll('_', ' '),
+                                      isDarkMode),
+                                  fontSize: getPercentageWidth(4, context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    SizedBox(height: getPercentageHeight(1, context)),
-                    if ((user['meals'] as List?)?.isEmpty ?? true)
+                    if (meals.isEmpty)
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -338,88 +413,95 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                           ),
                         ),
                       ),
-                    if ((user['meals'] as List?)?.isNotEmpty ?? false)
+                    if (meals.isNotEmpty)
                       SizedBox(
-                        height: getPercentageHeight(18, context),
+                        height: getPercentageHeight(15, context),
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: (user['meals'] as List).length,
+                          itemCount: meals.length,
                           separatorBuilder: (context, i) =>
                               SizedBox(width: getPercentageWidth(2, context)),
                           itemBuilder: (context, index) {
-                            final meal = (user['meals'] as List)[index];
-                            return Container(
-                              width: getPercentageWidth(32, context),
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(2, context),
-                                  vertical: getPercentageHeight(2, context)),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? kDarkGrey.withOpacity(0.13)
-                                    : kWhite.withOpacity(0.13),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        _getMealIcon(
-                                            meal is Map ? meal['type'] : null),
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                        size: getPercentageWidth(4, context),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          meal is Map && meal['type'] != null
-                                              ? meal['type']
-                                              : '',
-                                          style: TextStyle(
-                                            color:
-                                                isDarkMode ? kWhite : kDarkGrey,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: getPercentageWidth(
-                                                3.2, context),
+                            final meal = meals[index];
+                            return GestureDetector(
+                              onTap: () {
+                                Get.to(() =>
+                                    RecipeDetailScreen(mealData: meal.meal));
+                              },
+                              child: Container(
+                                width: getPercentageWidth(32, context),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(2, context),
+                                    vertical: getPercentageHeight(2, context)),
+                                decoration: BoxDecoration(
+                                  color: getDayTypeColor(
+                                          mealPlan['dayType']
+                                              .replaceAll('_', ' '),
+                                          isDarkMode)
+                                      .withOpacity(0.13),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          _getMealIcon(meal.mealType),
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                          size: getPercentageWidth(4, context),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            capitalizeFirstLetter(
+                                                meal.mealType ?? ''),
+                                            style: TextStyle(
+                                              color: isDarkMode
+                                                  ? kWhite
+                                                  : kDarkGrey,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: getPercentageWidth(
+                                                  3.2, context),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                    if (showCaloriesAndGoal &&
+                                        meal.meal.calories != null)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 2.0),
+                                        child: Text(
+                                          '${meal.meal.calories} kcal',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? kWhite.withOpacity(0.5)
+                                                : kDarkGrey.withOpacity(0.5),
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: getPercentageWidth(
+                                                2.8, context),
+                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  if (showCaloriesAndGoal &&
-                                      meal is Map &&
-                                      meal['foodGoal'] != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2.0),
-                                      child: Text(
-                                        '${meal['foodGoal']} kcal',
-                                        style: TextStyle(
-                                          color: isDarkMode
-                                              ? kWhite.withOpacity(0.85)
-                                              : kDarkGrey.withOpacity(0.85),
-                                          fontWeight: FontWeight.w500,
-                                          fontSize:
-                                              getPercentageWidth(2.8, context),
-                                        ),
+                                    Text(
+                                      capitalizeFirstLetter(
+                                          meal.meal.title ?? ''),
+                                      style: TextStyle(
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                        fontSize:
+                                            getPercentageWidth(3, context),
+                                        fontWeight: FontWeight.w500,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    meal is Map && meal['recipe'] != null
-                                        ? meal['recipe']
-                                        : '',
-                                    style: TextStyle(
-                                      color: isDarkMode ? kWhite : kDarkGrey,
-                                      fontSize: getPercentageWidth(3, context),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -435,7 +517,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                           child: Scrollbar(
                             controller: _familyScrollController,
                             thumbVisibility: true,
-                            radius: Radius.circular(getPercentageWidth(10, context)),
+                            radius: Radius.circular(
+                                getPercentageWidth(10, context)),
                             child: ListView.separated(
                               controller: _familyScrollController,
                               scrollDirection: Axis.horizontal,
@@ -505,6 +588,27 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview1> {
                 ),
               ),
             ),
+          Positioned(
+            top: getPercentageHeight(0, context),
+            left: getPercentageWidth(5, context),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(0.5, context)),
+              decoration: BoxDecoration(
+                color: isDarkMode ? kDarkGrey : kWhite,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                capitalizeFirstLetter(user['name'] ?? ''),
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: getPercentageWidth(4.5, context),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -73,8 +73,22 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         'height': heightController.text,
       };
 
-      // Update the user's settings in Firestore
-      authController.updateUserData({'settings': updatedSettings});
+      // Check if fitness goal is family nutrition
+      final bool isFamilyNutrition =
+          fitnessGoalController.text == 'Family Nutrition';
+
+      // Update both settings and familyMode if needed
+      if (isFamilyNutrition) {
+        authController.updateUserData({
+          'settings': updatedSettings,
+          'familyMode': true
+        });
+      } else {
+       authController.updateUserData({
+          'settings': updatedSettings,
+          'familyMode': false
+        });
+      }
 
       Get.snackbar('Success', 'Settings updated successfully!',
           snackPosition: SnackPosition.BOTTOM);

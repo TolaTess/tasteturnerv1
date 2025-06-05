@@ -1,8 +1,6 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:simple_circular_progress_bar/simple_circular_progress_bar.dart';
 
 import '../constants.dart';
@@ -136,7 +134,6 @@ class CustomCircularProgressBar extends StatefulWidget {
   final ValueNotifier<double> valueNotifier;
 
   final String sym, title;
-  final bool isMain;
   final double remainingCalories;
 
   final DateTime currentDate;
@@ -144,7 +141,6 @@ class CustomCircularProgressBar extends StatefulWidget {
   const CustomCircularProgressBar({
     super.key,
     required this.valueNotifier,
-    required this.isMain,
     this.sym = '',
     this.title = 'Remaining',
     this.remainingCalories = 0,
@@ -196,13 +192,6 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    // Ensure remainingCalories is a valid number (not Infinity, NaN, or negative)
-    final validRemainingCalories =
-        widget.remainingCalories.isNaN || widget.remainingCalories.isInfinite
-            ? 0.0
-            : widget.remainingCalories < 0
-                ? 0.0
-                : widget.remainingCalories;
 
     return GestureDetector(
       onTap: () {
@@ -218,10 +207,10 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
       child: Column(
         children: [
           SizedBox(
-            height: widget.isMain ? 110 : 50,
-            width: widget.isMain ? 110 : 50,
+            height: getPercentageHeight(10, context),
+            width: getPercentageWidth(10, context),
             child: SimpleCircularProgressBar(
-              size: widget.isMain ? 110 : 50,
+              size: getPercentageWidth(10, context),
               valueNotifier: safeValueNotifier, // Use the safe value notifier
               backColor: isDarkMode
                   ? kWhite.withOpacity(kOpacity)
@@ -229,158 +218,22 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
               progressColors: [kAccentLight.withOpacity(kOpacity)],
               fullProgressColor: kAccent,
               mergeMode: true,
-              progressStrokeWidth: widget.isMain ? 8 : 5,
-              backStrokeWidth: widget.isMain ? 5 : 3,
+              progressStrokeWidth: getPercentageWidth(1.5, context),
+              backStrokeWidth: getPercentageWidth(1, context),
               onGetText: (double value) {
                 return Text(
                   '+',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: widget.isMain ? 30 : 20,
+                    fontSize: getPercentageWidth(4, context),
                     fontWeight: FontWeight.normal,
                   ),
                 );
               },
             ),
           ),
-          widget.isMain ? const SizedBox(height: 12) : const SizedBox.shrink(),
-          widget.isMain
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${validRemainingCalories.toInt()}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      '${widget.title} ${widget.sym}',
-                    ),
-                  ],
-                )
-              : const SizedBox.shrink(),
         ],
       ),
     );
-  }
-}
-
-class DailyNutritionOverview extends StatefulWidget {
-  final Map<String, String> settings;
-  final DateTime currentDate;
-
-  const DailyNutritionOverview({
-    super.key,
-    required this.settings,
-    required this.currentDate,
-  });
-
-  @override
-  State<DailyNutritionOverview> createState() => _DailyNutritionOverviewState();
-}
-
-class _DailyNutritionOverviewState extends State<DailyNutritionOverview> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: kAccent.withOpacity(kMidOpacity),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-            top: getPercentageHeight(1, context),
-            bottom: getPercentageHeight(1, context)),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Obx(() {
-                  double eatenCalories =
-                      dailyDataController.eatenCalories.value.toDouble();
-
-                  return Expanded(
-                    flex: 1,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          eatenCalories.toInt().toString(),
-                          style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context)),
-                        ),
-                        Text(
-                          "Eaten",
-                          style: TextStyle(
-                              fontSize: getPercentageWidth(3, context)),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                Obx(() {
-                  double eatenCalories =
-                      dailyDataController.eatenCalories.value.toDouble();
-
-                  double targetCalories =
-                      dailyDataController.targetCalories.value;
-
-                  double remainingValue = targetCalories <= 0
-                      ? 0.0
-                      : (targetCalories - eatenCalories)
-                          .clamp(0.0, targetCalories);
-
-                  return Expanded(
-                    flex: 1,
-                    child: CustomCircularProgressBar(
-                      valueNotifier: dailyDataController.dailyValueNotifier,
-                      isMain: true,
-                      remainingCalories: remainingValue,
-                      currentDate: widget.currentDate,
-                    ),
-                  );
-                }),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        dailyDataController.targetCalories.value
-                            .toInt()
-                            .toString(),
-                        style: TextStyle(
-                            fontSize: getPercentageWidth(3.5, context)),
-                      ),
-                      Text(
-                        "Target",
-                        style:
-                            TextStyle(fontSize: getPercentageWidth(3, context)),
-                      ),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Helper function to check if two dates are on the same day
-  bool isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
   }
 }

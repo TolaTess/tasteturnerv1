@@ -108,3 +108,16 @@ class Meal {
     );
   }
 }
+
+class MealWithType {
+  final Meal meal;
+  final String mealType;
+  MealWithType({required this.meal, required this.mealType});
+
+  factory MealWithType.fromMap(Map<String, dynamic> data) {
+    return MealWithType(
+      meal: Meal.fromJson(data['mealId'], data['meal']),
+      mealType: data['mealType'],
+    );
+  }
+}
