@@ -389,6 +389,28 @@ class MealManager extends GetxController {
     }
   }
 
+  Future<void> updateMealType(
+      String mealToRemove, String mealToAdd, String date) async {
+    try {
+      final docRef = firestore
+          .collection('mealPlans')
+          .doc(userService.userId!)
+          .collection('date')
+          .doc(date);
+
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+
+      List<dynamic> meals = List.from(doc['meals'] ?? []);
+      int index = meals.indexOf(mealToRemove);
+      if (index != -1) {
+        meals[index] = mealToAdd;
+        await docRef.update({'meals': meals});
+      }
+    } catch (e) {
+      print('Error updating meal type: $e');
+    }
+  }
 
   //___________________MEAL PLAN____________________________
 

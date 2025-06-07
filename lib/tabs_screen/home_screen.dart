@@ -546,7 +546,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: getPercentageHeight(60, context),
+                  height: MediaQuery.of(context).size.height > 700 ? getPercentageHeight(51.5, context) : getPercentageHeight(57, context),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {

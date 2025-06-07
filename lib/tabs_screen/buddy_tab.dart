@@ -620,7 +620,7 @@ class _BuddyTabState extends State<BuddyTab> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: kAccent.withOpacity(0.5),
+                        color: kAccent.withOpacity(0.20),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       padding: EdgeInsets.symmetric(

@@ -196,7 +196,16 @@ class MacroManager extends GetxController {
     for (final d in doc.docs) {
       final meals =
           (d.data()?['meals'] as List<dynamic>?)?.cast<String>() ?? [];
-      mealIds.addAll(meals);
+      // meals is a List<String>, so we need to check each meal individually
+      for (final meal in meals) {
+        if (meal.contains('/')) {
+          final parts = meal.split('/');
+          final mealId = parts[0];
+          mealIds.add(mealId);
+        } else {
+          mealIds.add(meal);
+        }
+      }
     }
     if (mealIds.isEmpty) {
       return;
@@ -242,7 +251,8 @@ class MacroManager extends GetxController {
             );
             final added = await macroManager.addIngredient(macro);
             macro = added ?? macro;
-            print('Added ingredient to Firestore: ${macro.title} with ID: ${macro.id}');
+            print(
+                'Added ingredient to Firestore: ${macro.title} with ID: ${macro.id}');
           } else {
             macro = existing;
           }
@@ -747,12 +757,14 @@ class MacroManager extends GetxController {
 
   Future<MacroData?> addIngredient(MacroData ingredient) async {
     try {
-      final docRef = await firestore.collection('ingredients').add(ingredient.toJson());
+      final docRef =
+          await firestore.collection('ingredients').add(ingredient.toJson());
       // Set the id on the MacroData object
       final macroWithId = ingredient.copyWith(id: docRef.id);
       // Optionally, add to local cache
       _demoIngredientData.add(macroWithId);
-      print('Saved ingredient to Firestore: ${macroWithId.title} with ID: ${macroWithId.id}');
+      print(
+          'Saved ingredient to Firestore: ${macroWithId.title} with ID: ${macroWithId.id}');
       return macroWithId;
     } catch (e) {
       print('Error adding ingredient: $e');

@@ -1,4 +1,3 @@
-
 // Add FamilyMembersDialog widget for family nutrition goal
 import 'package:flutter/material.dart';
 
@@ -22,6 +21,7 @@ class FamilyMembersDialog extends StatefulWidget {
 
 class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
   List<Map<String, String>> members = [];
+  List<TextEditingController> nameControllers = [];
   final List<String> ageGroups = ['Baby', 'Toddler', 'Child', 'Teen', 'Adult'];
 
   @override
@@ -35,14 +35,63 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
         'fitnessGoal': 'Family Nutrition',
         'foodGoal': '1000',
       });
-    } else {
-      // Ensure all members have goal and calories
-      for (var m in members) {
-        m['fitnessGoal'] ??= 'Family Nutrition';
-        m['foodGoal'] ??=
-            _getCaloriesForAgeGroup(m['ageGroup'] ?? ageGroups[0]);
-      }
     }
+    // Ensure all members have goal and calories
+    for (var m in members) {
+      m['fitnessGoal'] ??= 'Family Nutrition';
+      m['foodGoal'] ??= _getCaloriesForAgeGroup(m['ageGroup'] ?? ageGroups[0]);
+    }
+    nameControllers = members
+        .map((m) => TextEditingController(text: m['name'] ?? ''))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    for (var c in nameControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addMember() {
+    setState(() {
+      members.add({
+        'name': '',
+        'ageGroup': ageGroups[0],
+        'fitnessGoal': 'Family Nutrition',
+        'foodGoal': _getCaloriesForAgeGroup(ageGroups[0]),
+      });
+      nameControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeMember(int index) {
+    setState(() {
+      if (index < members.length && index < nameControllers.length) {
+        members.removeAt(index);
+        nameControllers[index].dispose();
+        nameControllers.removeAt(index);
+      }
+    });
+  }
+
+  void _onDone() {
+    // Defensive: ensure lists are in sync
+    if (members.length != nameControllers.length) {
+      // Rebuild controllers to match members
+      nameControllers.forEach((c) => c.dispose());
+      nameControllers = members
+          .map((m) => TextEditingController(text: m['name'] ?? ''))
+          .toList();
+    }
+    // Update members from controllers
+    for (int i = 0; i < members.length; i++) {
+      members[i]['name'] = nameControllers[i].text;
+    }
+    widget.onMembersChanged(
+        members.map((m) => Map<String, String>.from(m)).toList());
+    Navigator.of(context).pop();
   }
 
   @override
@@ -61,6 +110,10 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
           shrinkWrap: true,
           itemCount: members.length,
           itemBuilder: (context, index) {
+            // Defensive: check bounds
+            if (index >= nameControllers.length) {
+              return const SizedBox.shrink();
+            }
             return Row(
               children: [
                 Expanded(
@@ -75,9 +128,8 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                             color: getThemeProvider(context).isDarkMode
                                 ? kWhite
                                 : kDarkGrey)),
-                    onChanged: (val) => members[index]['name'] = val,
-                    controller:
-                        TextEditingController(text: capitalizeFirstLetter(members[index]['name'] ?? '')),
+                    controller: nameControllers[index],
+                    onChanged: (val) {}, // No-op, update on Done
                     keyboardType: TextInputType.name,
                   ),
                 ),
@@ -125,9 +177,7 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                       color: Colors.red, size: getPercentageWidth(5, context)),
                   onPressed: members.length > 1
                       ? () {
-                          setState(() {
-                            members.removeAt(index);
-                          });
+                          _removeMember(index);
                         }
                       : null,
                 ),
@@ -139,26 +189,21 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
       actions: [
         TextButton(
           onPressed: () {
-            setState(() {
-              members.add({
-                'name': '',
-                'ageGroup': ageGroups[0],
-                'fitnessGoal': 'Family Nutrition',
-                'foodGoal': _getCaloriesForAgeGroup(ageGroups[0]),
-              });
-            });
+            Navigator.of(context).pop();
           },
-          child: Text('Add Member',
+          child: Text('Cancel',
               style: TextStyle(
                   color: getThemeProvider(context).isDarkMode
                       ? kWhite
                       : kDarkGrey)),
         ),
         TextButton(
-          onPressed: () {
-            widget.onMembersChanged(members);
-            Navigator.of(context).pop();
-          },
+          onPressed: _addMember,
+          child:
+              const Text('Add Member', style: TextStyle(color: kAccentLight)),
+        ),
+        TextButton(
+          onPressed: _onDone,
           child: Text('Done', style: TextStyle(color: kAccent)),
         ),
       ],

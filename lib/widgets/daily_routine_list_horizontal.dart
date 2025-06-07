@@ -195,11 +195,11 @@ class DailyRoutineListHorizontal extends StatelessWidget {
         );
       }
       return Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           color:
               isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),

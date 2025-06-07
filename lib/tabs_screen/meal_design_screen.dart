@@ -298,7 +298,18 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
-                    meal: meal, mealType: mealType, familyMember: mealMember));
+                    meal: meal,
+                    mealType: mealType,
+                    familyMember: mealMember.toLowerCase()));
+              }
+            } else {
+              final mealId = item;
+              final meal = await mealManager.getMealbyMealID(mealId);
+              if (meal != null) {
+                mealWithTypes.add(MealWithType(
+                    meal: meal,
+                    mealType: 'breakfast',
+                    familyMember: userService.currentUser?.displayName ?? ''));
               }
             }
           }
@@ -1101,7 +1112,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
     }
     return SizedBox(
-      height: getPercentageHeight(25, context),
+      height: MediaQuery.of(context).size.height > 700
+          ? getPercentageHeight(20, context)
+          : getPercentageHeight(25, context),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -1194,31 +1207,37 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     ),
                   ),
                   Positioned(
-                    top: 0,
-                    left: 0,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(
-                        getMealTypeIcon(mealType),
-                        color: kAccent,
-                        size: 24,
+                    top: -1,
+                    left: -1,
+                    child: GestureDetector(
+                      onTap: () {
+                        _updateMealType(
+                            meal.mealId, mealType, mealWithType.familyMember, isDarkMode);
+                      },
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          getMealTypeIcon(mealType),
+                          color: kAccent,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ),
                   Positioned(
                     top: 0,
-                    right: -8,
+                    right: -11,
                     child: IconButton(
                       icon: const Icon(Icons.close, size: 25, color: kAccent),
                       tooltip: 'Remove from meal plan',
@@ -1251,7 +1270,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           await docRef.update({
                             'meals': FieldValue.arrayRemove([mealToRemove])
                           });
-                          
+
                           // Refresh meal plans after removing
                           if (!mounted) return;
                           setState(() {
@@ -1269,6 +1288,68 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         },
       ),
     );
+  }
+
+  Future<String?> showMealTypePicker(BuildContext context, bool isDarkMode) async {
+    return await showModalBottomSheet<String>(
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Select Meal Type',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 16),
+              ...[
+                {'label': 'Breakfast', 'icon': Icons.emoji_food_beverage},
+                {'label': 'Lunch', 'icon': Icons.lunch_dining},
+                {'label': 'Dinner', 'icon': Icons.dinner_dining},
+                {'label': 'Snacks', 'icon': Icons.fastfood},
+              ].map((item) => ListTile(
+                    leading: Icon(item['icon'] as IconData),
+                    title: Text(item['label'] as String),
+                    onTap: () => Navigator.pop(
+                        context, (item['label'] as String).toLowerCase()),
+                  )),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _updateMealType(
+      String mealId, String mealType, String familyMember, bool isDarkMode) async {
+    String mealToRemove = '';
+    if (mealType.isEmpty && familyMember.isEmpty) {
+      mealToRemove = '${mealId}';
+    } else if (mealType.isEmpty) {
+      mealToRemove = '${mealId}/${familyMember.toLowerCase()}';
+    } else if (familyMember.isEmpty) {
+      mealToRemove = '${mealId}/${mealType.toLowerCase()}';
+    } else {
+      mealToRemove =
+          '${mealId}/${mealType.toLowerCase()}/${familyMember.toLowerCase()}';
+    }
+    final result = await showMealTypePicker(context, isDarkMode);
+    if (result != null) {
+      final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+      final mealToAdd =
+          '${mealId}/${result.toLowerCase()}/${familyMember.toLowerCase()}';
+      mealManager.updateMealType(mealToRemove, mealToAdd, formattedDate);
+    }
+    _loadMealPlans();
   }
 
   void _selectDate(DateTime date) {
@@ -1781,7 +1862,7 @@ class SharedMealPlan {
 IconData getMealTypeIcon(String? type) {
   switch ((type ?? '').toLowerCase()) {
     case 'breakfast':
-      return Icons.free_breakfast;
+      return Icons.emoji_food_beverage;
     case 'lunch':
       return Icons.lunch_dining;
     case 'dinner':
