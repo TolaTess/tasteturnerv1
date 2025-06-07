@@ -449,10 +449,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userId: userService.userId!, date: currentDate),
                 if (!allDisabled)
                   SizedBox(height: getPercentageHeight(1, context)),
-                if (!allDisabled)
-                  Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                if (!allDisabled)
-                  SizedBox(height: getPercentageHeight(0.5, context)),
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   AnnouncementWidget(
@@ -550,7 +546,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: getPercentageHeight(50, context),
+                  height: getPercentageHeight(60, context),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {
@@ -567,8 +563,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 
-                Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                SizedBox(height: getPercentageHeight(0.8, context)),
 
                 // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),

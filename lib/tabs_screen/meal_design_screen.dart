@@ -9,12 +9,14 @@ import 'package:tasteturner/pages/safe_text_field.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
+import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../screens/friend_screen.dart';
 import '../service/tasty_popup_service.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
@@ -57,6 +59,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   final GlobalKey _toggleCalendarButtonKey = GlobalKey();
   final GlobalKey _sharedCalendarButtonKey = GlobalKey();
 
+  String selectedCategory = 'name';
+  String selectedCategoryId = '';
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +74,31 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (widget.initialTabIndex == 1) {
       _initializeBuddyData();
     }
+
+    if (familyMode) {
+      final currentUser = {
+        'name': userService.currentUser?.displayName ?? '',
+        'id': userService.currentUser?.userId,
+      };
+
+      final List<FamilyMember> familyMembers =
+          userService.currentUser?.familyMembers ?? [];
+      final List<Map<String, dynamic>> familyList = familyMembers
+          .map((f) => {
+                'name': f.name,
+                'id': '${f.name}_${f.ageGroup}'
+                    .toLowerCase()
+                    .replaceAll(' ', '_'),
+              })
+          .toList();
+
+      _categoryDatasIngredient = [currentUser, ...familyList];
+      if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+        selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
+        selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
+      }
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showMealDesignTutorial();
     });
@@ -263,9 +294,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               final parts = item.split('/');
               final mealId = parts[0];
               final mealType = parts.length > 1 ? parts[1] : '';
+              final mealMember = parts.length > 2 ? parts[2] : '';
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
-                mealWithTypes.add(MealWithType(meal: meal, mealType: mealType));
+                mealWithTypes.add(MealWithType(
+                    meal: meal, mealType: mealType, familyMember: mealMember));
               }
             }
           }
@@ -940,6 +973,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
+  void _updateCategoryData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryId = categoryId;
+      selectedCategory = category;
+    });
+  }
+
   Widget _buildMealsList() {
     final normalizedSelectedDate = DateTime(
       selectedDate.year,
@@ -951,17 +992,36 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         specialMealDays[normalizedSelectedDate] ?? false;
 
     // Fallback to personal calendar logic
-    final personalMeals = mealPlans[normalizedSelectedDate] ?? [];
+    List<MealWithType> personalMeals = [];
+
+    if (familyMode) {
+      personalMeals = updateMealForFamily(
+          mealPlans[normalizedSelectedDate] ?? [], selectedCategory);
+    } else {
+      personalMeals = mealPlans[normalizedSelectedDate] ?? [];
+    }
+
     final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
     final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
     final birthdayNames = birthdays[normalizedSelectedDate] ?? <String>[];
 
     final birthdayName = birthdayNames.isEmpty ? '' : birthdayNames.join(', &');
 
-    false;
     if (!hasMeal && !isPersonalSpecialDay && sharedPlans.isEmpty) {
       return Column(
         children: [
+          SizedBox(
+            height: getPercentageHeight(2, context),
+          ),
+          if (familyMode)
+            CategorySelector(
+              categories: _categoryDatasIngredient,
+              selectedCategoryId: selectedCategoryId,
+              onCategorySelected: _updateCategoryData,
+              isDarkMode: isDarkMode,
+              accentColor: kAccentLight,
+              darkModeAccentColor: kDarkModeAccent,
+            ),
           _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode),
         ],
       );
@@ -971,6 +1031,18 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        SizedBox(
+          height: getPercentageHeight(2, context),
+        ),
+        if (familyMode)
+          CategorySelector(
+            categories: _categoryDatasIngredient,
+            selectedCategoryId: selectedCategoryId,
+            onCategorySelected: _updateCategoryData,
+            isDarkMode: isDarkMode,
+            accentColor: kAccentLight,
+            darkModeAccentColor: kDarkModeAccent,
+          ),
         _buildDateHeader(
             normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
         _buildMealsRow(personalMeals, birthdayName, isDarkMode),
@@ -1029,7 +1101,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
     }
     return SizedBox(
-      height: 150,
+      height: getPercentageHeight(25, context),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
@@ -1039,7 +1111,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           final meal = mealWithType.meal;
           final mealType = mealWithType.mealType;
           return Container(
-            width: 130,
+            width: getPercentageWidth(30, context),
             margin: const EdgeInsets.only(right: 16),
             child: Card(
               color: kAccentLight,
@@ -1156,24 +1228,37 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             DateFormat('yyyy-MM-dd').format(selectedDate);
                         final userId = userService.userId;
                         if (userId == null) return;
-                        final docRef = firestore
-                            .collection('mealPlans')
-                            .doc(userId)
-                            .collection('date')
-                            .doc(formattedDate);
+
+                        final docRef = showSharedCalendars
+                            ? firestore
+                                .collection('shared_calendars')
+                                .doc(selectedSharedCalendarId)
+                                .collection('date')
+                                .doc(formattedDate)
+                            : firestore
+                                .collection('mealPlans')
+                                .doc(userId)
+                                .collection('date')
+                                .doc(formattedDate);
+
                         final doc = await docRef.get();
                         if (doc.exists) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          final mealsField = data['meals'];
-                          if (mealsField is Map<String, dynamic>) {
-                            mealsField.remove(meal.mealId);
-                            await docRef.update({'meals': mealsField});
+                          String mealToRemove = meal.mealId;
+                          if (familyMode && selectedCategory.isNotEmpty) {
+                            mealToRemove =
+                                '${meal.mealId}/${mealType.toLowerCase()}/${selectedCategory.toLowerCase()}';
                           }
+                          await docRef.update({
+                            'meals': FieldValue.arrayRemove([mealToRemove])
+                          });
+                          
+                          // Refresh meal plans after removing
+                          if (!mounted) return;
+                          setState(() {
+                            meals.removeAt(index);
+                          });
+                          _loadMealPlans(); // Reload all meal plans
                         }
-                        if (!mounted) return;
-                        setState(() {
-                          meals.removeAt(index);
-                        });
                       },
                     ),
                   ),
@@ -1392,17 +1477,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           context,
           MaterialPageRoute(
             builder: (context) => RecipeListCategory(
-              index: 0,
-              searchIngredient: '',
-              isMealplan: true,
-              mealPlanDate: formattedDate,
-              isSpecial: dayType != 'regular_day',
-              screen: 'ingredient',
-              isSharedCalendar: showSharedCalendars,
-              sharedCalendarId:
-                  showSharedCalendars ? selectedSharedCalendarId : null,
-              isFamilyMode: familyMode
-            ),
+                index: 0,
+                searchIngredient: '',
+                isMealplan: true,
+                mealPlanDate: formattedDate,
+                isSpecial: dayType != 'regular_day',
+                screen: 'ingredient',
+                isSharedCalendar: showSharedCalendars,
+                sharedCalendarId:
+                    showSharedCalendars ? selectedSharedCalendarId : null,
+                familyMember: selectedCategory.toLowerCase(),
+                isFamilyMode: familyMode),
           ),
         ).then((_) {
           // Refresh meal plans after adding new meals
@@ -1427,13 +1512,31 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             if (_isUserBirthday(date)) ...[
               getBirthdayTextContainer('You', false, context),
             ],
-            if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
-              Icon(
-                Icons.restaurant,
-                size: 48,
-                color: isDarkMode ? Colors.white24 : Colors.black26,
-              ),
-            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!date.isBefore(
+                    DateTime.now().subtract(const Duration(days: 1)))) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () =>
+                        _addMealPlan(context, isDarkMode, false, ''),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Meal'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: kAccent,
+                    ),
+                  ),
+                ],
+                if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
+                  Icon(
+                    Icons.restaurant,
+                    size: 48,
+                    color: isDarkMode ? Colors.white24 : Colors.black26,
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 16),
             Text(
               getRelativeDayString(selectedDate) == 'Today' ||
@@ -1445,17 +1548,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 fontSize: 16,
               ),
             ),
-            if (!date.isBefore(DateTime.now().subtract(const Duration(days: 1)))) ...[
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () => _addMealPlan(context, isDarkMode, false, ''),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Meal'),
-                style: TextButton.styleFrom(
-                  foregroundColor: kAccent,
-                ),
-              ),
-            ],
           ],
         ),
       ),

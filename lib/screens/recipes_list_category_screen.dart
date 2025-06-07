@@ -22,6 +22,7 @@ class RecipeListCategory extends StatefulWidget {
   final String? sharedCalendarId;
   final bool isBack;
   final bool isFamilyMode;
+  final String? familyMember;
 
   const RecipeListCategory({
     Key? key,
@@ -36,6 +37,7 @@ class RecipeListCategory extends StatefulWidget {
     this.sharedCalendarId,
     this.isBack = false,
     this.isFamilyMode = false,
+    this.familyMember = '',
   }) : super(key: key);
 
   @override
@@ -121,8 +123,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       // Check if the document exists
       final docSnapshot = await docRef.get();
 
-      if(widget.isFamilyMode){
-        
+      if (widget.isFamilyMode && widget.familyMember != null) {
+        // Append family member to each meal ID for family mode
+        selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${widget.familyMember}').toList();
       }
 
       if (docSnapshot.exists) {
