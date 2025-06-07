@@ -61,22 +61,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
 
   Future<void> loadMeals() async {
     final formattedDate = DateFormat('yyyy-MM-dd').format(widget.currentDate);
-    QuerySnapshot snapshot;
-    if (widget.familyMode) {
-      snapshot = await firestore
-          .collection('shared_calendars')
-          .doc(userService.userId)
-          .collection('date')
-          .where('date', isEqualTo: formattedDate)
-          .get();
-    } else {
-      snapshot = await firestore
-          .collection('mealPlans')
-          .doc(userService.userId)
-          .collection('date')
-          .where('date', isEqualTo: formattedDate)
-          .get();
-    }
+    QuerySnapshot snapshot = await firestore
+        .collection('mealPlans')
+        .doc(userService.userId)
+        .collection('date')
+        .where('date', isEqualTo: formattedDate)
+        .get();
 
     List<MealWithType> mealWithTypes = [];
 
@@ -111,6 +101,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
         mealPlan = mealPlan;
       });
     }
+    await firebaseService.fetchGeneralData();
   }
 
   @override
@@ -157,6 +148,11 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
     await showDialog(
       context: context,
       builder: (context) {
+        final List<String> goalOptions = (helperController.kidsCategory ?? [])
+            .map<String>((e) => (e['name'] as String? ?? '').trim())
+            .where((e) => e.isNotEmpty)
+            .toSet()
+            .toList();
         return AlertDialog(
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           shape:
@@ -179,17 +175,41 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                             ? kWhite.withOpacity(0.5)
                             : kDarkGrey.withOpacity(0.5))),
               ),
-              TextField(
-                controller: goalController,
-                style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                decoration: InputDecoration(
-                  labelText: 'Goal',
-                  labelStyle: TextStyle(
-                      color: isDarkMode
-                          ? kWhite.withOpacity(0.5)
-                          : kDarkGrey.withOpacity(0.5)),
-                ),
-              ),
+              goalOptions.isNotEmpty
+                  ? DropdownButtonFormField<String>(
+                      value: goalOptions.contains(goalController.text.trim())
+                          ? goalController.text.trim()
+                          : null,
+                      items: goalOptions
+                          .map((goal) => DropdownMenuItem(
+                                value: goal,
+                                child: Text(goal),
+                              ))
+                          .toList(),
+                      onChanged: (val) {
+                        goalController.text = val ?? '';
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Goal',
+                        labelStyle: TextStyle(
+                            color: isDarkMode
+                                ? kWhite.withOpacity(0.5)
+                                : kDarkGrey.withOpacity(0.5)),
+                      ),
+                      dropdownColor: isDarkMode ? kDarkGrey : kWhite,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                    )
+                  : TextField(
+                      controller: goalController,
+                      style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                      decoration: InputDecoration(
+                        labelText: 'Goal',
+                        labelStyle: TextStyle(
+                            color: isDarkMode
+                                ? kWhite.withOpacity(0.5)
+                                : kDarkGrey.withOpacity(0.5)),
+                      ),
+                    ),
               TextField(
                 controller: calorieController,
                 style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -398,8 +418,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                               onTap: () => familyMode
                                   ? user['name'] ==
                                           userService.currentUser?.displayName
-                                      ? Get.to(
-                                          () => const ProfileEditScreen())
+                                      ? Get.to(() => const ProfileEditScreen())
                                       : _showEditModal(user, isDarkMode)
                                   : Get.to(() => const NutritionSettingsPage()),
                               child: Container(
@@ -520,17 +539,41 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                       SizedBox(height: getPercentageHeight(1, context)),
                       // Meal ListView (unchanged, but with glassy card effect)
                       if (meals.isEmpty)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            child: Text(
-                              user['name'] ==
-                                      userService.currentUser?.displayName
-                                  ? 'No meal plan yet'
-                                  : 'No meal plan for ${capitalizeFirstLetter(user['name'] ?? '')} yet',
-                              style: TextStyle(
-                                color: isDarkMode ? kWhite : kDarkGrey,
-                                fontSize: getPercentageWidth(4, context),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const BottomNavSec(selectedIndex: 4),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(1, context),
+                                  vertical: getPercentageHeight(1, context)),
+                              decoration: BoxDecoration(
+                                color: kAccent.withOpacity(0.13),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical:
+                                          getPercentageHeight(1, context)),
+                                  child: Text(
+                                    user['name'] ==
+                                            userService.currentUser?.displayName
+                                        ? 'Add a meal plan'
+                                        : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
+                                    style: TextStyle(
+                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                      fontSize: getPercentageWidth(4, context),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -543,16 +586,20 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                           children: [
                             GestureDetector(
                               onTap: () {
-                                Navigator.of(context).push(MaterialPageRoute(
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
                                     builder: (_) =>
-                                        const BottomNavSec(selectedIndex: 4)));
+                                        const BottomNavSec(selectedIndex: 4),
+                                  ),
+                                );
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: getDayTypeColor(
-                                          mealPlan['dayType'].replaceAll('_', ' '),
+                                          mealPlan['dayType']
+                                              .replaceAll('_', ' '),
                                           isDarkMode)
                                       .withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
@@ -569,11 +616,13 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                 .replaceAll('_', ' '),
                                             isDarkMode),
                                       ),
-                                    if (meals.isNotEmpty) const SizedBox(width: 4),
+                                    if (meals.isNotEmpty)
+                                      const SizedBox(width: 4),
                                     if (meals.isNotEmpty)
                                       Text(
-                                        capitalizeFirstLetter(mealPlan['dayType']
-                                            .replaceAll('_', ' ')),
+                                        capitalizeFirstLetter(
+                                            mealPlan['dayType']
+                                                .replaceAll('_', ' ')),
                                         style: TextStyle(
                                           color: getDayTypeColor(
                                               mealPlan['dayType']

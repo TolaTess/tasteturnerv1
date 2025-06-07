@@ -77,8 +77,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     if (familyMode) {
       final currentUser = {
-        'name': userService.currentUser?.displayName ?? '',
-        'id': userService.currentUser?.userId,
+        'name': userService.currentUser?.displayName ?? 'Me',
+        'id': userService.currentUser?.userId ?? 'me',
       };
 
       final List<FamilyMember> familyMembers =
@@ -300,7 +300,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 mealWithTypes.add(MealWithType(
                     meal: meal,
                     mealType: mealType,
-                    familyMember: mealMember.toLowerCase()));
+                    familyMember: mealMember.toLowerCase(),
+                    fullMealId: item));
               }
             } else {
               final mealId = item;
@@ -308,8 +309,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
                     meal: meal,
-                    mealType: 'breakfast',
-                    familyMember: userService.currentUser?.displayName ?? ''));
+                    mealType: 'default',
+                    familyMember: userService.currentUser?.displayName ?? '',
+                    fullMealId: mealId));
               }
             }
           }
@@ -1211,8 +1213,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     left: -1,
                     child: GestureDetector(
                       onTap: () {
-                        _updateMealType(
-                            meal.mealId, mealType, mealWithType.familyMember, isDarkMode);
+                        _updateMealType(mealWithType.fullMealId, meal.mealId,
+                            mealType, mealWithType.familyMember, isDarkMode);
                       },
                       child: Container(
                         decoration: const BoxDecoration(
@@ -1290,7 +1292,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  Future<String?> showMealTypePicker(BuildContext context, bool isDarkMode) async {
+  Future<String?> showMealTypePicker(
+      BuildContext context, bool isDarkMode) async {
     return await showModalBottomSheet<String>(
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
       context: context,
@@ -1303,8 +1306,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Select Meal Type',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Text('Select Meal Type',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: isDarkMode ? kWhite : kBlack)),
               const SizedBox(height: 16),
               ...[
                 {'label': 'Breakfast', 'icon': Icons.emoji_food_beverage},
@@ -1312,15 +1318,21 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 {'label': 'Dinner', 'icon': Icons.dinner_dining},
                 {'label': 'Snacks', 'icon': Icons.fastfood},
               ].map((item) => ListTile(
-                    leading: Icon(item['icon'] as IconData),
-                    title: Text(item['label'] as String),
+                    leading: Icon(item['icon'] as IconData,
+                        color: isDarkMode ? kWhite : kBlack),
+                    title: Text(item['label'] as String,
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
+                        )),
                     onTap: () => Navigator.pop(
                         context, (item['label'] as String).toLowerCase()),
                   )),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text('Cancel',
+                    style: TextStyle(
+                        color: isDarkMode ? kWhite : kBlack, fontSize: 16)),
               ),
             ],
           ),
@@ -1329,25 +1341,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
-  Future<void> _updateMealType(
-      String mealId, String mealType, String familyMember, bool isDarkMode) async {
-    String mealToRemove = '';
-    if (mealType.isEmpty && familyMember.isEmpty) {
-      mealToRemove = '${mealId}';
-    } else if (mealType.isEmpty) {
-      mealToRemove = '${mealId}/${familyMember.toLowerCase()}';
-    } else if (familyMember.isEmpty) {
-      mealToRemove = '${mealId}/${mealType.toLowerCase()}';
-    } else {
-      mealToRemove =
-          '${mealId}/${mealType.toLowerCase()}/${familyMember.toLowerCase()}';
-    }
+  Future<void> _updateMealType(String fullMealId, String mealId,
+      String mealType, String familyMember, bool isDarkMode) async {
     final result = await showMealTypePicker(context, isDarkMode);
     if (result != null) {
       final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
       final mealToAdd =
           '${mealId}/${result.toLowerCase()}/${familyMember.toLowerCase()}';
-      mealManager.updateMealType(mealToRemove, mealToAdd, formattedDate);
+      mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
     }
     _loadMealPlans();
   }
@@ -1602,32 +1603,41 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   TextButton.icon(
                     onPressed: () =>
                         _addMealPlan(context, isDarkMode, false, ''),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Meal'),
+                    icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
+                    label: Text('Add Meal',
+                        style: TextStyle(
+                            fontSize: getPercentageWidth(4, context),
+                            fontWeight: FontWeight.w400)),
                     style: TextButton.styleFrom(
                       foregroundColor: kAccent,
                     ),
                   ),
                 ],
-                if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
-                  Icon(
-                    Icons.restaurant,
-                    size: 48,
-                    color: isDarkMode ? Colors.white24 : Colors.black26,
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              getRelativeDayString(selectedDate) == 'Today' ||
-                      getRelativeDayString(selectedDate) == 'Tomorrow'
-                  ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
-                  : 'No meals planned for this day',
-              style: TextStyle(
-                color: isDarkMode ? Colors.white54 : Colors.black54,
-                fontSize: 16,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
+                  Icon(
+                    Icons.restaurant,
+                    size: getPercentageWidth(6, context),
+                    color: isDarkMode ? Colors.white24 : Colors.black26,
+                  ),
+                ],
+                SizedBox(width: getPercentageWidth(1.5, context)),
+                Text(
+                  getRelativeDayString(selectedDate) == 'Today' ||
+                          getRelativeDayString(selectedDate) == 'Tomorrow'
+                      ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                      : 'No meals planned for this day',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white54 : Colors.black54,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1867,9 +1877,9 @@ IconData getMealTypeIcon(String? type) {
       return Icons.lunch_dining;
     case 'dinner':
       return Icons.dinner_dining;
-    case 'snack':
+    case 'snacks':
       return Icons.fastfood;
     default:
-      return Icons.restaurant_menu;
+      return Icons.question_mark;
   }
 }

@@ -57,7 +57,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     super.initState();
     _onRefresh();
     _searchController.text = widget.searchIngredient;
-    _categoryDatasIngredient = [...helperController.category];
+    if (userService.currentUser?.familyMode ?? false) {
+      _categoryDatasIngredient = [...helperController.kidsCategory];
+    } else {
+      _categoryDatasIngredient = [...helperController.category];
+    }
 
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';

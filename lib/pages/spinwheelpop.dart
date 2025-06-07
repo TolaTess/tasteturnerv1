@@ -49,8 +49,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   bool showIngredientSpin = true; // New state to toggle between modes
   bool _funMode = false;
   late List<Map<String, dynamic>> _categoryDatasIngredient;
+  List<Map<String, dynamic>> _categoryDatasIngredientDiet = [];
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
+  bool showDietCategories = false;
 
   @override
   void initState() {
@@ -67,6 +69,11 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Set default for ingredient category
     _categoryDatasIngredient = [...helperController.macros];
+    if (userService.currentUser?.familyMode ?? false) {
+      _categoryDatasIngredientDiet = [...helperController.kidsCategory];
+    } else {
+      _categoryDatasIngredientDiet = [...helperController.category];
+    }
     final customCategory = {
       'id': 'custom',
       'name': 'Custom',
@@ -311,6 +318,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   Widget build(BuildContext context) {
     final categoryDatasMeal = helperController.headers;
     final categoryDatasIngredient = _categoryDatasIngredient;
+    final categoryDatasIngredientDiet = _categoryDatasIngredientDiet;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
@@ -358,8 +366,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 ),
                 Expanded(
                   child: showIngredientSpin
-                      ? _buildIngredientSpinView(
-                          isDarkMode, categoryDatasIngredient)
+                      ? _buildIngredientSpinView(isDarkMode,
+                          categoryDatasIngredient, categoryDatasIngredientDiet)
                       : _buildMealSpinView(isDarkMode, categoryDatasMeal),
                 ),
               ],
@@ -371,19 +379,44 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   }
 
   Widget _buildIngredientSpinView(
-      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
+      bool isDarkMode,
+      List<Map<String, dynamic>> categoryDatas,
+      List<Map<String, dynamic>> categoryDatasIngredientDiet) {
     return Column(
       children: [
         SizedBox(height: getPercentageHeight(2, context)),
         //category options
-        CategorySelector(
-          categories: categoryDatas,
-          selectedCategoryId: selectedCategoryIdIngredient,
-          onCategorySelected: _updateCategoryIngredientData,
-          isDarkMode: isDarkMode,
-          accentColor: kAccentLight,
-          darkModeAccentColor: kDarkModeAccent,
-          isFunMode: false, // No longer needed
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: IconButton(
+                icon: Icon(
+                    showDietCategories ? Icons.fastfood : Icons.food_bank,
+                    size: getPercentageWidth(6, context),
+                    color: showDietCategories ? kAccent : isDarkMode ? kWhite : kDarkGrey),
+                onPressed: () {
+                  setState(() {
+                    showDietCategories = !showDietCategories;
+                  });
+                },
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: CategorySelector(
+                categories: showDietCategories
+                    ? categoryDatasIngredientDiet
+                    : categoryDatas,
+                selectedCategoryId: selectedCategoryIdIngredient,
+                onCategorySelected: _updateCategoryIngredientData,
+                isDarkMode: isDarkMode,
+                accentColor: kAccentLight,
+                darkModeAccentColor: kDarkModeAccent,
+                isFunMode: false, // No longer needed
+              ),
+            ),
+          ],
         ),
         _ingredientList.isEmpty
             ? SizedBox(height: getPercentageHeight(3.5, context))

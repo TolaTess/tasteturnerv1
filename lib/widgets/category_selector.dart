@@ -32,7 +32,11 @@ class CategorySelector extends StatelessWidget {
         itemBuilder: (context, index) {
           final category = categories[index];
           return GestureDetector(
-            onTap: () => onCategorySelected(category['id'], category['name']),
+            onTap: () {
+              if (category['id'] != null && category['name'] != null) {
+                onCategorySelected(category['id'], category['name']);
+              }
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               margin: const EdgeInsets.only(right: 12),

@@ -113,14 +113,19 @@ class MealWithType {
   final Meal meal;
   final String mealType;
   final String familyMember;
+  final String fullMealId;
   MealWithType(
-      {required this.meal, required this.mealType, this.familyMember = ''});
+      {required this.meal,
+      required this.mealType,
+      this.familyMember = '',
+      this.fullMealId = ''});
 
   factory MealWithType.fromMap(Map<String, dynamic> data) {
     return MealWithType(
       meal: Meal.fromJson(data['mealId'], data['meal']),
       mealType: data['mealType'],
       familyMember: data['name'],
+      fullMealId: data['fullMealId'],
     );
   }
 }

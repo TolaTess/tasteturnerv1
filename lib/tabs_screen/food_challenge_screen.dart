@@ -24,34 +24,15 @@ class FoodChallengeScreen extends StatefulWidget {
 }
 
 class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
-  String selectedCategory = 'all';
-  String selectedCategoryId = '';
   List<Map<String, dynamic>> battleList = [];
   Timer? _tastyPopupTimer;
   final GlobalKey _addJoinButtonKey = GlobalKey();
   final GlobalKey _addInspirationButtonKey = GlobalKey();
   bool showBattle = false;
-  List<Map<String, dynamic>> _categoryDatasIngredient = [];
   @override
   void initState() {
     super.initState();
     _setupDataListeners();
-
-    String familyMode =
-        userService.currentUser?.settings['familyMode'] ?? 'false';
-
-    _categoryDatasIngredient = [...helperController.category];
-
-    if (familyMode == 'true') {
-      // Get all kids categories and add them at index 1
-      final kidsCategories = [...helperController.kidsCategory];
-      _categoryDatasIngredient.insertAll(1, kidsCategories);
-    }
-
-    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
-    }
     // Show Tasty popup after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -103,14 +84,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   void dispose() {
     _tastyPopupTimer?.cancel();
     super.dispose();
-  }
-
-  void _updateCategoryData(String categoryId, String category) {
-    if (!mounted) return;
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedCategory = category;
-    });
   }
 
   Future<void> _updateIngredientList() async {
@@ -344,7 +317,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                               isDarkMode:
                                                                   isDarkMode,
                                                               category:
-                                                                  selectedCategory),
+                                                                  'general'),
                                                     ),
                                                   );
                                                 }
@@ -513,7 +486,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                   await macroManager.joinBattle(
                                                     userId,
                                                     battleId,
-                                                    selectedCategory,
+                                                    'general',
                                                     user!.displayName ?? '',
                                                     '',
                                                   );
@@ -564,24 +537,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 // ------------------------------------Premium / Ads-------------------------------------
                 userService.currentUser?.isPremium ?? false
                     ? SizedBox(
-                        height: getPercentageHeight(1.5, context),
+                        height: getPercentageHeight(0.5, context),
                       )
                     : SizedBox(
-                        height: getPercentageHeight(2.5, context),
+                        height: getPercentageHeight(1.5, context),
                       ),
 
-                //category options
-                CategorySelector(
-                  categories: _categoryDatasIngredient,
-                  selectedCategoryId: selectedCategoryId,
-                  onCategorySelected: _updateCategoryData,
-                  isDarkMode: isDarkMode,
-                  accentColor: kAccentLight,
-                  darkModeAccentColor: kDarkModeAccent,
-                ),
-                SizedBox(
-                  height: getPercentageHeight(1.5, context),
-                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 15.0, right: 5.0),
                   child: Row(
@@ -621,12 +582,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ),
 
                 //food challenge
-                Padding(
+                const Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 5.0),
                   child: SearchContentGrid(
                     screenLength: 12,
                     listType: 'battle_post',
-                    selectedCategory: selectedCategory,
+                    selectedCategory: 'general',
                   ),
                 ),
 
@@ -684,7 +645,7 @@ class DetailItem extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 8,
           ),
           Padding(

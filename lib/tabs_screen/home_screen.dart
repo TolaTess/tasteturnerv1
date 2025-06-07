@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   final ValueNotifier<double> currentNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
-  bool familyMode = userService.currentUser?.settings['familyMode'] == 'true';
+  bool familyMode = userService.currentUser?.familyMode ?? false;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -102,24 +102,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     userService.currentUser?.settings.forEach((key, value) {
       settings[key.toString()] = value.toString();
     });
-    
+
     await dailyDataController.fetchAllMealData(
-        userService.userId!,
-        settings,
-        DateTime.now());
+        userService.userId!, settings, DateTime.now());
     await firebaseService.fetchGeneralData();
   }
 
   void _initializeMealDataByDate() async {
     Map<String, String> settings = {};
     userService.currentUser?.settings.forEach((key, value) {
-      settings[key.toString()] = value.toString(); 
+      settings[key.toString()] = value.toString();
     });
 
     await dailyDataController.fetchAllMealDataByDate(
-        userService.userId!,
-        settings,
-        currentDate);
+        userService.userId!, settings, currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -202,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       );
     }
-
+    
     final inspiration = currentUser.bio ?? getRandomBio(bios);
     final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
 
@@ -546,7 +542,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: MediaQuery.of(context).size.height > 700 ? getPercentageHeight(51.5, context) : getPercentageHeight(57, context),
+                  height: MediaQuery.of(context).size.height > 700
+                      ? (familyMode
+                          ? getPercentageHeight(51.5, context)
+                          : getPercentageHeight(43.5, context))
+                      : (familyMode
+                          ? getPercentageHeight(57, context)
+                          : getPercentageHeight(49, context)),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {
@@ -562,7 +564,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                
 
                 // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),

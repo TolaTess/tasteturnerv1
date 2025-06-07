@@ -36,17 +36,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   bool isUploading = false;
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
-  String selectedCategory = 'all';
-  String selectedCategoryId = '';
-  List<Map<String, dynamic>> categoryDatas = [];
-
-  void _updateCategoryData(String categoryId, String category) {
-    if (!mounted) return;
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedCategory = category;
-    });
-  }
 
   Future<String> _compressAndResizeBattleImage(String imagePath) async {
     // Read the image file
@@ -96,22 +85,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   void initState() {
     super.initState();
-
-    String familyMode =
-        userService.currentUser?.settings['familyMode'] ?? 'false';
-
-    categoryDatas = [...helperController.category];
-
-    if (familyMode == 'true') {
-      // Get all kids categories and add them at index 1
-      final kidsCategories = [...helperController.kidsCategory];
-      categoryDatas.insertAll(1, kidsCategories);
-    }
-
-    if (categoryDatas.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = categoryDatas[0]['id'] ?? '';
-      selectedCategory = categoryDatas[0]['name'] ?? '';
-    }
     _loadGalleryImages();
   }
 
@@ -187,7 +160,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         userId: userService.userId ?? '',
         mediaPaths: uploadedImageUrls,
         name: userService.currentUser?.displayName ?? '',
-        category: widget.isMainPost ? selectedCategory : widget.battleCategory,
+        category: widget.isMainPost ? 'general' : widget.battleCategory,
         isBattle: widget.isMainPost ? false : true,
         battleId: widget.isMainPost ? '' : widget.battleId,
       );
@@ -243,57 +216,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            //category options
-            if (widget.isMainPost)
-              CategorySelector(
-                categories: categoryDatas,
-                selectedCategoryId: selectedCategoryId,
-                onCategorySelected: _updateCategoryData,
-                isDarkMode: isDarkMode,
-                accentColor: kAccentLight,
-                darkModeAccentColor: kDarkModeAccent,
-              ),
-            const SizedBox(height: 20),
-            _recentImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Image.file(
-                      File(_recentImage!.path),
-                      height: 250,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    child: const Center(child: Text("No Image Selected")),
-                  ),
-
-            // Show selected images grid under the recent image
-            if (_selectedImages.length > 1)
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _selectedImages.length,
-                  itemBuilder: (context, index) {
-                    final image = _selectedImages[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Image.file(
-                        File(image.path),
-                        height: 100,
-                        width: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -340,8 +262,48 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 ),
               ],
             ),
+            SizedBox(height: getPercentageHeight(1, context)),
+            _recentImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.file(
+                      File(_recentImage!.path),
+                      height: 250,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Center(child: Text("No Image Selected")),
+                  ),
 
-            const SizedBox(height: 20),
+            // Show selected images grid under the recent image
+            if (_selectedImages.length > 1)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedImages.length,
+                  itemBuilder: (context, index) {
+                    final image = _selectedImages[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Image.file(
+                        File(image.path),
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            SizedBox(height: getPercentageHeight(3, context)),
             ElevatedButton(
               onPressed: isUploading ? null : _uploadImage,
               style: ElevatedButton.styleFrom(
