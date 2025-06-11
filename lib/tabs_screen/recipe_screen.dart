@@ -35,9 +35,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
-  Map<String, dynamic>? _dietGoalData;
   bool _isLoadingDietGoal = false;
-  DateTime? _lastFetchDate;
   List<MacroData> _recommendedIngredients = [];
   Meal? _featuredMeal;
   DateTime? _lastPickDate;
@@ -449,7 +447,7 @@ class MealsCard extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1, context)),
         // Image + Shade
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -502,12 +500,12 @@ class MealsCard extends StatelessWidget {
                 style: TextStyle(
                   color: kWhite,
                   fontWeight: FontWeight.w600,
-                  fontSize: getPercentageWidth(4.5, context),
-                  shadows: const [
+                  fontSize: getPercentageWidth(4, context),
+                  shadows: [
                     Shadow(
-                      blurRadius: 15.0,
+                      blurRadius: getPercentageWidth(1.5, context),
                       color: kBlack,
-                      offset: Offset(3.0, 3.0),
+                      offset: Offset(getPercentageWidth(0.3, context), getPercentageWidth(0.3, context)),
                     ),
                   ],
                 ),
@@ -523,12 +521,12 @@ class MealsCard extends StatelessWidget {
                       : dataSrc.subtitle,
               style: TextStyle(
                 color: kWhite,
-                fontSize: getPercentageWidth(3.5, context),
-                shadows: const [
+                fontSize: getPercentageWidth(3, context),
+                shadows: [
                   Shadow(
-                    blurRadius: 15.0,
+                    blurRadius: getPercentageWidth(1.5, context),
                     color: kBlack,
-                    offset: Offset(3.0, 3.0),
+                    offset: Offset(getPercentageWidth(0.3, context), getPercentageWidth(0.3, context)),
                   ),
                 ],
               ),

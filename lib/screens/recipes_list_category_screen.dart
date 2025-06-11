@@ -175,11 +175,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
                     // Home app bar
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.5, context)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -195,13 +195,13 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                     ));
                               }
                             },
-                            child: const IconCircleButton(),
+                            child: IconCircleButton(),
                           ),
 
-                          const Text(
+                          Text(
                             'Meals',
                             style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w700),
+                                fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w700),
                           ),
                           // Add new recipe button
                           InkWell(
@@ -275,14 +275,24 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         ),
       ),
       floatingActionButton: widget.isMealplan
-          ? FloatingActionButton(
+          ? MediaQuery.of(context).size.height > 1100
+              ? FloatingActionButton.large(
               onPressed: selectedMealIds.isNotEmpty
                   ? () => addMealsToMealPlan(
                       appendMealTypes(selectedMealIds), widget.mealPlanDate)
                   : null,
               backgroundColor:
                   selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
-              child: const Icon(Icons.save),
+              child: Icon(Icons.save, size: getPercentageWidth(6, context)),
+            )
+          : FloatingActionButton(
+              onPressed: selectedMealIds.isNotEmpty
+                  ? () => addMealsToMealPlan(
+                      appendMealTypes(selectedMealIds), widget.mealPlanDate)
+                  : null,
+              backgroundColor:
+                  selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
+              child: Icon(Icons.save, size: getPercentageWidth(6, context)),
             )
           : null,
     );

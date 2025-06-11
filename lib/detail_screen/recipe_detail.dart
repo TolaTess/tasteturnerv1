@@ -147,8 +147,9 @@ class SlvAppBar extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SliverAppBar(
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-      expandedHeight: 450,
-      // recipe image
+      expandedHeight: MediaQuery.of(context).size.height > 1100
+          ? getPercentageHeight(60, context)
+          : getPercentageHeight(45, context),
       flexibleSpace: FlexibleSpaceBar(
         background: (meal.mediaPaths.isNotEmpty &&
                 meal.mediaPaths != 'null' &&
@@ -170,7 +171,7 @@ class SlvAppBar extends StatelessWidget {
       //back button
       leading: Builder(builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.all(5.0),
+          padding: EdgeInsets.all(getPercentageWidth(0.5, context)),
           child: CircleAvatar(
             backgroundColor: isDarkMode
                 ? kDarkGrey.withOpacity(0.4)
@@ -451,21 +452,20 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                       Navigator.pop(context, false),
                                   child: Text('Cancel',
                                       style: TextStyle(
-                                          color:
-                                              getThemeProvider(context)
-                                                      .isDarkMode
+                                          color: getThemeProvider(context)
+                                                  .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize:
-                                              getPercentageWidth(3.5, context))),
+                                          fontSize: getPercentageWidth(
+                                              3.5, context))),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   child: Text('Delete',
                                       style: TextStyle(
                                           color: kRed,
-                                          fontSize:
-                                              getPercentageWidth(3.5, context))),
+                                          fontSize: getPercentageWidth(
+                                              3.5, context))),
                                 ),
                               ],
                             ),
@@ -687,10 +687,11 @@ class NutritionFacts extends StatelessWidget {
                   children: [
                     // Nutrition type (key)
                     Text(
-                      nutritionEntries[index].key, // Display key
+                      capitalizeFirstLetter(nutritionEntries[index].key), // Display key
                       style: TextStyle(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.bold,
+                        fontSize: getPercentageWidth(3, context),
                       ),
                     ),
                     // Quantity (value)
@@ -698,7 +699,8 @@ class NutritionFacts extends StatelessWidget {
                       nutritionEntries[index].value, // Display value
                       style: TextStyle(
                         color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w500,
+                        fontSize: getPercentageWidth(2.5, context),
                       ),
                     ),
                   ],
@@ -745,7 +747,7 @@ class IngredientsTittle extends StatelessWidget {
                     fontSize: getPercentageWidth(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
-            Text("${meal.ingredients.length} $items")
+            Text("${meal.ingredients.length} $items", style: TextStyle(fontSize: getPercentageWidth(2.5, context)))
           ],
         ),
       ),
@@ -802,7 +804,7 @@ class IngredientsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Padding(
-      padding: const EdgeInsets.only(right: 5),
+      padding: EdgeInsets.only(right: getPercentageWidth(0.5, context)),
       child: Container(
         decoration: BoxDecoration(
           color: isDarkMode ? kLightGrey : kWhite,
@@ -823,14 +825,14 @@ class IngredientsCard extends StatelessWidget {
               Text(
                 capitalizeFirstLetter(ingredientName),
                 style: TextStyle(
-                    fontSize: getPercentageWidth(3.5, context),
+                    fontSize: getPercentageWidth(3, context),
                     fontWeight: FontWeight.w700,
                     color: isDarkMode ? kWhite : kBlack),
               ),
               //ingredient quantity
               Text(ingredientQty,
                   style: TextStyle(
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getPercentageWidth(2.5, context),
                       fontWeight: FontWeight.w500,
                       color: isDarkMode ? kWhite : kBlack))
             ],
@@ -867,7 +869,7 @@ class DirectionsTittle extends StatelessWidget {
                     fontSize: getPercentageWidth(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
-            Text("${meal.steps.length} steps")
+            Text("${meal.steps.length} steps", style: TextStyle(fontSize: getPercentageWidth(2.5, context)))
           ],
         ),
       ),
@@ -936,13 +938,13 @@ class DirectionsCard extends StatelessWidget {
               'Step ${index + 1}',
               style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: getPercentageWidth(3.5, context),
+                  fontSize: getPercentageWidth(3, context),
                   color: isDarkMode ? kWhite : kBlack),
             ),
             //direction
             Text(
               direction,
-              style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              style: TextStyle(fontSize: getPercentageWidth(2.5, context)),
             )
           ],
         ),
