@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
+import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 
 //you can find all form widget here
@@ -29,15 +30,21 @@ class FirstNameField extends StatelessWidget {
         enabledBorder: underlineInputBorder(),
         focusedBorder: underlineInputBorder(),
         border: underlineInputBorder(),
-        labelStyle: const TextStyle(color: kLightGrey),
+        labelStyle: TextStyle(
+          color: kLightGrey,
+          fontSize: getPercentageWidth(3.5, context),
+        ),
         labelText: kHint,
         suffixIcon: Icon(
           Icons.person_outline,
           color: themeProvider ? kPrimaryColor : kBlack,
         ),
-        contentPadding: const EdgeInsets.symmetric(
+          contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
-          vertical: 4,
+          vertical: getPercentageHeight(0.5, context),
+        ),
+        hintStyle: TextStyle(
+          fontSize: getPercentageWidth(3.5, context),
         ),
       ),
     );
@@ -61,6 +68,7 @@ class EmailField extends StatelessWidget {
       controller: controller,
       style: TextStyle(
         color: themeProvider ? kWhite : kBlack,
+        fontSize: getPercentageWidth(3, context),
       ),
       decoration: InputDecoration(
         filled: true,
@@ -68,15 +76,22 @@ class EmailField extends StatelessWidget {
         enabledBorder: underlineInputBorder(),
         focusedBorder: underlineInputBorder(),
         border: underlineInputBorder(),
-        labelStyle: const TextStyle(color: kLightGrey),
+        labelStyle: TextStyle(
+          color: kLightGrey,
+          fontSize: getPercentageWidth(3.5, context),
+        ),
         labelText: kHint,
         suffixIcon: Icon(
           Icons.email_outlined,
           color: themeProvider ? kPrimaryColor : kBlack,
+          size: getPercentageWidth(4, context),
         ),
-        contentPadding: const EdgeInsets.symmetric(
+        contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
-          vertical: 4,
+          vertical: getPercentageHeight(0.5, context),
+        ),
+        hintStyle: TextStyle(
+          fontSize: getPercentageWidth(3.5, context),
         ),
       ),
     );
@@ -106,6 +121,7 @@ class _PasswordFieldState extends State<PasswordField> {
       controller: widget.controller,
       style: TextStyle(
         color: widget.themeProvider ? kWhite : kBlack,
+        fontSize: getPercentageWidth(3, context),
       ),
       obscureText: !_isTextVisible,
       keyboardType: TextInputType.emailAddress,
@@ -115,16 +131,23 @@ class _PasswordFieldState extends State<PasswordField> {
         enabledBorder: underlineInputBorder(),
         focusedBorder: underlineInputBorder(),
         border: underlineInputBorder(),
-        labelStyle: const TextStyle(color: kLightGrey),
+        labelStyle: TextStyle(
+          color: kLightGrey,
+          fontSize: getPercentageWidth(3.5, context),
+        ),
         labelText: widget.kHint,
-        contentPadding: const EdgeInsets.symmetric(
+        contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
-          vertical: 4,
+          vertical: getPercentageHeight(0.5, context),
+        ),
+        hintStyle: TextStyle(
+          fontSize: getPercentageWidth(3.5, context),
         ),
         suffixIcon: IconButton(
           icon: Icon(
             _isTextVisible ? Icons.visibility : Icons.visibility_off,
             color: widget.themeProvider ? kPrimaryColor : kBlack,
+            size: getPercentageWidth(4, context),
           ),
           onPressed: () {
             setState(() {

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:tasteturner/widgets/ingredient_features.dart';
 
@@ -254,7 +255,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           title: Text(
                             "Selected Option",
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.bold,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -262,7 +263,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           content: Text(
                             capitalizeFirstLetter(label),
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: getPercentageWidth(3.5, context),
                               color: isDarkMode ? kBlue : kAccent,
                             ),
                           ),
@@ -297,14 +298,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
               Positioned(
                 top: -5,
                 child: SizedBox(
-                  width: 28,
-                  height: 28,
+                  width: getPercentageWidth(6.5, context),
+                  height: getPercentageWidth(6.5, context),
                   child: Image.asset(
                     "assets/images/pointer.png",
-                    width: 83,
-                    height: 93,
-                    cacheWidth: 83,
-                    cacheHeight: 93,
+                    width: getPercentageWidth(10, context),
+                    height: getPercentageWidth(10, context),
+                    cacheWidth: getPercentageWidth(10, context).toInt(),
+                    cacheHeight: getPercentageWidth(10, context).toInt(),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -505,8 +506,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (snapshot.hasError) {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No items selected',
-                    style: TextStyle(fontSize: 12));
+                return Text('No meals selected',
+                    style: TextStyle(fontSize: getPercentageWidth(3, context)));
               } else {
                 final displayedItems = snapshot.data!;
                 return _buildContent(context, displayedItems, true);
@@ -524,9 +525,9 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (snapshot.hasError) {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text(
-                  'No items selected',
-                  style: TextStyle(fontSize: 12),
+                return Text(
+                  'No ingredients selected',
+                  style: TextStyle(fontSize: getPercentageWidth(3, context)),
                 );
               } else {
                 final displayedItems = snapshot.data!;
@@ -613,7 +614,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                     capitalizeFirstLetter(
                                         widget.acceptedItems[i]),
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(3.5, context),
+                                      fontSize:
+                                          getPercentageWidth(3.5, context),
                                       fontWeight: FontWeight.normal,
                                       color: kAccentLight,
                                     ),

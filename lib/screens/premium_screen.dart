@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 
 class PremiumScreen extends StatefulWidget {
@@ -378,7 +379,15 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text( isUserPremium ? 'Your Plan' : 'Go Premium'),
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const IconCircleButton(),
+        ),
+        title: Text(isUserPremium ? 'Your Plan' : 'Go Premium',
+          style: TextStyle(
+            fontSize: getPercentageWidth(3.5, context),
+          ),
+        ),
         centerTitle: true,
       ),
       body: isLoading

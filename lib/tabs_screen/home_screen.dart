@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -12,7 +13,6 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
-import '../widgets/icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
@@ -198,14 +198,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       );
     }
-    
     final inspiration = currentUser.bio ?? getRandomBio(bios);
     final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
 
     return Scaffold(
       drawer: const CustomDrawer(),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(75),
+        preferredSize: Size.fromHeight(getPercentageHeight(10, context)),
         child: Container(
           decoration: BoxDecoration(
             color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
@@ -214,8 +213,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                padding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(2, context),
+                    horizontal: getPercentageWidth(2, context)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           );
                         }),
-                        const SizedBox(width: 12),
+                        SizedBox(width: getPercentageWidth(2, context)),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -246,13 +246,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               '$greeting ${currentUser.displayName}!',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: getPercentageWidth(4.5, context),
+                                fontSize: currentUser.displayName?.length != null && currentUser.displayName!.length > 10
+                                    ? getPercentageWidth(4, context)
+                                    : getPercentageWidth(4.5, context),
                               ),
-                            ),
+                            ),  
                             Text(
                               inspiration,
                               style: TextStyle(
-                                fontSize: getPercentageWidth(3, context),
+                                fontSize: currentUser.displayName?.length != null && currentUser.displayName!.length > 15
+                                    ? getPercentageWidth(2.5, context)
+                                    : getPercentageWidth(3, context),
                                 fontWeight: FontWeight.w400,
                                 color: kLightGrey,
                                 overflow: TextOverflow.ellipsis,
@@ -260,6 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
+                        SizedBox(width: getPercentageWidth(2, context)),
                       ],
                     ),
                     // Message Section
@@ -274,16 +279,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                             );
                           },
-                          child: IconCircleButton(
-                            icon: Icons.message,
-                            h: getPercentageWidth(11, context),
-                            w: getPercentageWidth(11, context),
-                            colorD: kAccent.withOpacity(0.6),
-                            colorL: kDarkGrey.withOpacity(0.6),
-                            isRemoveContainer: true,
+                          child: SvgPicture.asset(
+                            'assets/images/svg/message.svg',
+                            height: getPercentageWidth(6.5, context),
+                            width: getPercentageWidth(6.5, context),
+                            color: isDarkMode
+                                ? kAccent.withOpacity(0.6)
+                                : kDarkGrey.withOpacity(0.6),
                           ),
                         ),
-                        SizedBox(width: getPercentageWidth(1, context)),
+                        SizedBox(width: getPercentageWidth(2, context)),
 
                         // Unread Count Badge
                         Obx(() {
@@ -351,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(height: getPercentageHeight(2, context)),
                 Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: getPercentageWidth(0.3, context)),
@@ -374,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         icon: Icon(
                           Icons.arrow_back_ios_new,
-                          size: 20,
+                          size: getPercentageWidth(4.5, context),
                           color: currentDate.isBefore(DateTime.now()
                                   .subtract(const Duration(days: 7)))
                               ? isDarkMode
@@ -427,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         icon: Icon(
                           Icons.arrow_forward_ios,
-                          size: 20,
+                          size: getPercentageWidth(4.5, context),
                           color: getCurrentDate(currentDate)
                               ? isDarkMode
                                   ? kLightGrey.withOpacity(0.5)
@@ -542,13 +548,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: MediaQuery.of(context).size.height > 700
+                  height: MediaQuery.of(context).size.height > 1100
                       ? (familyMode
-                          ? getPercentageHeight(51.5, context)
-                          : getPercentageHeight(43.5, context))
+                          ? getPercentageHeight(56.5, context)
+                          : getPercentageHeight(48.5, context))
                       : (familyMode
                           ? getPercentageHeight(57, context)
-                          : getPercentageHeight(49, context)),
+                          : getPercentageHeight(41.5, context)),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {

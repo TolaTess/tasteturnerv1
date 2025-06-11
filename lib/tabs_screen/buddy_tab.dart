@@ -231,12 +231,12 @@ class _BuddyTabState extends State<BuddyTab> {
 
               userService.currentUser?.isPremium ?? false
                   ? const SizedBox.shrink()
-                  : const SizedBox(height: 10),
+                  : SizedBox(height: getPercentageHeight(1, context)),
 
               // ------------------------------------Premium / Ads-------------------------------------
               userService.currentUser?.isPremium ?? false
                   ? const SizedBox.shrink()
-                  : const SizedBox(height: 5),
+                  : SizedBox(height: getPercentageHeight(0.5, context)),
               SizedBox(
                 height: getPercentageHeight(2, context),
               ),
@@ -256,10 +256,12 @@ class _BuddyTabState extends State<BuddyTab> {
                   );
                 },
                 child: Container(
-                  width:
-                      userService.currentUser?.isPremium ?? false ? 170 : 120,
-                  height:
-                      userService.currentUser?.isPremium ?? false ? 170 : 120,
+                  width: userService.currentUser?.isPremium ?? false
+                      ? getPercentageWidth(17, context)
+                      : getPercentageWidth(12, context),
+                  height: userService.currentUser?.isPremium ?? false
+                      ? getPercentageWidth(17, context)
+                      : getPercentageWidth(12, context),
                   decoration: BoxDecoration(
                     color: kAccentLight.withOpacity(0.5),
                     shape: BoxShape.circle,
@@ -275,14 +277,15 @@ class _BuddyTabState extends State<BuddyTab> {
               ),
               Text(
                 isPremium ? tastyMessage : tastyMessage1,
-                style: const TextStyle(
-                  fontSize: 24,
+                style: TextStyle(
+                  fontSize: getPercentageWidth(4, context),
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: getPercentageHeight(1.6, context)),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(3.2, context)),
                 child: Text(
                   isPremium
                       ? tastyMessage2
@@ -290,13 +293,13 @@ class _BuddyTabState extends State<BuddyTab> {
                           ? tastyMessage3
                           : tastyMessage4,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: getPercentageWidth(3, context),
                     color: Colors.grey,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: getPercentageHeight(2, context)),
               if (isPremium || isInFreeTrial)
                 AppButton(
                     text: 'Get Meal Plan',
@@ -315,7 +318,7 @@ class _BuddyTabState extends State<BuddyTab> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 100),
+              SizedBox(height: getPercentageHeight(10, context)),
             ],
           ),
         ),
@@ -398,25 +401,20 @@ class _BuddyTabState extends State<BuddyTab> {
                 children: [
                   SizedBox(height: getPercentageHeight(2, context)),
                   ListTile(
-                    leading: GestureDetector(
+                    title: GestureDetector(
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (context) =>
                                 const TastyScreen(screen: 'message')),
                       ),
-                      child: CircleAvatar(
-                        backgroundColor: kAccentLight.withOpacity(0.5),
-                        backgroundImage: const AssetImage(tastyImage),
-                        radius: getPercentageWidth(5, context),
-                      ),
-                    ),
-                    title: Text(
-                      '$appNameBuddy 👋',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                        fontSize: getPercentageWidth(4.5, context),
+                      child: Text(
+                        'Chef $appNameBuddy 👋',
+                        style: TextStyle(
+                          color: getDayTypeColor('chef tasty', isDarkMode),
+                          fontWeight: FontWeight.w600,
+                          fontSize: getPercentageWidth(4.8, context),
+                        ),
                       ),
                     ),
                     trailing: TextButton(
@@ -439,14 +437,15 @@ class _BuddyTabState extends State<BuddyTab> {
                   SizedBox(height: getPercentageHeight(1, context)),
                   Builder(
                     builder: (context) {
-                      String bio = getRandomMealTypeBio(mostCommonCategory, diet);
+                      String bio =
+                          getRandomMealTypeBio(mostCommonCategory, diet);
                       List<String> parts = bio.split(': ');
                       return Column(
                         children: [
                           Text(
                             parts[0] + ':',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4.5, context),
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w600,
                               color: kAccent,
                             ),
@@ -454,7 +453,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             parts.length > 1 ? parts[1] : '',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
                               color: kLightGrey,
                               fontWeight: FontWeight.w500,
                             ),
@@ -472,14 +471,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCalories']}',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(5, context),
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Calories',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -490,14 +489,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(5, context),
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Protein',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -508,14 +507,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(5, context),
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Carbs',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -526,14 +525,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalFat']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(5, context),
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Fat',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getPercentageWidth(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -580,11 +579,16 @@ class _BuddyTabState extends State<BuddyTab> {
                                   title: Text(label,
                                       style: TextStyle(
                                           color:
-                                              isDarkMode ? kWhite : kDarkGrey)),
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: getPercentageWidth(
+                                              3.5, context))),
                                   subtitle: Text('Start: $formattedDate',
                                       style: TextStyle(
                                           color:
-                                              isDarkMode ? kWhite : kDarkGrey)),
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                          fontSize:
+                                              getPercentageWidth(3, context))),
                                   onTap: () async {
                                     Navigator.pop(ctx);
                                     await helperController.saveMealPlanBuddy(
@@ -726,7 +730,7 @@ class _BuddyTabState extends State<BuddyTab> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
-                                fontSize: getPercentageWidth(4, context),
+                                fontSize: getPercentageWidth(3.5, context),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),

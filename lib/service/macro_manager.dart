@@ -196,7 +196,6 @@ class MacroManager extends GetxController {
     for (final d in doc.docs) {
       final meals =
           (d.data()?['meals'] as List<dynamic>?)?.cast<String>() ?? [];
-      // meals is a List<String>, so we need to check each meal individually
       for (final meal in meals) {
         if (meal.contains('/')) {
           final parts = meal.split('/');
@@ -226,20 +225,25 @@ class MacroManager extends GetxController {
           final name = entry.key;
           final amount = entry.value.toString();
 
-          // Check if ingredient exists in MacroManager
-          final existing = macroManager.ingredient.firstWhere(
+          // Check if ingredient exists in MacroManager local cache
+          MacroData? existing = macroManager.ingredient.firstWhereOrNull(
             (m) => m.title.toLowerCase() == name.toLowerCase(),
-            orElse: () => MacroData(
-              title: name,
-              type: '',
-              mediaPaths: [],
-              macros: {},
-              categories: [],
-              features: {},
-            ),
           );
+          if (existing == null) {
+            // Check Firestore for ingredient by name (case-insensitive)
+            final firestoreIngredient =
+                await macroManager.fetchIngredientByName(name);
+            if (firestoreIngredient != null) {
+              existing = firestoreIngredient;
+              // Add to local cache if not present
+              if (!macroManager.ingredient
+                  .any((m) => m.id == firestoreIngredient.id)) {
+                macroManager._demoIngredientData.add(firestoreIngredient);
+              }
+            }
+          }
           MacroData macro;
-          if (existing.title.isEmpty) {
+          if (existing == null) {
             // Create new MacroData and add to Firestore
             macro = MacroData(
               title: name,
@@ -252,7 +256,7 @@ class MacroManager extends GetxController {
             final added = await macroManager.addIngredient(macro);
             macro = added ?? macro;
             print(
-                'Added ingredient to Firestore: ${macro.title} with ID: ${macro.id}');
+                'Added ingredient to Firestore: [32m${macro.title} with ID: ${macro.id}[0m');
           } else {
             macro = existing;
           }

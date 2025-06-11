@@ -353,6 +353,7 @@ class _PieChartState extends State<PieChart> {
 
     return CustomPaint(
       painter: _PieChartPainter(
+        context,
         normalizedData,
         currentLabels,
         total,
@@ -368,6 +369,7 @@ class _PieChartState extends State<PieChart> {
 }
 
 class _PieChartPainter extends CustomPainter {
+  final BuildContext context;
   final List<double> data;
   final List<String> labels;
   final double total;
@@ -378,6 +380,7 @@ class _PieChartPainter extends CustomPainter {
   final bool isSpinning;
 
   _PieChartPainter(
+    this.context,
     this.data,
     this.labels,
     this.total,
@@ -458,7 +461,7 @@ class _PieChartPainter extends CustomPainter {
       final label = labels[i];
       if (loadedImages.containsKey(label)) {
         final iconImage = loadedImages[label]!;
-        final iconSize = 40.0;
+        final iconSize = getPercentageWidth(10, context);
         final iconRect = Rect.fromCenter(
           center: Offset(iconX, iconY),
           width: iconSize,
@@ -470,7 +473,7 @@ class _PieChartPainter extends CustomPainter {
         canvas.clipPath(Path()
           ..addOval(Rect.fromCircle(
             center: Offset(iconX, iconY),
-            radius: 23,
+            radius: iconSize / 2,
           )));
         canvas.drawImageRect(
           iconImage,

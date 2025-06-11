@@ -316,7 +316,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: nameController,
-          style: const TextStyle(color: kDarkGrey),
+          style: TextStyle(color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
           onChanged: (_) => _validateInputs(),
           decoration: InputDecoration(
             filled: true,
@@ -346,7 +346,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: dobController,
-          style: const TextStyle(color: kDarkGrey),
+          style: TextStyle(color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF3F3F3),
@@ -400,15 +400,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         'icon': Icons.refresh
       },
       {
+        'title': 'Family Mode',
+        'description': 'Track your family\'s nutrition and build healthy habits',
+        'icon': Icons.family_restroom
+      },
+      {
         'title': 'Plan in Advance',
         'description':
             'Add your special days and share them with your friends and family',
         'icon': Icons.calendar_month
       },
       {
-        'title': 'Chat with Tasty',
+        'title': 'Chat with Tasty AI',
         'description':
-            'Get personalized nutrition advice and recipe meal plans',
+            'Get personalized meal plans and recipe ideas',
         'icon': Icons.chat_bubble
       }
     ];
@@ -431,13 +436,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       leading: Icon(
                         feature['icon'] as IconData,
                         color: kAccentLight,
-                        size: getPercentageWidth(8, context),
+                        size: getPercentageWidth(6, context),
                       ),
                       title: Text(
                         feature['title'] as String,
                         style: TextStyle(
                           color: kWhite,
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getPercentageWidth(3.5, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -445,7 +450,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         feature['description'] as String,
                         style: TextStyle(
                           color: kWhite,
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getPercentageWidth(3, context),
                         ),
                       ),
                     ),
@@ -744,6 +749,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Expanded(
           child: SafeTextField(
             controller: controller,
+            style: TextStyle(
+              color: kDarkGrey,
+              fontSize: getPercentageWidth(3.5, context),
+            ),
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               filled: true,

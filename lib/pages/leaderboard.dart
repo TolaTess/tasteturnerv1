@@ -151,9 +151,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Leaderboard',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              fontSize: getPercentageWidth(3.5, context),
+              fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -175,9 +177,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     children: [
                       if (currentUserRank != null)
                         Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                          margin:
+                              EdgeInsets.all(getPercentageWidth(1.6, context)),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(1.6, context),
+                              vertical: getPercentageHeight(1.2, context)),
                           decoration: BoxDecoration(
                             color: kAccent,
                             borderRadius: BorderRadius.circular(12),
@@ -190,17 +194,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                   color: getThemeProvider(context).isDarkMode
                                       ? kWhite
                                       : kBlack,
-                                  fontSize: 16,
+                                  fontSize: getPercentageWidth(3, context),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: getPercentageWidth(1.2, context)),
                               CircleAvatar(
-                                radius: 20,
+                                radius: getPercentageWidth(2, context),
                                 backgroundImage: _getImageProvider(
                                     currentUserRank!['profileImage']),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: getPercentageWidth(1.2, context)),
                               Expanded(
                                 child: Text(
                                   currentUserRank!['displayName'],
@@ -208,7 +212,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                     color: getThemeProvider(context).isDarkMode
                                         ? kWhite
                                         : kBlack,
-                                    fontSize: 16,
+                                    fontSize: getPercentageWidth(3, context),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -219,7 +223,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                   color: getThemeProvider(context).isDarkMode
                                       ? kWhite
                                       : kBlack,
-                                  fontSize: 16,
+                                  fontSize: getPercentageWidth(3, context),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -230,12 +234,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         AnnouncementWidget(
                           title: '🏆 Winners of the week 🏆',
                           announcements: winners,
-                          height: 50,
+                          height: getPercentageHeight(5, context),
                           onTap: () {
                             // Handle tap
                           },
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: getPercentageHeight(1, context)),
                       ],
                       Expanded(
                         child: ListView.builder(
@@ -287,33 +291,25 @@ class LeaderboardItem extends StatelessWidget {
 
   Widget _buildRankWidget(BuildContext context) {
     if (rank == 1) {
-      return const Text(
+      return Text(
         '🥇',
-        style: TextStyle(
-          fontSize: 30,
-         
-        ),
+        style: TextStyle(fontSize: getPercentageWidth(6, context)),
       );
     } else if (rank == 2) {
-      return const Text(
+      return Text(
         '🥈',
-        style: TextStyle(
-          fontSize: 30,
-         
-        ),
+        style: TextStyle(fontSize: getPercentageWidth(6, context)),
       );
     } else if (rank == 3) {
-      return const Text(
+      return Text(
         '🥉',
-        style: TextStyle(
-          fontSize: 30,
-        ),
+        style: TextStyle(fontSize: getPercentageWidth(6, context)),
       );
     } else {
       return Text(
         "#$rank",
         style: TextStyle(
-          fontSize: 16,
+          fontSize: getPercentageWidth(5, context),
           fontWeight: FontWeight.w600,
           color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
         ),
@@ -324,14 +320,16 @@ class LeaderboardItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(1.6, context),
+          vertical: getPercentageHeight(0.4, context)),
       child: Row(
         children: [
           SizedBox(
-            width: 30,
+            width: getPercentageWidth(5, context),
             child: _buildRankWidget(context),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: getPercentageWidth(3, context)),
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -342,16 +340,16 @@ class LeaderboardItem extends StatelessWidget {
               );
             },
             child: CircleAvatar(
-              radius: 20,
+              radius: getPercentageWidth(5.5, context),
               backgroundImage: getImageProvider(imageUrl),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: getPercentageWidth(1.2, context)),
           Expanded(
             child: Text(
               name,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: getPercentageWidth(4, context),
                 fontWeight: FontWeight.w600,
                 color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
               ),
@@ -359,8 +357,8 @@ class LeaderboardItem extends StatelessWidget {
           ),
           Text(
             "$points",
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: getPercentageWidth(4, context),
               fontWeight: FontWeight.w600,
               color: kAccent,
             ),

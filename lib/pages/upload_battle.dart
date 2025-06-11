@@ -11,7 +11,6 @@ import '../data_models/post_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
 
@@ -203,7 +202,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       appBar: AppBar(
           title: Text(!widget.isMainPost
               ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
-              : "Post Image"),
+              : "Upload Image", style: TextStyle(fontSize: getPercentageWidth(4, context))),
           leading: InkWell(
             onTap: () => widget.isMainPost
                 ? Get.to(() => const BottomNavSec(selectedIndex: 1))
@@ -213,7 +212,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             ),
           )),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
         child: Column(
           children: [
             Row(
@@ -235,9 +234,9 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       }
                     }
                   },
-                  icon: const Icon(Icons.camera, size: 30),
+                  icon: Icon(Icons.camera, size: getPercentageWidth(6, context)),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: getPercentageWidth(2, context)),
                 IconButton(
                   onPressed: () async {
                     List<XFile> pickedImages =
@@ -258,8 +257,9 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       }
                     }
                   },
-                  icon: const Icon(Icons.add, size: 30),
+                  icon: Icon(Icons.add, size: getPercentageWidth(7, context)),
                 ),
+                SizedBox(width: getPercentageWidth(2, context)),
               ],
             ),
             SizedBox(height: getPercentageHeight(1, context)),
@@ -268,23 +268,23 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                     borderRadius: BorderRadius.circular(15),
                     child: Image.file(
                       File(_recentImage!.path),
-                      height: 250,
+                      height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(35, context) : getPercentageHeight(30, context),
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
                   )
                 : Container(
-                    height: 200,
+                    height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(30, context) : getPercentageHeight(25, context),
                     width: double.infinity,
                     color: Colors.grey[300],
-                    child: const Center(child: Text("No Image Selected")),
+                    child: Center(child: Text("No Image Selected", style: TextStyle(fontSize: getPercentageWidth(3, context)))),
                   ),
 
             // Show selected images grid under the recent image
             if (_selectedImages.length > 1)
               Container(
-                margin: const EdgeInsets.only(top: 12),
-                height: 100,
+                margin: EdgeInsets.only(top: getPercentageHeight(1, context)),
+                height: getPercentageHeight(10, context),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _selectedImages.length,
@@ -294,8 +294,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: Image.file(
                         File(image.path),
-                        height: 100,
-                        width: 100,
+                        height: getPercentageHeight(10, context),
+                        width: getPercentageHeight(10, context),
                         fit: BoxFit.cover,
                       ),
                     );
@@ -318,7 +318,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                   ? const CircularProgressIndicator(
                       color: kAccent,
                     )
-                  : const Text("Upload Images"),
+                  : Text("Upload Images", style: TextStyle(fontSize: getPercentageWidth(3, context), color: kWhite)),
             ),
           ],
         ),

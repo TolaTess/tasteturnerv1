@@ -115,8 +115,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
             width: double.infinity,
             child: Column(
               children: [
-                const SizedBox(
-                  height: 1,
+                SizedBox(
+                  height: getPercentageHeight(1, context),
                 ),
 
                 //image
@@ -129,8 +129,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     fit: BoxFit.cover,
                   ),
                 ),
-                const SizedBox(
-                  height: 1.5,
+                SizedBox(
+                  height: getPercentageHeight(1.5, context),
                 ),
                 //macros
                 if (widget.item.macros.isNotEmpty)
@@ -146,23 +146,23 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     child: Text(
                       // Convert the map into a formatted string and add calories
                       '${widget.item.macros.entries.map((entry) => '${entry.key.toUpperCase()}: ${entry.value}g').join(', ')}${widget.item.calories != null ? ', KCAL: ${widget.item.calories}' : ''}',
-                      style: const TextStyle(
-                        fontSize: 13,
+                      style: TextStyle(
+                        fontSize: getPercentageWidth(2.5, context),
                       ),
                     ),
                   ),
-                const SizedBox(height: 5),
+                SizedBox(height: getPercentageHeight(0.5, context)),
 
                 //Grams message
-                const Text(
+                Text(
                   'per 100 grams',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: getPercentageWidth(2, context),
                   ),
                 ),
 
-                const SizedBox(
-                  height: 15,
+                SizedBox(
+                  height: getPercentageHeight(1.5, context),
                 ),
                 //Techniques
                 if (widget.item.techniques.isNotEmpty)
@@ -184,8 +184,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   ),
 
                 if (widget.item.macros.isNotEmpty)
-                  const SizedBox(
-                    height: 8,
+                  SizedBox(
+                    height: getPercentageHeight(0.8, context),
                   ),
                 if (widget.item.macros.isNotEmpty)
                   Padding(
@@ -197,8 +197,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ),
                   ),
                 if (widget.item.macros.isNotEmpty)
-                  const SizedBox(
-                    height: 10,
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
                   ),
 
                 //recipes
@@ -223,8 +223,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   more: seeAll,
                 ),
                 if (widget.item.features.isNotEmpty)
-                  const SizedBox(
-                    height: 10,
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
                   ),
                 if (widget.item.features.isNotEmpty)
                   Padding(
@@ -236,8 +236,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ),
                   ),
                 if (widget.item.features.isNotEmpty)
-                  const SizedBox(
-                    height: 10,
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
                   ),
 
                 //Features
@@ -254,7 +254,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         }, // Toggle full features
                         more: isHideList ? seeAll : 'Less',
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: getPercentageHeight(1, context)),
                       AnimatedCrossFade(
                         duration: const Duration(milliseconds: 300),
                         crossFadeState: isHideList
@@ -262,7 +262,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             : CrossFadeState.showFirst,
                         firstChild: Column(
                           children: [
-                            const SizedBox(height: 2.8),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
                             // Avatar list
                             SizedBox(
                               height: getPercentageWidth(10, context),
@@ -287,12 +287,12 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       ),
                     ],
                   ),
-                const SizedBox(
-                  height: 5,
+                SizedBox(
+                  height: getPercentageHeight(0.5, context),
                 ),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                const SizedBox(
-                  height: 5,
+                SizedBox(
+                  height: getPercentageHeight(0.5, context),
                 ),
 
                 //Storage
@@ -309,7 +309,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         }, // Toggle full features
                         more: isHideStorage ? seeAll : 'Less',
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: getPercentageHeight(1, context)),
                       AnimatedCrossFade(
                         duration: const Duration(milliseconds: 300),
                         crossFadeState: isHideStorage
@@ -317,7 +317,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             : CrossFadeState.showFirst,
                         firstChild: Column(
                           children: [
-                            const SizedBox(height: 2.8),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
                             // Avatar list
                             SizedBox(
                               height: getPercentageWidth(10, context),
@@ -343,12 +343,12 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       ),
                     ],
                   ),
-                const SizedBox(
-                  height: 5,
+                SizedBox(
+                  height: getPercentageHeight(0.5, context),
                 ),
                 Divider(color: isDarkMode ? kWhite : kDarkGrey),
-                const SizedBox(
-                  height: 5,
+                SizedBox(
+                  height: getPercentageHeight(0.5, context),
                 ),
 
 // ------------------------------------Premium------------------------------------
@@ -366,9 +366,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ? const SizedBox.shrink()
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 // ------------------------------------Premium------------------------------------
-                const SizedBox(height: 10),
+                SizedBox(height: getPercentageHeight(1, context)),
                 widget.isRefresh
-                    ? const SizedBox(height: 10)
+                    ? SizedBox(height: getPercentageHeight(1, context))
                     : const SizedBox.shrink(),
                 //more ingredients
                 widget.isRefresh
@@ -379,10 +379,10 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               "You may also like",
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: getPercentageWidth(4, context),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -393,9 +393,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                                 });
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 2,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(1, context),
+                                  vertical: getPercentageHeight(0.2, context),
                                 ),
                                 decoration: BoxDecoration(
                                     color: isDarkMode
@@ -408,12 +408,12 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                                       "Refresh",
                                       style: TextStyle(
                                         color: isDarkMode ? kWhite : kBlack,
-                                        fontSize: 16,
+                                        fontSize: getPercentageWidth(3, context),
                                       ),
                                     ),
                                     Icon(
                                       Icons.refresh_outlined,
-                                      size: 17,
+                                      size: getPercentageWidth(2.5, context),
                                       color: isDarkMode ? kWhite : kBlack,
                                     )
                                   ],
@@ -425,11 +425,11 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       )
                     : const SizedBox.shrink(),
                 widget.isRefresh
-                    ? const SizedBox(height: 20)
+                    ? SizedBox(height: getPercentageHeight(2, context))
                     : const SizedBox.shrink(),
                 widget.isRefresh
                     ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2.3),
+                        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.5, context)),
                         child: GridView.builder(
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
@@ -465,8 +465,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       )
                     : const SizedBox.shrink(),
                 widget.isRefresh
-                    ? const SizedBox(
-                        height: 24,
+                    ? SizedBox(
+                        height: getPercentageHeight(2.4, context),
                       )
                     : const SizedBox.shrink(),
               ],
@@ -521,17 +521,18 @@ class RecomendationItem extends StatelessWidget {
             child: Image.asset(
               getAssetImageForItem(imagePath),
               fit: BoxFit.cover,
-              height: 160,
+              height: getPercentageHeight(16, context),
             ),
           ),
-          const SizedBox(
-            height: 10,
+          SizedBox(
+            height: getPercentageHeight(1, context),
           ),
           Text(
             capitalizeFirstLetter(dataSrc.title),
             maxLines: 2,
             overflow: TextOverflow.clip,
-            style: const TextStyle(
+            style: TextStyle(
+              fontSize: getPercentageWidth(3, context),
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -568,7 +569,7 @@ class TopFeatures extends StatelessWidget {
               fontSize: getPercentageWidth(4.5, context),
             ),
           ),
-          const SizedBox(width: 20),
+          SizedBox(width: getPercentageWidth(2, context)),
         ],
       );
     }
@@ -581,8 +582,8 @@ class TopFeatures extends StatelessWidget {
               entry.value.toString().toLowerCase() == 'all'
           ? const SizedBox.shrink()
           : Container(
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: EdgeInsets.only(right: getPercentageWidth(1, context)),
+              padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.2, context), vertical: getPercentageHeight(0.8, context)),
               decoration: BoxDecoration(
                 color: kAccent.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(50),
@@ -596,7 +597,7 @@ class TopFeatures extends StatelessWidget {
                       fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: getPercentageWidth(0.4, context)),
                   Text(
                     '${capitalizeFirstLetter(entry.key)}: ${capitalizeFirstLetter(entry.value)}',
                     style: TextStyle(

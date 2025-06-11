@@ -103,9 +103,10 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
       title: Text('Add Family Members',
           style: TextStyle(
               color:
-                  getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey)),
+                  getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+              fontSize: getPercentageWidth(3.5, context))),
       content: SizedBox(
-        width: 300,
+        width: getPercentageWidth(70, context),
         child: ListView.builder(
           shrinkWrap: true,
           itemCount: members.length,
@@ -114,6 +115,9 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
             if (index >= nameControllers.length) {
               return const SizedBox.shrink();
             }
+            final normalizedAgeGroups =
+                ageGroups.map((e) => e.trim()).toSet().toList();
+            final selectedValue = members[index]['ageGroup']?.trim();
             return Row(
               children: [
                 Expanded(
@@ -121,7 +125,8 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                     style: TextStyle(
                         color: getThemeProvider(context).isDarkMode
                             ? kWhite
-                            : kDarkGrey),
+                            : kDarkGrey,
+                        fontSize: getPercentageWidth(3, context)),
                     decoration: InputDecoration(
                         labelText: 'Name',
                         labelStyle: TextStyle(
@@ -150,17 +155,20 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                       dropdownColor: getThemeProvider(context).isDarkMode
                           ? kLightGrey
                           : kBackgroundColor,
-                      value: members[index]['ageGroup'],
-                      items: ageGroups.map((group) {
-                        return DropdownMenuItem(
-                          value: group,
-                          child: Text(group,
-                              style: TextStyle(
-                                  color: getThemeProvider(context).isDarkMode
-                                      ? kWhite
-                                      : kDarkGrey)),
-                        );
-                      }).toList(),
+                      value: normalizedAgeGroups.contains(selectedValue)
+                          ? selectedValue
+                          : null,
+                      items: normalizedAgeGroups
+                          .map((group) => DropdownMenuItem(
+                                value: group,
+                                child: Text(group,
+                                    style: TextStyle(
+                                        color:
+                                            getThemeProvider(context).isDarkMode
+                                                ? kWhite
+                                                : kDarkGrey)),
+                              ))
+                          .toList(),
                       onChanged: (val) {
                         setState(() {
                           members[index]['ageGroup'] = val!;
@@ -195,32 +203,38 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
               style: TextStyle(
                   color: getThemeProvider(context).isDarkMode
                       ? kWhite
-                      : kDarkGrey)),
+                      : kDarkGrey,
+                  fontSize: getPercentageWidth(3, context))),
         ),
         TextButton(
           onPressed: _addMember,
           child:
-              const Text('Add Member', style: TextStyle(color: kAccentLight)),
+              Text('Add Member',
+                  style: TextStyle(
+                      color: kAccentLight,
+                      fontSize: getPercentageWidth(3, context))),
         ),
         TextButton(
           onPressed: _onDone,
-          child: Text('Done', style: TextStyle(color: kAccent)),
+          child: Text('Done',
+              style: TextStyle(
+                  color: kAccent, fontSize: getPercentageWidth(3, context))),
         ),
       ],
     );
   }
 
   String _getCaloriesForAgeGroup(String ageGroup) {
-    switch (ageGroup) {
-      case 'Baby':
+    switch (ageGroup.toLowerCase()) {
+      case 'baby':
         return '1000';
-      case 'Toddler':
+      case 'toddler':
         return '1200';
-      case 'Child':
+      case 'child':
         return '1800';
-      case 'Teen':
+      case 'teen':
         return '2200';
-      case 'Adult':
+      case 'adult':
         return '2000';
       default:
         return '2000';

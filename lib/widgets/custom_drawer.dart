@@ -23,6 +23,7 @@ class CustomDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Drawer(
+      width: getPercentageWidth(70, context),
       backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
       child: SafeArea(
         child: ListView(
@@ -69,7 +70,7 @@ class CustomDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
+      
             //Profile
             DrawerItem(
               icon: Icons.person,
@@ -84,7 +85,7 @@ class CustomDrawer extends StatelessWidget {
                 );
               },
             ),
-
+      
             //Premium
             Padding(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
@@ -114,9 +115,9 @@ class CustomDrawer extends StatelessWidget {
                 ),
               ),
             ),
-
+      
             //Goal Buddy - Chat
-
+      
             DrawerItem(
               icon: Icons.chat_rounded,
               title: goalBuddy,
@@ -132,7 +133,7 @@ class CustomDrawer extends StatelessWidget {
                 );
               },
             ),
-
+      
             DrawerItem(
               icon: Icons.leaderboard_outlined,
               title: leaderBoard,
@@ -155,7 +156,7 @@ class CustomDrawer extends StatelessWidget {
               press: () {
                 //close the drawer
                 Navigator.pop(context);
-
+      
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -164,7 +165,7 @@ class CustomDrawer extends StatelessWidget {
                 );
               },
             ),
-
+      
             //Notifications
             DrawerItem(
               icon: Icons.settings_outlined,
@@ -180,7 +181,7 @@ class CustomDrawer extends StatelessWidget {
                 );
               },
             ),
-
+      
             //Theme Change
             DrawerItem(
               icon: Provider.of<ThemeProvider>(context).isDarkMode
@@ -192,13 +193,13 @@ class CustomDrawer extends StatelessWidget {
               press: () {
                 // Close the drawer
                 Navigator.pop(context);
-
+      
                 // Toggle the theme
                 Provider.of<ThemeProvider>(context, listen: false)
                     .toggleTheme();
               },
             ),
-
+      
             //Logout
             DrawerItem(
               icon: Icons.account_circle_outlined,

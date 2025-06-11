@@ -199,7 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SliverAppBar(
             pinned: true,
             automaticallyImplyLeading: false,
-            expandedHeight: getPercentageHeight(43, context),
+            expandedHeight: MediaQuery.of(context).size.height > 1100
+          ? getPercentageHeight(45, context)
+          : getPercentageHeight(40, context),
             title: isShrink
                 ? Text(
                     userService.currentUser!.displayName ?? '',
@@ -228,25 +230,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? Navigator.pop(context)
                   : Get.to(() => const BottomNavSec()),
               child: const IconCircleButton(
-                isRemoveContainer: true,
               ),
             ),
             actions: [
               GestureDetector(
-                onTap: () => Get.to(() => const SettingsScreen()),
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: getPercentageWidth(4, context),
-                    left: getPercentageWidth(2, context),
-                    top: getPercentageHeight(2, context),
-                    bottom: getPercentageHeight(2, context),
-                  ),
-                  child: IconCircleButton(
-                    icon: Icons.settings,
-                    isRemoveContainer: true,
-                  ),
+                onTap: () {
+                  print('Settings');
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+                },
+                child: const IconCircleButton(
+                  isRemoveContainer: true,
+                  icon: Icons.settings,
+                  w: 8,
+                  h: 8,
                 ),
               ),
+              SizedBox(width: getPercentageWidth(2, context)),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Column(
@@ -413,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       CircleAvatar(
-                        radius: getPercentageWidth(13, context),
+                        radius: MediaQuery.of(context).size.height > 1100 ? getPercentageWidth(13, context) : getPercentageWidth(15, context),
                         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                         child: CircleAvatar(
                           backgroundImage:
@@ -426,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       userService.currentUser!.profileImage!)
                                   : const AssetImage(intPlaceholderImage)
                                       as ImageProvider,
-                          radius: getPercentageWidth(12.5, context),
+                          radius: MediaQuery.of(context).size.height > 1100 ? getPercentageWidth(12.5, context) : getPercentageWidth(14.5, context),
                         ),
                       ),
                     ],
@@ -882,9 +881,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shrinkWrap: true,
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              mainAxisSpacing: getPercentageWidth(1, context),
-                              crossAxisSpacing: getPercentageWidth(1, context),
+                                crossAxisCount: 3,
+                                mainAxisSpacing:
+                                    getPercentageWidth(0.5, context),
+                                crossAxisSpacing:
+                                    getPercentageWidth(0.5, context),
                             ),
                             padding: EdgeInsets.only(top: getPercentageHeight(1, context), bottom: getPercentageHeight(1, context)),
                             itemCount: itemCount,

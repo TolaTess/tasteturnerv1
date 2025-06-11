@@ -67,27 +67,27 @@ class _PremiumSectionState extends State<PremiumSection> {
       children: [
         widget.isDiv
             ? Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(0.5, context),
                 ),
                 child: Divider(
                   color: isDarkMode ? kWhite : kDarkGrey,
                 ),
               )
             : const SizedBox.shrink(),
-        const SizedBox(height: 1),
+        SizedBox(height: getPercentageHeight(0.5, context)),
 
         /// ✅ Wrap in a Container with Conditional Dimensions
         Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: getPercentageWidth(7, context),
+            horizontal: getPercentageWidth(2, context),
           ),
           child: Container(
             width: double.infinity,
             height: null,
             padding: EdgeInsets.symmetric(
               horizontal: getPercentageWidth(2.5, context),
-              vertical: getPercentageHeight(1, context),
+              vertical: getPercentageHeight(0.5, context),
             ),
             decoration: BoxDecoration(
               color: kAccentLight.withOpacity(0.7),
@@ -138,14 +138,14 @@ class _PremiumSectionState extends State<PremiumSection> {
           widget.titleOne,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: getPercentageWidth(3.5, context),
+            fontSize: getPercentageWidth(3, context),
           ),
         ),
         Text(
           widget.titleTwo,
           style: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: getPercentageWidth(3.5, context),
+            fontSize: getPercentageWidth(3, context),
           ),
         ),
       ],

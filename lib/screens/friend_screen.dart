@@ -46,23 +46,26 @@ class _FriendScreenState extends State<FriendScreen> {
             isRemoveContainer: true,
           ),
         ),
-        title: const Text(
-          'Friends List',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+        title: Center(
+          child: Text(
+            textAlign: TextAlign.center,
+            'Friends',
+            style: TextStyle(fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w500),
+          ),
         ),
       ),
       body: Column(
         children: [
-          const SizedBox(height: 16),
+            SizedBox(height: getPercentageHeight(1, context)),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
             child: SearchButton2(
               controller: _searchController,
               onChanged: _onSearchChanged,
               kText: searchFriendHint,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: getPercentageHeight(1, context)),
           Obx(() {
             // If searching, use all users; otherwise, use only friends
             final isSearching = searchQuery.trim().isNotEmpty;
@@ -103,11 +106,11 @@ class _FriendScreenState extends State<FriendScreen> {
 
             return Expanded(
               child: GridView.builder(
-                padding: const EdgeInsets.all(16.0),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+                  crossAxisSpacing: getPercentageWidth(1, context),
+                  mainAxisSpacing: getPercentageWidth(1, context),
                   childAspectRatio: 0.5,
                 ),
                 itemCount: filteredFriends.length,
@@ -160,15 +163,15 @@ class _FriendScreenState extends State<FriendScreen> {
                     },
                     child: Column(
                       children: [
-                        buildFriendAvatar(friend.profileImage),
-                        const SizedBox(height: 8),
+                        buildFriendAvatar(friend.profileImage, context),
+                        SizedBox(height: getPercentageHeight(0.5, context)),
                         Flexible(
                           child: Text(
                             friend.displayName ?? '',
                             style: TextStyle(
                               color: themeProvider.isDarkMode ? kWhite : kBlack,
                               fontWeight: FontWeight.w500,
-                              fontSize: 14,
+                              fontSize: getPercentageWidth(3, context),
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 2,

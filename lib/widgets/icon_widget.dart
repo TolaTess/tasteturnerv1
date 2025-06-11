@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../constants.dart';
+import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 
 class IconCircleButton extends StatelessWidget {
@@ -15,8 +16,8 @@ class IconCircleButton extends StatelessWidget {
   const IconCircleButton({
     super.key,
     this.icon = Icons.arrow_back_ios,
-    this.h = 38,
-    this.w = 38,
+    this.h = 8,
+    this.w = 8,
     this.isColorChange = false,
     this.isRemoveContainer = true,
     this.colorL = kBlack,
@@ -30,7 +31,7 @@ class IconCircleButton extends StatelessWidget {
     return isRemoveContainer
         ? Icon(
             icon,
-            size: h * 0.6,
+            size: getPercentageWidth(h, context) * 0.6,
             color: isColorChange
                 ? kAccent.withValues(alpha: kOpacity)
                 : themeProvider.isDarkMode
@@ -38,8 +39,8 @@ class IconCircleButton extends StatelessWidget {
                     : colorL
           )
         : Container(
-            height: h + 10,
-            width: w + 10,
+            height: getPercentageWidth(h, context) + 10,
+            width: getPercentageWidth(w, context) + 10,
             margin: const EdgeInsets.only(left: 5),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -54,7 +55,7 @@ class IconCircleButton extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              size: h * 0.6,
+              size: getPercentageWidth(h, context) * 0.6,
               color: isColorChange
                   ? kAccent.withValues(alpha: kOpacity)
                   : themeProvider.isDarkMode

@@ -508,9 +508,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
         'vegDishes': vegDishes,
         'lastUpdated': FieldValue.serverTimestamp(),
       },
-      'settings': {
-        'dietPreference': selectedDiet,
-      }
+      'settings.dietPreference': selectedDiet
     });
 
     // Update userService settings

@@ -121,7 +121,7 @@ class _MessageScreenState extends State<MessageScreen>
                   child: Text(
                     'No archived chats',
                     style: TextStyle(
-                      fontSize: getPercentageHeight(2.5, context),
+                      fontSize: getPercentageHeight(2, context),
                       fontWeight: FontWeight.w500,
                       color: Provider.of<ThemeProvider>(context, listen: false)
                               .isDarkMode
@@ -215,22 +215,23 @@ class _MessageScreenState extends State<MessageScreen>
           controller: _scrollController,
           slivers: [
             SliverAppBar(
+              expandedHeight: MediaQuery.of(context).size.height > 1100
+                  ? getPercentageHeight(6, context)
+                  : getPercentageHeight(4, context),
               backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
               title: Text(
                 inbox,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: getPercentageWidth(4, context),
                   color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
               ),
               pinned: true,
               leading: Padding(
-                padding: const EdgeInsets.only(
-                  right: 20,
-                  left: 12,
-                  top: 14,
-                  bottom: 14,
+                padding: EdgeInsets.only(
+                  right: getPercentageWidth(2, context),
+                  left: getPercentageWidth(2, context),
                 ),
                 child: GestureDetector(
                   onTap: () => Navigator.push(
@@ -240,19 +241,18 @@ class _MessageScreenState extends State<MessageScreen>
                               selectedIndex: 0,
                             )),
                   ),
-                  child: const IconCircleButton(
-                    isRemoveContainer: true,
-                  ),
+                  child: const IconCircleButton(),
                 ),
               ),
               actions: [
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+                  padding:
+                      EdgeInsets.only(right: getPercentageWidth(1, context)),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       icon: Icon(
-                        Icons.archive,
+                        Icons.archive_outlined,
                         size: getPercentageWidth(6, context),
                         color: kAccent,
                       ),
@@ -262,9 +262,14 @@ class _MessageScreenState extends State<MessageScreen>
                     ),
                   ),
                 ),
+                SizedBox(
+                    width: MediaQuery.of(context).size.height > 1100
+                        ? getPercentageWidth(5, context)
+                        : getPercentageWidth(1, context)),
 
                 Padding(
-                  padding: const EdgeInsets.all(10.0),
+                  padding:
+                      EdgeInsets.only(right: getPercentageWidth(4, context)),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
@@ -293,6 +298,7 @@ class _MessageScreenState extends State<MessageScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Message List
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                   Obx(() {
                     final nonBuddyChats = chatController.userChats
@@ -473,8 +479,8 @@ class _MessageItemState extends State<MessageItem> {
               Row(
                 children: [
                   // Avatar
-                  buildFriendAvatar(friend?.profileImage),
-                  const SizedBox(width: 16),
+                  buildFriendAvatar(friend?.profileImage, context),
+                  SizedBox(width: getPercentageWidth(1, context)),
 
                   // Name and Last Message
                   Expanded(
@@ -483,17 +489,17 @@ class _MessageItemState extends State<MessageItem> {
                       children: [
                         Text(
                           friend?.displayName ?? 'Loading...',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                            fontSize: getPercentageWidth(3, context),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: getPercentageHeight(0.5, context)),
                         Text(
                           lastMessage,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontSize: getPercentageWidth(3, context),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -501,22 +507,22 @@ class _MessageItemState extends State<MessageItem> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: getPercentageWidth(1, context)),
 
                   // Time and Badge
                   Column(
                     children: [
                       Text(
                         lastMessageTime ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w400,
-                          fontSize: 10,
+                          fontSize: getPercentageWidth(3, context),
                         ),
                       ),
                       unreadCount > 0
                           ? Container(
-                              height: 22,
-                              width: 22,
+                              height: getPercentageHeight(2, context),
+                              width: getPercentageWidth(2, context),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: kAccent,
@@ -528,9 +534,9 @@ class _MessageItemState extends State<MessageItem> {
                               ),
                               child: Text(
                                 unreadCount.toString(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: getPercentageWidth(3, context),
                                 ),
                               ),
                             )

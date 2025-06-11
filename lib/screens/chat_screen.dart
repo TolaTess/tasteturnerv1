@@ -201,11 +201,11 @@ class _ChatScreenState extends State<ChatScreen> {
               widget.friend?.displayName ?? 'Chat',
               style: TextStyle(
                   fontWeight: FontWeight.w500,
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(4, context),
                   color: isDarkMode ? kWhite : kDarkGrey),
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: getPercentageWidth(1, context)),
             GestureDetector(
               onTap: widget.friendId!.isEmpty
                   ? () {}
@@ -221,18 +221,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
               child: CircleAvatar(
                 backgroundColor: kAccent,
-                radius: 23,
+                radius: getPercentageWidth(3, context),
                 child: CircleAvatar(
                   backgroundImage: widget.friend?.profileImage != null &&
                           widget.friend!.profileImage!.isNotEmpty &&
                           widget.friend!.profileImage!.contains('http')
                       ? NetworkImage(widget.friend!.profileImage!)
                       : const AssetImage(intPlaceholderImage) as ImageProvider,
-                  radius: 20,
+                  radius: getPercentageWidth(3, context),
                 ),
               ),
             ),
-            const SizedBox(width: 20),
+            SizedBox(width: getPercentageWidth(2, context)),
           ],
         ),
       ),
@@ -350,7 +350,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputSection(bool isDarkMode,
       {bool isDisabled = false, String hint = 'Type your caption...'}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      padding: EdgeInsets.fromLTRB(getPercentageWidth(2, context), getPercentageHeight(0.8, context), getPercentageWidth(2, context), getPercentageHeight(2.8, context)),  
       child: Row(
         children: [
           InkWell(
@@ -369,18 +369,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
             child: const IconCircleButton(
               icon: Icons.camera_alt,
-              h: 35,
-              w: 35,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: getPercentageWidth(1, context)),
           Expanded(
             child: SafeTextFormField(
               controller: textController,
               keyboardType: TextInputType.multiline,
               enabled: !isDisabled,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: getPercentageWidth(4, context),
                 color: isDarkMode ? kWhite : kBlack,
               ),
               decoration: InputDecoration(
@@ -390,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 focusedBorder: outlineInputBorder(20),
                 border: outlineInputBorder(20),
                 contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    EdgeInsets.symmetric(vertical: getPercentageHeight(1.2, context), horizontal: getPercentageWidth(1.6, context)), 
                 hintText: hint,
                 hintStyle: TextStyle(
                   color: isDarkMode
@@ -400,7 +398,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: getPercentageWidth(1, context)),
           InkWell(
             onTap: isDisabled
                 ? null
@@ -414,8 +412,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
             child: const IconCircleButton(
               icon: Icons.send,
-              h: 40,
-              w: 40,
+              h: 10,
+              w: 10,
             ),
           ),
         ],
@@ -449,12 +447,12 @@ class ChatItem extends StatelessWidget {
       extractedItems.add('post');
     }
     return Container(
-      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
+      padding: EdgeInsets.only(left: getPercentageWidth(4, context), right: getPercentageWidth(2, context), bottom: getPercentageHeight(1.6, context)),  
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
-          constraints: BoxConstraints(maxWidth: screenWidth * 0.7),
-          padding: const EdgeInsets.all(12),
+          constraints: BoxConstraints(maxWidth: screenWidth * 0.9),
+          padding: EdgeInsets.all(getPercentageWidth(1.2, context)),
           decoration: BoxDecoration(
             color: isMe
                 ? kAccentLight.withOpacity(0.2)
@@ -472,7 +470,7 @@ class ChatItem extends StatelessWidget {
                 Column(
                   children: dataSrc.imageUrls.map((url) {
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
+                      padding: EdgeInsets.only(bottom: getPercentageHeight(0.8, context)),
                       child: GestureDetector(
                         onTap: () {
                           if (extractedItems.isNotEmpty &&
@@ -515,7 +513,7 @@ class ChatItem extends StatelessWidget {
                           }
                         },
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(getPercentageWidth(1, context)),
                           child: url.contains('http')
                               ? Image.network(
                                   url,
@@ -542,7 +540,7 @@ class ChatItem extends StatelessWidget {
               if (dataSrc.messageContent.isNotEmpty)
                 Text(
                   getTextBeforeSlash(dataSrc.messageContent),
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: getPercentageWidth(3, context)),
                 ),
 
               // Show Calendar Share Request if available
@@ -554,7 +552,7 @@ class ChatItem extends StatelessWidget {
                 _buildFriendRequest(
                     context, isDarkMode, chatId, dataSrc.messageId),
 
-              const SizedBox(height: 4),
+              SizedBox(height: getPercentageHeight(0.5, context)),
 
               // Timestamp & Read Status
               Row(
@@ -563,13 +561,13 @@ class ChatItem extends StatelessWidget {
                 children: [
                   Text(
                     DateFormat('hh:mm a').format(dataSrc.timestamp.toDate()),
-                    style: const TextStyle(fontSize: 10),
+                    style: TextStyle(fontSize: getPercentageWidth(2, context)),
                   ),
-                  if (isMe) const SizedBox(width: 4),
+                  if (isMe) SizedBox(width: getPercentageWidth(1, context)),
                   if (isMe)
-                    const Icon(
+                      Icon(
                       Icons.done_all,
-                      size: 14,
+                      size: getPercentageWidth(3, context),
                       color: Colors.blue,
                     ),
                 ],
@@ -589,8 +587,8 @@ class ChatItem extends StatelessWidget {
     final date = friendRequest['date'] as String?;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.symmetric(vertical: getPercentageHeight(0.8, context), horizontal: 0),
+      padding: EdgeInsets.all(getPercentageWidth(1.2, context)),
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kAccentLight.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -601,15 +599,15 @@ class ChatItem extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.person_add_alt_1_outlined, size: 18, color: kAccent),
-              const SizedBox(width: 8),
+              Icon(Icons.person_add_alt_1_outlined, size: getPercentageWidth(2, context), color: kAccent),
+              SizedBox(width: getPercentageWidth(1, context)),
               Expanded(
                 child: Text(
                   '$friendName wants to be your friend',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: kAccent,
-                    fontSize: 14,
+                    fontSize: getPercentageWidth(3, context),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -623,25 +621,25 @@ class ChatItem extends StatelessWidget {
                       messageId,
                     );
                   },
-                  child: const Text('Accept'),
+                  child: Text('Accept', style: TextStyle(fontSize: getPercentageWidth(2, context))),
                   style: TextButton.styleFrom(
                       foregroundColor: isDarkMode ? kWhite : kDarkGrey),
                 ),
               if (status == 'accepted')
-                const Padding(
-                  padding: EdgeInsets.only(left: 8.0),
-                  child: Text('Accepted', style: TextStyle(color: kAccent)),
+                Padding(
+                  padding: EdgeInsets.only(left: getPercentageWidth(1, context)),
+                  child: Text('Accepted', style: TextStyle(color: kAccent, fontSize: getPercentageWidth(2, context))),
                 ),
             ],
           ),
           if (date != null)
             Padding(
-              padding: const EdgeInsets.only(top: 4.0),
+              padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
               child: Text(
                 'Requested on $date',
                 style: TextStyle(
                   color: isDarkMode ? Colors.white54 : Colors.black54,
-                  fontSize: 12,
+                  fontSize: getPercentageWidth(2, context),
                 ),
               ),
             ),
@@ -679,13 +677,13 @@ class ChatItem extends StatelessWidget {
           children: [
             Icon(
               type == 'entire_calendar' ? Icons.calendar_month : Icons.today,
-              size: 16,
+              size: getPercentageWidth(3, context),
               color: kAccent,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: getPercentageWidth(1, context)),
             Text(
               type == 'entire_calendar' ? 'Calendar Share' : 'Day Share',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: kAccent,
               ),
@@ -694,18 +692,18 @@ class ChatItem extends StatelessWidget {
         ),
         if (date != null)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Text(
               'Date: $formattedDate',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: getPercentageWidth(2, context),
                 color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
             ),
           ),
         if (!isMe && status == 'pending')
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -727,11 +725,11 @@ class ChatItem extends StatelessWidget {
                   style: TextButton.styleFrom(
                     backgroundColor: kAccent.withOpacity(0.1),
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        EdgeInsets.symmetric(horizontal: getPercentageWidth(1.2, context), vertical: getPercentageHeight(0.6, context)),
                   ),
-                  child: const Text(
+                    child: Text(
                     'Accept',
-                    style: TextStyle(color: kAccent, fontSize: 12),
+                    style: TextStyle(color: kAccent, fontSize: getPercentageWidth(2, context)),
                   ),
                 ),
               ],
@@ -739,11 +737,11 @@ class ChatItem extends StatelessWidget {
           ),
         if (status == 'accepted')
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Text(
               'Accepted',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: getPercentageWidth(2, context),
                 color: Colors.green[400],
                 fontWeight: FontWeight.w500,
               ),

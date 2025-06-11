@@ -673,10 +673,28 @@ Map<String, String> consolidateGroceryAmounts(List<Map<String, String>> items) {
   return consolidated;
 }
 
-List<MealWithType> updateMealForFamily(
-    List<MealWithType> personalMeals, String selectedCategory) {
+List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
+    String familyName, List<Map<String, dynamic>> familyList) {
+  if (personalMeals.isEmpty) {
+    return [];
+  }
+
+  // Check if any meals match the selected family name
+  bool hasCategoryMatch = personalMeals.any((meal) =>
+      meal.familyMember.toLowerCase() == familyName.toLowerCase());
+
+  // If no matches found, check if selected name matches current user
+  if (!hasCategoryMatch) {
+    if (familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
+      return personalMeals;
+    }
+    return personalMeals.where((meal) => meal.familyMember.isEmpty).toList();
+  }
+
+  // Otherwise return meals matching the selected family name
   return personalMeals
       .where((meal) =>
-          meal.familyMember.toLowerCase() == selectedCategory.toLowerCase())
+          meal.familyMember.toLowerCase() == familyName.toLowerCase() ||
+          meal.familyMember.isEmpty)
       .toList();
 }

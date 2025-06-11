@@ -118,15 +118,15 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                                 const Color(0xff343434).withOpacity(0.1),
                                 const Color(0xff343434).withOpacity(0.5),
                               ],
-                        stops: widget.isSelected ? [0.2, 0.9] : [0.0, 0.8],
+                        stops: widget.isSelected ? [0.2, 0.9] : [0.0, 0.8], //todo: make this dynamic 
                       ),
                     ),
                   ),
 
                   // Favorite button
                   Positioned(
-                    left: 10,
-                    top: 10,
+                      left: getPercentageWidth(1, context),
+                    top: getPercentageWidth(1, context),
                     child: GestureDetector(
                       onTap: widget.enableSelection ? null : _toggleFavorite,
                       child: Container(
@@ -135,13 +135,15 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(4),
+                          padding: EdgeInsets.all(getPercentageWidth(0.4, context)),
                           child: Icon(
                             _isFavorited
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: kAccent,
-                            size: 19,
+                            size: MediaQuery.of(context).size.height > 700
+                                ? getPercentageWidth(5, context)
+                                : getPercentageWidth(5.5, context),
                           ),
                         ),
                       ),
@@ -151,7 +153,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                   // Recipe details (title, prep time, serve quantity)
                   Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: getPercentageWidth(1, context),
                       vertical: getPercentageHeight(0.3, context),
                     ),
                     child: Column(
@@ -163,22 +165,25 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           widget.recipe.title,
                           style: TextStyle(
                               color: Colors.white,
-                              fontSize: getPercentageHeight(1.8, context),
+                              fontSize: MediaQuery.of(context).size.width > 700
+                                  ? getPercentageHeight(2.3, context)
+                                  : getPercentageHeight(1.8, context),
                               fontWeight: FontWeight.w500,
                               overflow: TextOverflow.ellipsis),
                           maxLines: 2,
                         ),
-                        const SizedBox(height: 5),
+                        SizedBox(height: getPercentageHeight(0.5, context)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             //Serves quantity
                             Text(
                               "${widget.recipe.serveQty} servings",
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: Colors.white, fontSize:  getPercentageWidth(2.5, context)),
                             ),
                           ],
                         ),
+                        SizedBox(height: getPercentageHeight(1, context)),
                       ],
                     ),
                   ),
@@ -191,11 +196,11 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           color: Colors.black.withOpacity(0.4),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Icon(
                             Icons.check_circle,
                             color: kAccent,
-                            size: 50,
+                            size: getPercentageWidth(5, context),
                           ),
                         ),
                       ),

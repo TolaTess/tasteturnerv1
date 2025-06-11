@@ -138,7 +138,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                     Padding(
                       padding: EdgeInsets.only(
-                          top: getPercentageHeight(3, context),
+                          top: getPercentageHeight(1, context),
                           left: getPercentageWidth(6, context),
                           right: getPercentageWidth(6, context)),
                       child: Container(
@@ -167,7 +167,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             top: getPercentageHeight(1, context)),
                         decoration: BoxDecoration(
                           color: kPrimaryColor,
-                          borderRadius: BorderRadius.circular(20),
+                          // borderRadius: BorderRadius.circular(20),
                           image: DecorationImage(
                             image: getImageProvider(user?.profileImage),
                             fit: BoxFit.cover,
@@ -268,7 +268,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ],
                       ),
                       SizedBox(
-                        height: getPercentageHeight(1.5, context),
+                        height: getPercentageHeight(0.5, context),
                       ),
                     ],
                   ),
@@ -289,7 +289,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   // Badges Slider
                   if (myBadge.isNotEmpty)
                     SizedBox(
-                      height: getPercentageHeight(20, context),
+                      height: getPercentageHeight(13, context),
                       child: ListView.builder(
                         itemCount: myBadge.length > 5
                             ? 5
@@ -348,9 +348,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               gridDelegate:
                                   SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
-                                mainAxisSpacing: getPercentageWidth(1, context),
+                                mainAxisSpacing:
+                                    getPercentageWidth(0.5, context),
                                 crossAxisSpacing:
-                                    getPercentageWidth(1, context),
+                                    getPercentageWidth(0.5, context),
                               ),
                               padding: EdgeInsets.only(
                                   top: getPercentageHeight(1, context),

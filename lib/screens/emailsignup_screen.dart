@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/form.dart';
+import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -31,7 +32,12 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const IconCircleButton(),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -51,19 +57,21 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(2.5, context)),
               Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: getPercentageWidth(5, context),
                 ),
                 child: Text(
-                  "Save delicious recipes and get personilized content.",
+                  getRandomWelcomeMessage(),
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getPercentageWidth(3, context),
+                    color: kAccent,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(2.5, context)),
               SignUpForm(
                 emailController: emailController,
                 passwordController: passwordController,
@@ -138,7 +146,7 @@ class _SignUpFormState extends State<SignUpForm> {
           // Password form field
           Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(5, context),
+              horizontal: getPercentageWidth(5, context),
             ),
             child: PasswordField(
               kHint: "Password",
@@ -163,7 +171,8 @@ class _SignUpFormState extends State<SignUpForm> {
                 ),
                 if (showPasswordError)
                   Padding(
-                    padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
+                    padding:
+                        EdgeInsets.only(top: getPercentageHeight(1, context)),
                     child: Text(
                       "Passwords do not match",
                       style: TextStyle(
@@ -182,6 +191,7 @@ class _SignUpFormState extends State<SignUpForm> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Theme(
                     data: Theme.of(context).copyWith(
@@ -210,14 +220,20 @@ class _SignUpFormState extends State<SignUpForm> {
                           ),
                         );
                       },
-                      child: const Text.rich(
+                      child: Text.rich(
                         TextSpan(
                           children: [
-                            TextSpan(text: "I agree to "),
+                            TextSpan(
+                              text: "I agree to ",
+                              style: TextStyle(
+                                fontSize: getPercentageWidth(2.5, context),
+                              ),
+                            ),
                             TextSpan(
                               text: "term of service and privacy policy",
                               style: TextStyle(
                                 decoration: TextDecoration.underline,
+                                fontSize: getPercentageWidth(2.5, context),
                               ),
                             )
                           ],
@@ -229,7 +245,9 @@ class _SignUpFormState extends State<SignUpForm> {
               ),
               if (showTermsError)
                 Padding(
-                  padding: EdgeInsets.only(left: getPercentageWidth(3, context), top: getPercentageHeight(1, context)),
+                  padding: EdgeInsets.only(
+                      left: getPercentageWidth(3, context),
+                      top: getPercentageHeight(1, context)),
                   child: Text(
                     "Please accept the terms and conditions to continue",
                     style: TextStyle(
@@ -240,7 +258,7 @@ class _SignUpFormState extends State<SignUpForm> {
                 ),
             ],
           ),
-          SizedBox(height: getPercentageHeight(2, context)),
+          SizedBox(height: getPercentageHeight(2.5, context)),
 
           //Sign up button
           Padding(
@@ -268,9 +286,14 @@ class TermsOfServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const IconCircleButton(),
+        ),
+      ),
       body: SingleChildScrollView(
-              padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -278,7 +301,9 @@ class TermsOfServiceScreen extends StatelessWidget {
               child: Text(
                 "Terms of Service",
                 style: TextStyle(
-                    fontSize: getPercentageWidth(5.5, context), fontWeight: FontWeight.bold, color: kAccent),
+                    fontSize: getPercentageWidth(5.5, context),
+                    fontWeight: FontWeight.bold,
+                    color: kAccent),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -292,29 +317,44 @@ class TermsOfServiceScreen extends StatelessWidget {
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Text(
-                "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice."),
+                "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice."),
+                "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate."),
+                "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent."),
+                "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "5. You are responsible for maintaining the confidentiality of your account information."),
+                  "5. You are responsible for maintaining the confidentiality of your account information.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes."),
+                "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.",
+                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+              ),
             SizedBox(height: getPercentageHeight(2, context)),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Last updated: 2025",
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    fontSize: getPercentageWidth(2, context),
+                  ),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Center(
@@ -326,11 +366,12 @@ class TermsOfServiceScreen extends StatelessWidget {
                         await launchUrl(url);
                       }
                     },
-                    child: const Text(
+                    child: Text(
                       'View Privacy Policy',
                       style: TextStyle(
                         color: kAccentLight,
                         decoration: TextDecoration.underline,
+                        fontSize: getPercentageWidth(2.5, context),
                       ),
                     ),
                   ),

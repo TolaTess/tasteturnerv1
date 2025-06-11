@@ -129,7 +129,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
             final isFallback = macro.id == null || macro.title.isEmpty;
 
             Widget listItem = Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(0.5, context)),
               decoration: BoxDecoration(
                 color:
                     isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white,
@@ -213,13 +213,16 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     unselectedWidgetColor:
                         isDarkMode ? Colors.white : Colors.black,
                   ),
-                  child: Checkbox(
-                    value: purchased,
-                    onChanged: (bool? value) {
-                      _toggleItem(id);
-                    },
-                    activeColor: kAccentLight,
-                    checkColor: kWhite,
+                  child: Transform.scale(
+                    scale: MediaQuery.of(context).size.height > 1100 ? 1.5 : 1, // Adjust this value to control checkbox size
+                    child: Checkbox(
+                      value: purchased,
+                      onChanged: (bool? value) {
+                        _toggleItem(id);
+                      },
+                      activeColor: kAccentLight,
+                      checkColor: kWhite,
+                    ),
                   ),
                 ),
               ),

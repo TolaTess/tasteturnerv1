@@ -324,14 +324,14 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 MaterialPageRoute(builder: (context) => const AddFoodScreen()),
               );
             },
-            child: const Center(
+            child: Center(
               child: Padding(
-                padding: EdgeInsets.all(10.0),
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
                 child: Text(
                   'Log more meals to see your top ingredients!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: getPercentageWidth(3, context),
                     fontStyle: FontStyle.italic,
                     color: kLightGrey,
                   ),

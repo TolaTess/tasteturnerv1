@@ -184,7 +184,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
         child: _selectedIndex == activeIdx
             ? SvgPicture.asset(
                 "assets/images/svg/$iconActive",
-                height: 25,
+                height: getPercentageWidth(6, context),
                 colorFilter: ColorFilter.mode(
                   kAccent.withOpacity(0.85),
                   BlendMode.srcIn,
@@ -192,7 +192,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
               )
             : SvgPicture.asset(
                 "assets/images/svg/$iconInactive",
-                height: 25,
+                height: getPercentageWidth(6, context),
                 colorFilter: ColorFilter.mode(
                   Provider.of<ThemeProvider>(context).isDarkMode
                       ? kWhite.withOpacity(0.70)

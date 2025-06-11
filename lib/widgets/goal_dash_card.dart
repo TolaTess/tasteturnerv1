@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,7 @@ import 'dart:ui';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../data_models/user_data_model.dart';
@@ -92,12 +94,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
     if (mounted) {
       setState(() {
         // Filter meals for selected user index
-        meals = mealWithTypes
-            .where((meal) =>
-                meal.familyMember ==
-                    displayList[selectedUserIndex]['name'].toLowerCase() ||
-                meal.familyMember.isEmpty)
-            .toList();
+        meals = updateMealForFamily(
+            mealWithTypes,
+            displayList[selectedUserIndex]['name'],
+            familyList);
         mealPlan = mealPlan;
       });
     }
@@ -301,14 +301,13 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
 
     displayList = [currentUser, ...familyList];
     user = familyMode ? displayList[selectedUserIndex] : displayList[0];
-    final double cardMaxWidth = familyMode ? 400 : double.infinity;
 
     // Glassmorphism effect
     return Center(
       child: Stack(
         children: [
           SizedBox(
-            width: cardMaxWidth,
+            width: double.infinity,
             child: Container(
               margin: EdgeInsets.only(
                   left: getPercentageWidth(2, context),
@@ -337,21 +336,29 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      capitalizeFirstLetter(user['name'] ?? ''),
-                                      style: TextStyle(
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize:
-                                            getPercentageWidth(5.2, context),
-                                        letterSpacing: 0.5,
+                                    Flexible(
+                                      child: Text(
+                                        capitalizeFirstLetter(
+                                            user['name'] ?? ''),
+                                        style: TextStyle(
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: user['name'].length > 10
+                                              ? getPercentageWidth(4, context)
+                                              : getPercentageWidth(4.5, context),
+                                          letterSpacing: 0.5,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ),
                                     if (user['name'] ==
                                         userService.currentUser?.displayName)
                                       SizedBox(
                                           width:
-                                              getPercentageWidth(2, context)),
+                                              user['name'].length > 10
+                                                  ? getPercentageWidth(0.5, context)
+                                                  : getPercentageWidth(1, context)),
                                     if (user['name'] ==
                                         userService.currentUser?.displayName)
                                       InkWell(
@@ -374,8 +381,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                       style: TextStyle(
                                         color: isDarkMode ? kAccent : kWhite,
                                         fontWeight: FontWeight.w600,
-                                        fontSize:
-                                            getPercentageWidth(3.5, context),
+                                        fontSize: user['name'].length > 10
+                                            ? getPercentageWidth(3, context)
+                                            : getPercentageWidth(3.5, context),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
@@ -406,11 +415,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
                                   fontSize: getPercentageWidth(3.5, context),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
                           // Edit button as floating action
-                          SizedBox(width: getPercentageWidth(2, context)),
+                          SizedBox(width: getPercentageWidth(1, context)),
                           Material(
                             color: Colors.transparent,
                             child: InkWell(
@@ -433,7 +443,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                               ),
                             ),
                           ),
-                          SizedBox(width: getPercentageWidth(2, context)),
+                          SizedBox(width: getPercentageWidth(1, context)),
                           Material(
                             color: Colors.transparent,
                             child: InkWell(
@@ -456,7 +466,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                           ),
                         ],
                       ),
-                      SizedBox(height: getPercentageHeight(2.5, context)),
+                      SizedBox(height: getPercentageHeight(2, context)),
                       // Sleek horizontal progress bar
                       Obx(() {
                         // Only show progress bar for first user/current user
@@ -509,7 +519,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 6),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -521,6 +531,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                     fontSize: getPercentageWidth(3.2, context),
                                   ),
                                 ),
+                                if(targetCalories > 0 && showCaloriesAndGoal)
                                 Text(
                                   '${targetCalories.toStringAsFixed(0)} kcal',
                                   style: TextStyle(
@@ -570,7 +581,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
                                     style: TextStyle(
                                       color: isDarkMode ? kWhite : kDarkGrey,
-                                      fontSize: getPercentageWidth(4, context),
+                                      fontSize: getPercentageWidth(3.5, context),
                                     ),
                                   ),
                                 ),
@@ -642,7 +653,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                       SizedBox(height: getPercentageHeight(1.5, context)),
                       if (meals.isNotEmpty)
                         SizedBox(
-                          height: getPercentageHeight(15, context),
+                          height: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageHeight(16.5, context)
+                          : getPercentageHeight(14.5, context),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: meals.length,
@@ -801,10 +814,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                               ? kDarkGrey.withOpacity(0.18)
                                               : kWhite.withOpacity(0.25),
                                       child: fam['avatar'] == null
-                                          ? Icon(Icons.person,
-                                              color: isDarkMode
-                                                  ? kWhite
-                                                  : kDarkGrey)
+                                          ? _getAvatar(fam['ageGroup'], context,
+                                              isDarkMode)
                                           : ClipOval(
                                               child: Image.asset(
                                                 fam['avatar'],
@@ -831,6 +842,32 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
         ],
       ),
     );
+  }
+}
+
+Widget _getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
+  switch (avatar?.toLowerCase()) {
+    case 'infant':
+    case 'baby':
+      return SvgPicture.asset('assets/images/svg/baby.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context));
+    case 'toddler':
+      return SvgPicture.asset('assets/images/svg/toddler.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context));
+    case 'child':
+      return SvgPicture.asset('assets/images/svg/child.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context));
+    case 'teen':
+      return SvgPicture.asset('assets/images/svg/teen.svg',
+          height: getPercentageWidth(6, context),
+          width: getPercentageWidth(6, context));
+    default:
+      return SvgPicture.asset('assets/images/svg/adult.svg',
+          height: getPercentageWidth(6, context),
+          width: getPercentageWidth(6, context));
   }
 }
 

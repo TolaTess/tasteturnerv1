@@ -3,9 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tasteturner/detail_screen/recipe_detail.dart';
 
 import '../constants.dart';
+import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import '../screens/createrecipe_screen.dart';
 import '../screens/friend_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../widgets/bottom_nav.dart';
@@ -30,6 +33,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   bool isLiked = false;
   bool isFollowing = false;
   int likesCount = 0;
+  bool hasMeal = false;
 
   List<String> extractedItems = [];
   @override
@@ -49,6 +53,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             ? extractedItems.first
             : ''); // fallback to '' if empty
     isFollowing = friendController.isFollowing(targetUserId);
+
+    _loadMeal();
+  }
+
+  Future<void> _loadMeal() async {
+    final meal = await mealManager.getMealbyMealID(widget.dataSrc['id']);
+    if (mounted) {
+      setState(() {
+        hasMeal = meal != null;
+      });
+    }
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -167,8 +182,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            if (widget.screen == 'myPost' ||
-                widget.screen == 'share_recipe') {
+            if (widget.screen == 'myPost' || widget.screen == 'share_recipe') {
               Get.back();
               return;
             }
@@ -182,8 +196,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             );
           },
           child: Container(
-            width: 30,
-            height: 30,
+            width: getPercentageWidth(6, context),
+            height: getPercentageWidth(6, context),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
             ),
@@ -195,8 +209,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
         title: Text(
           textAlign: TextAlign.center,
           capitalizeFirstLetter(getTitle()),
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: getPercentageWidth(4, context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -207,10 +221,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              const SizedBox(height: 10),
+              SizedBox(height: getPercentageHeight(1, context)),
               // Challenge Thumbnail
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context)),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     double sideLength = constraints.maxWidth; // Make it square
@@ -282,18 +297,20 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               // Favorite, Download Buttons
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context)),
                 child: Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(50),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: EdgeInsets.symmetric(
+                            vertical: getPercentageHeight(1, context)),
                         decoration: BoxDecoration(
                           color: kAccent.withOpacity(0.1),
                         ),
@@ -301,30 +318,72 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SizedBox(width: getPercentageWidth(7, context)),
+                         
+                              SizedBox(width: getPercentageWidth(7, context)),
+                            
                             // User Profile
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => UserProfileScreen(
-                                    userId: widget.dataSrc['userId'] ??
-                                        (extractedItems.isNotEmpty
-                                            ? extractedItems.first
-                                            : ''),
+                            if (widget.dataSrc['userId'] != userService.userId)
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => UserProfileScreen(
+                                      userId: widget.dataSrc['userId'] ??
+                                          (extractedItems.isNotEmpty
+                                              ? extractedItems.first
+                                              : ''),
+                                    ),
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: getPercentageWidth(3, context),
+                                  backgroundColor:
+                                      kAccent.withOpacity(kOpacity),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: kWhite,
+                                    size: getPercentageWidth(4, context),
                                   ),
                                 ),
                               ),
-                              child: CircleAvatar(
-                                radius: 13,
-                                backgroundColor: kAccent.withOpacity(kOpacity),
-                                child: const Icon(
-                                  Icons.person,
-                                  color: kWhite,
+                            if (widget.dataSrc['userId'] ==
+                                    userService.userId &&
+                                !hasMeal) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CreateRecipeScreen(
+                                          networkImages: List<String>.from(
+                                              widget.dataSrc['mediaPaths'] ??
+                                                  []),
+                                          mealId: widget.dataSrc['id'],
+                                          screenType: 'post_add'),
+                                    ),
+                                  );
+                                },
+                                child: CircleAvatar(
+                                  radius: getPercentageWidth(3, context),
+                                  backgroundColor:
+                                      kAccent.withOpacity(kOpacity),
+                                  child: Icon(
+                                    Icons.add_circle,
+                                    color: kWhite,
+                                    size: getPercentageWidth(4.5, context),
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(width: getPercentageWidth(7, context)),
+                            ],
+                            if (widget.dataSrc['userId'] ==
+                                    userService.userId &&
+                                !hasMeal) ...[
+                              SizedBox(width: getPercentageWidth(7, context)),
+                            ],
+                            if (widget.dataSrc['userId'] !=
+                                userService.userId) ...[
+                              SizedBox(width: getPercentageWidth(7, context)),
+                            ],
 
                             // Share Icon (Optional - Add functionality if needed)
                             GestureDetector(
@@ -339,10 +398,45 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ),
                                 );
                               },
-                              child: const Icon(Icons.share),
+                                  child: Icon(
+                                Icons.share,
+                                size: getPercentageWidth(4.5, context),
+                              ),
                             ),
 
                             SizedBox(width: getPercentageWidth(7, context)),
+
+                            if (hasMeal)
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => RecipeDetailScreen(
+                                        mealData: Meal(
+                                          mealId: widget.dataSrc['id'],
+                                          userId: widget.dataSrc['userId'],
+                                          title: widget.dataSrc['category'],
+                                          createdAt: DateTime.now(),
+                                          mediaPaths: List<String>.from(
+                                              widget.dataSrc['mediaPaths'] ??
+                                                  []),
+                                          serveQty: 1,
+                                          calories: 0,
+                                        ),
+                                        screen: 'share_recipe',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Icon(
+                                  Icons.restaurant,
+                                  size: getPercentageWidth(4.5, context), 
+                                  color: kAccent,
+                                ),
+                              ),
+                            if (hasMeal)
+                              SizedBox(width: getPercentageWidth(7, context)),
 
                             // Favorite Icon with Toggle (real-time)
                             StreamBuilder<
@@ -364,10 +458,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                             ? Icons.favorite
                                             : Icons.favorite_border,
                                         color: isLiked ? kAccent : null,
+                                        size: getPercentageWidth(4.5  , context),
                                       ),
                                     ),
-                                    const SizedBox(width: 2),
-                                    Text("$likesCount"),
+                                    SizedBox(width: getPercentageWidth(1, context)),
+                                    Text("$likesCount",
+                                      style: TextStyle(
+                                        fontSize: getPercentageWidth(2, context),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
                                   ],
                                 );
                               },
@@ -391,6 +491,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                         ? Icons.people
                                         : Icons.person_add_alt_1_outlined,
                                     color: isFollowing ? kAccentLight : null,
+                                    size: getPercentageWidth(4.5, context),
                                   ),
                                 );
                               }),
@@ -418,7 +519,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                         style: TextStyle(
                                           color: isDarkMode ? kWhite : kBlack,
                                           fontWeight: FontWeight.w400,
-                                          fontSize: 18,
+                                          fontSize: getPercentageWidth(4, context),
                                         ),
                                       ),
                                       content: Text(
@@ -472,7 +573,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   }
                                 },
                                 child:
-                                    const Icon(Icons.delete, color: Colors.red),
+                                    Icon(Icons.delete,
+                                        color: Colors.red,
+                                        size: getPercentageWidth(4.5, context)),
                               ),
                             if ((widget.dataSrc['userId'] ??
                                     (extractedItems.isNotEmpty
@@ -488,17 +591,18 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context)),
                 child: SearchContentGrid(
                   postId: widget.dataSrc['id'] ?? extractedItems.first,
                   listType: 'battle_post',
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SizedBox(height: getPercentageHeight(2, context)),
             ],
           ),
         ),

@@ -240,14 +240,16 @@ class _TastyScreenState extends State<TastyScreen> {
             },
             child: Column(
               children: [
-                const SizedBox(height: 45),
+                SizedBox(height: getPercentageHeight(4.5, context)),
                 Row(
                   children: [
                     if (isPremium || isInFreeTrial)
                       Expanded(
                         child: Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(5),
+                          margin:
+                              EdgeInsets.all(getPercentageWidth(1.5, context)),
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(1, context)),
                           decoration: BoxDecoration(
                             color:
                                 themeProvider.isDarkMode ? kLightGrey : kWhite,
@@ -274,15 +276,17 @@ class _TastyScreenState extends State<TastyScreen> {
                                     },
                                     child: const IconCircleButton(),
                                   ),
+                                SizedBox(width: getPercentageWidth(2, context)),
                                 CircleAvatar(
                                   backgroundColor:
                                       kAccentLight.withOpacity(0.5),
                                   backgroundImage: const AssetImage(
                                     tastyImage, // Adjust the path to your tasty image
                                   ),
-                                  radius: 20,
+                                  radius: getPercentageWidth(3, context),
                                 ),
-                                const SizedBox(width: 15),
+                                SizedBox(
+                                    width: getPercentageWidth(1.5, context)),
                                 Text(
                                   "Tasty Menu:",
                                   style: Theme.of(context)
@@ -290,6 +294,8 @@ class _TastyScreenState extends State<TastyScreen> {
                                       .titleMedium
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
+                                        fontSize:
+                                            getPercentageWidth(4, context),
                                         color: themeProvider.isDarkMode
                                             ? kWhite
                                             : kDarkGrey,
@@ -349,7 +355,8 @@ class _TastyScreenState extends State<TastyScreen> {
                     return ListView.builder(
                       controller: _scrollController,
                       itemCount: messages.length,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1, context)),
                       itemBuilder: (context, index) {
                         final message = messages[index];
                         return ChatItem(
@@ -384,7 +391,11 @@ class _TastyScreenState extends State<TastyScreen> {
         FocusScope.of(context).unfocus();
       },
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        padding: EdgeInsets.fromLTRB(
+            getPercentageWidth(2, context),
+            getPercentageHeight(0.8, context),
+            getPercentageWidth(2, context),
+            getPercentageHeight(2.8, context)),
         child: Row(
           children: [
             Expanded(
@@ -392,7 +403,7 @@ class _TastyScreenState extends State<TastyScreen> {
                 controller: textController,
                 keyboardType: TextInputType.multiline,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(4, context),
                   color: isDarkMode ? kWhite : kBlack,
                 ),
                 enabled: _canUserSendMessage(),
@@ -402,8 +413,9 @@ class _TastyScreenState extends State<TastyScreen> {
                   enabledBorder: outlineInputBorder(20),
                   focusedBorder: outlineInputBorder(20),
                   border: outlineInputBorder(20),
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  contentPadding: EdgeInsets.symmetric(
+                      vertical: getPercentageHeight(1.2, context),
+                      horizontal: getPercentageWidth(1.6, context)),
                   hintText: _getInputHintText(),
                   hintStyle: TextStyle(
                     color: isDarkMode
@@ -413,7 +425,7 @@ class _TastyScreenState extends State<TastyScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: getPercentageWidth(1, context)),
             Obx(() {
               final canSend = _canUserSendMessage();
               return InkWell(
@@ -428,8 +440,8 @@ class _TastyScreenState extends State<TastyScreen> {
                     : null,
                 child: IconCircleButton(
                   icon: Icons.send,
-                  h: 40,
-                  w: 40,
+                  h: 10,
+                  w: 10,
                   colorL: canSend ? kAccent : kLightGrey,
                   colorD: canSend ? kAccent : kLightGrey,
                 ),
@@ -763,13 +775,18 @@ Greet the user warmly and offer guidance based on:
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
+                        fontSize: getPercentageWidth(3.5, context),
                       ),
                 ),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isDarkMode ? kWhite : kBlack,
-                      ),
+                Center(
+                  child: Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getPercentageWidth(3, context),
+                        ),
+                  ),
                 ),
               ],
             ),

@@ -158,7 +158,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     return Scaffold(
       appBar: AppBar(
         leading: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
           child: InkWell(
             onTap: () {
               if (!widget.isRecipe) {
@@ -177,19 +178,21 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             child: const IconCircleButton(),
           ),
         ),
-        title: const Text(
+        title: Text(
           'Ingredient Features',
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            fontSize: 20,
+            fontSize: getPercentageWidth(4, context),
           ),
         ),
       ),
       body: Column(
         children: [
+          SizedBox(height: getPercentageHeight(2, context)),
           // Search Box
           Padding(
-            padding: const EdgeInsets.all(15.0),
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context)),
             child: SearchButton2(
               controller: _searchController,
               onChanged: _filterItems,
@@ -198,7 +201,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
           ),
 
           Padding(
-            padding: const EdgeInsets.only(left: 20, right: 15),
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(1, context)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -206,29 +210,31 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                   'Ingredients',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 18,
+                    fontSize: getPercentageWidth(3.5, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: getPercentageWidth(2, context)),
                 if (hasMoreItems)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context)),
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _loadMore,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kAccent,
                         foregroundColor: kWhite,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(2, context),
+                            vertical: getPercentageHeight(1, context)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                          ? SizedBox(
+                              width: getPercentageWidth(4, context),
+                              height: getPercentageHeight(2, context),
                               child: CircularProgressIndicator(
                                 color: kAccent,
                                 strokeWidth: 2,
@@ -236,9 +242,11 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                     AlwaysStoppedAnimation<Color>(kWhite),
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'See More',
-                              style: TextStyle(color: kWhite),
+                              style: TextStyle(
+                                  color: kWhite,
+                                  fontSize: getPercentageWidth(3, context)),
                             ),
                     ),
                   ),
@@ -252,7 +260,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               thumbVisibility: true,
               trackVisibility: true,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 75, right: 20, left: 20),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(2, context)),
                 scrollDirection: Axis.vertical,
                 child: Column(
                   children: [
@@ -269,8 +279,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                         child: Builder(
                           builder: (context) {
                             // Calculate total table width
-                            final double checkboxColWidth = 60;
-                            final double titleColWidth = 100;
+                            final double checkboxColWidth = getPercentageWidth(10, context);
+                            final double titleColWidth = getPercentageWidth(20, context);
                             final double featureColWidth =
                                 getPercentageWidth(20, context);
                             final double totalTableWidth = checkboxColWidth +
@@ -288,13 +298,15 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                       children: [
                                         Container(
                                           width: checkboxColWidth,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 12),
-                                          child: const Text(
+                                          padding: EdgeInsets.symmetric(
+                                              vertical: getPercentageHeight(
+                                                  1, context)),
+                                          child: Text(
                                             'Check \nto save',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w500,
-                                              fontSize: 14,
+                                              fontSize: getPercentageWidth(
+                                                  3, context),
                                               color: kAccentLight,
                                             ),
                                             textAlign: TextAlign.center,
@@ -317,6 +329,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                     color: isDarkMode
                                                         ? kPrimaryColor
                                                         : kBlack,
+                                                    fontSize: getPercentageWidth(3, context),
                                                   ),
                                                 ),
                                               ),
@@ -328,13 +341,13 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                   ),
                                 ),
                                 Divider(
-                                  height: 1,
+                                  height: getPercentageHeight(0.5, context),
                                   color: kAccentLight.withOpacity(0.1),
                                 ),
                                 // Table body (rows)
                                 SizedBox(
-                                  height:
-                                      400, // or use MediaQuery to set max height
+                                  height: getPercentageHeight(60,
+                                      context), // or use MediaQuery to set max height
                                   width: totalTableWidth,
                                   child: ListView.builder(
                                     shrinkWrap: true,
@@ -384,13 +397,17 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                 );
                                               },
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 6, bottom: 6),
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical:
+                                                        getPercentageHeight(
+                                                            1, context)),
                                                 child: Text(
                                                   capitalizeFirstLetter(
                                                       item.title),
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        getPercentageWidth(
+                                                            3, context),
                                                     fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
@@ -415,7 +432,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                   child: header.toLowerCase() ==
                                                           "rainbow"
                                                       ? CircleAvatar(
-                                                          radius: 10,
+                                                          radius:
+                                                              getPercentageWidth(
+                                                                  2, context),
                                                           backgroundColor:
                                                               checkRainbowGroup(
                                                                   featureValue
@@ -437,6 +456,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .w500,
+                                                                  fontSize: getPercentageWidth(2.5, context),
                                                                   color: checkSeason(
                                                                       featureValue
                                                                           .toString())),
@@ -465,17 +485,19 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                         ),
                                                                       ),
                                                                     ),
-                                                                    const SizedBox(
-                                                                        width:
-                                                                            3),
+                                                                    SizedBox(
+                                                                        width: getPercentageWidth(
+                                                                            1,
+                                                                            context)),
                                                                     Text(
                                                                       featureValue !=
                                                                               null
                                                                           ? '${featureValue.toString()}'
                                                                           : '-',
-                                                                      style: const TextStyle(
-                                                                          fontSize:
-                                                                              10),
+                                                                      style: TextStyle(
+                                                                          fontSize: getPercentageWidth(
+                                                                              2,
+                                                                              context)),
                                                                     ),
                                                                   ],
                                                                 )
@@ -489,6 +511,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                   overflow:
                                                                       TextOverflow
                                                                           .ellipsis,
+                                                                  style: TextStyle(
+                                                                      fontSize: getPercentageWidth(2.5, context)),
                                                                 ),
                                                 ),
                                               ),

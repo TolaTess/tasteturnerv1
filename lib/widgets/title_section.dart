@@ -24,7 +24,7 @@ class TitleSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -33,14 +33,14 @@ class TitleSection extends StatelessWidget {
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: getPercentageWidth(4.5, context),
+                fontSize: getPercentageWidth(4, context),
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
           ),
-          const SizedBox(
-            width: 6,
+          SizedBox(
+            width: getPercentageWidth(0.6, context),
           ),
           InkWell(
             onTap: press,
@@ -49,7 +49,7 @@ class TitleSection extends StatelessWidget {
                 Text(
                   more,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3.5, context),
+                    fontSize: getPercentageWidth(3, context),
                     fontWeight: FontWeight.w500,
                     color: themeProvider.isDarkMode
                         ? kDarkModeAccent.withOpacity(0.70)

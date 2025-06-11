@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../constants.dart';
+
 class GeminiService {
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1';
   String? _activeModel; // Cache the working model name and full path
+  bool familyMode = userService.currentUser?.familyMode ?? false;
 
   // Initialize and find a working model
   Future<bool> initializeModel() async {
@@ -80,7 +83,7 @@ class GeminiService {
 
     // Add brevity instruction to the role/prompt
     final briefingInstruction =
-        "Please provide brief, concise responses in 2-3 sentences maximum. ";
+        "Please provide brief, concise responses in 2-4 sentences maximum. ";
     final modifiedPrompt = role != null
         ? '$briefingInstruction\n$role\nUser: $prompt'
         : '$briefingInstruction\nUser: $prompt';
@@ -155,6 +158,12 @@ class GeminiService {
       throw Exception('API key not configured');
     }
 
+    if (familyMode) {
+      prompt = 'For a family, generate a detailed meal plan based on the following requirements: $prompt';
+    } else {
+      prompt = 'Generate a detailed meal plan based on the following requirements: $prompt';
+    } 
+
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
@@ -165,9 +174,7 @@ class GeminiService {
               "parts": [
                 {
                   "text": '''
-You are a professional nutritionist and meal planner. Generate a detailed meal plan based on the following requirements:
-
-$prompt
+You are a professional nutritionist and meal planner. $prompt
 
 Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
 {
@@ -255,8 +262,14 @@ Important:
       throw Exception('API key not configured');
     }
 
+    if (familyMode) {
+      prompt = 'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
+    } else {
+      prompt = 'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
+    }
+
     final mealPrompt = '''
-    Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt
+    $prompt
 
     Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
     {

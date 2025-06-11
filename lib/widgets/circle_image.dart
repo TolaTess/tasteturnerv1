@@ -32,7 +32,13 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: widget.radius < 9 ? 90 : 123,
+      height: widget.radius < 9
+          ? MediaQuery.of(context).size.height > 1100
+              ? getPercentageHeight(12, context)
+              : getPercentageHeight(10, context)
+          : MediaQuery.of(context).size.height > 1100
+              ? getPercentageHeight(18, context)
+              : getPercentageHeight(13, context),
       child: widget.demoAcceptedData.isEmpty
           ? noItemTastyWidget(
               'No ingredients available',

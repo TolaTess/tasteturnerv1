@@ -83,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                       // ✅ Actual Image
                       SizedBox(
-                        width: 80,
+                        width: getPercentageWidth(20, context),
                         child: Image.asset(
                           'assets/images/tasty/tasty.png',
                           fit: BoxFit.contain,
@@ -138,7 +138,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: getPercentageHeight(2.5, context)),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -162,7 +162,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                               child: SvgPicture.asset(
                                 "assets/images/svg/apple.svg",
-                                height: 24,
+                                height: getPercentageWidth(5, context),
                               ),
                             ),
                           ),
@@ -175,7 +175,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
-                              vertical: 12,
+                              vertical: getPercentageHeight(1, context),
                             ),
                             decoration: BoxDecoration(
                               color: kDarkGrey,
@@ -185,14 +185,14 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             child: SvgPicture.asset(
                               "assets/images/svg/google.svg",
-                              height: 24,
+                              height: getPercentageWidth(5, context),
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: getPercentageHeight(2.5, context)),
 
                   //sign up with email
 
@@ -210,15 +210,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                    SizedBox(height: getPercentageHeight(2.5, context)),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         "Already have an account? ",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: getPercentageWidth(3.5, context),
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
                         ),
@@ -233,12 +233,12 @@ class _SignupScreenState extends State<SignupScreen> {
                                 const EmailSigninScreen(), // go to sign up screen
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           "Log in",
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: getPercentageWidth(3.5, context),
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             decoration: TextDecoration.underline,
                           ),
                         ),
@@ -246,7 +246,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 75),
+                  SizedBox(height: getPercentageHeight(7.5, context)),
                 ],
               ),
             ),

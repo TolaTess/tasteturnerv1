@@ -237,10 +237,10 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
                 return Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(getPercentageWidth(1, context)),
                     child: _isLoading.value
                         ? Container(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(getPercentageWidth(0.8, context)),
                             decoration: BoxDecoration(
                               color: kAccent.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -253,16 +253,17 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                         : TextButton(
                             onPressed: _loadMoreMealsIfNeeded,
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(1, context)),
                               backgroundColor: kAccent.withOpacity(0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'See More',
                               style: TextStyle(
+                                fontSize: getPercentageWidth(3, context),
                                 color: kAccent,
                                 fontWeight: FontWeight.bold,
                               ),

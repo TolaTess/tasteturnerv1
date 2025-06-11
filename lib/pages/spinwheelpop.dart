@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
@@ -350,13 +351,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(5, context),
+                          fontSize: getPercentageWidth(4, context),
                           color: kAccent,
                         ),
                       ),
                     ),
                     IconButton(
-                      iconSize: getPercentageWidth(6, context),
+                      iconSize: getPercentageWidth(5, context),
                       icon: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
                       ),
@@ -390,16 +391,26 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           children: [
             Expanded(
               flex: 1,
-              child: IconButton(
-                icon: Icon(
-                    showDietCategories ? Icons.fastfood : Icons.food_bank,
-                    size: getPercentageWidth(6, context),
-                    color: showDietCategories ? kAccent : isDarkMode ? kWhite : kDarkGrey),
-                onPressed: () {
-                  setState(() {
-                    showDietCategories = !showDietCategories;
-                  });
-                },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: IconButton(
+                  icon: SvgPicture.asset('assets/images/svg/check.svg',
+                      height: getPercentageWidth(8, context),
+                      width: getPercentageWidth(8, context),
+                      color: showDietCategories
+                          ? kAccentLight
+                          : isDarkMode
+                              ? kWhite
+                              : kDarkGrey),
+                  onPressed: () {
+                    setState(() {
+                      showDietCategories = !showDietCategories;
+                    });
+                  },
+                ),
               ),
             ),
             Expanded(

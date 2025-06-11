@@ -3,6 +3,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../widgets/form.dart';
+import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 
 class EmailSigninScreen extends StatelessWidget {
@@ -11,33 +12,40 @@ class EmailSigninScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: const SafeArea(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const IconCircleButton(),
+        ),
+      ),
+      body: SafeArea(
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(5, context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                SizedBox(height: 16),
+              children: [
+                SizedBox(height: getPercentageHeight(1, context)),
                 Text(
                   "Sign In",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: getPercentageWidth(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: getPercentageHeight(2.5, context)),
                 Text(
-                  "Welcome back! \n \nA delectable treat is just a tap away.",
+                  getRandomWelcomeMessage(),
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getPercentageWidth(3, context),
+                    color: kAccent,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: getPercentageHeight(2.5, context)),
                 SigninForm(),
               ],
             ),
@@ -83,7 +91,7 @@ class _SigninFormState extends State<SigninForm> {
             controller: emailController,
           ),
 
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(4, context)),
 
           //password form
           PasswordField(
@@ -92,7 +100,7 @@ class _SigninFormState extends State<SigninForm> {
             controller: passwordController,
           ),
 
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(4, context)),
 
           Align(
             alignment: Alignment.center,
@@ -102,18 +110,30 @@ class _SigninFormState extends State<SigninForm> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Reset Password'),
+                    title: Text(
+                      'Reset Password',
+                      style: TextStyle(
+                        fontSize: getPercentageWidth(3.5, context),
+                        color: kAccent,
+                      ),
+                    ),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Enter your email address and we\'ll send you a link to reset your password.',
+                          style: TextStyle(
+                            fontSize: getPercentageWidth(3, context),
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: getPercentageHeight(1, context)),
                         SafeTextField(
                           controller: emailController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Email',
+                            hintStyle: TextStyle(
+                              fontSize: getPercentageWidth(3.5, context),
+                            ),
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -122,7 +142,13 @@ class _SigninFormState extends State<SigninForm> {
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: getPercentageWidth(3.3, context),
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
@@ -137,22 +163,28 @@ class _SigninFormState extends State<SigninForm> {
                             );
                           }
                         },
-                        child: const Text('Reset Password'),
+                        child: Text(
+                          'Reset Password',
+                          style: TextStyle(
+                            fontSize: getPercentageWidth(3.5, context),
+                            color: kAccent,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 );
               },
-              child: const Text(
+              child: Text(
                 "Forgot password?",
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: getPercentageWidth(3.5, context),
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: getPercentageHeight(4, context)),
 
           //Sign in button
           AppButton(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tasteturner/tabs_screen/food_challenge_screen.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
+import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
 import '../screens/createrecipe_screen.dart';
 import '../widgets/custom_drawer.dart';
@@ -59,11 +60,15 @@ class _FoodTabScreenState extends State<FoodTabScreen>
             GestureDetector(
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: CircleAvatar(
-                radius: 20,
+                radius: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageWidth(3.5, context)
+                    : getPercentageWidth(4.3, context),
                 backgroundColor: kAccent.withOpacity(kOpacity),
                 child: CircleAvatar(
                   backgroundImage: getAvatarImage(avatarUrl),
-                  radius: 18,
+                  radius: MediaQuery.of(context).size.height > 1100
+                      ? getPercentageWidth(3.2, context)
+                      : getPercentageWidth(4, context),
                 ),
               ),
             ),
@@ -73,7 +78,7 @@ class _FoodTabScreenState extends State<FoodTabScreen>
                 child: Text(
                   'Food and Recipes',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: getPercentageWidth(4.5, context),
                     fontWeight: FontWeight.w400,
                     color:
                         themeProvider.isDarkMode ? Colors.white : Colors.black,
@@ -86,7 +91,7 @@ class _FoodTabScreenState extends State<FoodTabScreen>
         actions: [
           // Add new recipe button
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: EdgeInsets.only(right: getPercentageWidth(2, context)),
             child: InkWell(
               onTap: () {
                 if (_tabController.index == 0) {
@@ -111,8 +116,6 @@ class _FoodTabScreenState extends State<FoodTabScreen>
               },
               child: const IconCircleButton(
                 icon: Icons.add,
-                h: 30,
-                w: 30,
                 colorD: kAccent,
                 isRemoveContainer: false,
               ),
@@ -123,16 +126,19 @@ class _FoodTabScreenState extends State<FoodTabScreen>
       body: SafeArea(
         child: Column(
           children: [
+            SizedBox(height: MediaQuery.of(context).size.height > 1100
+                ? getPercentageHeight(1.5, context)
+                : getPercentageHeight(0.5, context)),
             // TabBar at the top
             TabBar(
               controller: _tabController,
-              tabs: const [
+              tabs: [
                 Tab(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Food Insta'),
-                      SizedBox(width: 8),
+                      SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
                 ),
@@ -141,15 +147,15 @@ class _FoodTabScreenState extends State<FoodTabScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Recipes'),
-                      SizedBox(width: 8),
+                      SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
                 ),
               ],
               indicatorColor: themeProvider.isDarkMode ? kWhite : kBlack,
-              labelStyle: const TextStyle(
+              labelStyle: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 15,
+                fontSize: getPercentageWidth(3, context),
               ),
               labelColor: themeProvider.isDarkMode ? kWhite : kBlack,
               unselectedLabelColor: kLightGrey,

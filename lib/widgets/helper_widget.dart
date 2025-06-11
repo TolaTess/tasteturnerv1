@@ -68,11 +68,14 @@ class _SearchContentGridState extends State<SearchContentGrid> {
             .orderBy('createdAt', descending: true)
             .get();
 
-        snapshot = postSnapshot.docs.map((doc) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          return data;
-        }).where((data) => data['battleId'] != 'private').toList();
+        snapshot = postSnapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            })
+            .where((data) => data['battleId'] != 'private')
+            .toList();
       } else {
         setState(() {
           searchContentDatas = [];
@@ -130,14 +133,14 @@ class _SearchContentGridState extends State<SearchContentGrid> {
       children: [
         if (searchContentDatas.isEmpty)
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(getPercentageWidth(2, context)),
             child: noItemTastyWidget("No posts yet.", "", context, false, ''),
           )
         else
           LayoutBuilder(
             builder: (context, constraints) {
               int crossAxisCount =
-                  (constraints.maxWidth / 120).floor().clamp(3, 6);
+                  (constraints.maxWidth / 120).floor().clamp(3, 4);
               return GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -146,9 +149,9 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                   mainAxisSpacing: 1,
                   crossAxisSpacing: 1,
                 ),
-                padding: const EdgeInsets.only(
-                  top: 1,
-                  bottom: 1,
+                padding: EdgeInsets.only(
+                  top: getPercentageHeight(1, context),
+                  bottom: getPercentageHeight(1, context),
                 ),
                 itemCount: itemCount,
                 itemBuilder: (BuildContext ctx, index) {
@@ -178,10 +181,11 @@ class _SearchContentGridState extends State<SearchContentGrid> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1.0),
+              padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(1, context)),
               child: Icon(
                 showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                size: 36,
+                size: getPercentageWidth(6, context),
                 color: Colors.grey,
               ),
             ),
@@ -331,8 +335,12 @@ class SearchContent extends StatelessWidget {
           mediaPath != null && mediaPath.isNotEmpty
               ? Image.network(
                   mediaPath,
-                  height: 140,
-                  width: 140,
+                  height: MediaQuery.of(context).size.height > 1100
+                      ? getPercentageHeight(15.5, context)
+                      : getPercentageHeight(16.5, context),
+                  width: MediaQuery.of(context).size.width > 1100
+                      ? getPercentageWidth(30, context)
+                      : getPercentageWidth(32.5, context),
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
@@ -344,28 +352,28 @@ class SearchContent extends StatelessWidget {
                   errorBuilder: (context, error, stackTrace) {
                     return Image.asset(
                       intPlaceholderImage,
-                      height: 140,
-                      width: 140,
+                      height: getPercentageHeight(14, context),
+                      width: getPercentageWidth(14, context),
                       fit: BoxFit.cover,
                     );
                   },
                 )
               : Image.asset(
                   intPlaceholderImage,
-                  height: 140,
-                  width: 140,
+                  height: getPercentageHeight(14, context),
+                  width: getPercentageWidth(14, context),
                   fit: BoxFit.cover,
                 ),
 
           // ✅ Multiple Images Overlay Icon
           if (mediaPaths != null && mediaPaths.length > 1)
-            const Positioned(
+            Positioned(
               top: 4,
               right: 4,
               child: Icon(
                 Icons.content_copy,
                 color: Colors.white,
-                size: 20,
+                    size: getPercentageWidth(4, context),
               ),
             ),
         ],
@@ -398,8 +406,8 @@ class SearchContentPost extends StatelessWidget {
           mediaPath.isNotEmpty
               ? Image.network(
                   mediaPath,
-                  height: 140,
-                  width: 140,
+                  height: getPercentageHeight(33, context),
+                  width: getPercentageWidth(33, context),
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
@@ -411,28 +419,28 @@ class SearchContentPost extends StatelessWidget {
                   errorBuilder: (context, error, stackTrace) {
                     return Image.asset(
                       intPlaceholderImage,
-                      height: 140,
-                      width: 140,
+                      height: getPercentageHeight(14, context),
+                      width: getPercentageWidth(14, context),
                       fit: BoxFit.cover,
                     );
                   },
                 )
               : Image.asset(
                   intPlaceholderImage,
-                  height: 140,
-                  width: 140,
+                  height: getPercentageHeight(14, context),
+                  width: getPercentageWidth(14, context),
                   fit: BoxFit.cover,
                 ),
 
           // ✅ Multiple Images Icon
           if (mediaPaths.length > 1)
-            const Positioned(
+            Positioned(
               top: 4,
               right: 4,
               child: Icon(
                 Icons.content_copy,
                 color: Colors.white,
-                size: 20,
+                size: getPercentageWidth(4, context),
               ),
             ),
         ],

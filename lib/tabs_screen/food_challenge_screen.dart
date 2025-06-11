@@ -14,7 +14,6 @@ import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
-import '../widgets/category_selector.dart';
 
 class FoodChallengeScreen extends StatefulWidget {
   const FoodChallengeScreen({super.key});
@@ -143,7 +142,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         ingredientBattle,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: getPercentageWidth(4.5, context),
+                          fontSize: getPercentageWidth(4, context),
                         ),
                       ),
                       Text(
@@ -162,8 +161,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ),
                   children: [
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 15),
-                      padding: const EdgeInsets.all(10),
+                      margin: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context)),
+                      padding: EdgeInsets.all(getPercentageWidth(2, context)),
                       decoration: BoxDecoration(
                         color: kAccent.withOpacity(kMidOpacity),
                         borderRadius: BorderRadius.circular(28),
@@ -286,10 +286,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                                           // Case 1: Deadline is over
                                           if (isDeadlineOver) {
-                                            return const Text(
+                                            return Text(
                                               'Deadline Over',
                                               style: TextStyle(
-                                                fontSize: 14,
+                                                fontSize: getPercentageWidth(
+                                                    3, context),
                                                 color: Colors.red,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -400,14 +401,20 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                               fontWeight:
                                                                   FontWeight
                                                                       .bold,
-                                                              fontSize: 16,
+                                                              fontSize:
+                                                                  getPercentageWidth(
+                                                                      4,
+                                                                      context),
                                                               color: isDarkMode
                                                                   ? kWhite
                                                                   : kBlack,
                                                             ),
                                                           ),
-                                                          const SizedBox(
-                                                              height: 8),
+                                                          SizedBox(
+                                                              height:
+                                                                  getPercentageHeight(
+                                                                      1,
+                                                                      context)),
                                                           Text(
                                                             'Rules of the Battle:',
                                                             style: TextStyle(
@@ -419,8 +426,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                                   : kBlack,
                                                             ),
                                                           ),
-                                                          const SizedBox(
-                                                              height: 8),
+                                                          SizedBox(
+                                                              height:
+                                                                  getPercentageHeight(
+                                                                      1,
+                                                                      context)),
                                                           Text(
                                                             '• Use only the listed ingredients plus:\n'
                                                             '  - Onions\n'
@@ -431,7 +441,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             '• Submit before the deadline\n\n'
                                                             'Remember: Presentation is key! Users will vote based on appearance.',
                                                             style: TextStyle(
-                                                              height: 1.4,
+                                                              height:
+                                                                  getPercentageHeight(
+                                                                      2,
+                                                                      context),
                                                               color: Theme.of(
                                                                       context)
                                                                   .textTheme
@@ -558,15 +571,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         child: Text(
                           'Get Inspired',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(4.5, context),
+                            fontSize: getPercentageWidth(4, context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
                       IconButton(
                         key: _addInspirationButtonKey,
-                        icon: const Icon(Icons.add, color: kAccent),
+                        icon: Icon(Icons.add,
+                            color: kAccent,
+                            size: getPercentageWidth(4.5, context)),
                         onPressed: () => Get.to(
                           () => const UploadBattleImageScreen(
                             battleId: battleIdConstant,
@@ -578,7 +592,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                   ),
                 ),
                 SizedBox(
-                  height: getPercentageHeight(1.5, context),
+                  height: getPercentageHeight(1, context),
                 ),
 
                 //food challenge
@@ -645,17 +659,21 @@ class DetailItem extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(
-            height: 8,
+          SizedBox(
+            height: getPercentageHeight(1, context),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context)),
             child: Text(
               capitalizeFirstLetter(dataSrc['name']),
               maxLines: 2,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: getPercentageWidth(3.5, context),
+              ),
             ),
           ),
         ],

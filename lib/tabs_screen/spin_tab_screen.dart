@@ -72,11 +72,15 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             GestureDetector(
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: CircleAvatar(
-                radius: 20,
+                radius: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageWidth(3.5, context)
+                    : getPercentageWidth(4.3, context),
                 backgroundColor: kAccent.withOpacity(kOpacity),
                 child: CircleAvatar(
                   backgroundImage: getAvatarImage(avatarUrl),
-                  radius: 18,
+                  radius: MediaQuery.of(context).size.height > 1100
+                      ? getPercentageWidth(3.2, context)
+                      : getPercentageWidth(4, context),
                 ),
               ),
             ),
@@ -86,7 +90,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 child: Text(
                   'Spin and Shop',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: getPercentageWidth(4.5, context),
                     fontWeight: FontWeight.w400,
                     color:
                         themeProvider.isDarkMode ? Colors.white : Colors.black,
@@ -99,7 +103,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
         actions: [
           // Add new recipe button
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: EdgeInsets.only(right: getPercentageWidth(2, context)),
             child: InkWell(
               onTap: () {
                 Navigator.push(
@@ -113,8 +117,6 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
               },
               child: const IconCircleButton(
                 icon: Icons.add,
-                h: 30,
-                w: 30,
                 colorD: kAccent,
                 isRemoveContainer: false,
               ),
@@ -125,16 +127,19 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
       body: SafeArea(
         child: Column(
           children: [
+            SizedBox(height: MediaQuery.of(context).size.height > 1100
+                ? getPercentageHeight(1.5, context)
+                : getPercentageHeight(0.5, context)),
             // TabBar at the top
             TabBar(
               controller: _tabController,
-              tabs: const [
+              tabs: [
                 Tab(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(spin),
-                      SizedBox(width: 8),
+                      SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
                 ),
@@ -143,19 +148,22 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Shopping List'),
-                      SizedBox(width: 8),
+                      SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
                 ),
               ],
               indicatorColor: themeProvider.isDarkMode ? kWhite : kBlack,
-              labelStyle: const TextStyle(
+              labelStyle: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 15,
+                fontSize: getPercentageWidth(3, context),
               ),
               labelColor: themeProvider.isDarkMode ? kWhite : kBlack,
               unselectedLabelColor: kLightGrey,
             ),
+            SizedBox(height: MediaQuery.of(context).size.height > 1100
+                ? getPercentageHeight(1.5, context)
+                : getPercentageHeight(0.5, context)),
 
             // TabBarView below the TabBar
             Expanded(

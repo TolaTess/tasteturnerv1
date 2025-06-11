@@ -20,7 +20,14 @@ import 'recipes_list_category_screen.dart';
 class CreateRecipeScreen extends StatefulWidget {
   final String screenType;
   final Meal? meal;
-  const CreateRecipeScreen({super.key, this.screenType = recipes, this.meal});
+  final List<String>? networkImages;
+  final String? mealId;
+  const CreateRecipeScreen(
+      {super.key,
+      this.screenType = recipes,
+      this.meal,
+      this.networkImages,
+      this.mealId});
 
   @override
   State<CreateRecipeScreen> createState() => _CreateRecipeScreenState();
@@ -42,6 +49,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
+  String? _recentNetworkImage;
   bool isUploading = false;
   final List<int> ingredientQuantities = [];
   final List<int> ingredientUnits = [];
@@ -78,9 +86,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       meal.ingredients.forEach((name, qty) {
         ingredientsList.add({"name": name, "quantity": qty});
         ingredientQuantities
-            .add(0); // Default to 0, or parse from qty if needed
+            .add(0); // Default to 0, or parse from  qty if needed
         ingredientUnits.add(0); // Default to 0, or parse from qty if needed
       });
+    } else if (widget.networkImages != null &&
+        widget.networkImages!.isNotEmpty) {
+      mediaPaths.addAll(widget.networkImages!);
+      _recentNetworkImage = widget.networkImages!.first;
     }
   }
 
@@ -123,7 +135,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   Future<void> _uploadMeal() async {
     final bool isEditing = widget.meal != null;
-    if (_selectedImages.isEmpty && !isEditing) {
+    if (_selectedImages.isEmpty && mediaPaths.isEmpty && !isEditing) {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
@@ -137,15 +149,20 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     setState(() => isUploading = true);
 
     try {
-      // Use existing mealId if editing, otherwise create new
+      // Use existing mealId if editing, or provided mealId for post_add, otherwise create new
       String mealId = isEditing
           ? widget.meal!.mealId
-          : firestore.collection('meals').doc().id;
+          : (widget.screenType == 'post_add' && widget.mealId != null
+              ? widget.mealId!
+              : firestore.collection('meals').doc().id);
       final List<String> uploadedImageUrls = [];
 
       // If editing and no new images are selected, use existing images
       if (isEditing && _selectedImages.isEmpty) {
         uploadedImageUrls.addAll(widget.meal!.mediaPaths);
+      } else if (_selectedImages.isEmpty && mediaPaths.isNotEmpty) {
+        // Use passed network images if no new images are picked
+        uploadedImageUrls.addAll(mediaPaths);
       } else {
         for (final image in _selectedImages) {
           String filePath =
@@ -248,7 +265,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     return Scaffold(
       appBar: AppBar(
           title: Text(
-              screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe'),
+              screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe',
+              style: TextStyle(fontSize: getPercentageWidth(4, context))),
           leading: InkWell(
             onTap: () {
               if (widget.screenType == 'list') {
@@ -276,14 +294,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(2, context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
                 //Recipe Title
                 Text(
@@ -308,7 +326,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
+                    hintStyle: TextStyle(
+                        color: kLightGrey,
+                        fontSize: getPercentageWidth(4, context)),
                     hintText: recipeHint,
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                     contentPadding: EdgeInsets.only(
@@ -350,7 +370,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               enabledBorder: outlineInputBorder(10),
                               focusedBorder: outlineInputBorder(10),
                               border: outlineInputBorder(10),
-                              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
+                              hintStyle: TextStyle(
+                                  color: kLightGrey,
+                                  fontSize: getPercentageWidth(4, context)),
                               hintText: '1',
                               contentPadding: EdgeInsets.only(
                                 top: getPercentageHeight(1.5, context),
@@ -392,7 +414,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               enabledBorder: outlineInputBorder(10),
                               focusedBorder: outlineInputBorder(10),
                               border: outlineInputBorder(10),
-                                      contentPadding: EdgeInsets.only(
+                              contentPadding: EdgeInsets.only(
                                 top: getPercentageHeight(1.5, context),
                                 bottom: getPercentageHeight(1.5, context),
                                 right: getPercentageWidth(2, context),
@@ -448,7 +470,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
-                    hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
+                    hintStyle: TextStyle(
+                        color: kLightGrey,
+                        fontSize: getPercentageWidth(4, context)),
                     hintText: 'Enter total calories',
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                     contentPadding: EdgeInsets.only(
@@ -466,7 +490,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 //Ingredients
 
-                    Text(
+                Text(
                   ingredients,
                   style: TextStyle(
                     fontSize: getPercentageWidth(4, context),
@@ -500,23 +524,27 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                   Expanded(
                                     child: SafeTextFormField(
                                       decoration: InputDecoration(
-                                          labelText: "Ingredient",
-                                          labelStyle: TextStyle(
-                                            fontSize: getPercentageWidth(4, context),
-                                            color: kAccent,
-                                          ),
-                                          hintStyle: TextStyle(
-                                            fontSize: getPercentageWidth(3.5, context),
-                                            color: kLightGrey.withValues(alpha: 0.5),
-                                          ),
-                                          hintText: "Enter ingredient",
-                                          ),
+                                        labelText: "Ingredient",
+                                        labelStyle: TextStyle(
+                                          fontSize:
+                                              getPercentageWidth(4, context),
+                                          color: kAccent,
+                                        ),
+                                        hintStyle: TextStyle(
+                                          fontSize:
+                                              getPercentageWidth(3.5, context),
+                                          color:
+                                              kLightGrey.withValues(alpha: 0.5),
+                                        ),
+                                        hintText: "Enter ingredient",
+                                      ),
                                       onChanged: (value) {
                                         ingredientsList[index]["name"] = value;
                                       },
                                     ),
                                   ),
-                                  SizedBox(width: getPercentageWidth(2, context)),
+                                  SizedBox(
+                                      width: getPercentageWidth(2, context)),
                                   // Quantity Picker
                                   SizedBox(
                                     width: getPercentageWidth(15, context),
@@ -527,7 +555,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                       });
                                     }, true),
                                   ),
-                                        SizedBox(width: getPercentageWidth(2, context)),
+                                  SizedBox(
+                                      width: getPercentageWidth(2, context)),
                                   // Unit Picker
                                   SizedBox(
                                     width: getPercentageWidth(15, context),
@@ -560,7 +589,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        minimumSize: Size.fromHeight(getPercentageHeight(7, context)),
+                        minimumSize:
+                            Size.fromHeight(getPercentageHeight(7, context)),
                         backgroundColor: isDarkMode ? kLightGrey : kDarkGrey,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
@@ -612,6 +642,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           setState(() {
                             _selectedImages = croppedImages;
                             _recentImage = croppedImages.first;
+                            _recentNetworkImage = null;
                           });
                         }
                       }
@@ -619,36 +650,43 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     child: _recentImage != null
                         ? Image.file(
                             File(_recentImage!.path),
-                            height: getPercentageHeight(15, context),
-                            width: getPercentageWidth(40, context),
+                            height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(20, context) : getPercentageHeight(10, context),
+                            width: MediaQuery.of(context).size.width > 1100 ? getPercentageWidth(40, context) : getPercentageWidth(30, context),
                             fit: BoxFit.cover,
                           )
-                        : DottedBorder(
-                            radius: Radius.circular(30),
-                            color: kLightGrey,
-                            dashPattern: [5, 2],
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(5, context),
-                                vertical: getPercentageHeight(2, context),
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(
-                                    Icons.photo_camera,
-                                    color: kLightGrey,
+                        : (_recentNetworkImage != null
+                            ? Image.network(
+                                _recentNetworkImage!,
+                                height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(20, context) : getPercentageHeight(10, context),
+                                width: MediaQuery.of(context).size.width > 1100 ? getPercentageWidth(40, context) : getPercentageWidth(30, context),
+                                fit: BoxFit.cover,
+                              )
+                            : DottedBorder(
+                                radius: Radius.circular(30),
+                                color: kLightGrey,
+                                dashPattern: [5, 2],
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(5, context),
+                                    vertical: getPercentageHeight(2, context),
                                   ),
-                                  Text(
-                                    addCoverImage,
-                                    style: TextStyle(
-                                      color: kLightGrey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  child: const Column(
+                                    children: [
+                                      Icon(
+                                        Icons.photo_camera,
+                                        color: kLightGrey,
+                                      ),
+                                      Text(
+                                        addCoverImage,
+                                        style: TextStyle(
+                                          color: kLightGrey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
+                                ),
+                              )),
                   ),
                 ),
 
@@ -685,7 +723,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
-                      hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
+                      hintStyle: TextStyle(
+                          color: kLightGrey,
+                          fontSize: getPercentageWidth(4, context)),
                       hintText: cookingInstructionsHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       contentPadding: EdgeInsets.only(
@@ -700,7 +740,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     height: getPercentageHeight(1, context),
                   ),
                   //Notes
-                      Text(
+                  Text(
                     category,
                     style: TextStyle(
                       fontSize: getPercentageWidth(4, context),
@@ -727,7 +767,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
-                      hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(4, context)),
+                      hintStyle: TextStyle(
+                          color: kLightGrey,
+                          fontSize: getPercentageWidth(4, context)),
                       hintText: notesHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       contentPadding: EdgeInsets.only(
@@ -745,7 +787,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 //Submit button
                 isUploading
-                      ? Center(
+                    ? Center(
                         child: CircularProgressIndicator(color: kAccent),
                       )
                     : AppButton(

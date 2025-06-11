@@ -28,7 +28,7 @@ class CategorySelector extends StatelessWidget {
       child: ListView.builder(
         itemCount: categories.length,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 24, right: 12),
+        padding: EdgeInsets.only(left: getPercentageWidth(3, context), right: getPercentageWidth(3, context)),
         itemBuilder: (context, index) {
           final category = categories[index];
           return GestureDetector(
@@ -38,8 +38,8 @@ class CategorySelector extends StatelessWidget {
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              margin: const EdgeInsets.only(right: 12),
+              padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+              margin: EdgeInsets.only(right: getPercentageWidth(2, context)),
               decoration: BoxDecoration(
                 color: selectedCategoryId == category['id']
                     ? isDarkMode
@@ -57,7 +57,7 @@ class CategorySelector extends StatelessWidget {
                       : capitalizeFirstLetter(category['name']),
                   style: TextStyle(
                     fontSize: getPercentageWidth(3, context),
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

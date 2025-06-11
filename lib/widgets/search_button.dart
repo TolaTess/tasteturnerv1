@@ -20,13 +20,13 @@ class SearchButton2 extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return SafeTextField(
-      style: TextStyle(color: isDarkMode ? kBlack : kWhite),
+      style: TextStyle(color: isDarkMode ? kBlack : kWhite, fontSize: getPercentageWidth(3, context)),
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: kText,
-        hintStyle: TextStyle(color: isDarkMode ? kBlack : kWhite),
-        prefixIcon: Icon(Icons.search, color: isDarkMode ? kBlack : kWhite),
+        hintStyle: TextStyle(color: isDarkMode ? kBlack : kWhite, fontSize: getPercentageWidth(3, context)),
+        prefixIcon: Icon(Icons.search, color: isDarkMode ? kBlack : kWhite, size: getPercentageWidth(3, context)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -102,14 +102,14 @@ class _ThirdButtonState extends State<ThirdButton> {
               isSaved
                   ? Icons.save
                   : widget.icon, // Show save icon if on spin screen
-              size: 18,
+              size: getPercentageWidth(2, context),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: getPercentageWidth(0.8, context)),
             Text(
               isSaved
                   ? "Save"
                   : widget.text, // Show "Save" text if on spin screen
-              style: const TextStyle(),
+              style: TextStyle(fontSize: getPercentageWidth(3, context)),
             ),
           ],
         ),

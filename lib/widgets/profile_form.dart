@@ -35,14 +35,14 @@ class EditProfileForm extends StatelessWidget {
           // Edit Name
           SafeTextFormField(
             controller: nameController,
-            style: const TextStyle(color: kLightGrey),
+              style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
             decoration: InputDecoration(
               labelText: "Name",
               labelStyle: TextStyle(
                   color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               hintText: "Enter your name",
               hintStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/person.svg"),
@@ -51,18 +51,18 @@ class EditProfileForm extends StatelessWidget {
               border: outlineInputBorder(20),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: getPercentageHeight(2, context)),
 
           // Edit Bio
           SafeTextFormField(
             controller: dobController,
-            style: const TextStyle(color: kLightGrey),
+            style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
             decoration: InputDecoration(
               labelText: "D.O.B (MM-dd)",
               labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)),
               hintText: "Share you date of birth (MM-dd)?",
-              hintStyle: const TextStyle(color: kLightGrey),
+              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/heart.svg"),
@@ -71,18 +71,18 @@ class EditProfileForm extends StatelessWidget {
               border: outlineInputBorder(20),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: getPercentageHeight(2, context)),
 
           // Edit Bio
           SafeTextFormField(
             controller: bioController,
-            style: const TextStyle(color: kLightGrey),
+            style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
             decoration: InputDecoration(
               labelText: "About me",
               labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)  ),
               hintText: "How do you feel?",
-              hintStyle: const TextStyle(color: kLightGrey),
+              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon:
                   const CustomSuffixIcon(svgIcon: "assets/images/svg/book.svg"),
@@ -137,9 +137,9 @@ class EditProfileForm extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text('Update Family Members',
+                  child: Text('Update Family Members',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: kAccent)),
+                      style: TextStyle(color: kAccent, fontSize: getPercentageWidth(3, context) )),
                 ),
                 IconButton(
                   onPressed: () {
@@ -149,11 +149,11 @@ class EditProfileForm extends StatelessWidget {
                           builder: (context) => const NutritionSettingsPage()),
                     );
                   },
-                  icon: const Icon(Icons.settings),
+                  icon: Icon(Icons.settings, size: getPercentageWidth(4, context)),
                 ),
               ],
             ),
-          const SizedBox(height: 20),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           // Save Button
           Row(
@@ -185,7 +185,7 @@ class EditProfileForm extends StatelessWidget {
                       type: AppButtonType.secondary)),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: getPercentageHeight(2, context)),
         ],
       ),
     );

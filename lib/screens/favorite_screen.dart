@@ -44,10 +44,10 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text(favorite),
+        title: Text('Favorites', style: TextStyle(fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w600)),
         automaticallyImplyLeading: false,
         leading: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: EdgeInsets.all(getPercentageWidth(1, context)),
           child: InkWell(
             onTap: () {
               Navigator.pop(context);
@@ -76,16 +76,17 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                     width: double.infinity,
                     child: SingleChildScrollView(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(2, context)),
                         child: Column(
                           children: [
+                            SizedBox(height: getPercentageHeight(1, context)),
                             // Generate favorite recipe cards using RecipeCardFlex()
                             ...List.generate(
                               favoriteMeals.length,
                               (index) => Padding(
-                                padding: const EdgeInsets.only(
-                                    bottom: 20),
+                                padding: EdgeInsets.only(
+                                    bottom: getPercentageHeight(2, context)),
                                 child: RecipeCardFlex(
                                   recipe: favoriteMeals[index],
                                   press: () => Navigator.push(
@@ -100,8 +101,8 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(
-                              height: 70,
+                            SizedBox(
+                              height: getPercentageHeight(7, context),
                             ),
                           ],
                         ),

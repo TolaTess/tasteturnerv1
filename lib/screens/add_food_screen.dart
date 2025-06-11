@@ -773,7 +773,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         children: [
                                           Row(
                                             children: [
-                                              Icon(Icons.wb_sunny_outlined,
+                                              Icon(Icons.emoji_food_beverage_outlined,
                                                   size: getPercentageWidth(
                                                       6, context),
                                                   color: isDarkMode
@@ -896,7 +896,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         children: [
                                           Row(
                                             children: [
-                                              Icon(Icons.wb_cloudy_outlined,
+                                              Icon(Icons.lunch_dining_outlined,
                                                   size: getPercentageWidth(
                                                       6, context),
                                                   color: isDarkMode
@@ -1020,7 +1020,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.nightlight_outlined,
+                                      Icon(Icons.dinner_dining_outlined,
                                           size: getPercentageWidth(6, context),
                                           color:
                                               isDarkMode ? kWhite : kDarkGrey),

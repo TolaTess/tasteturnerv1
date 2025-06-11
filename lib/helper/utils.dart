@@ -755,10 +755,10 @@ class HexagonClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-Widget buildFriendAvatar(String? profileImage) {
+Widget buildFriendAvatar(String? profileImage, BuildContext context) {
   return Container(
-    width: 65,
-    height: 65,
+    width: getPercentageWidth(15, context),
+    height: getPercentageWidth(15, context),
     child: ClipPath(
       clipper: HexagonClipper(),
       child: Container(
@@ -871,4 +871,16 @@ List<String> appendMealTypes(List<String> mealIds) {
   }
 
   return result;
+}
+
+String getRandomWelcomeMessage() {
+  final List<String> welcomeMessages = [
+    "Welcome! \nReady to plan your next delicious meal?",
+    "Hello there! \nLet's make your meal planning journey easier and tastier.",
+    "Welcome! \nYour personalized meal planner is ready to inspire your next creation.",
+    "Great to see you! \nDiscover new recipes and plan your perfect menu.",
+    "Welcome! \nTurn meal planning into an enjoyable experience.",
+  ];
+  final random = Random();
+  return welcomeMessages[random.nextInt(welcomeMessages.length)];
 }

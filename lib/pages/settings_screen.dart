@@ -21,14 +21,14 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(
-              height: 24,
+            SizedBox(
+              height: getPercentageHeight(2, context),
             ),
 
             //home appbar
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context),
               ),
               child: Row(
                 children: [
@@ -40,12 +40,12 @@ class SettingsScreen extends StatelessWidget {
                     child: const IconCircleButton(),
                   ),
 
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: Text(
                         settings,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: getPercentageWidth(5, context),
                         ),
                       ),
                     ),
@@ -53,18 +53,18 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(
-              height: 12,
+            SizedBox(
+              height: getPercentageHeight(1, context),
             ),
             SizedBox(
               width: double.infinity,
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
                   child: Column(
                     children: [
-                      const SizedBox(
-                        height: 20,
+                      SizedBox(
+                        height: getPercentageHeight(2, context),
                       ),
 
                       //setting category list
@@ -162,17 +162,17 @@ class _SettingCategoryState extends State<SettingCategory> {
                           //prefix icon
                           Icon(
                             widget.setting.prefixicon,
-                            size: 28,
+                            size: getPercentageWidth(4, context),
                           ),
-                          const SizedBox(
-                            width: 10,
+                          SizedBox(
+                            width: getPercentageWidth(1, context),
                           ),
 
                           //setting category
                           Text(
                             widget.setting.category,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(4, context),
                             ),
                           ),
                         ],
@@ -197,17 +197,17 @@ class _SettingCategoryState extends State<SettingCategory> {
                           //prefix icon
                           Icon(
                             widget.setting.prefixicon,
-                            size: 28,
+                            size: getPercentageWidth(4, context),
                           ),
-                          const SizedBox(
-                            width: 10,
+                          SizedBox(
+                            width: getPercentageWidth(1, context),
                           ),
 
                           //setting category
                           Text(
                             widget.setting.category,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: TextStyle(
+                              fontSize: getPercentageWidth(4, context),
                             ),
                           ),
                         ],
@@ -216,7 +216,7 @@ class _SettingCategoryState extends State<SettingCategory> {
                       //suffix icon
                       Icon(
                         widget.setting.suffixicon,
-                        size: 34,
+                        size: getPercentageWidth(4, context),
                       )
                     ],
                   ),

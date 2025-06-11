@@ -11,6 +11,7 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/avatar_upload.dart';
+import '../widgets/icon_widget.dart';
 import '../widgets/profile_form.dart';
 
 class ProfileEditScreen extends StatefulWidget {
@@ -78,18 +79,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const IconCircleButton(),
+        ),
         centerTitle: true,
-        title: const Text("Edit Profile"),
+        title: Text("Edit Profile", style: TextStyle(fontSize: getPercentageWidth(4, context))),
       ),
       body: SafeArea(
         child: SizedBox(
           width: double.infinity,
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                   // Avatar Upload
                   AvatarUpload(
@@ -162,7 +167,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: getPercentageHeight(5, context)),
 
                   // Edit Profile Form
                   EditProfileForm(

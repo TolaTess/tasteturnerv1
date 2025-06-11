@@ -44,7 +44,8 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
           isNewItem ? 'Add Routine Item' : 'Edit Routine Item',
           style: TextStyle(
             height: 1.5,
-            color: isDarkMode ? kWhite : kBlack,
+            color: isDarkMode ? kWhite : kBlack,  
+            fontSize: getPercentageWidth(4, context),
           ),
         ),
         content: SingleChildScrollView(
@@ -191,8 +192,13 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               textColor: kAccent,
               collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
               initiallyExpanded: widget.isRoutineEdit,
-              title: const Text(
+              title: Text(
                 'Routine Items',
+                style: TextStyle(
+                  fontSize: MediaQuery.of(context).size.width > 1100
+                      ? getPercentageWidth(3.5, context)
+                      : getPercentageWidth(4, context),
+                ),
               ),
               children: [
                 ListView.builder(

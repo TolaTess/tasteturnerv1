@@ -132,6 +132,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
     } else {
       await _fetchShoppingList();
     }
+    await macroManager.fetchIngredients();
   }
 
   Future<void> _fetchGroceryList() async {
@@ -360,11 +361,12 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                     'Shopping Day',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: getPercentageWidth(4.5, context),
+                                      fontSize:
+                                          getPercentageWidth(4.5, context),
                                       color: kAccent,
                                     ),
                                   ),
-                                   SizedBox(
+                                  SizedBox(
                                       height: getPercentageHeight(1, context)),
                                   Container(
                                     padding: EdgeInsets.symmetric(
