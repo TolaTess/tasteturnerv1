@@ -43,7 +43,7 @@ class NotificationService {
     _userTimeZone = await _getUserTimeZone();
 
     const initSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const initSettingiOS = DarwinInitializationSettings(
       requestAlertPermission: true,

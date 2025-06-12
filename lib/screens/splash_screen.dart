@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-
-import '../constants.dart';
+import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import '../helper/utils.dart';
+import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import 'signup_screen.dart';
+import '../constants.dart';
+import '../service/auth_controller.dart';
 
 class SplashScreen extends StatefulWidget {
-  final bool isUser;
-  const SplashScreen({super.key, this.isUser = false});
+  const SplashScreen({super.key});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
@@ -22,58 +24,18 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    // duration of 5 seconds
     _controller = AnimationController(
-      duration: Duration(seconds: widget.isUser ? 2 : 3),
+      duration: const Duration(seconds: 2),
       vsync: this,
     );
-
-    // finish at 5 it's original size
-    _zoomAnimation =
-        Tween<double>(begin: 1.0, end: widget.isUser ? 7.0 : 10.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut, // Smooth zoom effect
-      ),
+    _zoomAnimation = Tween<double>(begin: 1.0, end: 7.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
-
-    // Define a Tween for the fade effect (fade to white)
-    _fadeAnimation =
-        Tween<double>(begin: 0.0, end: widget.isUser ? 0.5 : 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeIn, // Smooth fade effect
-      ),
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
-
-    // Start the animation
     _controller.forward();
-
-    // Todo - Add a status listener to navigate to the onboarding screen after the animation finishes
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        if (widget.isUser) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const BottomNavSec(),
-            ),
-          );
-        } else {
-          _navigateToOnboarding();
-        }
-      }
-    });
-  }
-
-  void _navigateToOnboarding() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SignupScreen(),
-      ),
-    );
+    _routeAfterSplash();
   }
 
   @override
@@ -82,9 +44,21 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  void _routeAfterSplash() async {
+    await Future.delayed(const Duration(milliseconds: 1200));
+    // Use GetX to check auth state and route
+    final authController = Get.find<AuthController>();
+    final user = authController.currentUser;
+    if (user != null) {
+      Get.offAll(() => const BottomNavSec());
+    } else {
+      Get.offAll(() => const SignupScreen());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -98,7 +72,7 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   Center(
                     child: SizedBox(
-                        width: 30,
+                      width: getPercentageWidth(30, context),
                       child: Transform.scale(
                         scale: _zoomAnimation.value,
                         child: Image.asset(
@@ -112,6 +86,22 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _fadeAnimation.value,
                     child: Container(
                       color: isDarkMode ? kDarkGrey : kWhite,
+                    ),
+                  ),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(height: getPercentageHeight(18, context)),
+                        const CircularProgressIndicator(color: kAccent),
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        Text(
+                          'Loading, please wait...',
+                          style: TextStyle(
+                              fontSize: getPercentageWidth(3, context),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
                 ],

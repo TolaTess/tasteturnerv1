@@ -315,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (unreadCount >= 1) {
                             return Container(
                               padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(1, context),
+                                  horizontal: getPercentageWidth(1.5, context),
                                   vertical: getPercentageWidth(0.5, context)),
                               decoration: BoxDecoration(
                                 color: kRed,
@@ -325,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 unreadCount.toString(),
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getPercentageWidth(2.5, context),
                                 ),
                               ),
                             );

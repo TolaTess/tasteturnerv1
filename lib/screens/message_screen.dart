@@ -339,7 +339,7 @@ class _MessageScreenState extends State<MessageScreen>
                             background: Container(
                               alignment: Alignment.centerRight,
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                                  EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
                               color: Colors.red,
                               child:
                                   const Icon(Icons.delete, color: Colors.white),
@@ -471,7 +471,7 @@ class _MessageItemState extends State<MessageItem> {
       final friend = friendData.value;
 
       return Padding(
-        padding: const EdgeInsets.only(bottom: 20),
+        padding: EdgeInsets.only(bottom: getPercentageHeight(2, context)),
         child: InkWell(
           onTap: widget.press,
           child: Column(
@@ -521,8 +521,8 @@ class _MessageItemState extends State<MessageItem> {
                       ),
                       unreadCount > 0
                           ? Container(
-                              height: getPercentageHeight(2, context),
-                              width: getPercentageWidth(2, context),
+                              height: getPercentageHeight(4, context),
+                              width: getPercentageWidth(4, context),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: kAccent,
