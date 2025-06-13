@@ -775,7 +775,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                         ?.replaceAll(
                                                             '_', ' ') ??
                                                     'regular_day'),
-                                            size: 8,
+                                            size: getPercentageWidth(2.5, context),
                                             color: getDayTypeColor(
                                                 dayTypes[normalizedDate]
                                                         ?.replaceAll(
@@ -785,22 +785,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                           ),
                                         ),
                                       if (hasBirthday && showSharedCalendars)
-                                        const Positioned(
+                                        Positioned(
                                           right: 2,
                                           bottom: 2,
                                           child: Icon(
                                             Icons.cake,
-                                            size: 12,
+                                            size: getPercentageWidth(3, context),
                                             color: kAccent,
                                           ),
                                         ),
                                       if (isUserBirthday)
-                                        const Positioned(
+                                        Positioned(
                                           right: 2,
                                           bottom: 2,
                                           child: Icon(
                                             Icons.cake,
-                                            size: 12,
+                                              size: getPercentageWidth(3, context),
                                             color: kAccent,
                                           ),
                                         ),

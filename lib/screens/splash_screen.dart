@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:provider/provider.dart';
+
+import '../constants.dart';
 import '../helper/utils.dart';
-import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import 'signup_screen.dart';
-import '../constants.dart';
-import '../service/auth_controller.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final bool isUser;
+  const SplashScreen({super.key, this.isUser = false});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
@@ -24,18 +22,58 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+
+    // duration of 5 seconds
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: Duration(seconds: widget.isUser ? 2 : 3),
       vsync: this,
     );
-    _zoomAnimation = Tween<double>(begin: 1.0, end: 7.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+
+    // finish at 5 it's original size
+    _zoomAnimation =
+        Tween<double>(begin: 1.0, end: widget.isUser ? 7.0 : 10.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut, // Smooth zoom effect
+      ),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+
+    // Define a Tween for the fade effect (fade to white)
+    _fadeAnimation =
+        Tween<double>(begin: 0.0, end: widget.isUser ? 0.5 : 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeIn, // Smooth fade effect
+      ),
     );
+
+    // Start the animation
     _controller.forward();
-    _routeAfterSplash();
+
+    // Add a status listener to navigate to the onboarding screen after the animation finishes
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (widget.isUser) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BottomNavSec(),
+            ),
+          );
+        } else {
+          _navigateToOnboarding();
+        }
+      }
+    });
+  }
+
+  void _navigateToOnboarding() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SignupScreen(),
+      ),
+    );
   }
 
   @override
@@ -44,22 +82,9 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  void _routeAfterSplash() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
-    // Use GetX to check auth state and route
-    final authController = Get.find<AuthController>();
-    final user = authController.currentUser;
-    if (user != null) {
-      Get.offAll(() => const BottomNavSec());
-    } else {
-      Get.offAll(() => const SignupScreen());
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    print(MediaQuery.of(context).size.height);
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -73,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   Center(
                     child: SizedBox(
-                      width: getPercentageWidth(10, context),
+                      width: getPercentageWidth(7, context),
                       child: Transform.scale(
                         scale: _zoomAnimation.value,
                         child: Image.asset(

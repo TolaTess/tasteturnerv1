@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 
 class TutorialPopupService {
@@ -190,7 +191,8 @@ class TutorialPopupService {
     VoidCallback onComplete,
   ) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final arrowSize = const Size(20, 10);
+    final arrowSize =
+        Size(getPercentageWidth(5, context), getPercentageHeight(2.5, context));
 
     return Column(
       crossAxisAlignment: _getCrossAxisAlignment(arrowDirection),
@@ -208,7 +210,7 @@ class TutorialPopupService {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               CustomPaint(
-                size: const Size(10, 20),
+                size: Size(getPercentageWidth(2.5, context), getPercentageHeight(5, context)),
                 painter: ArrowPainter(
                   color: isDarkMode ? kDarkGrey : kWhite,
                   direction: arrowDirection,
@@ -226,7 +228,7 @@ class TutorialPopupService {
             children: [
               _buildPopupContainer(context, message, padding, onComplete),
               CustomPaint(
-                size: const Size(10, 20),
+                size: Size(getPercentageWidth(2.5, context), getPercentageHeight(5, context)),
                 painter: ArrowPainter(
                   color: isDarkMode ? kDarkGrey : kWhite,
                   direction: arrowDirection,
@@ -255,18 +257,18 @@ class TutorialPopupService {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.8,
+        maxWidth: MediaQuery.of(context).size.width * 0.5,
         minWidth: MediaQuery.of(context).size.width * 0.3,
       ),
       padding: padding,
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kWhite,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(getPercentageWidth(3, context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            blurRadius: getPercentageWidth(2.5, context),
+            offset: Offset(0, getPercentageHeight(1.25, context)),
           ),
         ],
       ),
@@ -278,30 +280,30 @@ class TutorialPopupService {
             children: [
               CircleAvatar(
                 backgroundColor: kAccentLight.withOpacity(0.5),
-                radius: 15,
+                radius: getPercentageWidth(3.75, context),
                 backgroundImage: const AssetImage(tastyImage),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: getPercentageWidth(2, context)),
               Expanded(
                 child: Text(
                   message,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: getPercentageWidth(3.5, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: getPercentageHeight(1, context)),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: onComplete,
               style: TextButton.styleFrom(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: const Size(60, 30),
+                    EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context), vertical: getPercentageHeight(1.5, context)),
+                minimumSize: Size(getPercentageWidth(15, context), getPercentageHeight(7.5, context)),
               ),
               child: const Text(
                 'Got it',
