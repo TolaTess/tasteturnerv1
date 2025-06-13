@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
-import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/message_screen.dart';
@@ -319,9 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             'assets/images/svg/message.svg',
                             height: getPercentageWidth(6.5, context),
                             width: getPercentageWidth(6.5, context),
-                            color: isDarkMode
-                                ? kAccent.withOpacity(0.6)
-                                : kDarkGrey.withOpacity(0.6),
+                            color: isDarkMode ? kAccent : kDarkGrey,
                           ),
                         ),
                         SizedBox(width: getPercentageWidth(2, context)),
@@ -489,6 +486,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   SizedBox(height: getPercentageHeight(1, context)),
 
                 if (winners.isNotEmpty && isAnnounceShow)
+                  SizedBox(height: getPercentageHeight(1, context)),
+
+                if (winners.isNotEmpty && isAnnounceShow)
                   AnnouncementWidget(
                     title: '🏆 Winners of the week 🏆',
                     announcements: winners,
@@ -627,21 +627,35 @@ double _calculateHeight({
   required bool hasFamilyMode,
   required bool hasMealPlan,
 }) {
+
   return MediaQuery.of(context).size.height > 1100
       // For large screens (height > 1100)
       ? (hasFamilyMode
           ? hasMealPlan
-              ? getPercentageHeight(57, context)    // Family mode + meal plan
-              : getPercentageHeight(43.5, context)  // Family mode only
+              ? getPercentageHeight(57, context) // Family mode + meal plan
+              : getPercentageHeight(43.5, context) // Family mode only
           : hasMealPlan
-              ? getPercentageHeight(48.5, context)  // Meal plan only
-              : getPercentageHeight(35, context)) // Neither family mode nor meal plan
+              ? getPercentageHeight(48.5, context) // Meal plan only
+              : getPercentageHeight(
+                  35, context)) // Neither family mode nor meal plan
       // For regular screens (height <= 1100)
-      : (hasFamilyMode
-          ? hasMealPlan
-              ? getPercentageHeight(56.5, context)  // Family mode + meal plan
-              : getPercentageHeight(44.5, context)  // Family mode only
-          : hasMealPlan
-              ? getPercentageHeight(47.5, context)  // Meal plan only
-              : getPercentageHeight(35, context)); // Neither family mode nor meal plan
+      : MediaQuery.of(context).size.height > 850 &&
+              MediaQuery.of(context).size.height < 1100
+          ? (hasFamilyMode
+              ? hasMealPlan
+                  ? getPercentageHeight(51, context) // Family mode + meal plan
+                  : getPercentageHeight(39, context) // Family mode only
+              : hasMealPlan
+                  ? getPercentageHeight(42.5, context) // Meal plan only
+                  : getPercentageHeight(
+                      30.5, context)) // Neither family mode nor meal plan
+          : (hasFamilyMode
+              ? hasMealPlan
+                  ? getPercentageHeight(
+                      64.5, context) // Family mode + meal plan
+                  : getPercentageHeight(50, context) // Family mode only
+              : hasMealPlan
+                  ? getPercentageHeight(55.5, context) // Meal plan only
+                  : getPercentageHeight(
+                      42, context)); // Neither family mode nor meal plan
 }

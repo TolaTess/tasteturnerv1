@@ -300,6 +300,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
     displayList = [currentUser, ...familyList];
     user = familyMode ? displayList[selectedUserIndex] : displayList[0];
 
+    print('mealPlan: ${mealPlan['dayType']}');
+
     // Glassmorphism effect
     return Center(
       child: Stack(
@@ -591,7 +593,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                         ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
                       if (meals.isNotEmpty &&
-                          user['name'] == userService.currentUser?.displayName)
+                          (user['name'] ==
+                              userService.currentUser?.displayName))
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -631,9 +634,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                       const SizedBox(width: 4),
                                     if (meals.isNotEmpty)
                                       Text(
-                                        capitalizeFirstLetter(
-                                            mealPlan['dayType']
-                                                .replaceAll('_', ' ')),
+                                        mealPlan['dayType'].toLowerCase() ==
+                                                'regular_day'
+                                            ? 'Meal Plan'
+                                            : capitalizeFirstLetter(
+                                                mealPlan['dayType']
+                                                    .replaceAll('_', ' ')),
                                         style: TextStyle(
                                           color: getDayTypeColor(
                                               mealPlan['dayType']
@@ -644,6 +650,16 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Icon(
+                                      Icons.edit,
+                                      size: getPercentageWidth(4, context),
+                                      color: getDayTypeColor(
+                                          mealPlan['dayType']
+                                              .replaceAll('_', ' '),
+                                          isDarkMode),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -655,7 +671,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                         SizedBox(
                           height: MediaQuery.of(context).size.height > 1100
                               ? getPercentageHeight(16.5, context)
-                              : getPercentageHeight(14.5, context),
+                              : MediaQuery.of(context).size.height > 850 &&
+                                      MediaQuery.of(context).size.height < 1100
+                                  ? getPercentageHeight(15.5, context)
+                                  : getPercentageHeight(18, context),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: meals.length,
@@ -751,12 +770,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           style: TextStyle(
                                             color:
                                                 isDarkMode ? kWhite : kDarkGrey,
-                                            fontSize: meal.meal.title
-                                                    .length >
-                                                13
-                                                ? getPercentageWidth(2.8,
-                                                    context)
-                                                : getPercentageWidth(3, context),
+                                            fontSize:
+                                                meal.meal.title.length > 13
+                                                    ? getPercentageWidth(
+                                                        2.8, context)
+                                                    : getPercentageWidth(
+                                                        3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                           maxLines: 2,

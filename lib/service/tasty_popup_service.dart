@@ -257,7 +257,7 @@ class TutorialPopupService {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.5,
+        maxWidth: MediaQuery.of(context).size.width * 0.6,
         minWidth: MediaQuery.of(context).size.width * 0.3,
       ),
       padding: padding,

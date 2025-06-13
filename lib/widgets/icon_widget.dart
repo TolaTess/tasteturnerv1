@@ -19,7 +19,7 @@ class IconCircleButton extends StatelessWidget {
     this.h = 8,
     this.w = 8,
     this.isColorChange = false,
-    this.isRemoveContainer = true,
+    this.isRemoveContainer = false,
     this.colorL = kBlack,
     this.colorD = kWhite,
   });

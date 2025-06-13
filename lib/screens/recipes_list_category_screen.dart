@@ -23,6 +23,7 @@ class RecipeListCategory extends StatefulWidget {
   final bool isBack;
   final bool isFamilyMode;
   final String? familyMember;
+  final bool? isBackToMealPlan;
 
   const RecipeListCategory({
     Key? key,
@@ -38,6 +39,7 @@ class RecipeListCategory extends StatefulWidget {
     this.isBack = false,
     this.isFamilyMode = false,
     this.familyMember = '',
+    this.isBackToMealPlan = false,
   }) : super(key: key);
 
   @override
@@ -186,7 +188,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                           // Back arrow
                           InkWell(
                             onTap: () {
-                              if (widget.isBack) {
+                              if (widget.isBack || widget.isBackToMealPlan == true) {
                                 Get.back();
                               } else {
                                 Get.to(() => const BottomNavSec(
