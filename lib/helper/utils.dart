@@ -844,7 +844,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'cheat day':
       return Colors.purple;
     case 'diet day':
-      return kAccent.withOpacity(0.7);
+      return kAccent;
     case 'family dinner':
       return Colors.green;
     case 'workout boost':

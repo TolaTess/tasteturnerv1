@@ -300,8 +300,6 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
     displayList = [currentUser, ...familyList];
     user = familyMode ? displayList[selectedUserIndex] : displayList[0];
 
-    print('mealPlan: ${mealPlan['dayType']}');
-
     // Glassmorphism effect
     return Center(
       child: Stack(
