@@ -369,6 +369,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
             child: const IconCircleButton(
               icon: Icons.camera_alt,
+              h: 10,
+              w: 10,
             ),
           ),
           SizedBox(width: getPercentageWidth(1, context)),
@@ -507,6 +509,7 @@ class ChatItem extends StatelessWidget {
                                       ? extractedItems.last
                                       : 'battle_post',
                                   dataSrc: dataSrc.toMap(),
+                                  isMessage: true,
                                 ),
                               ),
                             );
@@ -517,8 +520,8 @@ class ChatItem extends StatelessWidget {
                           child: url.contains('http')
                               ? Image.network(
                                   url,
-                                  height: 150,
-                                  width: screenWidth * 0.7,
+                                  height: getPercentageHeight(30, context),
+                                  width: getPercentageWidth(70, context),
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Image.asset(
@@ -527,6 +530,8 @@ class ChatItem extends StatelessWidget {
                                   ),
                                 )
                               : Image.asset(
+                                  height: getPercentageHeight(30, context),
+                                  width: getPercentageWidth(70, context),
                                   getAssetImageForItem(url),
                                   fit: BoxFit.cover,
                                 ),

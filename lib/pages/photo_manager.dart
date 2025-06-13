@@ -230,12 +230,13 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
   }
 
   Future<void> _sendImages() async {
-    if (selectedImages.isEmpty) showTastySnackbar(
+    if (selectedImages.isEmpty)
+      showTastySnackbar(
         'No Image Selected',
         'Please select at least one image',
         context,
       );
-   
+
     final List<File> files = [];
     for (var asset in selectedImages) {
       final file = await _getFile(asset);
@@ -274,12 +275,14 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
             color: isDarkMode ? kDarkGrey : kBackgroundColor,
             child: Column(
               children: [
-                const SizedBox(height: 12),
-                const Text(
+                SizedBox(height: getPercentageHeight(1, context)),
+                Text(
                   'Select Images',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: getPercentageWidth(4, context),
+                      fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: getPercentageHeight(1, context)),
                 Expanded(
                   child: _loadedImages.isEmpty
                       ? const Center(
@@ -323,18 +326,20 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                                     child: AssetEntityImage(
                                       asset,
                                       isOriginal: false,
-                                      thumbnailSize:
-                                          const ThumbnailSize.square(200),
+                                      thumbnailSize: ThumbnailSize.square(
+                                          getPercentageWidth(20, context)
+                                              .toInt()),
                                       thumbnailFormat: ThumbnailFormat.jpeg,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
                                   if (isSelected)
-                                    const Positioned(
-                                      top: 8,
-                                      right: 8,
+                                    Positioned(
+                                      top: getPercentageHeight(1, context),
+                                      right: getPercentageWidth(1, context),
                                       child: Icon(Icons.check_circle,
-                                          color: kAccent, size: 24),
+                                          color: kAccent,
+                                          size: getPercentageWidth(6, context)),
                                     ),
                                 ],
                               ),
@@ -343,11 +348,11 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                         ),
                 ),
                 if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
+                  Padding(
+                    padding: EdgeInsets.all(getPercentageWidth(2, context)),
                     child: CircularProgressIndicator(color: kAccent),
                   ),
-                const SizedBox(height: 12),
+                SizedBox(height: getPercentageHeight(1, context)),
                 SafeTextFormField(
                   controller: captionController,
                   style: TextStyle(
@@ -359,20 +364,24 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                     enabledBorder: outlineInputBorder(20),
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
+                    contentPadding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(1, context),
+                        horizontal: getPercentageWidth(2, context)),
                     hintText: 'Type your caption...',
                     hintStyle: TextStyle(
                       color: isDarkMode
                           ? kWhite.withOpacity(0.5)
                           : kBlack.withOpacity(0.5),
+                      fontSize: getPercentageWidth(3.5, context),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: getPercentageHeight(1, context)),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.send),
-                  label: const Text('Send'),
+                  icon: Icon(Icons.send, size: getPercentageWidth(6, context)),
+                  label: Text('Send',
+                      style:
+                          TextStyle(fontSize: getPercentageWidth(4, context))),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,

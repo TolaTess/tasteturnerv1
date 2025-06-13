@@ -18,11 +18,12 @@ import '../widgets/icon_widget.dart';
 class ChallengeDetailScreen extends StatefulWidget {
   final Map<String, dynamic> dataSrc;
   final String screen;
-
+  final bool isMessage;
   const ChallengeDetailScreen({
     super.key,
     required this.dataSrc,
     this.screen = 'battle_post',
+    this.isMessage = false,
   });
 
   @override
@@ -182,7 +183,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            if (widget.screen == 'myPost' || widget.screen == 'share_recipe') {
+            if (widget.screen == 'myPost' || widget.screen == 'share_recipe' || widget.isMessage) {
               Get.back();
               return;
             }

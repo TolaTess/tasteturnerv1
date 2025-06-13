@@ -115,7 +115,7 @@ class _MessageScreenState extends State<MessageScreen>
       ),
       builder: (context) {
         return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.6,
           child: disabledChats.isEmpty
               ? Center(
                   child: Text(
@@ -141,8 +141,10 @@ class _MessageScreenState extends State<MessageScreen>
                       orElse: () => '',
                     );
                     return ListTile(
+                      tileColor: kAccent.withOpacity(0.2),
                       leading: Icon(
                         Icons.chat_bubble_outline,
+                        size: getPercentageWidth(6, context),
                         color:
                             Provider.of<ThemeProvider>(context, listen: false)
                                     .isDarkMode
@@ -160,7 +162,7 @@ class _MessageScreenState extends State<MessageScreen>
                           return Text(
                             friend?.displayName ?? 'Unknown',
                             style: TextStyle(
-                              fontSize: getPercentageHeight(1.7, context),
+                              fontSize: getPercentageHeight(2, context),
                               fontWeight: FontWeight.w500,
                               color: Provider.of<ThemeProvider>(context,
                                           listen: false)
@@ -174,7 +176,7 @@ class _MessageScreenState extends State<MessageScreen>
                       subtitle: Text(
                         chat['lastMessage'] ?? '',
                         style: TextStyle(
-                          fontSize: getPercentageHeight(1, context),
+                          fontSize: getPercentageHeight(1.8, context),
                           color:
                               Provider.of<ThemeProvider>(context, listen: false)
                                       .isDarkMode
@@ -338,8 +340,8 @@ class _MessageScreenState extends State<MessageScreen>
                             direction: DismissDirection.endToStart,
                             background: Container(
                               alignment: Alignment.centerRight,
-                              padding:
-                                  EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context)),
                               color: Colors.red,
                               child:
                                   const Icon(Icons.delete, color: Colors.white),
@@ -350,8 +352,10 @@ class _MessageScreenState extends State<MessageScreen>
                               nonBuddyChats.removeAt(index);
                               chatController.userChats.removeWhere(
                                   (chat) => chat['chatId'] == chatId);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Chat disabled')),
+                              showTastySnackbar(
+                                'Chat Disabled',
+                                'You can enable it in archived chats',
+                                context,
                               );
                             },
                             child: MessageItem(
