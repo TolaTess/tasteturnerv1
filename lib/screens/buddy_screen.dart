@@ -59,6 +59,10 @@ class _TastyScreenState extends State<TastyScreen> {
     if (isPremium || isInFreeTrial) {
       _initializeChatWithBuddy();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkAndPromptAIPayment(context);
+    });
   }
 
   void _onNewMessage() {
@@ -794,5 +798,38 @@ Greet the user warmly and offer guidance based on:
         ],
       ),
     );
+  }
+
+  Future<void> checkAndPromptAIPayment(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final startDateStr = prefs.getString('ai_trial_start_date');
+    if (startDateStr != null) {
+      final startDate = DateTime.parse(startDateStr);
+      final now = DateTime.now();
+      if (now.difference(startDate).inDays >= 14) {
+        // Show payment dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('AI Assistant Trial Ended'),
+            content: Text(
+                'Your free trial has ended. Subscribe to continue using the AI Assistant.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Trigger payment flow here
+                },
+                child: Text('Subscribe'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Maybe Later'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 }

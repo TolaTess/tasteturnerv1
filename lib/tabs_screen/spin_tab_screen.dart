@@ -72,15 +72,15 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             GestureDetector(
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: CircleAvatar(
-                radius: MediaQuery.of(context).size.height > 1100
-                    ? getPercentageWidth(3.5, context)
-                    : getPercentageWidth(4.3, context),
+                radius: MediaQuery.of(context).size.height > 1000
+                    ? getPercentageHeight(2.2, context)
+                    : getPercentageHeight(2.5, context),
                 backgroundColor: kAccent.withOpacity(kOpacity),
                 child: CircleAvatar(
                   backgroundImage: getAvatarImage(avatarUrl),
-                  radius: MediaQuery.of(context).size.height > 1100
-                      ? getPercentageWidth(3.2, context)
-                      : getPercentageWidth(4, context),
+                  radius: MediaQuery.of(context).size.height > 1000
+                      ? getPercentageHeight(2, context)
+                      : getPercentageHeight(2.2, context),
                 ),
               ),
             ),
@@ -98,13 +98,8 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 ),
               ),
             ),
-          ],
-        ),
-        actions: [
-          // Add new recipe button
-          Padding(
-            padding: EdgeInsets.only(right: getPercentageWidth(2, context)),
-            child: InkWell(
+            // Add new recipe button
+            InkWell(
               onTap: () {
                 Navigator.push(
                   context,
@@ -121,15 +116,16 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 isRemoveContainer: false,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            SizedBox(height: MediaQuery.of(context).size.height > 1100
-                ? getPercentageHeight(1.5, context)
-                : getPercentageHeight(0.5, context)),
+            SizedBox(
+                height: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageHeight(1.5, context)
+                    : getPercentageHeight(0.5, context)),
             // TabBar at the top
             TabBar(
               controller: _tabController,
@@ -156,14 +152,15 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
               indicatorColor: themeProvider.isDarkMode ? kWhite : kBlack,
               labelStyle: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: getPercentageWidth(3, context),
+                fontSize: getPercentageWidth(4, context),
               ),
               labelColor: themeProvider.isDarkMode ? kWhite : kBlack,
               unselectedLabelColor: kLightGrey,
             ),
-            SizedBox(height: MediaQuery.of(context).size.height > 1100
-                ? getPercentageHeight(1.5, context)
-                : getPercentageHeight(0.5, context)),
+            SizedBox(
+                height: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageHeight(1.5, context)
+                    : getPercentageHeight(0.5, context)),
 
             // TabBarView below the TabBar
             Expanded(

@@ -29,18 +29,20 @@ class IconCircleButton extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return isRemoveContainer
-        ? Icon(
-            icon,
+        ? Icon(icon,
             size: getPercentageWidth(h, context) * 0.6,
             color: isColorChange
                 ? kAccent.withValues(alpha: kOpacity)
                 : themeProvider.isDarkMode
                     ? colorD
-                    : colorL
-          )
+                    : colorL)
         : Container(
-            height: getPercentageWidth(h, context) + 10,
-            width: getPercentageWidth(w, context) + 10,
+            height: MediaQuery.of(context).size.height > 1000
+                ? getProportionalHeight(h, context) + 50
+                : getProportionalHeight(h, context) + 35,
+            width: MediaQuery.of(context).size.height > 1000
+                ? getProportionalWidth(w, context) + 50
+                : getProportionalWidth(w, context) + 35,
             margin: const EdgeInsets.only(left: 5),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -53,15 +55,13 @@ class IconCircleButton extends StatelessWidget {
                       ? colorD.withValues(alpha: kLowOpacity)
                       : colorL.withValues(alpha: kLowOpacity),
             ),
-            child: Icon(
-              icon,
-              size: getPercentageWidth(h, context) * 0.6,
-              color: isColorChange
-                  ? kAccent.withValues(alpha: kOpacity)
-                  : themeProvider.isDarkMode
-                      ? colorD
-                      : colorL
-            ),
+            child: Icon(icon,
+                size: getPercentageWidth(h, context) * 0.6,
+                color: isColorChange
+                    ? kAccent.withValues(alpha: kOpacity)
+                    : themeProvider.isDarkMode
+                        ? colorD
+                        : colorL),
           );
   }
 }

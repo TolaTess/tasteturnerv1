@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -164,7 +165,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'vegDishes': 3,
           'lastUpdated': FieldValue.serverTimestamp(),
         },
-        familyMembers: familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
+        familyMembers:
+            familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
         familyMode: familyMembers.isNotEmpty,
       );
 
@@ -316,7 +318,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: nameController,
-          style: TextStyle(color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
+          style: TextStyle(
+              color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
           onChanged: (_) => _validateInputs(),
           decoration: InputDecoration(
             filled: true,
@@ -346,7 +349,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: dobController,
-          style: TextStyle(color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
+          style: TextStyle(
+              color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF3F3F3),
@@ -390,8 +394,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildFeatureTourPage() {
     final features = [
       {
-        'title': 'Log Your Meals',
-        'description': 'Track your nutrition and build healthy habits',
+        'title': 'Build Your Meal Plan',
+        'description': 'Build healthy meal plans and track your nutrition',
         'icon': Icons.restaurant_menu
       },
       {
@@ -401,7 +405,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       },
       {
         'title': 'Family Mode',
-        'description': 'Track your family\'s nutrition and build healthy habits',
+        'description':
+            'Manage your family\'s meals and build healthy habits together',
         'icon': Icons.family_restroom
       },
       {
@@ -412,8 +417,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       },
       {
         'title': 'Chat with Tasty AI',
-        'description':
-            'Get personalized meal plans and recipe ideas',
+        'description': 'Get personalized meal plans and recipe ideas from Tasty AI',
         'icon': Icons.chat_bubble
       }
     ];
@@ -668,11 +672,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
               value: enableAITrial,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() {
                   enableAITrial = value;
-                  _validateInputs();
                 });
+                if (value) {
+                  final prefs = await SharedPreferences.getInstance();
+                  prefs.setString(
+                      'ai_trial_start_date', DateTime.now().toIso8601String());
+                }
               },
               activeColor: kAccentLight,
               inactiveTrackColor:

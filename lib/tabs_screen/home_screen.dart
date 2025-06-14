@@ -87,13 +87,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> loadMeals() async {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
+  Future<void> loadMeals(String date) async {
     QuerySnapshot snapshot = await firestore
         .collection('mealPlans')
         .doc(userService.userId)
         .collection('date')
-        .where('date', isEqualTo: formattedDate)
+        .where('date', isEqualTo: date)
         .get();
 
     if (snapshot.docs.isNotEmpty) {
@@ -125,7 +124,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     chatController.loadUserChats(userService.userId ?? '');
     await helperController.fetchWinners();
     await firebaseService.fetchGeneralData();
-    loadMeals();
+    loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
+    _scheduleMealReminderNotification();
+  }
+
+  Future<void> _scheduleMealReminderNotification() async {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
+    await loadMeals(tomorrowStr);
+
+    if (hasMealPlan == false) {
+      // Schedule notification for 8 PM
+      final now = DateTime.now();
+      final scheduledTime = DateTime(now.year, now.month, now.day, 20, 0);
+      if (scheduledTime.isAfter(now)) {
+        await notificationService.scheduleDailyReminder(
+          id: 1,
+          title: 'Meal Plan Reminder',
+          body:
+              'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
+          hour: 20,
+          minute: 0,
+        );
+      }
+    } else {
+      final now = DateTime.now();
+      final scheduledTime = DateTime(now.year, now.month, now.day, 21, 0);
+      if (scheduledTime.isAfter(now)) {
+        await notificationService.scheduleDailyReminder(
+          id: 1,
+          title: 'Evening Review 🌙',
+          body: 'Review your goals and plan for tomorrow!',
+          hour: 21,
+          minute: 0,
+        );
+      }
+    }
   }
 
   void _initializeMealData() async {
@@ -215,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    // SizeConfig().init(context);
     final winners = helperController.winners;
     final announceDate =
         DateTime.parse(firebaseService.generalData['isAnnounceDate']);
@@ -235,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       drawer: const CustomDrawer(),
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(getPercentageHeight(10, context)),
+        preferredSize: Size.fromHeight(getProportionalHeight(100, context)),
         child: Container(
           decoration: BoxDecoration(
             color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
@@ -389,7 +424,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(
+                    height: MediaQuery.of(context).size.height > 1100
+                        ? getPercentageHeight(2, context)
+                        : getPercentageHeight(0.5, context)),
                 Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: getPercentageWidth(0.3, context)),
@@ -477,6 +515,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
+                SizedBox(
+                    height: MediaQuery.of(context).size.height > 1100
+                        ? getPercentageHeight(2, context)
+                        : getPercentageHeight(0.5, context)),
 
                 // Add Horizontal Routine List
                 if (!allDisabled)
@@ -583,27 +625,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   SizedBox(height: getPercentageHeight(1, context)),
 
                 // Nutrition Overview
-                SizedBox(
-                  height: _calculateHeight(
-                    context: context,
-                    isLargeScreen: MediaQuery.of(context).size.height > 1100,
-                    hasFamilyMode: familyMode,
-                    hasMealPlan: hasMealPlan,
-                  ),
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (value) => setState(() {
-                      currentPage = value;
-                    }),
-                    children: [
-                      DailyNutritionOverview(
-                        settings: userService.currentUser?.settings ??
-                            {} as Map<String, dynamic>,
-                        currentDate: currentDate,
-                        familyMode: familyMode,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SizedBox(
+                      height: _calculateHeight(
+                        context: context,
+                        maxHeight: constraints.maxHeight,
+                        hasFamilyMode: familyMode,
+                        hasMealPlan: hasMealPlan,
                       ),
-                    ],
-                  ),
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: (value) => setState(() {
+                          currentPage = value;
+                        }),
+                        children: [
+                          DailyNutritionOverview(
+                            settings: userService.currentUser?.settings ??
+                                {} as Map<String, dynamic>,
+                            currentDate: currentDate,
+                            familyMode: familyMode,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 // Weekly Ingredients Battle Widget
@@ -623,39 +669,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
 double _calculateHeight({
   required BuildContext context,
-  required bool isLargeScreen,
+  required double maxHeight,
   required bool hasFamilyMode,
   required bool hasMealPlan,
 }) {
+  // Use maxHeight if it's finite, otherwise fallback to screen height
+  final double availableHeight = (maxHeight.isFinite && maxHeight > 0)
+      ? maxHeight
+      : MediaQuery.of(context).size.height;
 
-  return MediaQuery.of(context).size.height > 1100
-      // For large screens (height > 1100)
-      ? (hasFamilyMode
-          ? hasMealPlan
-              ? getPercentageHeight(57, context) // Family mode + meal plan
-              : getPercentageHeight(43.5, context) // Family mode only
-          : hasMealPlan
-              ? getPercentageHeight(48.5, context) // Meal plan only
-              : getPercentageHeight(
-                  35, context)) // Neither family mode nor meal plan
-      // For regular screens (height <= 1100)
-      : MediaQuery.of(context).size.height > 850 &&
-              MediaQuery.of(context).size.height < 1100
-          ? (hasFamilyMode
-              ? hasMealPlan
-                  ? getPercentageHeight(51, context) // Family mode + meal plan
-                  : getPercentageHeight(39, context) // Family mode only
-              : hasMealPlan
-                  ? getPercentageHeight(42.5, context) // Meal plan only
-                  : getPercentageHeight(
-                      30.5, context)) // Neither family mode nor meal plan
-          : (hasFamilyMode
-              ? hasMealPlan
-                  ? getPercentageHeight(
-                      64.5, context) // Family mode + meal plan
-                  : getPercentageHeight(50, context) // Family mode only
-              : hasMealPlan
-                  ? getPercentageHeight(55.5, context) // Meal plan only
-                  : getPercentageHeight(
-                      42, context)); // Neither family mode nor meal plan
+  double designHeight;
+
+  if (availableHeight > 1100) {
+    designHeight =
+        hasFamilyMode ? (hasMealPlan ? 570 : 435) : (hasMealPlan ? 485 : 350);
+  } else if (availableHeight > 855 && availableHeight < 1009) {
+    designHeight =
+        hasFamilyMode ? (hasMealPlan ? 470 : 350) : (hasMealPlan ? 385 : 270);
+  } else if (availableHeight > 700 && availableHeight <= 855) {
+    designHeight =
+        hasFamilyMode ? (hasMealPlan ? 475 : 360) : (hasMealPlan ? 400 : 270);
+  } else {
+    designHeight =
+        hasFamilyMode ? (hasMealPlan ? 540 : 390) : (hasMealPlan ? 460 : 320);
+  }
+
+  double calculated = (designHeight / 840.0) * availableHeight;
+
+  // Clamp to availableHeight to avoid overflow
+  return calculated.clamp(0, availableHeight);
 }

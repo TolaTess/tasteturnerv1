@@ -7,7 +7,8 @@ import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 
 class EmailSigninScreen extends StatelessWidget {
-  const EmailSigninScreen({super.key});
+  final String welcomeMessage;
+  const EmailSigninScreen({super.key, required this.welcomeMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +16,8 @@ class EmailSigninScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const IconCircleButton(),
+          icon: const IconCircleButton(
+          ),
         ),
       ),
       body: SafeArea(
@@ -38,7 +40,7 @@ class EmailSigninScreen extends StatelessWidget {
                 ),
                 SizedBox(height: getPercentageHeight(2.5, context)),
                 Text(
-                  getRandomWelcomeMessage(),
+                  welcomeMessage,
                   style: TextStyle(
                     fontSize: getPercentageWidth(3, context),
                     color: kAccent,

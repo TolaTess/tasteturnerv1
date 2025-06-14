@@ -7,8 +7,10 @@ import '../widgets/primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EmailSignupScreen extends StatefulWidget {
+  final String welcomeMessage;
   const EmailSignupScreen({
     super.key,
+    required this.welcomeMessage,
   });
 
   @override
@@ -63,7 +65,7 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                   horizontal: getPercentageWidth(5, context),
                 ),
                 child: Text(
-                  getRandomWelcomeMessage(),
+                  widget.welcomeMessage,
                   style: TextStyle(
                     fontSize: getPercentageWidth(3, context),
                     color: kAccent,

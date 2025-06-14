@@ -425,6 +425,30 @@ double getPercentageWidth(double percentage, BuildContext context) {
   return blockSizeHorizontal * percentage;
 }
 
+// Example of how you can calculate a responsive box size
+double getResponsiveBoxSize(
+    BuildContext context, double heightFactor, double widthFactor) {
+  double calculatedHeight = getProportionalHeight(heightFactor, context);
+  double calculatedWidth = getProportionalWidth(widthFactor, context);
+  return calculatedHeight > calculatedWidth
+      ? calculatedHeight
+      : calculatedWidth;
+}
+
+// Get the proportionate width as per screen size
+double getProportionalWidth(double inputWidth, BuildContext context) {
+  double screenWidth = MediaQuery.of(context).size.width;
+  // 432 is the layout width of the design mockup
+  return (inputWidth / 432.0) * screenWidth;
+}
+
+// Get the proportionate height as per screen size
+double getProportionalHeight(double inputHeight, BuildContext context) {
+  double screenHeight = MediaQuery.of(context).size.height;
+  // 840 is the layout height of the design mockup
+  return (inputHeight / 840.0) * screenHeight;
+}
+
 // Define list of ingredients to exclude (common seasonings, herbs, spices)
 const excludedIngredients = [
   'salt',

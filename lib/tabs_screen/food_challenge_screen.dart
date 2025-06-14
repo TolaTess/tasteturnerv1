@@ -557,7 +557,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       ),
 
                 Padding(
-                  padding: const EdgeInsets.only(left: 15.0, right: 5.0),
+                  padding: EdgeInsets.only(
+                      left: getPercentageWidth(2.5, context),
+                      right: getPercentageWidth(1.5, context)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

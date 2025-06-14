@@ -83,7 +83,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: getPercentageHeight(1, context)),
               Text( selectedDiet != 'All' ? 'Diet: $selectedDiet' : 'Diet: General',
                 style: TextStyle(
                   color:
@@ -179,7 +179,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                               : kDarkGrey,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                        SizedBox(height: getPercentageHeight(1, context)),
                       DropdownButtonFormField<String>(
                         dropdownColor: getThemeProvider(context).isDarkMode
                             ? kLightGrey

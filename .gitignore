@@ -25,6 +25,7 @@ firebase.json
 # Flutter/Dart package dependencies
 .packages
 pubspec.lock
+latest.txt
 
 # Android build files
 /android/app/debug
@@ -91,3 +92,4 @@ migrate_working_dir/
 
 keystore.properties
 my-release-key.jks
+local.properties

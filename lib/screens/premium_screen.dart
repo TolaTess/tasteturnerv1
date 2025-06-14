@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'dart:async';
-import 'package:collection/collection.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
+import '../service/payment_service.dart';
 
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
@@ -23,27 +23,29 @@ class _PremiumScreenState extends State<PremiumScreen> {
   bool isYearlySelected =
       true; // Default to yearly as it's usually the better deal
 
-  // In-app purchase variables
-  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  StreamSubscription<List<PurchaseDetails>>? _subscription;
-  List<ProductDetails> _products = [];
   bool _purchaseInProgress = false;
   String? _purchaseError;
 
-  // Product IDs for App Store and Google Play
-  static const String _monthlyId = 'premium_monthly';
-  static const String _yearlyId = 'premium_yearly';
+  StreamSubscription? _paymentSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchPlan();
-    _initInAppPurchase();
+    PaymentService().initialize();
+    _paymentSubscription = PaymentService()
+        .purchaseResults
+        .listen(_onPurchaseUpdate, onError: (error) {
+      setState(() {
+        _purchaseInProgress = false;
+        _purchaseError = error.toString();
+      });
+    });
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    _paymentSubscription?.cancel();
     super.dispose();
   }
 
@@ -58,7 +60,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       final userDoc = await firestore.collection('users').doc(userId).get();
       final userData = userDoc.data();
       isUserPremium = userData?['isPremium'] ?? false;
-      userPlan = userData?['premiumPlan'] ?? '';
+      userPlan = userData?['premiumPlan'] ?? 'month';
 
       // Get the premium plan
       final planDoc = await firestore.collection('plans').get();
@@ -77,68 +79,30 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
   }
 
-  Future<void> _initInAppPurchase() async {
-    final available = await _inAppPurchase.isAvailable();
-    if (!available) {
-      setState(() {
-        _purchaseError = 'In-app purchases are not available.';
-      });
-      return;
-    }
-    // Listen to purchase updates
-    _subscription =
-        _inAppPurchase.purchaseStream.listen(_onPurchaseUpdate, onDone: () {
-      _subscription?.cancel();
-    }, onError: (error) {
-      setState(() {
-        _purchaseError = 'Purchase error: $error';
-      });
-    });
-    // Query products
-    const ids = <String>{_monthlyId, _yearlyId};
-    final response = await _inAppPurchase.queryProductDetails(ids);
-    if (response.error != null) {
-      setState(() {
-        _purchaseError =
-            'Error fetching products: \\${response.error!.message}';
-      });
-    } else {
-      setState(() {
-        _products = response.productDetails.toList();
-      });
-    }
-  }
-
-  void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
-    for (final purchaseDetails in purchaseDetailsList) {
-      if (purchaseDetails.status == PurchaseStatus.purchased ||
-          purchaseDetails.status == PurchaseStatus.restored) {
-        // Grant premium
-        final userId = userService.userId;
-        if (userId != null) {
-          final selectedPlan =
-              purchaseDetails.productID == _yearlyId ? 'year' : 'month';
-          await authController.updateIsPremiumStatus(
-              context, userId, true, selectedPlan);
-        }
-        setState(() {
-          _purchaseInProgress = false;
-        });
-        if (purchaseDetails.pendingCompletePurchase) {
-          await _inAppPurchase.completePurchase(purchaseDetails);
-        }
-        Navigator.pop(context);
-      } else if (purchaseDetails.status == PurchaseStatus.error) {
-        setState(() {
-          _purchaseInProgress = false;
-          _purchaseError = purchaseDetails.error?.message ?? 'Unknown error';
-        });
-      } else if (purchaseDetails.status == PurchaseStatus.canceled) {
-        setState(() {
-          _purchaseInProgress = false;
-          _purchaseError = 'Purchase cancelled.';
-        });
+  void _onPurchaseUpdate(purchaseDetails) async {
+    if (purchaseDetails == null) return;
+    if (purchaseDetails.status == PurchaseStatus.purchased ||
+        purchaseDetails.status == PurchaseStatus.restored) {
+      final userId = userService.userId;
+      if (userId != null) {
+        final selectedPlan = isYearlySelected ? 'year' : 'month';
+        await authController.updateIsPremiumStatus(
+            context, userId, true, selectedPlan);
       }
+      setState(() {
+        _purchaseInProgress = false;
+      });
+      Navigator.pop(context);
+    } else if (purchaseDetails.status == PurchaseStatus.error) {
+      setState(() {
+        _purchaseInProgress = false;
+        _purchaseError = purchaseDetails.error?.message ?? 'Unknown error';
+      });
+    } else if (purchaseDetails.status == PurchaseStatus.canceled) {
+      setState(() {
+        _purchaseInProgress = false;
+        _purchaseError = 'Purchase cancelled.';
+      });
     }
   }
 
@@ -147,17 +111,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
       _purchaseInProgress = true;
       _purchaseError = null;
     });
-    final productId = isYearlySelected ? _yearlyId : _monthlyId;
-    final product = _products.firstWhereOrNull((p) => p.id == productId);
-    if (product == null) {
+    try {
+      if (isYearlySelected) {
+        await PaymentService().buyYearly();
+      } else {
+        await PaymentService().buyMonthly();
+      }
+    } catch (e) {
       setState(() {
         _purchaseInProgress = false;
-        _purchaseError = 'Product not found.';
+        _purchaseError = e.toString();
       });
-      return;
     }
-    final purchaseParam = PurchaseParam(productDetails: product);
-    await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
   }
 
   Widget _buildPriceCard(bool isDarkMode) {
@@ -289,7 +254,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
           child: GestureDetector(
             onTap: () => setState(() => isYearlySelected = true),
             child: Container(
-                padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: isYearlySelected
                     ? (isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1))
@@ -383,7 +348,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
           onTap: () => Navigator.pop(context),
           child: const IconCircleButton(),
         ),
-        title: Text(isUserPremium ? 'Your Plan' : 'Go Premium',
+        title: Text(
+          isUserPremium ? 'Your Plan' : 'Go Premium',
           style: TextStyle(
             fontSize: getPercentageWidth(3.5, context),
           ),
@@ -412,7 +378,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             fontWeight: FontWeight.w300,
                             color: isDarkMode ? kLightGrey : kBlack),
                         children: [
-                            TextSpan(text: 'Welcome '),
+                          TextSpan(text: 'Welcome '),
                           TextSpan(
                             text: user?.displayName ?? '',
                             style: TextStyle(
@@ -435,7 +401,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: isUserPremium ? getPercentageHeight(1, context) : getPercentageHeight(4, context)),
+                    SizedBox(
+                        height: isUserPremium
+                            ? getPercentageHeight(1, context)
+                            : getPercentageHeight(4, context)),
 
                     // Premium Features
                     Padding(
@@ -548,7 +517,8 @@ class BulletPoint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.check_circle, color: kAccent, size: getPercentageWidth(2, context)),
+          Icon(Icons.check_circle,
+              color: kAccent, size: getPercentageWidth(2, context)),
           SizedBox(width: getPercentageWidth(2, context)),
           Expanded(
             child: Text(

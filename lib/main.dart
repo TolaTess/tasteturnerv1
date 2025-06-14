@@ -84,13 +84,6 @@ void main() async {
           hour: 11,
           minute: 0,
         ),
-        DailyReminder(
-          id: 5003,
-          title: "Evening Review 🌙",
-          body: "Review your goals and plan for tomorrow!",
-          hour: 21,
-          minute: 0,
-        ),
       ],
     );
   } catch (e) {

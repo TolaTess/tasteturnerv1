@@ -486,7 +486,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                             Stack(
                               children: [
                                 Container(
-                                  height: 18,
+                                  height: getProportionalHeight(18, context),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
                                     color: isDarkMode
@@ -496,7 +496,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                 ),
                                 AnimatedContainer(
                                   duration: Duration(milliseconds: 600),
-                                  height: 18,
+                                  height: getProportionalHeight(18, context),
                                   width: getPercentageWidth(
                                       70 * progress, context),
                                   decoration: BoxDecoration(
@@ -606,8 +606,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                 );
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(1.2, context),
+                                    vertical: getPercentageHeight(0.6, context)),
                                 decoration: BoxDecoration(
                                   color: getDayTypeColor(
                                           mealPlan['dayType']
@@ -629,7 +630,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                             isDarkMode),
                                       ),
                                     if (meals.isNotEmpty)
-                                      const SizedBox(width: 4),
+                                      SizedBox(width: getPercentageWidth(0.4, context)),
                                     if (meals.isNotEmpty)
                                       Text(
                                         mealPlan['dayType'].toLowerCase() ==
@@ -668,11 +669,11 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                       if (meals.isNotEmpty)
                         SizedBox(
                           height: MediaQuery.of(context).size.height > 1100
-                              ? getPercentageHeight(16.5, context)
+                              ? getProportionalHeight(165, context)
                               : MediaQuery.of(context).size.height > 850 &&
                                       MediaQuery.of(context).size.height < 1100
-                                  ? getPercentageHeight(15.5, context)
-                                  : getPercentageHeight(18, context),
+                                  ? getProportionalHeight(145, context)
+                                  : getProportionalHeight(170, context),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: meals.length,
@@ -726,7 +727,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                               size: getPercentageWidth(
                                                   4, context),
                                             ),
-                                            SizedBox(width: 8),
+                                            SizedBox(width: getPercentageWidth(0.8, context)),
                                             Expanded(
                                               child: Text(
                                                 capitalizeFirstLetter(

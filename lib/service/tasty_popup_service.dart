@@ -109,7 +109,7 @@ class TutorialPopupService {
     required String message,
     required GlobalKey targetKey,
     required VoidCallback onComplete,
-    EdgeInsets padding = const EdgeInsets.all(8.0),
+    EdgeInsets padding = const EdgeInsets.all(4.0),
     bool showArrow = true,
     Duration autoCloseDuration = const Duration(seconds: 5),
     ArrowDirection arrowDirection = ArrowDirection.UP,
@@ -210,7 +210,8 @@ class TutorialPopupService {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               CustomPaint(
-                size: Size(getPercentageWidth(2.5, context), getPercentageHeight(5, context)),
+                size: Size(getPercentageWidth(2.5, context),
+                    getPercentageHeight(5, context)),
                 painter: ArrowPainter(
                   color: isDarkMode ? kDarkGrey : kWhite,
                   direction: arrowDirection,
@@ -228,7 +229,8 @@ class TutorialPopupService {
             children: [
               _buildPopupContainer(context, message, padding, onComplete),
               CustomPaint(
-                size: Size(getPercentageWidth(2.5, context), getPercentageHeight(5, context)),
+                size: Size(getPercentageWidth(2.5, context),
+                    getPercentageHeight(5, context)),
                 painter: ArrowPainter(
                   color: isDarkMode ? kDarkGrey : kWhite,
                   direction: arrowDirection,
@@ -257,7 +259,7 @@ class TutorialPopupService {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.6,
+        maxWidth: MediaQuery.of(context).size.width * 0.4,
         minWidth: MediaQuery.of(context).size.width * 0.3,
       ),
       padding: padding,
@@ -278,17 +280,19 @@ class TutorialPopupService {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: kAccentLight.withOpacity(0.5),
-                radius: getPercentageWidth(3.75, context),
-                backgroundImage: const AssetImage(tastyImage),
-              ),
-              SizedBox(width: getPercentageWidth(2, context)),
+              // CircleAvatar(
+              //   backgroundColor: kAccentLight.withOpacity(0.5),
+              //   radius: getPercentageWidth(3.75, context),
+              //   backgroundImage: const AssetImage(tastyImage),
+              // ),
+              // SizedBox(width: getPercentageWidth(2, context)),
               Expanded(
                 child: Text(
                   message,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3.5, context),
+                    fontSize: MediaQuery.of(context).size.width > 1000
+                        ? getPercentageWidth(2.5, context)
+                        : getPercentageWidth(3, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
@@ -301,13 +305,16 @@ class TutorialPopupService {
             child: TextButton(
               onPressed: onComplete,
               style: TextButton.styleFrom(
-                padding:
-                    EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context), vertical: getPercentageHeight(1.5, context)),
-                minimumSize: Size(getPercentageWidth(15, context), getPercentageHeight(7.5, context)),
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(3, context),
+                    vertical: getPercentageHeight(1.5, context)),
+                minimumSize: Size(getPercentageWidth(15, context),
+                    getPercentageHeight(7.5, context)),
               ),
-              child: const Text(
+              child: Text(
                 'Got it',
-                style: TextStyle(color: kAccent),
+                style: TextStyle(
+                    color: kAccent, fontSize: getPercentageWidth(3, context)),
               ),
             ),
           ),

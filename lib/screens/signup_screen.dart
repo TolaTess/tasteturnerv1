@@ -20,6 +20,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final List<String> words = ["Plan", "Cook", "Eat", "Taste"];
 
   int _index = 0;
+  String _welcomeMessage = '';
   Timer? _timer;
 
   @override
@@ -32,6 +33,7 @@ class _SignupScreenState extends State<SignupScreen> {
         });
       }
     });
+    _welcomeMessage = getRandomWelcomeMessage();
   }
 
   @override
@@ -205,7 +207,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const EmailSignupScreen(),
+                        builder: (context) => EmailSignupScreen(
+                          welcomeMessage: _welcomeMessage,
+                        ),
                       ),
                     ),
                   ),
@@ -230,7 +234,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                const EmailSigninScreen(), // go to sign up screen
+                                EmailSigninScreen(
+                          welcomeMessage: _welcomeMessage,
+                        ), // go to sign up screen
                           ),
                         ),
                         child: Text(
