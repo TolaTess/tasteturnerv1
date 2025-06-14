@@ -136,7 +136,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   controller: waterController,
                   style: TextStyle(
                       color: isDarkMode ? kWhite : kDarkGrey,
-                      fontSize: getPercentageWidth(3, context)),
+                      fontSize: getPercentageWidth(3.2, context)),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: "Daily Water Intake (liters)",
@@ -161,7 +161,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   controller: foodController,
                   style: TextStyle(
                       color: isDarkMode ? kWhite : kDarkGrey,
-                      fontSize: getPercentageWidth(3, context)),
+                      fontSize: getPercentageWidth(3.2, context)),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: "Calories",
@@ -184,9 +184,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ExpansionTile(
                   title: Text("Health & Fitness",
                       style: TextStyle(
-                          fontSize: MediaQuery.of(context).size.width > 1100
-                              ? getPercentageWidth(3.5, context)
-                              : getPercentageWidth(4, context))),
+                          fontSize: getPercentageWidth(3.5, context))),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
@@ -197,7 +195,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: dietPerfController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       keyboardType: TextInputType.text,
                       decoration: InputDecoration(
                         labelText: "Diet Preference",
@@ -220,7 +218,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: targetStepsController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Target Steps",
@@ -243,7 +241,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: fitnessGoalController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       decoration: InputDecoration(
                         labelText: "Fitness Goal",
                         labelStyle: TextStyle(
@@ -294,10 +292,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ExpansionTile(
                   title: Text(
                     "Weight Management",
-                    style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width > 1100
-                            ? getPercentageWidth(3.5, context)
-                            : getPercentageWidth(4, context)),
+                    style:
+                        TextStyle(fontSize: getPercentageWidth(3.5, context)),
                   ),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
@@ -309,7 +305,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: startingWeightController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Starting Weight (kg)",
@@ -332,7 +328,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: goalWeightController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Goal Weight (kg)",
@@ -355,7 +351,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       controller: currentWeightController,
                       style: TextStyle(
                           color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context)),
+                          fontSize: getPercentageWidth(3.2, context)),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Current Weight (kg)",

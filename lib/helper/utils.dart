@@ -674,7 +674,7 @@ ThemeData getDatePickerTheme(BuildContext context, bool isDarkMode) {
     );
   } else {
     return Theme.of(context).copyWith(
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: kAccent, // Date selction background color
         onPrimary: kDarkGrey, // Header text color
         onSurface: kDarkGrey, // Calendar text color
@@ -832,6 +832,8 @@ IconData getDayTypeIcon(String type) {
       return Icons.check_circle;
     case 'spin special':
       return Icons.restaurant;
+    case 'regular day':
+      return Icons.restaurant;
     default:
       return Icons.restaurant;
   }
@@ -842,7 +844,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'cheat day':
       return Colors.purple;
     case 'diet day':
-      return Colors.grey.withOpacity(0.7);
+      return kAccent.withOpacity(0.7);
     case 'family dinner':
       return Colors.green;
     case 'workout boost':
@@ -855,6 +857,8 @@ Color getDayTypeColor(String type, bool isDarkMode) {
       return Colors.deepPurpleAccent;
     case 'spin special':
       return Colors.red;
+    case 'regular day':
+      return Colors.grey.withOpacity(0.7);
     default:
       return isDarkMode ? kWhite : kBlack;
   }

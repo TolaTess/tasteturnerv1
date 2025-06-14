@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:tasteturner/widgets/icon_widget.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -151,6 +152,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const IconCircleButton(),
+        ),
         title: Text(
           'Leaderboard',
           style: TextStyle(
@@ -162,7 +167,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            padding: EdgeInsets.only(
+                right: MediaQuery.of(context).size.width > 1100
+                    ? getPercentageWidth(2, context)
+                    : getPercentageWidth(0.5, context)),
+            icon: Icon(Icons.refresh, size: getPercentageWidth(6, context)),
             onPressed: _onRefresh,
           ),
         ],
@@ -175,6 +184,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ? const Center(child: Text("No users on leaderboard"))
                 : Column(
                     children: [
+                      SizedBox(height: getPercentageHeight(1, context)),
                       if (currentUserRank != null)
                         Container(
                           margin:

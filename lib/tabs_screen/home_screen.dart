@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
+import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/message_screen.dart';
@@ -40,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _shoppingDay;
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> familyList = [];
+  bool hasMealPlan = true;
   @override
   void initState() {
     super.initState();
@@ -85,6 +88,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> loadMeals() async {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
+    QuerySnapshot snapshot = await firestore
+        .collection('mealPlans')
+        .doc(userService.userId)
+        .collection('date')
+        .where('date', isEqualTo: formattedDate)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
+      final mealsList = data?['meals'] as List<dynamic>? ?? [];
+      if (mealsList.isNotEmpty) {
+        hasMealPlan = true;
+      } else {
+        hasMealPlan = false;
+      }
+    } else {
+      hasMealPlan = false;
+    }
+
+    if (mounted) {
+      setState(() {
+        hasMealPlan = hasMealPlan;
+      });
+    }
+  }
+
   void _setupDataListeners() {
     // Show Tasty popup after a short delay
     _onRefresh();
@@ -95,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     chatController.loadUserChats(userService.userId ?? '');
     await helperController.fetchWinners();
     await firebaseService.fetchGeneralData();
+    loadMeals();
   }
 
   void _initializeMealData() async {
@@ -246,17 +278,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               '$greeting ${currentUser.displayName}!',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: currentUser.displayName?.length != null && currentUser.displayName!.length > 10
-                                    ? getPercentageWidth(4, context)
-                                    : getPercentageWidth(4.5, context),
+                                fontSize:
+                                    currentUser.displayName?.length != null &&
+                                            currentUser.displayName!.length > 10
+                                        ? getPercentageWidth(4, context)
+                                        : getPercentageWidth(4.5, context),
                               ),
-                            ),  
+                            ),
                             Text(
                               inspiration,
                               style: TextStyle(
-                                fontSize: currentUser.displayName?.length != null && currentUser.displayName!.length > 15
-                                    ? getPercentageWidth(2.5, context)
-                                    : getPercentageWidth(3, context),
+                                fontSize:
+                                    currentUser.displayName?.length != null &&
+                                            currentUser.displayName!.length > 15
+                                        ? getPercentageWidth(2.5, context)
+                                        : getPercentageWidth(3, context),
                                 fontWeight: FontWeight.w400,
                                 color: kLightGrey,
                                 overflow: TextOverflow.ellipsis,
@@ -548,13 +584,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // Nutrition Overview
                 SizedBox(
-                  height: MediaQuery.of(context).size.height > 1100
-                      ? (familyMode
-                          ? getPercentageHeight(56.5, context)
-                          : getPercentageHeight(48.5, context))
-                      : (familyMode
-                          ? getPercentageHeight(57, context)
-                          : getPercentageHeight(41.5, context)),
+                  height: _calculateHeight(
+                    context: context,
+                    isLargeScreen: MediaQuery.of(context).size.height > 1100,
+                    hasFamilyMode: familyMode,
+                    hasMealPlan: hasMealPlan,
+                  ),
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (value) => setState(() {
@@ -584,4 +619,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+double _calculateHeight({
+  required BuildContext context,
+  required bool isLargeScreen,
+  required bool hasFamilyMode,
+  required bool hasMealPlan,
+}) {
+  return MediaQuery.of(context).size.height > 1100
+      // For large screens (height > 1100)
+      ? (hasFamilyMode
+          ? hasMealPlan
+              ? getPercentageHeight(57, context)    // Family mode + meal plan
+              : getPercentageHeight(43.5, context)  // Family mode only
+          : hasMealPlan
+              ? getPercentageHeight(48.5, context)  // Meal plan only
+              : getPercentageHeight(35, context)) // Neither family mode nor meal plan
+      // For regular screens (height <= 1100)
+      : (hasFamilyMode
+          ? hasMealPlan
+              ? getPercentageHeight(56.5, context)  // Family mode + meal plan
+              : getPercentageHeight(44.5, context)  // Family mode only
+          : hasMealPlan
+              ? getPercentageHeight(47.5, context)  // Meal plan only
+              : getPercentageHeight(35, context)); // Neither family mode nor meal plan
 }

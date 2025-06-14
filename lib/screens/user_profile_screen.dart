@@ -316,6 +316,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         },
                       ),
                     ),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
                   // Search Content Section
                   Builder(

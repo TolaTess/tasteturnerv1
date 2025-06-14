@@ -187,10 +187,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     double progressPercentage =
         calculateWeightProgress(startWeight, goalWeight, currentWeight) / 100;
     final fitnessGoal = userService.currentUser?.settings['fitnessGoal'] ?? '';
-    final shouldShowGoals = [
-      "Family Nutrition",
-      "AI Guidance"
-    ].contains(fitnessGoal);
+    final shouldShowGoals =
+        ["Family Nutrition", "AI Guidance"].contains(fitnessGoal);
 
     return Scaffold(
       body: SafeArea(
@@ -200,8 +198,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             pinned: true,
             automaticallyImplyLeading: false,
             expandedHeight: MediaQuery.of(context).size.height > 1100
-          ? getPercentageHeight(45, context)
-          : getPercentageHeight(40, context),
+                ? getPercentageHeight(45, context)
+                : getPercentageHeight(43, context),
             title: isShrink
                 ? Text(
                     userService.currentUser!.displayName ?? '',
@@ -229,14 +227,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => Navigator.canPop(context)
                   ? Navigator.pop(context)
                   : Get.to(() => const BottomNavSec()),
-              child: const IconCircleButton(
-              ),
+              child: const IconCircleButton(),
             ),
             actions: [
               GestureDetector(
                 onTap: () {
                   print('Settings');
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SettingsScreen()));
                 },
                 child: const IconCircleButton(
                   isRemoveContainer: true,
@@ -254,10 +254,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     alignment: Alignment.topCenter,
                     children: [
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(6, context)),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(6, context)),
                         child: Container(
-                          margin: EdgeInsets.only(top: getPercentageHeight(10.5, context)),
-                          padding: EdgeInsets.only(top: getPercentageHeight(10.5, context)),
+                          margin: EdgeInsets.only(
+                              top: getPercentageHeight(10.5, context)),
+                          padding: EdgeInsets.only(
+                              top: getPercentageHeight(10.5, context)),
                           decoration: BoxDecoration(
                             color: kPrimaryColor,
                             borderRadius: BorderRadius.circular(20),
@@ -283,7 +286,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   onTap: () =>
                                       Get.to(() => const ProfileEditScreen()),
                                   child: Container(
-                                    padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                                    padding: EdgeInsets.all(
+                                        getPercentageWidth(1, context)),
                                     decoration: BoxDecoration(
                                       color: isDarkMode ? kDarkGrey : kWhite,
                                       borderRadius: BorderRadius.circular(10),
@@ -292,7 +296,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       userService.currentUser!.displayName ??
                                           '',
                                       style: TextStyle(
-                                        fontSize: getPercentageWidth(4.5, context),
+                                        fontSize:
+                                            getPercentageWidth(4.5, context),
                                         fontWeight: FontWeight.w600,
                                         color: isDarkMode ? kWhite : kDarkGrey,
                                       ),
@@ -310,7 +315,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     onTap: () => Get.to(() => BadgesScreen()),
                                     child: Container(
                                       width: getPercentageWidth(14, context),
-                                      padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                                      padding: EdgeInsets.all(
+                                          getPercentageWidth(1, context)),
                                       decoration: BoxDecoration(
                                         color: isDarkMode ? kDarkGrey : kWhite,
                                         borderRadius: BorderRadius.circular(10),
@@ -326,7 +332,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               color: isDarkMode
                                                   ? kWhite
                                                   : kDarkGrey,
-                                              fontSize: getPercentageWidth(4.5, context),
+                                              fontSize: getPercentageWidth(
+                                                  4.5, context),
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -338,7 +345,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(3, context),
+                                                fontSize: getPercentageWidth(
+                                                    3, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -362,7 +370,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     onTap: () => Get.to(() => BadgesScreen()),
                                     child: Container(
                                       width: getPercentageWidth(14, context),
-                                      padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                                      padding: EdgeInsets.all(
+                                          getPercentageWidth(1, context)),
                                       decoration: BoxDecoration(
                                         color: isDarkMode ? kDarkGrey : kWhite,
                                         borderRadius: BorderRadius.circular(10),
@@ -382,7 +391,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(4.5, context),
+                                                fontSize: getPercentageWidth(
+                                                    4.5, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             );
@@ -395,7 +405,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(3, context),
+                                                fontSize: getPercentageWidth(
+                                                    3, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -412,7 +423,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       CircleAvatar(
-                        radius: MediaQuery.of(context).size.height > 1100 ? getPercentageWidth(13, context) : getPercentageWidth(15, context),
+                        radius: MediaQuery.of(context).size.height > 1100
+                            ? getPercentageWidth(13, context)
+                            : getPercentageWidth(15, context),
                         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                         child: CircleAvatar(
                           backgroundImage:
@@ -425,7 +438,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       userService.currentUser!.profileImage!)
                                   : const AssetImage(intPlaceholderImage)
                                       as ImageProvider,
-                          radius: MediaQuery.of(context).size.height > 1100 ? getPercentageWidth(12.5, context) : getPercentageWidth(14.5, context),
+                          radius: MediaQuery.of(context).size.height > 1100
+                              ? getPercentageWidth(12.5, context)
+                              : getPercentageWidth(14.5, context),
                         ),
                       ),
                     ],
@@ -450,7 +465,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   if (myBadge.isEmpty) return const SizedBox.shrink();
                   return Padding(
-                    padding: EdgeInsets.only(left: getPercentageWidth(1, context)),
+                    padding:
+                        EdgeInsets.only(left: getPercentageWidth(1, context)),
                     child: ExpansionTile(
                       collapsedIconColor: kAccent,
                       iconColor: kAccent,
@@ -463,7 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             badges,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                                  fontSize: getPercentageWidth(4.5, context),
+                              fontSize: getPercentageWidth(4.5, context),
                             ),
                           ),
                           GestureDetector(
@@ -484,13 +500,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: ListView.builder(
                             itemCount:
                                 (myBadge.length > 3 ? 3 : myBadge.length) + 1,
-                            padding: EdgeInsets.only(right: getPercentageWidth(2, context)),
+                            padding: EdgeInsets.only(
+                                right: getPercentageWidth(2, context)),
                             scrollDirection: Axis.horizontal,
                             itemBuilder: (context, index) {
                               if (index < 3 && index < myBadge.length) {
                                 // Show badges for the first 2 items
                                 return Padding(
-                                  padding: EdgeInsets.only(left: getPercentageWidth(2, context)),
+                                  padding: EdgeInsets.only(
+                                      left: getPercentageWidth(2, context)),
                                   child: StorySlider(
                                     dataSrc: myBadge[index],
                                     press: () {
@@ -522,7 +540,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Padding(
-                              padding: EdgeInsets.only(left: getPercentageWidth(1, context)),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      MediaQuery.of(context).size.height > 1100
+                                          ? getPercentageWidth(2.5, context)
+                                          : getPercentageWidth(1, context)),
                               child: Text(
                                 goals,
                                 style: TextStyle(
@@ -533,7 +555,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             Text(
                               '${userService.currentUser?.settings['fitnessGoal']}',
-                                style: TextStyle(
+                              style: TextStyle(
                                 fontSize: getPercentageWidth(3.5, context),
                                 color: kAccent,
                               ),
@@ -544,7 +566,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: Text(
                                 'update',
                                 style: TextStyle(
-                                  color: kAccent, 
+                                  color: kAccent,
                                   fontSize: getPercentageWidth(3.5, context),
                                 ),
                               ),
@@ -553,7 +575,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         children: [
                           Padding(
-                            padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(1, context)),
                             child: Column(
                               children: [
                                 Row(
@@ -563,7 +586,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         Icon(
                                           Icons
                                               .keyboard_double_arrow_right_rounded,
-                                          size: getPercentageWidth(3.5, context),
+                                          size:
+                                              getPercentageWidth(3.5, context),
                                           color: kAccent,
                                         ),
                                         Text(
@@ -571,17 +595,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ? startWeight.toInt().toString()
                                               : startWeight.toStringAsFixed(1),
                                           style: TextStyle(
-                                            fontSize: getPercentageWidth(3, context),
+                                            fontSize:
+                                                getPercentageWidth(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    SizedBox(width: getPercentageWidth(1, context)),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
                                     Expanded(
                                       child: LinearPercentIndicator(
                                         animation: true,
-                                        lineHeight: getPercentageHeight(3, context),
+                                        lineHeight:
+                                            getPercentageHeight(3, context),
                                         backgroundColor:
                                             isDarkMode ? kLightGrey : kWhite,
                                         animationDuration: 2000,
@@ -596,22 +623,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : currentWeight
                                                       .toStringAsFixed(1) +
                                                   'kg',
-                                            style: TextStyle(
-                                              fontSize: getPercentageWidth(3.5, context),
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            ),
-                                        barRadius: Radius.circular(getPercentageWidth(5, context)),
+                                          style: TextStyle(
+                                            fontSize: getPercentageWidth(
+                                                3.5, context),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        barRadius: Radius.circular(
+                                            getPercentageWidth(5, context)),
                                         progressColor: kAccent,
                                       ),
                                     ),
-                                        SizedBox(width: getPercentageWidth(1, context)),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
                                     Column(
                                       children: [
-                                          Icon(
+                                        Icon(
                                           Icons
                                               .keyboard_double_arrow_left_rounded,
-                                          size: getPercentageWidth(3.5, context),
+                                          size:
+                                              getPercentageWidth(3.5, context),
                                           color: kAccent,
                                         ),
                                         Text(
@@ -619,13 +650,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ? goalWeight.toInt().toString()
                                               : goalWeight.toStringAsFixed(1),
                                           style: TextStyle(
-                                            fontSize: getPercentageWidth(3, context),
+                                            fontSize:
+                                                getPercentageWidth(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
                                     ),
-                                        SizedBox(height: getPercentageHeight(5, context))
+                                    SizedBox(
+                                        height: getPercentageHeight(5, context))
                                   ],
                                 ),
                               ],
@@ -654,7 +687,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontSize: getPercentageWidth(4.5, context),
                     ),
                   ),
-                  tilePadding: EdgeInsets.only(left: getPercentageWidth(5, context), right: getPercentageWidth(5, context)),    
+                  tilePadding: EdgeInsets.only(
+                      left: getPercentageWidth(5, context),
+                      right: getPercentageWidth(5, context)),
                   childrenPadding: EdgeInsets.zero,
                   children: [
                     SizedBox(
@@ -673,7 +708,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: Text(
                                     "No ongoing battles, join a battle now!",
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(3.5, context),
+                                      fontSize:
+                                          getPercentageWidth(3.5, context),
                                       color: isDarkMode ? kLightGrey : kAccent,
                                       decoration: TextDecoration.underline,
                                     ),
@@ -682,7 +718,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               : ListView.builder(
                                   itemCount: ongoingBattles.length,
                                   padding: EdgeInsets.symmetric(
-                                      vertical: getPercentageHeight(2, context), horizontal: getPercentageWidth(1, context)),
+                                      vertical: getPercentageHeight(2, context),
+                                      horizontal:
+                                          getPercentageWidth(1, context)),
                                   scrollDirection: Axis.horizontal,
                                   itemBuilder: (context, index) {
                                     final battle = ongoingBattles[index];
@@ -693,8 +731,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         elevation: 2,
                                         color: isDarkMode ? kDarkGrey : kWhite,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(getPercentageWidth(2, context)),
+                                          borderRadius: BorderRadius.circular(
+                                              getPercentageWidth(2, context)),
                                         ),
                                         child: Column(
                                           children: [
@@ -707,7 +745,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kBlack,
-                                                  fontSize: getPercentageWidth(4.5, context),
+                                                  fontSize: getPercentageWidth(
+                                                      4.5, context),
                                                 ),
                                               ),
                                               subtitle: Text(
@@ -719,8 +758,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   color: isDarkMode
                                                       ? kLightGrey
                                                       : kDarkGrey,
-                                                  fontSize: getPercentageWidth(3.5, context),
-                                                  ),
+                                                  fontSize: getPercentageWidth(
+                                                      3.5, context),
+                                                ),
                                               ),
                                               onTap: () {
                                                 Get.to(
@@ -769,21 +809,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                               isDarkMode
                                                                   ? kDarkGrey
                                                                   : kWhite,
-                                                              title: Text(
+                                                          title: Text(
                                                             'Leave Battle?',
                                                             style: TextStyle(
-                                                                color: kAccent,
-                                                                fontSize: getPercentageWidth(3.5, context),
-                                                                ),
+                                                              color: kAccent,
+                                                              fontSize:
+                                                                  getPercentageWidth(
+                                                                      3.5,
+                                                                      context),
+                                                            ),
                                                           ),
                                                           content: Text(
                                                             'Are you sure you want to leave this battle?',
                                                             style: TextStyle(
-                                                                color: isDarkMode
-                                                                    ? kWhite
-                                                                    : kDarkGrey,
-                                                                    fontSize: getPercentageWidth(3, context),
-                                                                    ),
+                                                              color: isDarkMode
+                                                                  ? kWhite
+                                                                  : kDarkGrey,
+                                                              fontSize:
+                                                                  getPercentageWidth(
+                                                                      3,
+                                                                      context),
+                                                            ),
                                                           ),
                                                           actions: [
                                                             TextButton(
@@ -794,11 +840,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           false),
                                                               child: Text(
                                                                 'Cancel',
-                                                                style: TextStyle(
-                                                                    color:
-                                                                        kAccent,
-                                                                        fontSize: getPercentageWidth(3.5, context),
-                                                                        ),
+                                                                style:
+                                                                    TextStyle(
+                                                                  color:
+                                                                      kAccent,
+                                                                  fontSize:
+                                                                      getPercentageWidth(
+                                                                          3.5,
+                                                                          context),
+                                                                ),
                                                               ),
                                                             ),
                                                             TextButton(
@@ -809,11 +859,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           true),
                                                               child: Text(
                                                                 'Leave',
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .red,
-                                                                        fontSize: getPercentageWidth(3.5, context),
-                                                                        ),
+                                                                style:
+                                                                    TextStyle(
+                                                                  color: Colors
+                                                                      .red,
+                                                                  fontSize:
+                                                                      getPercentageWidth(
+                                                                          3.5,
+                                                                          context),
+                                                                ),
                                                               ),
                                                             ),
                                                           ],
@@ -838,7 +892,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 ),
                                               ],
                                             ),
-                                            SizedBox(height: getPercentageHeight(2, context)),
+                                            SizedBox(
+                                                height: getPercentageHeight(
+                                                    2, context)),
                                           ],
                                         ),
                                       ),
@@ -865,7 +921,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         if (searchContentDatas.isEmpty)
                           Padding(
-                                padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(4, context)),
                             child: Text(
                               "No Posts yet.",
                               style: TextStyle(
@@ -881,13 +938,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             shrinkWrap: true,
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                mainAxisSpacing:
-                                    getPercentageWidth(0.5, context),
-                                crossAxisSpacing:
-                                    getPercentageWidth(0.5, context),
+                              crossAxisCount: 3,
+                              mainAxisSpacing: getPercentageWidth(0.5, context),
+                              crossAxisSpacing:
+                                  getPercentageWidth(0.5, context),
                             ),
-                            padding: EdgeInsets.only(top: getPercentageHeight(1, context), bottom: getPercentageHeight(1, context)),
+                            padding: EdgeInsets.only(
+                                top: getPercentageHeight(1, context),
+                                bottom: getPercentageHeight(1, context)),
                             itemCount: itemCount,
                             itemBuilder: (BuildContext ctx, index) {
                               final data = searchContentDatas[index];
@@ -917,13 +975,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               });
                             },
                             child: Padding(
-                              padding:
-                                  EdgeInsets.symmetric(vertical: getPercentageHeight(1, context)),
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(1, context)),
                               child: Icon(
                                 showAll
                                     ? Icons.keyboard_arrow_up
                                     : Icons.keyboard_arrow_down,
-                                  size: getPercentageWidth(9, context),
+                                size: getPercentageWidth(9, context),
                                 color: Colors.grey,
                               ),
                             ),
@@ -933,7 +991,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
 
-                SizedBox(height: getPercentageHeight(18, context)), 
+                SizedBox(height: getPercentageHeight(18, context)),
               ],
             ),
           ),

@@ -59,6 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    print(MediaQuery.of(context).size.height);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -72,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   Center(
                     child: SizedBox(
-                      width: getPercentageWidth(30, context),
+                      width: getPercentageWidth(10, context),
                       child: Transform.scale(
                         scale: _zoomAnimation.value,
                         child: Image.asset(
@@ -86,22 +87,6 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _fadeAnimation.value,
                     child: Container(
                       color: isDarkMode ? kDarkGrey : kWhite,
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(height: getPercentageHeight(18, context)),
-                        const CircularProgressIndicator(color: kAccent),
-                        SizedBox(height: getPercentageHeight(2, context)),
-                        Text(
-                          'Loading, please wait...',
-                          style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ],
                     ),
                   ),
                 ],

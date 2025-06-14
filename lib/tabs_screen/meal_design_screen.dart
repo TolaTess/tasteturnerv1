@@ -321,9 +321,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           if (mealWithTypes.isNotEmpty) {
             newMealPlans[date] = mealWithTypes;
           }
+          newDayTypes[date] = dayType;
           if (isSpecial) {
             newSpecialMealDays[date] = true;
-            newDayTypes[date] = dayType;
           }
         } catch (e) {
           print('Error processing meal plan for date $dateStr: $e');
@@ -427,7 +427,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             Padding(
               padding: EdgeInsets.only(right: getPercentageWidth(2, context)),
               child: InkWell(
-                onTap: () => _addMealPlan(context, isDarkMode, true, ''),
+                onTap: () => _addMealPlan(context, isDarkMode, true, '',
+                    goStraightToAddMeal: false),
                 child: const IconCircleButton(
                   icon: Icons.add,
                   colorD: kAccent,
@@ -667,7 +668,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(1, context)),
                             gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 7,
                               mainAxisSpacing: 8,
                               crossAxisSpacing: 8,
@@ -724,13 +725,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                 isDarkMode)
                                             .withOpacity(0.2)
                                         : hasMeal
-                                            ? kLightGrey.withOpacity(0.3)
+                                            ? kLightGrey.withOpacity(0.2)
                                             : null,
                                     borderRadius: BorderRadius.circular(8),
                                     border:
                                         normalizedDate == normalizedSelectedDate
                                             ? Border.all(
-                                                color: kAccentLight, width: 2)
+                                                color: kAccentLight,
+                                                width: getPercentageWidth(
+                                                    0.25, context))
                                             : null,
                                   ),
                                   child: Stack(
@@ -892,7 +895,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   color: isDarkMode ? kWhite : kBlack,
                   fontSize: getPercentageWidth(3, context)),
               labelStyle: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack, fontSize: getPercentageWidth(3, context)),
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontSize: getPercentageWidth(3, context)),
             ),
             onChanged: (value) {
               calendarTitle = value;
@@ -1082,7 +1086,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: getPercentageHeight(2, context),
+          height: getPercentageHeight(3, context),
         ),
         if (familyMode)
           CategorySelector(
@@ -1093,8 +1097,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             accentColor: kAccentLight,
             darkModeAccentColor: kDarkModeAccent,
           ),
+        SizedBox(height: getPercentageHeight(1, context)),
         _buildDateHeader(
             normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
+        SizedBox(height: getPercentageHeight(1, context)),
         _buildMealsRow(personalMeals, birthdayName, isDarkMode),
         if (showSharedCalendars && sharedPlans.isNotEmpty)
           _buildMealsRow(sharedPlans, birthdayName, isDarkMode),
@@ -1120,7 +1126,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             if (birthdayName.isNotEmpty && showSharedCalendars) ...[
               getBirthdayTextContainer(birthdayName, false, context),
             ],
-            SizedBox(height: getPercentageHeight(4, context)),
+            SizedBox(height: getPercentageHeight(3, context)),
+            TextButton.icon(
+              onPressed: () => _addMealPlan(context, isDarkMode, false, '',
+                  goStraightToAddMeal: false),
+              icon: Icon(Icons.add, size: getPercentageWidth(5, context)),
+              label: Text('Add Meal',
+                  style: TextStyle(
+                      fontSize: getPercentageWidth(2.5, context),
+                      fontWeight: FontWeight.w400)),
+              style: TextButton.styleFrom(
+                foregroundColor: kAccent,
+              ),
+            ),
             Text(
               getRelativeDayString(normalizedDate) == 'Today' ||
                       getRelativeDayString(normalizedDate) == 'Tomorrow'
@@ -1163,6 +1181,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           final mealWithType = meals[index];
           final meal = mealWithType.meal;
           final mealType = mealWithType.mealType;
+          final mealMember = mealWithType.familyMember;
           return Container(
             width: MediaQuery.of(context).size.height > 1100
                 ? getPercentageWidth(25.5, context)
@@ -1240,7 +1259,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(2, context),
+                                      fontSize:
+                                          getPercentageWidth(2.2, context),
                                       fontWeight: FontWeight.bold,
                                       color: isDarkMode ? kBlack : kWhite,
                                     ),
@@ -1259,7 +1279,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     child: GestureDetector(
                       onTap: () {
                         _updateMealType(mealWithType.fullMealId, meal.mealId,
-                            mealType, mealWithType.familyMember, isDarkMode);
+                            mealType, mealMember, isDarkMode);
                       },
                       child: Container(
                         decoration: BoxDecoration(
@@ -1310,16 +1330,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
                         final doc = await docRef.get();
                         if (doc.exists) {
-                          String mealToRemove = meal.mealId;
-                          if (familyMode && selectedCategory.isNotEmpty) {
-                            mealToRemove =
-                                '${meal.mealId}/${mealType.toLowerCase()}/${selectedCategory.toLowerCase()}';
-                          } else {
-                            mealToRemove =
-                                '${meal.mealId}/${mealType.toLowerCase()}';
-                          }
                           await docRef.update({
-                            'meals': FieldValue.arrayRemove([mealToRemove])
+                            'meals': FieldValue.arrayRemove(
+                                [mealWithType.fullMealId])
                           });
 
                           // Refresh meal plans after removing
@@ -1415,8 +1428,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-  Future<void> _addMealPlan(BuildContext context, bool isDarkMode,
-      bool needDatePicker, String typeW) async {
+  Future<void> _addMealPlan(
+      BuildContext context, bool isDarkMode, bool needDatePicker, String typeW,
+      {bool goStraightToAddMeal = false}) async {
     // Show date picker for future dates
     DateTime? pickedDate;
     if (needDatePicker) {
@@ -1450,6 +1464,31 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       selectedDayType = typeW;
     } else {
       selectedDayType = 'regular_day';
+    }
+
+    if (goStraightToAddMeal) {
+      final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecipeListCategory(
+            index: 0,
+            searchIngredient: '',
+            isMealplan: true,
+            mealPlanDate: formattedDate,
+            isSpecial: selectedDayType != 'regular_day',
+            screen: 'ingredient',
+            isSharedCalendar: showSharedCalendars,
+            sharedCalendarId:
+                showSharedCalendars ? selectedSharedCalendarId : null,
+            familyMember: selectedCategory.toLowerCase(),
+            isFamilyMode: familyMode,
+          ),
+        ),
+      ).then((_) {
+        _loadMealPlans();
+      });
+      return;
     }
 
     final result = await showDialog<Map<String, dynamic>>(
@@ -1653,8 +1692,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     DateTime.now().subtract(const Duration(days: 1)))) ...[
                   SizedBox(height: getPercentageHeight(1, context)),
                   TextButton.icon(
-                    onPressed: () =>
-                        _addMealPlan(context, isDarkMode, false, ''),
+                    onPressed: () => _addMealPlan(
+                        context, isDarkMode, false, '',
+                        goStraightToAddMeal: false),
                     icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
                     label: Text('Add Meal',
                         style: TextStyle(
@@ -1770,10 +1810,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ],
                 ),
               ),
-              if (isSpecialDay && currentDayType != 'regular_day')
+              if (!familyMode || selectedCategory.toLowerCase() ==
+                  userService.currentUser?.displayName?.toLowerCase()) ...[
                 GestureDetector(
-                  onTap: () =>
-                      _addMealPlan(context, isDarkMode, false, currentDayType),
+                  onTap: () => _addMealPlan(
+                      context, isDarkMode, false, currentDayType,
+                      goStraightToAddMeal: false),
                   child: Container(
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(2, context),
@@ -1805,10 +1847,41 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        SizedBox(width: getPercentageWidth(1, context)),
+                        Icon(
+                          Icons.edit,
+                          size: getPercentageWidth(3.5, context),
+                          color: getDayTypeColor(
+                              currentDayType.replaceAll('_', ' '), isDarkMode),
+                        ),
                       ],
                     ),
                   ),
                 ),
+              ] else ...[
+                GestureDetector(
+                  onTap: () => _addMealPlan(
+                      context, isDarkMode, false, currentDayType,
+                      goStraightToAddMeal: true),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context),
+                        vertical: getPercentageHeight(1, context)),
+                    decoration: BoxDecoration(
+                      color: getDayTypeColor(
+                              currentDayType.replaceAll('_', ' '), isDarkMode)
+                          .withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.edit,
+                      size: getPercentageWidth(3.5, context),
+                      color: getDayTypeColor(
+                          currentDayType.replaceAll('_', ' '), isDarkMode),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

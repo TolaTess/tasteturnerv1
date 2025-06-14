@@ -95,9 +95,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
       setState(() {
         // Filter meals for selected user index
         meals = updateMealForFamily(
-            mealWithTypes,
-            displayList[selectedUserIndex]['name'],
-            familyList);
+            mealWithTypes, displayList[selectedUserIndex]['name'], familyList);
         mealPlan = mealPlan;
       });
     }
@@ -346,7 +344,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: user['name'].length > 10
                                               ? getPercentageWidth(4, context)
-                                              : getPercentageWidth(4.5, context),
+                                              : getPercentageWidth(
+                                                  4.5, context),
                                           letterSpacing: 0.5,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -355,10 +354,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                     if (user['name'] ==
                                         userService.currentUser?.displayName)
                                       SizedBox(
-                                          width:
-                                              user['name'].length > 10
-                                                  ? getPercentageWidth(0.5, context)
-                                                  : getPercentageWidth(1, context)),
+                                          width: user['name'].length > 10
+                                              ? getPercentageWidth(0.5, context)
+                                              : getPercentageWidth(1, context)),
                                     if (user['name'] ==
                                         userService.currentUser?.displayName)
                                       InkWell(
@@ -531,17 +529,18 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                     fontSize: getPercentageWidth(3.2, context),
                                   ),
                                 ),
-                                if(targetCalories > 0 && showCaloriesAndGoal)
-                                Text(
-                                  '${targetCalories.toStringAsFixed(0)} kcal',
-                                  style: TextStyle(
-                                    color: isDarkMode
-                                        ? kWhite.withOpacity(0.7)
-                                        : kDarkGrey.withOpacity(0.7),
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: getPercentageWidth(3.2, context),
+                                if (targetCalories > 0 && showCaloriesAndGoal)
+                                  Text(
+                                    '${targetCalories.toStringAsFixed(0)} kcal',
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? kWhite.withOpacity(0.7)
+                                          : kDarkGrey.withOpacity(0.7),
+                                      fontWeight: FontWeight.w500,
+                                      fontSize:
+                                          getPercentageWidth(3.2, context),
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ],
@@ -581,7 +580,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
                                     style: TextStyle(
                                       color: isDarkMode ? kWhite : kDarkGrey,
-                                      fontSize: getPercentageWidth(3.5, context),
+                                      fontSize:
+                                          getPercentageWidth(3.5, context),
                                     ),
                                   ),
                                 ),
@@ -590,7 +590,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                           ),
                         ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
-                      if (mealPlan.isNotEmpty &&
+                      if (meals.isNotEmpty &&
                           user['name'] == userService.currentUser?.displayName)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -654,8 +654,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                       if (meals.isNotEmpty)
                         SizedBox(
                           height: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageHeight(16.5, context)
-                          : getPercentageHeight(14.5, context),
+                              ? getPercentageHeight(16.5, context)
+                              : getPercentageHeight(14.5, context),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: meals.length,
@@ -751,8 +751,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           style: TextStyle(
                                             color:
                                                 isDarkMode ? kWhite : kDarkGrey,
-                                            fontSize:
-                                                getPercentageWidth(3, context),
+                                            fontSize: meal.meal.title
+                                                    .length >
+                                                13
+                                                ? getPercentageWidth(2.8,
+                                                    context)
+                                                : getPercentageWidth(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                           maxLines: 2,

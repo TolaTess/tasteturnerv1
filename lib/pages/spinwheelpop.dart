@@ -50,7 +50,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   bool showIngredientSpin = true; // New state to toggle between modes
   bool _funMode = false;
   late List<Map<String, dynamic>> _categoryDatasIngredient;
-  List<Map<String, dynamic>> _categoryDatasIngredientDiet = [];
+  List<Map<String, dynamic>> _mealDietCategories = [];
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
   bool showDietCategories = false;
@@ -68,18 +68,20 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       selectedCategoryMeal = categoryDatasMeal[1]['name'] ?? '';
     }
 
-    // Set default for ingredient category
-    _categoryDatasIngredient = [...helperController.macros];
+    // Set default for meal diet categories
     if (userService.currentUser?.familyMode ?? false) {
-      _categoryDatasIngredientDiet = [...helperController.kidsCategory];
+      _mealDietCategories = [...helperController.kidsCategory];
     } else {
-      _categoryDatasIngredientDiet = [...helperController.category];
+      _mealDietCategories = [...helperController.category];
     }
+
+    // Set default for ingredient categories
     final customCategory = {
       'id': 'custom',
       'name': 'Custom',
       'category': 'Custom'
     };
+    _categoryDatasIngredient = [...helperController.macros];
     if (_categoryDatasIngredient.isEmpty ||
         _categoryDatasIngredient.first['id'] != 'custom') {
       _categoryDatasIngredient.insert(0, customCategory);
@@ -252,6 +254,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     if (selectedCategoryMeal.isEmpty ||
         selectedCategoryMeal.toLowerCase() == 'balanced' ||
+        selectedCategoryMeal.toLowerCase() == 'general' ||
         selectedCategoryMeal.toLowerCase() == 'all') {
       setState(() {
         _mealList = widget.mealList.map((meal) => meal.title).take(10).toList();
@@ -319,7 +322,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   Widget build(BuildContext context) {
     final categoryDatasMeal = helperController.headers;
     final categoryDatasIngredient = _categoryDatasIngredient;
-    final categoryDatasIngredientDiet = _categoryDatasIngredientDiet;
+    final categoryDatasIngredientDiet = _mealDietCategories;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
@@ -331,7 +334,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           child: IntrinsicHeight(
             child: Column(
               children: [
-                SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(height: getPercentageHeight(1.5, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -367,9 +370,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 ),
                 Expanded(
                   child: showIngredientSpin
-                      ? _buildIngredientSpinView(isDarkMode,
-                          categoryDatasIngredient, categoryDatasIngredientDiet)
-                      : _buildMealSpinView(isDarkMode, categoryDatasMeal),
+                      ? _buildIngredientSpinView(
+                          isDarkMode, categoryDatasIngredient)
+                      : _buildMealSpinView(isDarkMode, categoryDatasMeal,
+                          categoryDatasIngredientDiet),
                 ),
               ],
             ),
@@ -380,58 +384,22 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   }
 
   Widget _buildIngredientSpinView(
-      bool isDarkMode,
-      List<Map<String, dynamic>> categoryDatas,
-      List<Map<String, dynamic>> categoryDatasIngredientDiet) {
+      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
     return Column(
       children: [
         SizedBox(height: getPercentageHeight(2, context)),
+
         //category options
-        Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: IconButton(
-                  icon: SvgPicture.asset('assets/images/svg/check.svg',
-                      height: getPercentageWidth(8, context),
-                      width: getPercentageWidth(8, context),
-                      color: showDietCategories
-                          ? kAccentLight
-                          : isDarkMode
-                              ? kWhite
-                              : kDarkGrey),
-                  onPressed: () {
-                    setState(() {
-                      showDietCategories = !showDietCategories;
-                    });
-                  },
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 3,
-              child: CategorySelector(
-                categories: showDietCategories
-                    ? categoryDatasIngredientDiet
-                    : categoryDatas,
-                selectedCategoryId: selectedCategoryIdIngredient,
-                onCategorySelected: _updateCategoryIngredientData,
-                isDarkMode: isDarkMode,
-                accentColor: kAccentLight,
-                darkModeAccentColor: kDarkModeAccent,
-                isFunMode: false, // No longer needed
-              ),
-            ),
-          ],
+        CategorySelector(
+          categories: categoryDatas,
+          selectedCategoryId: selectedCategoryIdIngredient,
+          onCategorySelected: _updateCategoryIngredientData,
+          isDarkMode: isDarkMode,
+          accentColor: kAccentLight,
+          darkModeAccentColor: kDarkModeAccent,
         ),
-        _ingredientList.isEmpty
-            ? SizedBox(height: getPercentageHeight(3.5, context))
-            : SizedBox(height: getPercentageHeight(1, context)),
+
+        SizedBox(height: getPercentageHeight(2, context)),
         // Removed custom mode checkbox row
         //const SizedBox(height: 15),
         // Spin wheel below macros
@@ -451,12 +419,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   }
 
   Widget _buildMealSpinView(
-      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
+      bool isDarkMode,
+      List<Map<String, dynamic>> categoryDatas,
+      List<Map<String, dynamic>> categoryDatatDiet) {
     return Column(
       children: [
         userService.currentUser?.isPremium ?? false
             ? const SizedBox.shrink()
-            : const SizedBox(height: 5),
+            : SizedBox(height: getPercentageHeight(0.5, context)),
 
         // ------------------------------------Premium / Ads------------------------------------
 
@@ -471,26 +441,63 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
         userService.currentUser?.isPremium ?? false
             ? const SizedBox.shrink()
-            : const SizedBox(height: 10),
+            : SizedBox(height: getPercentageHeight(1, context)),
 
         // ------------------------------------Premium / Ads-------------------------------------
         userService.currentUser?.isPremium ?? false
-            ? const SizedBox(height: 35)
+            ? SizedBox(height: getPercentageHeight(2, context))
             : const SizedBox.shrink(),
 
-        //category options
-        CategorySelector(
-          categories: categoryDatas,
-          selectedCategoryId: selectedCategoryIdMeal,
-          onCategorySelected: _updateCategoryData,
-          isDarkMode: isDarkMode,
-          accentColor: kAccentLight,
-          darkModeAccentColor: kDarkModeAccent,
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: IconButton(
+                  iconSize: getPercentageWidth(8, context),
+                  icon: SvgPicture.asset('assets/images/svg/check.svg',
+                      height: getPercentageWidth(8, context),
+                      width: getPercentageWidth(8, context),
+                      color: showDietCategories
+                          ? kAccentLight
+                          : isDarkMode
+                              ? kWhite
+                              : kDarkGrey),
+                  onPressed: () {
+                    setState(() {
+                      showDietCategories = !showDietCategories;
+                      print('Diet categories: $categoryDatatDiet');
+                    });
+                  },
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: CategorySelector(
+                categories:
+                    showDietCategories ? categoryDatatDiet : categoryDatas,
+                selectedCategoryId: selectedCategoryIdMeal,
+                onCategorySelected: _updateCategoryData,
+                isDarkMode: isDarkMode,
+                accentColor: kAccentLight,
+                darkModeAccentColor: kDarkModeAccent,
+                isFunMode: false,
+              ),
+            ),
+          ],
         ),
+        _ingredientList.isEmpty
+            ? SizedBox(height: getPercentageHeight(1.5, context))
+            : SizedBox(height: getPercentageHeight(1, context)),
 
         _mealList.isEmpty
             ? const SizedBox(height: 1)
-            : SizedBox(height: getPercentageHeight(3.5, context)),
+            : SizedBox(height: getPercentageHeight(1.5, context)),
 
         Expanded(
           child: Center(

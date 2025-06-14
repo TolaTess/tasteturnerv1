@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
@@ -680,15 +679,15 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
   }
 
   // Check if any meals match the selected family name
-  bool hasCategoryMatch = personalMeals.any((meal) =>
-      meal.familyMember.toLowerCase() == familyName.toLowerCase());
+  bool hasCategoryMatch = personalMeals.any(
+      (meal) => meal.familyMember.toLowerCase() == familyName.toLowerCase());
 
-  // If no matches found, check if selected name matches current user
+  // If no matches found, only show meals if family name matches current user
   if (!hasCategoryMatch) {
     if (familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
-      return personalMeals;
+      return personalMeals.where((meal) => meal.familyMember.isEmpty).toList();
     }
-    return personalMeals.where((meal) => meal.familyMember.isEmpty).toList();
+    return [];
   }
 
   // Otherwise return meals matching the selected family name

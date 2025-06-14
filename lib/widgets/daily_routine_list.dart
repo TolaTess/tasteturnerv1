@@ -195,9 +195,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               title: Text(
                 'Routine Items',
                 style: TextStyle(
-                  fontSize: MediaQuery.of(context).size.width > 1100
-                      ? getPercentageWidth(3.5, context)
-                      : getPercentageWidth(4, context),
+                  fontSize: getPercentageWidth(3.5, context),
                 ),
               ),
               children: [
