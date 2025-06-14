@@ -220,8 +220,12 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             children: [
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: getPercentageWidth(70, context),
-                  minWidth: getPercentageWidth(50, context),
+                  maxWidth: MediaQuery.of(context).size.width > 1100
+                      ? getPercentageWidth(50, context)
+                      : getPercentageWidth(65, context),
+                  minWidth: MediaQuery.of(context).size.width > 1100
+                      ? getPercentageWidth(50, context)
+                      : getPercentageWidth(65, context),
                 ),
                 child: WidgetSpinningWheel(
                   key: _spinningWheelKey,
@@ -296,7 +300,9 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                 ),
               ),
               Positioned(
-                top: -5,
+                top: MediaQuery.of(context).size.height > 1100
+                    ? 17
+                    : 7,
                 child: SizedBox(
                   width: getPercentageWidth(6.5, context),
                   height: getPercentageWidth(6.5, context),
