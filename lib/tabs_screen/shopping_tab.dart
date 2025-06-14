@@ -482,9 +482,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
               ? macroManager.groceryList.isNotEmpty
                   ? Center(
                       child: Text(
-                          'Your generated shopping list from your Meal Plan',
+                          'Your generated shopping list from this week\'s Meal Plan',
                           style: TextStyle(
                               fontSize: getPercentageWidth(3, context),
+                              overflow: TextOverflow.ellipsis,
                               fontWeight: FontWeight.w400,
                               color: kAccent)),
                     )

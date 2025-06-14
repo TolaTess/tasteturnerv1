@@ -88,11 +88,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> loadMeals(String date) async {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
     QuerySnapshot snapshot = await firestore
         .collection('mealPlans')
         .doc(userService.userId)
         .collection('date')
-        .where('date', isEqualTo: date)
+        .where('date', isEqualTo: formattedDate)
         .get();
 
     if (snapshot.docs.isNotEmpty) {
@@ -131,9 +132,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _scheduleMealReminderNotification() async {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
-    await loadMeals(tomorrowStr);
 
-    if (hasMealPlan == false) {
+    QuerySnapshot snapshot = await firestore
+        .collection('mealPlans')
+        .doc(userService.userId)
+        .collection('date')
+        .where('date', isEqualTo: tomorrowStr)
+        .get();
+
+    var tomorrowHasMealPlan = false;
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
+      final mealsList = data?['meals'] as List<dynamic>? ?? [];
+      if (mealsList.isNotEmpty) {
+        tomorrowHasMealPlan = true;
+      }
+    }
+
+    if (tomorrowHasMealPlan == false) {
       // Schedule notification for 8 PM
       final now = DateTime.now();
       final scheduledTime = DateTime(now.year, now.month, now.day, 20, 0);
@@ -679,6 +695,9 @@ double _calculateHeight({
       : MediaQuery.of(context).size.height;
 
   double designHeight;
+  print('availableHeight: $availableHeight');
+  print('hasFamilyMode: $hasFamilyMode');
+  print('hasMealPlan: $hasMealPlan');
 
   if (availableHeight > 1100) {
     designHeight =
@@ -688,7 +707,7 @@ double _calculateHeight({
         hasFamilyMode ? (hasMealPlan ? 470 : 350) : (hasMealPlan ? 385 : 270);
   } else if (availableHeight > 700 && availableHeight <= 855) {
     designHeight =
-        hasFamilyMode ? (hasMealPlan ? 475 : 360) : (hasMealPlan ? 400 : 270);
+        hasFamilyMode ? (hasMealPlan ? 590 : 440) : (hasMealPlan ? 520 : 370);
   } else {
     designHeight =
         hasFamilyMode ? (hasMealPlan ? 540 : 390) : (hasMealPlan ? 460 : 320);

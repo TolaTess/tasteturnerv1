@@ -423,12 +423,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               InkWell(
                 onTap: () => _addMealPlan(context, isDarkMode, true, '',
                     goStraightToAddMeal: false),
-                child: const IconCircleButton(
-                  icon: Icons.add,
+                child: IconCircleButton(
+                  icon: _tabController.index == 0 ? Icons.add : Icons.calendar_month,
                   colorD: kAccent,
                   isRemoveContainer: false,
                 ),
               ),
+            if (_tabController.index == 1)
+              SizedBox(width: getPercentageWidth(1, context)),
           ],
         ),
         bottom: TabBar(
@@ -640,9 +642,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 ),
                 children: [
                   // Calendar Header
-                  SizedBox(height: MediaQuery.of(context).size.height > 1100
-                            ? getPercentageHeight(1.5, context)
-                            : getPercentageHeight(1, context)),
+                  SizedBox(
+                      height: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageHeight(1.5, context)
+                          : getPercentageHeight(1, context)),
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(1, context)),
@@ -1150,6 +1153,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       List<MealWithType> meals, String birthdayName, bool isDarkMode) {
     final normalizedDate =
         DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final currentDayType = dayTypes[normalizedDate] ?? 'regular_day';
     if (dayTypes[normalizedDate] == null) {
       setState(() {
         selectedDate = DateTime.now();
@@ -1165,7 +1169,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ],
             SizedBox(height: getPercentageHeight(3, context)),
             TextButton.icon(
-              onPressed: () => _addMealPlan(context, isDarkMode, false, '',
+              onPressed: () => _addMealPlan(context, isDarkMode, false,
+                  currentDayType,
                   goStraightToAddMeal: !familyMode ||
                           selectedCategory.toLowerCase() ==
                               userService.currentUser?.displayName

@@ -682,6 +682,13 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
   bool hasCategoryMatch = personalMeals.any(
       (meal) => meal.familyMember.toLowerCase() == familyName.toLowerCase());
 
+  bool isCurrentUser = personalMeals.any(
+      (meal) => meal.familyMember.toLowerCase() == userService.userId?.toLowerCase());
+
+  if (isCurrentUser && familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
+    return personalMeals.where((meal) => meal.familyMember.toLowerCase() == userService.userId?.toLowerCase()).toList();
+  }
+
   // If no matches found, only show meals if family name matches current user
   if (!hasCategoryMatch) {
     if (familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {

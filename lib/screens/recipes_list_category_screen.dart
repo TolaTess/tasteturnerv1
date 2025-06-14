@@ -131,7 +131,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
       if (widget.isFamilyMode && widget.familyMember != null) {
         // Append family member to each meal ID for family mode
-        selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${widget.familyMember}').toList();
+        if (widget.familyMember?.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
+          selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${userService.userId}').toList();
+        } else {
+          selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${widget.familyMember}').toList();
+        }
       }
 
       if (docSnapshot.exists) {

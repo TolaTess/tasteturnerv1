@@ -86,8 +86,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
             ],
           ),
           child: SizedBox(
-            width: getPercentageWidth(14, context),
-            height: getPercentageHeight(14, context),
+            width: getPercentageWidth(11, context),
+            height: getPercentageHeight(11, context),
             child: FloatingActionButton(
               heroTag: "uniqueHeroTagfb",
               onPressed: () {
@@ -100,8 +100,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
               elevation: 5,
               child: Container(
-                width: getPercentageWidth(12, context),
-                height: getPercentageHeight(12, context),
+                width: getPercentageWidth(11, context),
+                height: getPercentageHeight(11, context),
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   image: DecorationImage(
@@ -116,7 +116,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Container(
-        height: getPercentageHeight(10, context), // Responsive height
+        height: getPercentageHeight(9, context), // Responsive height
         child: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 6,
