@@ -44,7 +44,10 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Favorites', style: TextStyle(fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w600)),
+        title: Text('Favorites',
+            style: TextStyle(
+                fontSize: getTextScale(4, context),
+                fontWeight: FontWeight.w600)),
         automaticallyImplyLeading: false,
         leading: Padding(
           padding: EdgeInsets.all(getPercentageWidth(1, context)),

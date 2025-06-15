@@ -363,7 +363,7 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
                       ? kBlack
                       : kWhite
                   : kBlack,
-              fontSize: getPercentageWidth(4, context)),
+              fontSize: getTextScale(4, context)),
         ),
       ),
     ),
@@ -423,6 +423,25 @@ double getPercentageWidth(double percentage, BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
   final blockSizeHorizontal = screenWidth / 100;
   return blockSizeHorizontal * percentage;
+}
+
+// For scaling text based on screen size
+double getTextScale(double inputTextSize, BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final blockSizeHorizontal = screenWidth / 100;
+  if (screenWidth > 800) {
+    return (blockSizeHorizontal * inputTextSize) - 10;
+  }
+  return blockSizeHorizontal * inputTextSize;
+}
+
+double getIconScale(double inputIconSize, BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final blockSizeHorizontal = screenWidth / 100;
+  if (screenWidth > 800) {
+    return (blockSizeHorizontal * inputIconSize) - 20;
+  }
+  return blockSizeHorizontal * inputIconSize;
 }
 
 // Example of how you can calculate a responsive box size
@@ -585,7 +604,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
               offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
               child: CircleAvatar(
                 backgroundColor: kAccentLight.withOpacity(0.6),
-                radius: getPercentageWidth(3.5, context),
+                radius: getResponsiveBoxSize(context, 18, 18),
                 backgroundImage: AssetImage(tastyImage),
               ),
             );
@@ -595,7 +614,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
         Text(
           message,
           style: TextStyle(
-            fontSize: getPercentageWidth(4, context),
+            fontSize: getTextScale(4, context),
             fontWeight: FontWeight.w400,
             color: kAccentLight,
           ),
@@ -656,7 +675,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             child: Text(
               subtitle,
               style: TextStyle(
-                fontSize: getPercentageWidth(3, context),
+                fontSize: getTextScale(3, context),
                 fontWeight: FontWeight.w700,
                 color: isLinked
                     ? kAccent

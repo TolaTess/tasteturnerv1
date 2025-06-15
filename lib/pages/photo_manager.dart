@@ -279,7 +279,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                 Text(
                   'Select Images',
                   style: TextStyle(
-                      fontSize: getPercentageWidth(4, context),
+                      fontSize: getTextScale(4, context),
                       fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
@@ -372,7 +372,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                       color: isDarkMode
                           ? kWhite.withOpacity(0.5)
                           : kBlack.withOpacity(0.5),
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                 ),
@@ -380,8 +380,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                 ElevatedButton.icon(
                   icon: Icon(Icons.send, size: getPercentageWidth(6, context)),
                   label: Text('Send',
-                      style:
-                          TextStyle(fontSize: getPercentageWidth(4, context))),
+                      style: TextStyle(fontSize: getTextScale(4, context))),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,

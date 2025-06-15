@@ -233,7 +233,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     child: Text(
                       'Add to $mealType',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getTextScale(4.5, context),
                         fontWeight: FontWeight.w400,
                         color: getThemeProvider(context).isDarkMode
                             ? kWhite
@@ -276,7 +276,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               );
                             },
                             icon: Icon(Icons.add,
-                                size: getPercentageWidth(6, context))),
+                                size: getIconScale(7, context))),
                       ),
                     ],
                   ),
@@ -609,7 +609,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Cancel',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                 ),
@@ -635,7 +635,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Add Another',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                 ),
@@ -679,7 +679,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     'Save All',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                 ),
@@ -711,9 +711,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
         title: Text(
           widget.title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: 18,
+            fontSize: getTextScale(3, context),
           ),
         ),
       ),
@@ -773,7 +773,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         children: [
                                           Row(
                                             children: [
-                                              Icon(Icons.emoji_food_beverage_outlined,
+                                              Icon(
+                                                  Icons
+                                                      .emoji_food_beverage_outlined,
                                                   size: getPercentageWidth(
                                                       6, context),
                                                   color: isDarkMode
@@ -794,8 +796,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                   'Breakfast',
                                                   style: TextStyle(
                                                     fontSize:
-                                                        getPercentageWidth(
-                                                            3.5, context),
+                                                        getTextScale(3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -833,7 +834,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                       ? kWhite.withOpacity(0.5)
                                                       : kDarkGrey
                                                           .withOpacity(0.5),
-                                                  fontSize: getPercentageWidth(
+                                                  fontSize: getTextScale(
                                                       3.5, context),
                                                 ),
                                               ),
@@ -917,8 +918,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                   'Lunch',
                                                   style: TextStyle(
                                                     fontSize:
-                                                        getPercentageWidth(
-                                                            3.5, context),
+                                                        getTextScale(3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -956,7 +956,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                       ? kWhite.withOpacity(0.5)
                                                       : kDarkGrey
                                                           .withOpacity(0.5),
-                                                  fontSize: getPercentageWidth(
+                                                  fontSize: getTextScale(
                                                       3.5, context),
                                                 ),
                                               ),
@@ -1037,8 +1037,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         child: Text(
                                           'Dinner',
                                           style: TextStyle(
-                                            fontSize: getPercentageWidth(
-                                                3.5, context),
+                                            fontSize:
+                                                getTextScale(3.5, context),
                                             fontWeight: FontWeight.bold,
                                             color:
                                                 isDarkMode ? kWhite : kDarkGrey,
@@ -1073,7 +1073,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               ? kWhite.withOpacity(0.5)
                                               : kDarkGrey.withOpacity(0.5),
                                           fontSize:
-                                              getPercentageWidth(3.5, context),
+                                              getTextScale(3.5, context),
                                         ),
                                       ),
                                     )
@@ -1117,7 +1117,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         title: Text(
           meal.name,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: getTextScale(3, context),
             color: isDarkMode ? kWhite : kDarkGrey,
             fontWeight: FontWeight.w500,
           ),
@@ -1128,7 +1128,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               child: Text(
                 '${meal.calories} kcal',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: getTextScale(2.5, context),
                   color: isDarkMode ? kWhite.withOpacity(0.6) : kLightGrey,
                 ),
               ),
@@ -1136,7 +1136,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           ],
         ),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: kRed),
+          icon: Icon(Icons.delete_outline, color: kRed, size: getIconScale(5.5, context)),
           onPressed: () async {
             // Delete the meal
             await dailyDataController.removeMeal(

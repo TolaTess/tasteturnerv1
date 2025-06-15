@@ -277,7 +277,9 @@ class StorySlider extends StatelessWidget {
                   Opacity(
                     opacity: kMidOpacity,
                     child: CircleAvatar(
-                      radius: (getPercentageWidth(mWidth, context) / 2),
+                      radius: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageWidth(mWidth - 5, context) / 2
+                          : getPercentageWidth(mWidth, context) / 2,
                       backgroundImage: const AssetImage(
                         'assets/images/vegetable_stamp.jpg',
                       ),
@@ -289,8 +291,8 @@ class StorySlider extends StatelessWidget {
                     width: getPercentageWidth(mWidth, context),
                     child: Text(
                       dataSrc.title,
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: getTextScale(2.5, context),
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
@@ -335,12 +337,12 @@ class SearchContent extends StatelessWidget {
           mediaPath != null && mediaPath.isNotEmpty
               ? Image.network(
                   mediaPath,
-                  height: MediaQuery.of(context).size.height > 1100
-                      ? getPercentageHeight(15.5, context)
-                      : getPercentageHeight(16.5, context),
-                  width: MediaQuery.of(context).size.width > 1100
-                      ? getPercentageWidth(30, context)
-                      : getPercentageWidth(32.5, context),
+                  height: MediaQuery.of(context).size.width > 800
+                      ? getPercentageHeight(18, context)
+                      : getPercentageHeight(18, context),
+                  width: MediaQuery.of(context).size.width > 800
+                      ? getPercentageWidth(33, context)
+                      : getPercentageWidth(33, context),
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;

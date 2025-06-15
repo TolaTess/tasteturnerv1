@@ -18,7 +18,6 @@ class GoalDietWidget extends StatefulWidget {
   final void Function(Meal)? onMealTap;
   final VoidCallback? onRefresh;
 
-
   const GoalDietWidget({
     super.key,
     required this.diet,
@@ -110,7 +109,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                     'Your Diet: ',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getTextScale(3, context),
                       color: kAccent,
                     ),
                   ),
@@ -120,40 +119,41 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                         : 'Not set',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getTextScale(3, context),
                       color: isDarkMode ? kWhite : kDarkGrey,
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(4, context)),
-                    if(showCaloriesAndGoal)
-                  Icon(Icons.flag,
-                      color: kAccentLight,
-                      size: getPercentageWidth(4.5, context)),
-                  if (showCaloriesAndGoal) SizedBox(width: getPercentageWidth(1, context)),
                   if (showCaloriesAndGoal)
-                  Text(
-                    'Goal: ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: getPercentageWidth(3, context),
-                      color: kAccentLight,
-                    ),
-                  ),
+                    Icon(Icons.flag,
+                        color: kAccentLight,
+                        size: getPercentageWidth(4.5, context)),
                   if (showCaloriesAndGoal)
-                  Text(
-                    widget.goal.isNotEmpty
-                        ? widget.goal.toLowerCase() == "lose weight"
-                            ? 'Weight Loss'
-                            : widget.goal.toLowerCase() == "muscle gain"
-                                ? 'Muscle Gain'
-                                : capitalizeFirstLetter(widget.goal)
-                        : 'Not set',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: getPercentageWidth(3, context),
-                      color: isDarkMode ? kWhite : kDarkGrey,
+                    SizedBox(width: getPercentageWidth(1, context)),
+                  if (showCaloriesAndGoal)
+                    Text(
+                      'Goal: ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: getTextScale(3, context),
+                        color: kAccentLight,
+                      ),
                     ),
-                  ),
+                  if (showCaloriesAndGoal)
+                    Text(
+                      widget.goal.isNotEmpty
+                          ? widget.goal.toLowerCase() == "lose weight"
+                              ? 'Weight Loss'
+                              : widget.goal.toLowerCase() == "muscle gain"
+                                  ? 'Muscle Gain'
+                                  : capitalizeFirstLetter(widget.goal)
+                          : 'Not set',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3, context),
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
                   const Spacer(),
                   Icon(_expanded ? Icons.expand_less : Icons.expand_more,
                       color: kAccent, size: getPercentageWidth(6, context)),
@@ -168,7 +168,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                     : 'Featured Ingredients',
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
-                  fontSize: getPercentageWidth(3, context),
+                  fontSize: getTextScale(3, context),
                   color: kAccentLight,
                 ),
               ),
@@ -182,7 +182,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                       spin: false,
                       isEdit: false,
                       onRemoveItem: (int) {},
-                      radius: 7,
+                      radius: 18,
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(2, context)),
@@ -220,13 +220,13 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                               },
                               child: CircleAvatar(
                                 backgroundColor: kAccent.withOpacity(0.3),
-                                radius: getPercentageWidth(10, context),
+                                radius: getResponsiveBoxSize(context, 30, 30),
                                 child: Text(
                                   'Spin',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: getPercentageWidth(3, context),
+                                    fontSize: getTextScale(3, context),
                                     color: kAccent,
                                   ),
                                 ),
@@ -240,12 +240,12 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                 ],
               ),
               if (widget.featuredMeal != null) ...[
-                SizedBox(height: getPercentageHeight(1, context)),
+               
                 Text(
                   'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',
                   style: TextStyle(
                     fontWeight: FontWeight.w400,
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     color: kAccentLight,
                   ),
                 ),
@@ -284,7 +284,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                 widget.featuredMeal!.title,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getTextScale(3, context),
                                   color: isDarkMode ? kWhite : kDarkGrey,
                                 ),
                               ),
@@ -300,7 +300,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                                 .entries.first.value
                                             : ''))),
                                 style: TextStyle(
-                                  fontSize: getPercentageWidth(2.5, context),
+                                  fontSize: getTextScale(2.5, context),
                                   color: isDarkMode ? kWhite : kDarkGrey,
                                 ),
                                 maxLines: 2,
@@ -314,7 +314,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                     '${widget.featuredMeal!.calories.toString()} kcal',
                                     style: TextStyle(
                                       fontSize:
-                                          getPercentageWidth(2.5, context),
+                                          getTextScale(2.5, context),
                                       color: isDarkMode ? kAccentLight : kWhite,
                                       fontWeight: FontWeight.w800,
                                     ),

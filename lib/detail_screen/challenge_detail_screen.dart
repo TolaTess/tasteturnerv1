@@ -179,11 +179,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       return firestore.collection('posts').doc(postId).snapshots();
     }
 
+    final postUserId = widget.dataSrc['userId'] ?? widget.dataSrc['senderId'];
+    
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            if (widget.screen == 'myPost' || widget.screen == 'share_recipe' || widget.isMessage) {
+            if (widget.screen == 'myPost' ||
+                widget.screen == 'share_recipe' ||
+                widget.isMessage) {
               Get.back();
               return;
             }
@@ -211,7 +215,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           textAlign: TextAlign.center,
           capitalizeFirstLetter(getTitle()),
           style: TextStyle(
-            fontSize: getPercentageWidth(4, context),
+            fontSize: getTextScale(4, context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -319,11 +323,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                         
-                              SizedBox(width: getPercentageWidth(7, context)),
-                            
+                            SizedBox(width: getPercentageWidth(7, context)),
+
                             // User Profile
-                            if (widget.dataSrc['userId'] != userService.userId)
+                            if (postUserId != userService.userId)
                               GestureDetector(
                                 onTap: () => Navigator.push(
                                   context,
@@ -337,18 +340,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ),
                                 ),
                                 child: CircleAvatar(
-                                  radius: getPercentageWidth(3, context),
+                                  radius: getResponsiveBoxSize(context, 13, 13),
                                   backgroundColor:
                                       kAccent.withOpacity(kOpacity),
                                   child: Icon(
                                     Icons.person,
                                     color: kWhite,
-                                    size: getPercentageWidth(4, context),
+                                    size: getResponsiveBoxSize(context, 18, 18),
                                   ),
                                 ),
                               ),
-                            if (widget.dataSrc['userId'] ==
-                                    userService.userId &&
+                            if (postUserId == userService.userId &&
                                 !hasMeal) ...[
                               GestureDetector(
                                 onTap: () {
@@ -365,24 +367,22 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   );
                                 },
                                 child: CircleAvatar(
-                                  radius: getPercentageWidth(3, context),
+                                  radius: getResponsiveBoxSize(context, 13, 13),
                                   backgroundColor:
                                       kAccent.withOpacity(kOpacity),
                                   child: Icon(
                                     Icons.add_circle,
                                     color: kWhite,
-                                    size: getPercentageWidth(4.5, context),
+                                    size: getResponsiveBoxSize(context, 18, 18),
                                   ),
                                 ),
                               ),
                             ],
-                            if (widget.dataSrc['userId'] ==
-                                    userService.userId &&
+                            if (postUserId == userService.userId &&
                                 !hasMeal) ...[
                               SizedBox(width: getPercentageWidth(7, context)),
                             ],
-                            if (widget.dataSrc['userId'] !=
-                                userService.userId) ...[
+                            if (postUserId != userService.userId) ...[
                               SizedBox(width: getPercentageWidth(7, context)),
                             ],
 
@@ -399,9 +399,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ),
                                 );
                               },
-                                  child: Icon(
+                              child: Icon(
                                 Icons.share,
-                                size: getPercentageWidth(4.5, context),
+                                size: getResponsiveBoxSize(context, 18, 18),
                               ),
                             ),
 
@@ -432,7 +432,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 },
                                 child: Icon(
                                   Icons.restaurant,
-                                  size: getPercentageWidth(4.5, context), 
+                                  size: getPercentageWidth(4.5, context),
                                   color: kAccent,
                                 ),
                               ),
@@ -459,13 +459,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                             ? Icons.favorite
                                             : Icons.favorite_border,
                                         color: isLiked ? kAccent : null,
-                                        size: getPercentageWidth(4.5  , context),
+                                        size: getPercentageWidth(4.5, context),
                                       ),
                                     ),
-                                    SizedBox(width: getPercentageWidth(1, context)),
-                                    Text("$likesCount",
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Text(
+                                      "$likesCount",
                                       style: TextStyle(
-                                        fontSize: getPercentageWidth(2, context),
+                                        fontSize: getTextScale(3, context),
                                         fontWeight: FontWeight.w400,
                                       ),
                                     ),
@@ -477,7 +479,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                             SizedBox(width: getPercentageWidth(7, context)),
 
                             // Follow Icon with Toggle (real-time)
-                            if (widget.dataSrc['userId'] != userService.userId)
+                            if (postUserId != userService.userId)
                               Obx(() {
                                 final targetUserId = widget.dataSrc['userId'] ??
                                     (extractedItems.isNotEmpty
@@ -496,11 +498,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ),
                                 );
                               }),
-                            if (widget.dataSrc['userId'] != userService.userId)
+                            if (postUserId != userService.userId)
                               SizedBox(width: getPercentageWidth(7, context)),
 
                             // Delete Icon if it's the user's post
-                            if ((widget.dataSrc['userId'] ??
+                            if ((postUserId ??
                                     (extractedItems.isNotEmpty
                                         ? extractedItems.first
                                         : '')) ==
@@ -520,7 +522,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                         style: TextStyle(
                                           color: isDarkMode ? kWhite : kBlack,
                                           fontWeight: FontWeight.w400,
-                                          fontSize: getPercentageWidth(4, context),
+                                          fontSize: getTextScale(4, context),
                                         ),
                                       ),
                                       content: Text(
@@ -573,12 +575,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     }
                                   }
                                 },
-                                child:
-                                    Icon(Icons.delete,
-                                        color: Colors.red,
-                                        size: getPercentageWidth(4.5, context)),
+                                child: Icon(Icons.delete,
+                                    color: Colors.red,
+                                    size: getPercentageWidth(4.5, context)),
                               ),
-                            if ((widget.dataSrc['userId'] ??
+                            if ((postUserId ??
                                     (extractedItems.isNotEmpty
                                         ? extractedItems.first
                                         : '')) ==

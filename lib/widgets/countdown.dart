@@ -59,7 +59,7 @@ class _CountdownState extends State<Countdown> {
       '${minutes.toString().padLeft(2, '0')}:'
       '${seconds.toString().padLeft(2, '0')}',
       style: TextStyle(
-        fontSize: getPercentageWidth(4, context),
+        fontSize: getTextScale(4, context),
         fontWeight: FontWeight.w500,
         color: Color(0xFFDF2D20),
       ),

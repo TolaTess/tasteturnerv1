@@ -201,7 +201,7 @@ class _ChatScreenState extends State<ChatScreen> {
               widget.friend?.displayName ?? 'Chat',
               style: TextStyle(
                   fontWeight: FontWeight.w500,
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   color: isDarkMode ? kWhite : kDarkGrey),
               overflow: TextOverflow.ellipsis,
             ),
@@ -221,14 +221,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
               child: CircleAvatar(
                 backgroundColor: kAccent,
-                radius: getPercentageWidth(3, context),
+                radius: getResponsiveBoxSize(context, 20, 20),
                 child: CircleAvatar(
                   backgroundImage: widget.friend?.profileImage != null &&
                           widget.friend!.profileImage!.isNotEmpty &&
                           widget.friend!.profileImage!.contains('http')
                       ? NetworkImage(widget.friend!.profileImage!)
                       : const AssetImage(intPlaceholderImage) as ImageProvider,
-                  radius: getPercentageWidth(3, context),
+                  radius: getResponsiveBoxSize(context, 18, 18),
                 ),
               ),
             ),
@@ -350,7 +350,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputSection(bool isDarkMode,
       {bool isDisabled = false, String hint = 'Type your caption...'}) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(getPercentageWidth(2, context), getPercentageHeight(0.8, context), getPercentageWidth(2, context), getPercentageHeight(2.8, context)),  
+      padding: EdgeInsets.fromLTRB(
+          getPercentageWidth(2, context),
+          getPercentageHeight(0.8, context),
+          getPercentageWidth(2, context),
+          getPercentageHeight(2.8, context)),
       child: Row(
         children: [
           InkWell(
@@ -380,7 +384,7 @@ class _ChatScreenState extends State<ChatScreen> {
               keyboardType: TextInputType.multiline,
               enabled: !isDisabled,
               style: TextStyle(
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
                 color: isDarkMode ? kWhite : kBlack,
               ),
               decoration: InputDecoration(
@@ -389,8 +393,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 enabledBorder: outlineInputBorder(20),
                 focusedBorder: outlineInputBorder(20),
                 border: outlineInputBorder(20),
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: getPercentageHeight(1.2, context), horizontal: getPercentageWidth(1.6, context)), 
+                contentPadding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(1.2, context),
+                    horizontal: getPercentageWidth(1.6, context)),
                 hintText: hint,
                 hintStyle: TextStyle(
                   color: isDarkMode
@@ -449,7 +454,10 @@ class ChatItem extends StatelessWidget {
       extractedItems.add('post');
     }
     return Container(
-      padding: EdgeInsets.only(left: getPercentageWidth(4, context), right: getPercentageWidth(2, context), bottom: getPercentageHeight(1.6, context)),  
+      padding: EdgeInsets.only(
+          left: getPercentageWidth(4, context),
+          right: getPercentageWidth(2, context),
+          bottom: getPercentageHeight(1.6, context)),
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
@@ -472,7 +480,8 @@ class ChatItem extends StatelessWidget {
                 Column(
                   children: dataSrc.imageUrls.map((url) {
                     return Padding(
-                      padding: EdgeInsets.only(bottom: getPercentageHeight(0.8, context)),
+                      padding: EdgeInsets.only(
+                          bottom: getPercentageHeight(0.8, context)),
                       child: GestureDetector(
                         onTap: () {
                           if (extractedItems.isNotEmpty &&
@@ -516,7 +525,8 @@ class ChatItem extends StatelessWidget {
                           }
                         },
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(getPercentageWidth(1, context)),
+                          borderRadius: BorderRadius.circular(
+                              getPercentageWidth(1, context)),
                           child: url.contains('http')
                               ? Image.network(
                                   url,
@@ -545,7 +555,7 @@ class ChatItem extends StatelessWidget {
               if (dataSrc.messageContent.isNotEmpty)
                 Text(
                   getTextBeforeSlash(dataSrc.messageContent),
-                  style: TextStyle(fontSize: getPercentageWidth(3, context)),
+                  style: TextStyle(fontSize: getTextScale(3, context)),
                 ),
 
               // Show Calendar Share Request if available
@@ -566,11 +576,11 @@ class ChatItem extends StatelessWidget {
                 children: [
                   Text(
                     DateFormat('hh:mm a').format(dataSrc.timestamp.toDate()),
-                    style: TextStyle(fontSize: getPercentageWidth(2, context)),
+                    style: TextStyle(fontSize: getTextScale(2, context)),
                   ),
                   if (isMe) SizedBox(width: getPercentageWidth(1, context)),
                   if (isMe)
-                      Icon(
+                    Icon(
                       Icons.done_all,
                       size: getPercentageWidth(3, context),
                       color: Colors.blue,
@@ -592,7 +602,8 @@ class ChatItem extends StatelessWidget {
     final date = friendRequest['date'] as String?;
 
     return Container(
-      margin: EdgeInsets.symmetric(vertical: getPercentageHeight(0.8, context), horizontal: 0),
+      margin: EdgeInsets.symmetric(
+          vertical: getPercentageHeight(0.8, context), horizontal: 0),
       padding: EdgeInsets.all(getPercentageWidth(1.2, context)),
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kAccentLight.withOpacity(0.1),
@@ -604,7 +615,8 @@ class ChatItem extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.person_add_alt_1_outlined, size: getPercentageWidth(2, context), color: kAccent),
+              Icon(Icons.person_add_alt_1_outlined,
+                  size: getPercentageWidth(2, context), color: kAccent),
               SizedBox(width: getPercentageWidth(1, context)),
               Expanded(
                 child: Text(
@@ -612,7 +624,7 @@ class ChatItem extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: kAccent,
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -626,14 +638,18 @@ class ChatItem extends StatelessWidget {
                       messageId,
                     );
                   },
-                  child: Text('Accept', style: TextStyle(fontSize: getPercentageWidth(2, context))),
+                  child: Text('Accept',
+                      style: TextStyle(fontSize: getTextScale(2, context))),
                   style: TextButton.styleFrom(
                       foregroundColor: isDarkMode ? kWhite : kDarkGrey),
                 ),
               if (status == 'accepted')
                 Padding(
-                  padding: EdgeInsets.only(left: getPercentageWidth(1, context)),
-                  child: Text('Accepted', style: TextStyle(color: kAccent, fontSize: getPercentageWidth(2, context))),
+                  padding:
+                      EdgeInsets.only(left: getPercentageWidth(1, context)),
+                  child: Text('Accepted',
+                      style: TextStyle(
+                          color: kAccent, fontSize: getTextScale(2, context))),
                 ),
             ],
           ),
@@ -644,7 +660,7 @@ class ChatItem extends StatelessWidget {
                 'Requested on $date',
                 style: TextStyle(
                   color: isDarkMode ? Colors.white54 : Colors.black54,
-                  fontSize: getPercentageWidth(2, context),
+                  fontSize: getTextScale(2, context),
                 ),
               ),
             ),
@@ -701,7 +717,7 @@ class ChatItem extends StatelessWidget {
             child: Text(
               'Date: $formattedDate',
               style: TextStyle(
-                fontSize: getPercentageWidth(2, context),
+                fontSize: getTextScale(2, context),
                 color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
             ),
@@ -729,12 +745,14 @@ class ChatItem extends StatelessWidget {
                   },
                   style: TextButton.styleFrom(
                     backgroundColor: kAccent.withOpacity(0.1),
-                    padding:
-                        EdgeInsets.symmetric(horizontal: getPercentageWidth(1.2, context), vertical: getPercentageHeight(0.6, context)),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(1.2, context),
+                        vertical: getPercentageHeight(0.6, context)),
                   ),
-                    child: Text(
+                  child: Text(
                     'Accept',
-                    style: TextStyle(color: kAccent, fontSize: getPercentageWidth(2, context)),
+                    style: TextStyle(
+                        color: kAccent, fontSize: getTextScale(2, context)),
                   ),
                 ),
               ],
@@ -742,11 +760,11 @@ class ChatItem extends StatelessWidget {
           ),
         if (status == 'accepted')
           Padding(
-              padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
+            padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Text(
               'Accepted',
               style: TextStyle(
-                fontSize: getPercentageWidth(2, context),
+                fontSize: getTextScale(2, context),
                 color: Colors.green[400],
                 fontWeight: FontWeight.w500,
               ),

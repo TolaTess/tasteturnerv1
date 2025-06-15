@@ -343,8 +343,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                               isDarkMode ? kWhite : kDarkGrey,
                                           fontWeight: FontWeight.bold,
                                           fontSize: user['name'].length > 10
-                                              ? getPercentageWidth(4, context)
-                                              : getPercentageWidth(
+                                              ? getTextScale(4, context)
+                                              : getTextScale(
                                                   4.5, context),
                                           letterSpacing: 0.5,
                                           overflow: TextOverflow.ellipsis,
@@ -365,8 +365,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                             Get.to(() => const AddFoodScreen()),
                                         child: Icon(Icons.add,
                                             color: kAccentLight,
-                                            size:
-                                                getPercentageWidth(6, context)),
+                                            size: getIconScale(7, context)),
                                       ),
                                   ],
                                 ),
@@ -380,8 +379,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         color: isDarkMode ? kAccent : kWhite,
                                         fontWeight: FontWeight.w600,
                                         fontSize: user['name'].length > 10
-                                            ? getPercentageWidth(3, context)
-                                            : getPercentageWidth(3.5, context),
+                                            ? getTextScale(3, context)
+                                            : getTextScale(3.5, context),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -412,7 +411,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                 style: TextStyle(
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageWidth(3.5, context),
+                                  fontSize: getTextScale(3.5, context),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -437,7 +436,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                 ),
                                 child: Icon(Icons.edit,
                                     color: isDarkMode ? kAccent : kWhite,
-                                    size: getPercentageWidth(5, context)),
+                                    size: getIconScale(7, context)),
                               ),
                             ),
                           ),
@@ -458,7 +457,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         ? Icons.visibility_off
                                         : Icons.visibility,
                                     color: isDarkMode ? kAccent : kWhite,
-                                    size: getPercentageWidth(5, context)),
+                                    size: getIconScale(7, context)),  
                               ),
                             ),
                           ),
@@ -526,7 +525,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                   style: TextStyle(
                                     color: isDarkMode ? kAccent : kWhite,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: getPercentageWidth(3.2, context),
+                                    fontSize: getTextScale(3.2, context),
                                   ),
                                 ),
                                 if (targetCalories > 0 && showCaloriesAndGoal)
@@ -538,7 +537,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           : kDarkGrey.withOpacity(0.7),
                                       fontWeight: FontWeight.w500,
                                       fontSize:
-                                          getPercentageWidth(3.2, context),
+                                          getTextScale(3.2, context),
                                     ),
                                   ),
                               ],
@@ -581,7 +580,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                     style: TextStyle(
                                       color: isDarkMode ? kWhite : kDarkGrey,
                                       fontSize:
-                                          getPercentageWidth(3.5, context),
+                                          getTextScale(3.5, context),
                                     ),
                                   ),
                                 ),
@@ -607,8 +606,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                               },
                               child: Container(
                                 padding: EdgeInsets.symmetric(
-                                    horizontal: getPercentageWidth(1.2, context),
-                                    vertical: getPercentageHeight(0.6, context)),
+                                    horizontal:
+                                        getPercentageWidth(1.2, context),
+                                    vertical:
+                                        getPercentageHeight(0.6, context)),
                                 decoration: BoxDecoration(
                                   color: getDayTypeColor(
                                           mealPlan['dayType']
@@ -623,14 +624,16 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                       Icon(
                                         getDayTypeIcon(mealPlan['dayType']
                                             .replaceAll('_', ' ')),
-                                        size: getPercentageWidth(4, context),
+                                        size: getIconScale(5.5, context),
                                         color: getDayTypeColor(
                                             mealPlan['dayType']
                                                 .replaceAll('_', ' '),
                                             isDarkMode),
                                       ),
                                     if (meals.isNotEmpty)
-                                      SizedBox(width: getPercentageWidth(0.4, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                     if (meals.isNotEmpty)
                                       Text(
                                         mealPlan['dayType'].toLowerCase() ==
@@ -645,7 +648,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                   .replaceAll('_', ' '),
                                               isDarkMode),
                                           fontSize:
-                                              getPercentageWidth(3.5, context),
+                                              getTextScale(4, context),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -653,7 +656,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         width: getPercentageWidth(1, context)),
                                     Icon(
                                       Icons.edit,
-                                      size: getPercentageWidth(4, context),
+                                      size: getIconScale(5.5, context),   
                                       color: getDayTypeColor(
                                           mealPlan['dayType']
                                               .replaceAll('_', ' '),
@@ -727,7 +730,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                               size: getPercentageWidth(
                                                   4, context),
                                             ),
-                                            SizedBox(width: getPercentageWidth(0.8, context)),
+                                            SizedBox(
+                                                width: getPercentageWidth(
+                                                    0.8, context)),
                                             Expanded(
                                               child: Text(
                                                 capitalizeFirstLetter(
@@ -737,7 +742,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                       ? kWhite
                                                       : kDarkGrey,
                                                   fontWeight: FontWeight.w600,
-                                                  fontSize: getPercentageWidth(
+                                                  fontSize: getTextScale(
                                                       3.2, context),
                                                 ),
                                                 overflow: TextOverflow.ellipsis,
@@ -758,8 +763,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                     : kDarkGrey
                                                         .withOpacity(0.5),
                                                 fontWeight: FontWeight.w500,
-                                                fontSize: getPercentageWidth(
-                                                    2.8, context),
+                                                fontSize:
+                                                    getTextScale(2.8, context),
                                               ),
                                             ),
                                           ),
@@ -771,9 +776,9 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                 isDarkMode ? kWhite : kDarkGrey,
                                             fontSize:
                                                 meal.meal.title.length > 13
-                                                    ? getPercentageWidth(
+                                                    ? getTextScale(
                                                         2.8, context)
-                                                    : getPercentageWidth(
+                                                    : getTextScale(
                                                         3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -829,7 +834,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                       ],
                                     ),
                                     child: CircleAvatar(
-                                      radius: getPercentageWidth(7, context),
+                                      radius:
+                                          getResponsiveBoxSize(context, 20, 20),
                                       backgroundColor: i == selectedUserIndex
                                           ? kAccent
                                           : isDarkMode
@@ -841,10 +847,10 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           : ClipOval(
                                               child: Image.asset(
                                                 fam['avatar'],
-                                                width: getPercentageWidth(
-                                                    7, context),
-                                                height: getPercentageWidth(
-                                                    7, context),
+                                                width: getResponsiveBoxSize(
+                                                    context, 18, 18),
+                                                height: getResponsiveBoxSize(
+                                                    context, 18, 18),
                                                 fit: BoxFit.cover,
                                               ),
                                             ),
@@ -931,7 +937,7 @@ Widget _buildTagChip(dynamic tag, BuildContext context) {
       style: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.w500,
-        fontSize: getPercentageWidth(2, context),
+        fontSize: getTextScale(2, context),
       ),
     ),
   );

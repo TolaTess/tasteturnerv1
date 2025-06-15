@@ -200,9 +200,11 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(!widget.isMainPost
-              ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
-              : "Upload Image", style: TextStyle(fontSize: getPercentageWidth(4, context))),
+          title: Text(
+              !widget.isMainPost
+                  ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
+                  : "Upload Image",
+              style: TextStyle(fontSize: getTextScale(4, context))),
           leading: InkWell(
             onTap: () => widget.isMainPost
                 ? Get.to(() => const BottomNavSec(selectedIndex: 1))
@@ -212,7 +214,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             ),
           )),
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+        padding:
+            EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
         child: Column(
           children: [
             Row(
@@ -234,7 +237,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       }
                     }
                   },
-                  icon: Icon(Icons.camera, size: getPercentageWidth(6, context)),
+                  icon:
+                      Icon(Icons.camera, size: getIconScale(7, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 IconButton(
@@ -257,7 +261,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       }
                     }
                   },
-                  icon: Icon(Icons.add, size: getPercentageWidth(7, context)),
+                  icon: Icon(Icons.add, size: getIconScale(7, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
               ],
@@ -268,16 +272,23 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                     borderRadius: BorderRadius.circular(15),
                     child: Image.file(
                       File(_recentImage!.path),
-                      height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(35, context) : getPercentageHeight(30, context),
+                      height: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageHeight(35, context)
+                          : getPercentageHeight(30, context),
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
                   )
                 : Container(
-                    height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(30, context) : getPercentageHeight(25, context),
+                    height: MediaQuery.of(context).size.height > 1100
+                        ? getPercentageHeight(30, context)
+                        : getPercentageHeight(25, context),
                     width: double.infinity,
                     color: Colors.grey[300],
-                    child: Center(child: Text("No Image Selected", style: TextStyle(fontSize: getPercentageWidth(3, context)))),
+                    child: Center(
+                        child: Text("No Image Selected",
+                            style:
+                                TextStyle(fontSize: getTextScale(3, context)))),
                   ),
 
             // Show selected images grid under the recent image
@@ -318,7 +329,9 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                   ? const CircularProgressIndicator(
                       color: kAccent,
                     )
-                  : Text("Upload Images", style: TextStyle(fontSize: getPercentageWidth(3, context), color: kWhite)),
+                  : Text("Upload Images",
+                      style: TextStyle(
+                          fontSize: getTextScale(3, context), color: kWhite)),
             ),
           ],
         ),

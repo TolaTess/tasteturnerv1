@@ -32,19 +32,19 @@ class FirstNameField extends StatelessWidget {
         border: underlineInputBorder(),
         labelStyle: TextStyle(
           color: kLightGrey,
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
         labelText: kHint,
         suffixIcon: Icon(
           Icons.person_outline,
           color: themeProvider ? kPrimaryColor : kBlack,
         ),
-          contentPadding: EdgeInsets.symmetric(
+        contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
           vertical: getPercentageHeight(0.5, context),
         ),
         hintStyle: TextStyle(
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
       ),
     );
@@ -68,7 +68,7 @@ class EmailField extends StatelessWidget {
       controller: controller,
       style: TextStyle(
         color: themeProvider ? kWhite : kBlack,
-        fontSize: getPercentageWidth(3, context),
+        fontSize: getTextScale(3, context),
       ),
       decoration: InputDecoration(
         filled: true,
@@ -78,7 +78,7 @@ class EmailField extends StatelessWidget {
         border: underlineInputBorder(),
         labelStyle: TextStyle(
           color: kLightGrey,
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
         labelText: kHint,
         suffixIcon: Icon(
@@ -91,7 +91,7 @@ class EmailField extends StatelessWidget {
           vertical: getPercentageHeight(0.5, context),
         ),
         hintStyle: TextStyle(
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
       ),
     );
@@ -121,7 +121,7 @@ class _PasswordFieldState extends State<PasswordField> {
       controller: widget.controller,
       style: TextStyle(
         color: widget.themeProvider ? kWhite : kBlack,
-        fontSize: getPercentageWidth(3, context),
+        fontSize: getTextScale(3, context),
       ),
       obscureText: !_isTextVisible,
       keyboardType: TextInputType.emailAddress,
@@ -133,7 +133,7 @@ class _PasswordFieldState extends State<PasswordField> {
         border: underlineInputBorder(),
         labelStyle: TextStyle(
           color: kLightGrey,
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
         labelText: widget.kHint,
         contentPadding: EdgeInsets.symmetric(
@@ -141,13 +141,13 @@ class _PasswordFieldState extends State<PasswordField> {
           vertical: getPercentageHeight(0.5, context),
         ),
         hintStyle: TextStyle(
-          fontSize: getPercentageWidth(3.5, context),
+          fontSize: getTextScale(3.5, context),
         ),
         suffixIcon: IconButton(
           icon: Icon(
             _isTextVisible ? Icons.visibility : Icons.visibility_off,
             color: widget.themeProvider ? kPrimaryColor : kBlack,
-            size: getPercentageWidth(4, context),
+            size: getIconScale(7, context),   
           ),
           onPressed: () {
             setState(() {

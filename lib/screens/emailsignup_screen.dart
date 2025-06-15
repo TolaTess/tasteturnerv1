@@ -54,7 +54,7 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                 child: Text(
                   "Sign Up",
                   style: TextStyle(
-                    fontSize: getPercentageWidth(5.5, context),
+                    fontSize: getTextScale(5.5, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -67,7 +67,7 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                 child: Text(
                   widget.welcomeMessage,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     color: kAccent,
                     fontStyle: FontStyle.italic,
                   ),
@@ -179,7 +179,7 @@ class _SignUpFormState extends State<SignUpForm> {
                       "Passwords do not match",
                       style: TextStyle(
                         color: Colors.red,
-                        fontSize: getPercentageWidth(3, context),
+                        fontSize: getTextScale(3, context),
                       ),
                     ),
                   ),
@@ -228,14 +228,14 @@ class _SignUpFormState extends State<SignUpForm> {
                             TextSpan(
                               text: "I agree to ",
                               style: TextStyle(
-                                fontSize: getPercentageWidth(2.5, context),
+                                fontSize: getTextScale(2.5, context),
                               ),
                             ),
                             TextSpan(
                               text: "term of service and privacy policy",
                               style: TextStyle(
                                 decoration: TextDecoration.underline,
-                                fontSize: getPercentageWidth(2.5, context),
+                                fontSize: getTextScale(2.5, context),
                               ),
                             )
                           ],
@@ -254,7 +254,7 @@ class _SignUpFormState extends State<SignUpForm> {
                     "Please accept the terms and conditions to continue",
                     style: TextStyle(
                       color: Colors.red,
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getTextScale(3, context),
                     ),
                   ),
                 ),
@@ -303,7 +303,7 @@ class TermsOfServiceScreen extends StatelessWidget {
               child: Text(
                 "Terms of Service",
                 style: TextStyle(
-                    fontSize: getPercentageWidth(5.5, context),
+                    fontSize: getTextScale(5.5, context),
                     fontWeight: FontWeight.bold,
                     color: kAccent),
                 textAlign: TextAlign.center,
@@ -314,39 +314,39 @@ class TermsOfServiceScreen extends StatelessWidget {
               child: Text(
                 "Welcome to our $appName. \n \nBy using this application, you agree to the following terms:",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: getPercentageWidth(4, context)),
+                style: TextStyle(fontSize: getTextScale(4, context)),
               ),
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Text(
-                "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                  "5. You are responsible for maintaining the confidentiality of your account information.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "5. You are responsible for maintaining the confidentiality of your account information.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-                "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.",
-                style: TextStyle(fontSize: getPercentageWidth(3, context)),
-              ),
+              "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.",
+              style: TextStyle(fontSize: getTextScale(3, context)),
+            ),
             SizedBox(height: getPercentageHeight(2, context)),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,7 +355,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   "Last updated: 2025",
                   style: TextStyle(
                     fontStyle: FontStyle.italic,
-                    fontSize: getPercentageWidth(2, context),
+                    fontSize: getTextScale(2, context),
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -373,7 +373,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                       style: TextStyle(
                         color: kAccentLight,
                         decoration: TextDecoration.underline,
-                        fontSize: getPercentageWidth(2.5, context),
+                        fontSize: getTextScale(2.5, context),
                       ),
                     ),
                   ),

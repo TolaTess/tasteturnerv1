@@ -142,7 +142,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         ingredientBattle,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                         ),
                       ),
                       Text(
@@ -150,7 +150,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                             ? 'Join the battle to create a masterpiece!'
                             : 'Next battle will start soon! Check back later!',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                           color: kAccentLight,
                         ),
                       ),
@@ -289,8 +289,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                             return Text(
                                               'Deadline Over',
                                               style: TextStyle(
-                                                fontSize: getPercentageWidth(
-                                                    3, context),
+                                                fontSize:
+                                                    getTextScale(3, context),
                                                 color: Colors.red,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -328,8 +328,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     ? 'Manage in profile screen'
                                                     : 'Vote for your favorite dish!',
                                                 style: TextStyle(
-                                                  fontSize: getPercentageWidth(
-                                                      4, context),
+                                                  fontSize:
+                                                      getTextScale(4, context),
                                                   color: kAccentLight,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -402,7 +402,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                                   FontWeight
                                                                       .bold,
                                                               fontSize:
-                                                                  getPercentageWidth(
+                                                                  getTextScale(
                                                                       4,
                                                                       context),
                                                               color: isDarkMode
@@ -573,7 +573,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         child: Text(
                           'Get Inspired',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(4, context),
+                            fontSize: getTextScale(4, context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -582,7 +582,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                         key: _addInspirationButtonKey,
                         icon: Icon(Icons.add,
                             color: kAccent,
-                            size: getPercentageWidth(4.5, context)),
+                            size: getIconScale(7, context)),  
                         onPressed: () => Get.to(
                           () => const UploadBattleImageScreen(
                             battleId: battleIdConstant,
@@ -674,7 +674,7 @@ class DetailItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: getPercentageWidth(3.5, context),
+                fontSize: getTextScale(3.5, context),
               ),
             ),
           ),

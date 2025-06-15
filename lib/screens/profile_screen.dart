@@ -205,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     userService.currentUser!.displayName ?? '',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: getPercentageWidth(4.5, context),
+                      fontSize: getTextScale(4.5, context),
                       color: isDarkMode ? kWhite : kBlack,
                     ),
                   )
@@ -297,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           '',
                                       style: TextStyle(
                                         fontSize:
-                                            getPercentageWidth(4.5, context),
+                                            getTextScale(4.5, context),
                                         fontWeight: FontWeight.w600,
                                         color: isDarkMode ? kWhite : kDarkGrey,
                                       ),
@@ -332,8 +332,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               color: isDarkMode
                                                   ? kWhite
                                                   : kDarkGrey,
-                                              fontSize: getPercentageWidth(
-                                                  4.5, context),
+                                              fontSize:
+                                                  getTextScale(4.5, context),
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -345,8 +345,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(
-                                                    3, context),
+                                                fontSize:
+                                                    getTextScale(3, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -391,8 +391,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(
-                                                    4.5, context),
+                                                fontSize:
+                                                    getTextScale(4.5, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             );
@@ -405,8 +405,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kDarkGrey,
-                                                fontSize: getPercentageWidth(
-                                                    3, context),
+                                                fontSize:
+                                                    getTextScale(3, context),
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -423,9 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       CircleAvatar(
-                        radius: MediaQuery.of(context).size.height > 1100
-                            ? getPercentageWidth(13, context)
-                            : getPercentageWidth(15, context),
+                        radius: getResponsiveBoxSize(context, 20, 20),
                         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                         child: CircleAvatar(
                           backgroundImage:
@@ -438,9 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       userService.currentUser!.profileImage!)
                                   : const AssetImage(intPlaceholderImage)
                                       as ImageProvider,
-                          radius: MediaQuery.of(context).size.height > 1100
-                              ? getPercentageWidth(12.5, context)
-                              : getPercentageWidth(14.5, context),
+                          radius: getResponsiveBoxSize(context, 18, 18),
                         ),
                       ),
                     ],
@@ -479,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             badges,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: getPercentageWidth(4.5, context),
+                              fontSize: getTextScale(4.5, context),
                             ),
                           ),
                           GestureDetector(
@@ -488,7 +484,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               seeAll,
                               style: TextStyle(
                                 color: kAccent,
-                                fontSize: getPercentageWidth(3.5, context),
+                                fontSize: getTextScale(3.5, context),
                               ),
                             ),
                           ),
@@ -549,14 +545,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 goals,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: getPercentageWidth(4.5, context),
+                                  fontSize: getTextScale(4.5, context),
                                 ),
                               ),
                             ),
                             Text(
                               '${userService.currentUser?.settings['fitnessGoal']}',
                               style: TextStyle(
-                                fontSize: getPercentageWidth(3.5, context),
+                                fontSize: getTextScale(3.5, context),
                                 color: kAccent,
                               ),
                             ),
@@ -567,7 +563,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 'update',
                                 style: TextStyle(
                                   color: kAccent,
-                                  fontSize: getPercentageWidth(3.5, context),
+                                  fontSize: getTextScale(3.5, context),
                                 ),
                               ),
                             ),
@@ -596,7 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : startWeight.toStringAsFixed(1),
                                           style: TextStyle(
                                             fontSize:
-                                                getPercentageWidth(3, context),
+                                                getTextScale(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -624,8 +620,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       .toStringAsFixed(1) +
                                                   'kg',
                                           style: TextStyle(
-                                            fontSize: getPercentageWidth(
-                                                3.5, context),
+                                            fontSize:
+                                                getTextScale(3.5, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -651,7 +647,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : goalWeight.toStringAsFixed(1),
                                           style: TextStyle(
                                             fontSize:
-                                                getPercentageWidth(3, context),
+                                                getTextScale(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -684,7 +680,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     'Battles',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: getPercentageWidth(4.5, context),
+                      fontSize: getTextScale(4.5, context),
                     ),
                   ),
                   tilePadding: EdgeInsets.only(
@@ -709,7 +705,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     "No ongoing battles, join a battle now!",
                                     style: TextStyle(
                                       fontSize:
-                                          getPercentageWidth(3.5, context),
+                                          getTextScale(3.5, context),
                                       color: isDarkMode ? kLightGrey : kAccent,
                                       decoration: TextDecoration.underline,
                                     ),
@@ -745,7 +741,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kBlack,
-                                                  fontSize: getPercentageWidth(
+                                                  fontSize: getTextScale(
                                                       4.5, context),
                                                 ),
                                               ),
@@ -758,7 +754,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   color: isDarkMode
                                                       ? kLightGrey
                                                       : kDarkGrey,
-                                                  fontSize: getPercentageWidth(
+                                                  fontSize: getTextScale(
                                                       3.5, context),
                                                 ),
                                               ),
@@ -814,7 +810,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                             style: TextStyle(
                                                               color: kAccent,
                                                               fontSize:
-                                                                  getPercentageWidth(
+                                                                  getTextScale(
                                                                       3.5,
                                                                       context),
                                                             ),
@@ -826,7 +822,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   ? kWhite
                                                                   : kDarkGrey,
                                                               fontSize:
-                                                                  getPercentageWidth(
+                                                                  getTextScale(
                                                                       3,
                                                                       context),
                                                             ),
@@ -845,7 +841,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   color:
                                                                       kAccent,
                                                                   fontSize:
-                                                                      getPercentageWidth(
+                                                                      getTextScale(
                                                                           3.5,
                                                                           context),
                                                                 ),
@@ -864,7 +860,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   color: Colors
                                                                       .red,
                                                                   fontSize:
-                                                                      getPercentageWidth(
+                                                                      getTextScale(
                                                                           3.5,
                                                                           context),
                                                                 ),
@@ -926,7 +922,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Text(
                               "No Posts yet.",
                               style: TextStyle(
-                                fontSize: getPercentageWidth(4, context),
+                                fontSize: getTextScale(4, context),
                                 color: Colors.grey,
                               ),
                               textAlign: TextAlign.center,

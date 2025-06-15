@@ -266,7 +266,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       appBar: AppBar(
           title: Text(
               screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe',
-              style: TextStyle(fontSize: getPercentageWidth(4, context))),
+              style: TextStyle(fontSize: getTextScale(4, context))),
           leading: InkWell(
             onTap: () {
               if (widget.screenType == 'list') {
@@ -307,7 +307,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 Text(
                   screen == 'addManual' ? '$foodType Title' : recipeTitle,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -327,8 +327,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
                     hintStyle: TextStyle(
-                        color: kLightGrey,
-                        fontSize: getPercentageWidth(4, context)),
+                        color: kLightGrey, fontSize: getTextScale(4, context)),
                     hintText: recipeHint,
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                     contentPadding: EdgeInsets.only(
@@ -355,7 +354,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           Text(
                             "Serving Size",
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -372,7 +371,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               border: outlineInputBorder(10),
                               hintStyle: TextStyle(
                                   color: kLightGrey,
-                                  fontSize: getPercentageWidth(4, context)),
+                                  fontSize: getTextScale(4, context)),
                               hintText: '1',
                               contentPadding: EdgeInsets.only(
                                 top: getPercentageHeight(1.5, context),
@@ -399,7 +398,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           Text(
                             "Unit",
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -450,7 +449,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 Text(
                   'Calories',
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -471,8 +470,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     border: outlineInputBorder(20),
                     labelStyle: const TextStyle(color: Color(0xffefefef)),
                     hintStyle: TextStyle(
-                        color: kLightGrey,
-                        fontSize: getPercentageWidth(4, context)),
+                        color: kLightGrey, fontSize: getTextScale(4, context)),
                     hintText: 'Enter total calories',
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                     contentPadding: EdgeInsets.only(
@@ -493,7 +491,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 Text(
                   ingredients,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -527,12 +525,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                         labelText: "Ingredient",
                                         labelStyle: TextStyle(
                                           fontSize:
-                                              getPercentageWidth(4, context),
+                                              getTextScale(4, context),
                                           color: kAccent,
                                         ),
                                         hintStyle: TextStyle(
                                           fontSize:
-                                              getPercentageWidth(3.5, context),
+                                              getTextScale(3.5, context),
                                           color:
                                               kLightGrey.withValues(alpha: 0.5),
                                         ),
@@ -611,7 +609,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   child: Text(
                     addCoverImage,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(4, context),
+                      fontSize: getTextScale(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -650,15 +648,24 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     child: _recentImage != null
                         ? Image.file(
                             File(_recentImage!.path),
-                            height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(20, context) : getPercentageHeight(10, context),
-                            width: MediaQuery.of(context).size.width > 1100 ? getPercentageWidth(40, context) : getPercentageWidth(30, context),
+                            height: MediaQuery.of(context).size.height > 1100
+                                ? getPercentageHeight(20, context)
+                                : getPercentageHeight(10, context),
+                            width: MediaQuery.of(context).size.width > 1100
+                                ? getPercentageWidth(40, context)
+                                : getPercentageWidth(30, context),
                             fit: BoxFit.cover,
                           )
                         : (_recentNetworkImage != null
                             ? Image.network(
                                 _recentNetworkImage!,
-                                height: MediaQuery.of(context).size.height > 1100 ? getPercentageHeight(20, context) : getPercentageHeight(10, context),
-                                width: MediaQuery.of(context).size.width > 1100 ? getPercentageWidth(40, context) : getPercentageWidth(30, context),
+                                height:
+                                    MediaQuery.of(context).size.height > 1100
+                                        ? getPercentageHeight(20, context)
+                                        : getPercentageHeight(10, context),
+                                width: MediaQuery.of(context).size.width > 1100
+                                    ? getPercentageWidth(40, context)
+                                    : getPercentageWidth(30, context),
                                 fit: BoxFit.cover,
                               )
                             : DottedBorder(
@@ -699,14 +706,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   Text(
                     cookingInstructions,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(4, context),
+                      fontSize: getTextScale(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
                     notes,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getTextScale(3, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -725,7 +732,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
                       hintStyle: TextStyle(
                           color: kLightGrey,
-                          fontSize: getPercentageWidth(4, context)),
+                          fontSize: getTextScale(4, context)),
                       hintText: cookingInstructionsHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       contentPadding: EdgeInsets.only(
@@ -743,14 +750,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   Text(
                     category,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(4, context),
+                      fontSize: getTextScale(4, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
                     snippet,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3, context),
+                      fontSize: getTextScale(3, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -769,7 +776,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       labelStyle: const TextStyle(color: Color(0xffefefef)),
                       hintStyle: TextStyle(
                           color: kLightGrey,
-                          fontSize: getPercentageWidth(4, context)),
+                          fontSize: getTextScale(4, context)),
                       hintText: notesHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       contentPadding: EdgeInsets.only(

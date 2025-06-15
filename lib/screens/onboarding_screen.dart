@@ -318,8 +318,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: nameController,
-          style: TextStyle(
-              color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
+          style:
+              TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
           onChanged: (_) => _validateInputs(),
           decoration: InputDecoration(
             filled: true,
@@ -329,7 +329,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             border: outlineInputBorder(10),
             labelStyle: const TextStyle(color: Color(0xffefefef)),
             hintStyle: TextStyle(
-                color: kLightGrey, fontSize: getPercentageWidth(3.5, context)),
+                color: kLightGrey, fontSize: getTextScale(3.5, context)),
             hintText: "Enter your name",
             floatingLabelBehavior: FloatingLabelBehavior.always,
             contentPadding: EdgeInsets.only(
@@ -349,8 +349,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         child: SafeTextFormField(
           controller: dobController,
-          style: TextStyle(
-              color: kDarkGrey, fontSize: getPercentageWidth(3.5, context)),
+          style:
+              TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF3F3F3),
@@ -359,7 +359,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             border: outlineInputBorder(10),
             labelStyle: const TextStyle(color: Color(0xffefefef)),
             hintStyle: TextStyle(
-                color: kLightGrey, fontSize: getPercentageWidth(3.5, context)),
+                color: kLightGrey, fontSize: getTextScale(3.5, context)),
             hintText: "Enter your date of birth (MM-dd) (optional)",
             floatingLabelBehavior: FloatingLabelBehavior.always,
             contentPadding: EdgeInsets.only(
@@ -417,7 +417,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       },
       {
         'title': 'Chat with Tasty AI',
-        'description': 'Get personalized meal plans and recipe ideas from Tasty AI',
+        'description':
+            'Get personalized meal plans and recipe ideas from Tasty AI',
         'icon': Icons.chat_bubble
       }
     ];
@@ -446,7 +447,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         feature['title'] as String,
                         style: TextStyle(
                           color: kWhite,
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -454,7 +455,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         feature['description'] as String,
                         style: TextStyle(
                           color: kWhite,
-                          fontSize: getPercentageWidth(3, context),
+                          fontSize: getTextScale(3, context),
                         ),
                       ),
                     ),
@@ -494,7 +495,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 title: Text(
                   goal,
                   style: TextStyle(
-                      color: kWhite, fontSize: getPercentageWidth(4, context)),
+                      color: kWhite, fontSize: getTextScale(4, context)),
                 ),
                 value: goal,
                 groupValue:
@@ -550,7 +551,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               "Current Weight:",
               style: TextStyle(
                 color: kWhite,
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -585,7 +586,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               "Target Weight:",
               style: TextStyle(
                 color: kWhite,
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -629,7 +630,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 "Enable Dark Mode",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -637,7 +638,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 "Switch between light and dark theme",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: getPercentageWidth(3, context),
+                  fontSize: getTextScale(3, context),
                 ),
               ),
               value:
@@ -660,7 +661,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 "Enable AI Assistant",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -668,7 +669,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 "Go Premium for personalized AI guidance and premium features - 30 days free trial",
                 style: TextStyle(
                   color: kWhite,
-                  fontSize: getPercentageWidth(3, context),
+                  fontSize: getTextScale(3, context),
                 ),
               ),
               value: enableAITrial,
@@ -717,7 +718,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ? Text(
                     title,
                     style: TextStyle(
-                      fontSize: getPercentageWidth(5, context),
+                      fontSize: getTextScale(5, context),
                       overflow: TextOverflow.ellipsis,
                       fontWeight: FontWeight.w600,
                     ),
@@ -728,7 +729,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               description,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: getPercentageWidth(3.5, context),
+                fontSize: getTextScale(3.5, context),
                 color:
                     getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
               ),
@@ -759,7 +760,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             controller: controller,
             style: TextStyle(
               color: kDarkGrey,
-              fontSize: getPercentageWidth(3.5, context),
+              fontSize: getTextScale(3.5, context),
             ),
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
@@ -770,8 +771,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               border: outlineInputBorder(10),
               labelStyle: const TextStyle(color: Color(0xffefefef)),
               hintStyle: TextStyle(
-                  color: kLightGrey,
-                  fontSize: getPercentageWidth(3.5, context)),
+                  color: kLightGrey, fontSize: getTextScale(3.5, context)),
               hintText: "Enter your weight",
               floatingLabelBehavior: FloatingLabelBehavior.always,
               contentPadding: EdgeInsets.only(
@@ -806,7 +806,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           u,
                           style: TextStyle(
                               color: kDarkGrey,
-                              fontSize: getPercentageWidth(3.5, context)),
+                              fontSize: getTextScale(3.5, context)),
                         ),
                       ))
                   .toList(),
@@ -857,7 +857,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _currentPage == 5 ? "Finish" : "Next",
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: getPercentageWidth(4, context),
+            fontSize: getTextScale(4, context),
             fontWeight: FontWeight.w600,
             color: _isNextEnabled ? kWhite : kDarkGrey,
           ),

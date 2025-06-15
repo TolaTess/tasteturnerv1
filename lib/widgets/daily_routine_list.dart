@@ -44,8 +44,8 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
           isNewItem ? 'Add Routine Item' : 'Edit Routine Item',
           style: TextStyle(
             height: 1.5,
-            color: isDarkMode ? kWhite : kBlack,  
-            fontSize: getPercentageWidth(4, context),
+            color: isDarkMode ? kWhite : kBlack,
+            fontSize: getTextScale(4, context),
           ),
         ),
         content: SingleChildScrollView(
@@ -93,7 +93,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                   fillColor: isDarkMode ? kDarkGrey : kWhite,
                   contentPadding: const EdgeInsets.all(8),
                   enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
+                  focusedBorder: outlineInputBorder(20),
                 ),
                 items: ['time', 'duration', 'quantity']
                     .map((type) => DropdownMenuItem(
@@ -195,7 +195,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               title: Text(
                 'Routine Items',
                 style: TextStyle(
-                  fontSize: getPercentageWidth(3.5, context),
+                  fontSize: getTextScale(3.5, context),
                 ),
               ),
               children: [
@@ -240,7 +240,8 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                               if (!isEnabled)
                                 IconButton(
                                   icon: Icon(Icons.edit,
-                                      color: isDarkMode ? kWhite : kBlack),
+                                      color: isDarkMode ? kWhite : kBlack,
+                                      size: getIconScale(7, context)),
                                   onPressed: () =>
                                       _showEditDialog(item, isDarkMode),
                                 ),
@@ -250,6 +251,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                       ? Icons.visibility
                                       : Icons.visibility_off,
                                   color: item.isEnabled ? kAccent : kLightGrey,
+                                  size: getIconScale(7, context),
                                 ),
                                 onPressed: () async {
                                   int totalItems = items.length;
@@ -295,7 +297,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton.icon(
                     onPressed: () => _showEditDialog(null, isDarkMode),
-                    icon: const Icon(Icons.add),
+                    icon: Icon(Icons.add, size: getIconScale(7, context)),  
                     label: const Text('Add New Item'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kAccent,

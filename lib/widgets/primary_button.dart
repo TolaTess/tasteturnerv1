@@ -89,7 +89,7 @@ class AppButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, color: txtColor),
+                    Icon(icon, color: txtColor, size: getIconScale(7, context)),
                     SizedBox(width: getPercentageWidth(2, context)),
                   ],
                   Text(
@@ -97,7 +97,7 @@ class AppButton extends StatelessWidget {
                     style: TextStyle(
                       color: txtColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: getPercentageWidth(4, context),
+                      fontSize: getTextScale(4, context),
                     ),
                   ),
                 ],

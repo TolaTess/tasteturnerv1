@@ -18,7 +18,7 @@ class IngredientListViewRecipe extends StatefulWidget {
     required this.spin,
     required this.isEdit,
     required this.onRemoveItem,
-    this.radius = 9,
+    this.radius = 30,
   });
 
   @override
@@ -32,13 +32,11 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: widget.radius < 9
-          ? MediaQuery.of(context).size.height > 1100
-              ? getPercentageHeight(12, context)
-              : getPercentageHeight(10, context)
+      height: widget.radius < 30
+          ? getPercentageHeight(10, context)
           : MediaQuery.of(context).size.height > 1100
-              ? getPercentageHeight(18, context)
-              : getPercentageHeight(13, context),
+              ? getPercentageHeight(17, context)
+              : getPercentageHeight(14, context),
       child: widget.demoAcceptedData.isEmpty
           ? noItemTastyWidget(
               'No ingredients available',
@@ -87,7 +85,7 @@ class IngredientItem extends StatelessWidget {
     required this.dataSrc,
     required this.press,
     this.isSelected = false,
-    this.radius = 35,
+    this.radius = 30,
   });
 
   final dynamic dataSrc;
@@ -131,12 +129,12 @@ class IngredientItem extends StatelessWidget {
                 backgroundImage: imagePath.startsWith('http')
                     ? NetworkImage(imagePath) as ImageProvider
                     : AssetImage(getAssetImageForItem(imagePath)),
-                radius: getPercentageWidth(radius, context),
+                radius: getResponsiveBoxSize(context, radius, radius),
               ),
               // Gradient overlay
               Container(
-                width: getPercentageWidth(radius * 2, context),
-                height: getPercentageWidth(radius * 2, context),
+                width: getResponsiveBoxSize(context, radius * 2, radius * 2),
+                height: getResponsiveBoxSize(context, radius * 2, radius * 2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -164,10 +162,12 @@ class IngredientItem extends StatelessWidget {
             child: Text(
               textAlign: TextAlign.center,
               capitalizeFirstLetterAndSplitSpace(title),
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: getPercentageWidth(radius / 3, context),
+                  fontSize: radius < 30
+                      ? getTextScale(2.8, context)
+                      : getTextScale(3, context),
                   fontWeight: FontWeight.w600,
                   color: isSelected
                       ? isDarkMode

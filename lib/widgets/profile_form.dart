@@ -35,14 +35,16 @@ class EditProfileForm extends StatelessWidget {
           // Edit Name
           SafeTextFormField(
             controller: nameController,
-              style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
+            style: TextStyle(
+                color: kLightGrey, fontSize: getTextScale(3, context)),
             decoration: InputDecoration(
               labelText: "Name",
               labelStyle: TextStyle(
                   color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               hintText: "Enter your name",
               hintStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getTextScale(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/person.svg"),
@@ -56,13 +58,16 @@ class EditProfileForm extends StatelessWidget {
           // Edit Bio
           SafeTextFormField(
             controller: dobController,
-            style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
+            style: TextStyle(
+                color: kLightGrey, fontSize: getTextScale(3, context)),
             decoration: InputDecoration(
               labelText: "D.O.B (MM-dd)",
               labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getTextScale(3, context)),
               hintText: "Share you date of birth (MM-dd)?",
-              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
+              hintStyle: TextStyle(
+                  color: kLightGrey, fontSize: getTextScale(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/heart.svg"),
@@ -76,13 +81,16 @@ class EditProfileForm extends StatelessWidget {
           // Edit Bio
           SafeTextFormField(
             controller: bioController,
-            style: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
+            style: TextStyle(
+                color: kLightGrey, fontSize: getTextScale(3, context)),
             decoration: InputDecoration(
               labelText: "About me",
               labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey, fontSize: getPercentageWidth(3, context)  ),
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getTextScale(3, context)),
               hintText: "How do you feel?",
-              hintStyle: TextStyle(color: kLightGrey, fontSize: getPercentageWidth(3, context)),
+              hintStyle: TextStyle(
+                  color: kLightGrey, fontSize: getTextScale(3, context)),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon:
                   const CustomSuffixIcon(svgIcon: "assets/images/svg/book.svg"),
@@ -139,7 +147,8 @@ class EditProfileForm extends StatelessWidget {
                   },
                   child: Text('Update Family Members',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: kAccent, fontSize: getPercentageWidth(3, context) )),
+                      style: TextStyle(
+                          color: kAccent, fontSize: getTextScale(3, context))),
                 ),
                 IconButton(
                   onPressed: () {
@@ -149,7 +158,8 @@ class EditProfileForm extends StatelessWidget {
                           builder: (context) => const NutritionSettingsPage()),
                     );
                   },
-                  icon: Icon(Icons.settings, size: getPercentageWidth(4, context)),
+                  icon: Icon(Icons.settings,
+                      size: getIconScale(7, context)),
                 ),
               ],
             ),

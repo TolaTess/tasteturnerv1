@@ -106,7 +106,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       user?.displayName ?? '',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getTextScale(4.5, context),
                         color: themeProvider.isDarkMode ? kWhite : kBlack,
                       ),
                     )
@@ -150,7 +150,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         child: Text(
                           user?.displayName ?? '',
                           style: TextStyle(
-                              fontSize: getPercentageWidth(4.5, context),
+                              fontSize: getTextScale(4.5, context),
                               fontWeight: FontWeight.w600,
                               color: kBackgroundColor),
                         ),
@@ -316,7 +316,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         },
                       ),
                     ),
-                    SizedBox(height: getPercentageHeight(2, context)),
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                   // Search Content Section
                   Builder(
@@ -336,7 +336,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               child: Text(
                                 "No Posts yet.",
                                 style: TextStyle(
-                                  fontSize: getPercentageWidth(4, context),
+                                  fontSize: getTextScale(4, context),
                                   color: Colors.grey,
                                 ),
                                 textAlign: TextAlign.center,

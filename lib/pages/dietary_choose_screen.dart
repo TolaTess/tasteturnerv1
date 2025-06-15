@@ -84,7 +84,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                 ),
               ),
               SizedBox(height: getPercentageHeight(1, context)),
-              Text( selectedDiet != 'All' ? 'Diet: $selectedDiet' : 'Diet: General',
+              Text(
+                selectedDiet != 'All' ? 'Diet: $selectedDiet' : 'Diet: General',
                 style: TextStyle(
                   color:
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -179,7 +180,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                               : kDarkGrey,
                         ),
                       ),
-                        SizedBox(height: getPercentageHeight(1, context)),
+                      SizedBox(height: getPercentageHeight(1, context)),
                       DropdownButtonFormField<String>(
                         dropdownColor: getThemeProvider(context).isDarkMode
                             ? kLightGrey
@@ -245,7 +246,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                      fontSize: getPercentageWidth(4, context),
+                                      fontSize: getTextScale(4, context),
                                     ),
                                   ),
                                   Row(
@@ -254,8 +255,9 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon:
-                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.remove,
+                                            size:
+                                                getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (proteinDishes > 0)
@@ -263,7 +265,9 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           });
                                         },
                                       ),
-                                        SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       Text(
                                         '$proteinDishes',
                                         style: TextStyle(
@@ -271,14 +275,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(4, context),
+                                          fontSize: getTextScale(4, context),
                                         ),
                                       ),
-                                      SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                          icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.add,
+                                            size:
+                                                getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             proteinDishes++;
@@ -301,7 +309,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(4, context),
+                                      fontSize: getTextScale(4, context),
                                     ),
                                   ),
                                   Row(
@@ -310,15 +318,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon:
-                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.remove,
+                                            size:
+                                                getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (grainDishes > 0) grainDishes--;
                                           });
                                         },
                                       ),
-                                      SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       Text(
                                         '$grainDishes',
                                         style: TextStyle(
@@ -326,14 +337,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(4, context),
+                                          fontSize: getTextScale(4, context),
                                         ),
                                       ),
-                                      SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.add,
+                                            size:
+                                                getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             grainDishes++;
@@ -356,7 +371,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                           getThemeProvider(context).isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(4, context),
+                                      fontSize: getTextScale(4, context),
                                     ),
                                   ),
                                   Row(
@@ -365,15 +380,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon:
-                                            Icon(Icons.remove, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.remove,
+                                            size:
+                                                getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (vegDishes > 0) vegDishes--;
                                           });
                                         },
                                       ),
-                                      SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       Text(
                                         '$vegDishes',
                                         style: TextStyle(
@@ -381,14 +399,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(4, context),
+                                          fontSize: getTextScale(4, context),
                                         ),
                                       ),
-                                      SizedBox(width: getPercentageWidth(1, context)),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.add, size: getPercentageWidth(4, context)),
+                                        icon: Icon(Icons.add,
+                                            size:
+                                                  getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             vegDishes++;
@@ -458,7 +480,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final List<String> mealIds =
           await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
-      await saveMealPlanToFirestore(userId, date, mealIds, mealPlan, selectedDiet);
+      await saveMealPlanToFirestore(
+          userId, date, mealIds, mealPlan, selectedDiet);
       await _updateUserPreferences(userId);
 
       // Hide loading and navigate back
@@ -570,7 +593,7 @@ Include:
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: getPercentageWidth(5, context),   
+            horizontal: getPercentageWidth(5, context),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -582,23 +605,24 @@ Include:
                     onTap: () => Navigator.pop(context),
                     child: const IconCircleButton(),
                   ),
-                if (!widget.isOnboarding) SizedBox(height: getPercentageHeight(2, context)),
+                if (!widget.isOnboarding)
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                 Text(
                   textAlign: TextAlign.center,
                   "Tell us your dietary preferences?",
                   style: TextStyle(
-                    fontSize: getPercentageWidth(5, context),   
+                    fontSize: getTextScale(5, context),
                     overflow: TextOverflow.ellipsis,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                  SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(height: getPercentageHeight(2, context)),
                 Text(
                   textAlign: TextAlign.center,
                   "We'll exclusively display recipes aligned with your chosen diet.",
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3.5, context), 
+                    fontSize: getTextScale(3.5, context),
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -609,7 +633,7 @@ Include:
                   shrinkWrap: true,
                   gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: getPercentageWidth(25, context),
-                    mainAxisExtent: getPercentageHeight(14, context), 
+                    mainAxisExtent: getPercentageHeight(14, context),
                     mainAxisSpacing: 5,
                     crossAxisSpacing: 5,
                   ),
@@ -636,10 +660,10 @@ Include:
                 ),
 
                 //choose alergy
-                     Text(
+                Text(
                   "Any allergies?",
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context), 
+                    fontSize: getTextScale(4, context),
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -672,7 +696,7 @@ Include:
       bottomNavigationBar: !widget.isOnboarding
           ? Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(5, context),     
+                horizontal: getPercentageWidth(5, context),
                 vertical: getPercentageHeight(1, context),
               ),
               child: AppButton(
@@ -737,7 +761,7 @@ class DietItem extends StatelessWidget {
               child: Text(
                 dataSrc['name'] == 'All' ? 'General' : dataSrc['name'],
                 style: TextStyle(
-                  fontSize: getPercentageWidth(2.5, context),
+                  fontSize: getTextScale(2.5, context),
                   fontWeight: FontWeight.w600,
                   color:
                       getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
@@ -769,7 +793,9 @@ class AllergyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(right: getPercentageWidth(4, context), bottom: getPercentageHeight(2, context)),
+      padding: EdgeInsets.only(
+          right: getPercentageWidth(4, context),
+          bottom: getPercentageHeight(2, context)),
       child: InkWell(
         onTap: () => onSelected(dataSrc.allergy),
         splashColor: kPrimaryColor.withOpacity(0.4),
@@ -778,7 +804,7 @@ class AllergyItem extends StatelessWidget {
         ),
         child: Container(
           padding: EdgeInsets.symmetric(
-            horizontal: getPercentageWidth(2, context), 
+            horizontal: getPercentageWidth(2, context),
             vertical: getPercentageHeight(1, context),
           ),
           decoration: BoxDecoration(
@@ -798,7 +824,7 @@ class AllergyItem extends StatelessWidget {
             dataSrc.allergy,
             style: TextStyle(
               color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-              fontSize: getPercentageWidth(3, context),
+              fontSize: getTextScale(3, context),
               fontWeight: FontWeight.w600,
             ),
           ),

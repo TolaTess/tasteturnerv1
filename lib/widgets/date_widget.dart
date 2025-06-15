@@ -225,7 +225,7 @@ class _CustomCircularProgressBarState extends State<CustomCircularProgressBar> {
                   '+',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.normal,
                   ),
                 );

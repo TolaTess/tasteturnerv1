@@ -354,13 +354,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                           color: kAccent,
                         ),
                       ),
                     ),
                     IconButton(
-                      iconSize: getPercentageWidth(5, context),
+                      iconSize: getIconScale(7, context),
                       icon: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
                       ),
@@ -458,10 +458,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: IconButton(
-                  iconSize: getPercentageWidth(8, context),
+                  iconSize: getIconScale(7, context),
                   icon: SvgPicture.asset('assets/images/svg/check.svg',
-                      height: getPercentageWidth(8, context),
-                      width: getPercentageWidth(8, context),
+                      height: getIconScale(7, context),
+                      width: getIconScale(7, context),
                       color: showDietCategories
                           ? kAccentLight
                           : isDarkMode

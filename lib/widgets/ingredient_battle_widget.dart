@@ -331,7 +331,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                   'Log more meals to see your top ingredients!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     fontStyle: FontStyle.italic,
                     color: kLightGrey,
                   ),
@@ -378,7 +378,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     child: Text(
                       'Ingredient Tug-of-War',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4, context),
+                        fontSize: getTextScale(4, context),
                         fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -408,8 +408,8 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             Flexible(
                               child: Text(
                                 _badgeTitle.value,
-                                style: const TextStyle(
-                                  fontSize: 12,
+                                style: TextStyle(
+                                  fontSize: getTextScale(2.5, context),
                                   fontWeight: FontWeight.w500,
                                   color: kAccent,
                                 ),
@@ -454,7 +454,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 style: TextStyle(
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageWidth(3.5, context),
+                                  fontSize: getTextScale(3.5, context),
                                 ),
                               ),
                               SizedBox(
@@ -463,7 +463,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 '${_count1.value} times',
                                 style: TextStyle(
                                   color: kWhite,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getTextScale(3, context),
                                 ),
                               ),
                             ],
@@ -497,7 +497,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 style: TextStyle(
                                   color: kWhite,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageWidth(3.5, context),
+                                  fontSize: getTextScale(3.5, context),
                                 ),
                               ),
                               SizedBox(
@@ -506,7 +506,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 '${_count2.value} times',
                                 style: TextStyle(
                                   color: kWhite,
-                                  fontSize: getPercentageWidth(2.5, context),
+                                  fontSize: getTextScale(2.5, context),
                                 ),
                               ),
                             ],
@@ -521,7 +521,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 Text(
                   'Based on your meal in last 7 days',
                   style: TextStyle(
-                    fontSize: getPercentageWidth(2.5, context),
+                    fontSize: getTextScale(2.5, context),
                     fontStyle: FontStyle.italic,
                     color: isDarkMode ? kLightGrey : kDarkGrey,
                   ),

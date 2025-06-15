@@ -102,9 +102,8 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
           getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
       title: Text('Add Family Members',
           style: TextStyle(
-              color:
-                  getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              fontSize: getPercentageWidth(3.5, context))),
+              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+              fontSize: getTextScale(3.5, context))),
       content: SizedBox(
         width: getPercentageWidth(70, context),
         child: ListView.builder(
@@ -126,7 +125,7 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                         color: getThemeProvider(context).isDarkMode
                             ? kWhite
                             : kDarkGrey,
-                        fontSize: getPercentageWidth(3, context)),
+                        fontSize: getTextScale(3, context)),
                     decoration: InputDecoration(
                         labelText: 'Name',
                         labelStyle: TextStyle(
@@ -182,7 +181,7 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
                 ),
                 IconButton(
                   icon: Icon(Icons.remove_circle,
-                      color: Colors.red, size: getPercentageWidth(5, context)),
+                      color: Colors.red, size: getIconScale(7, context)),
                   onPressed: members.length > 1
                       ? () {
                           _removeMember(index);
@@ -201,24 +200,21 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
           },
           child: Text('Cancel',
               style: TextStyle(
-                  color: getThemeProvider(context).isDarkMode
-                      ? kWhite
-                      : kDarkGrey,
-                  fontSize: getPercentageWidth(3, context))),
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                  fontSize: getTextScale(3, context))),
         ),
         TextButton(
           onPressed: _addMember,
-          child:
-              Text('Add Member',
-                  style: TextStyle(
-                      color: kAccentLight,
-                      fontSize: getPercentageWidth(3, context))),
+          child: Text('Add Member',
+              style: TextStyle(
+                  color: kAccentLight, fontSize: getTextScale(3, context))),
         ),
         TextButton(
           onPressed: _onDone,
           child: Text('Done',
               style: TextStyle(
-                  color: kAccent, fontSize: getPercentageWidth(3, context))),
+                  color: kAccent, fontSize: getTextScale(3, context))),
         ),
       ],
     );

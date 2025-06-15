@@ -152,7 +152,7 @@ class _TastyScreenState extends State<TastyScreen> {
             top: 20,
             left: 0,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
               child: IconButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -174,7 +174,7 @@ class _TastyScreenState extends State<TastyScreen> {
               Text(
                 'Premium Feature',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: getTextScale(4.5, context),
                   fontWeight: FontWeight.bold,
                   color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
@@ -186,7 +186,7 @@ class _TastyScreenState extends State<TastyScreen> {
                   'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: getTextScale(3, context),
                     color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
                   ),
                 ),
@@ -209,10 +209,10 @@ class _TastyScreenState extends State<TastyScreen> {
                     ),
                   );
                 },
-                child: const Text(
+                child: Text(
                   'Go Premium',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: getTextScale(3, context),
                     fontWeight: FontWeight.bold,
                     color: kWhite,
                   ),
@@ -287,7 +287,7 @@ class _TastyScreenState extends State<TastyScreen> {
                                   backgroundImage: const AssetImage(
                                     tastyImage, // Adjust the path to your tasty image
                                   ),
-                                  radius: getPercentageWidth(3, context),
+                                  radius: getResponsiveBoxSize(context, 18, 18),
                                 ),
                                 SizedBox(
                                     width: getPercentageWidth(1.5, context)),
@@ -299,7 +299,7 @@ class _TastyScreenState extends State<TastyScreen> {
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         fontSize:
-                                            getPercentageWidth(4, context),
+                                            getTextScale(4, context),
                                         color: themeProvider.isDarkMode
                                             ? kWhite
                                             : kDarkGrey,
@@ -407,7 +407,7 @@ class _TastyScreenState extends State<TastyScreen> {
                 controller: textController,
                 keyboardType: TextInputType.multiline,
                 style: TextStyle(
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   color: isDarkMode ? kWhite : kBlack,
                 ),
                 enabled: _canUserSendMessage(),
@@ -779,7 +779,7 @@ Greet the user warmly and offer guidance based on:
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
-                        fontSize: getPercentageWidth(3.5, context),
+                        fontSize: getTextScale(3.5, context),
                       ),
                 ),
                 Center(
@@ -788,7 +788,7 @@ Greet the user warmly and offer guidance based on:
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: isDarkMode ? kWhite : kBlack,
-                          fontSize: getPercentageWidth(3, context),
+                          fontSize: getTextScale(3, context),
                         ),
                   ),
                 ),

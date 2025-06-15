@@ -33,7 +33,7 @@ class TitleSection extends StatelessWidget {
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
@@ -49,7 +49,7 @@ class TitleSection extends StatelessWidget {
                 Text(
                   more,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     fontWeight: FontWeight.w500,
                     color: themeProvider.isDarkMode
                         ? kDarkModeAccent.withOpacity(0.70)

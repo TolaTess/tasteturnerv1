@@ -38,10 +38,10 @@ class IconCircleButton extends StatelessWidget {
                     : colorL)
         : Container(
             height: MediaQuery.of(context).size.height > 1000
-                ? getProportionalHeight(h, context) + 50
+                ? getProportionalHeight(h, context) + 40
                 : getProportionalHeight(h, context) + 35,
             width: MediaQuery.of(context).size.height > 1000
-                ? getProportionalWidth(w, context) + 50
+                ? getProportionalWidth(w, context) + 40
                 : getProportionalWidth(w, context) + 35,
             margin: const EdgeInsets.only(left: 5),
             alignment: Alignment.center,

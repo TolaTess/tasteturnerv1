@@ -104,7 +104,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         title: Text(
           capitalizeFirstLetter(widget.item.title),
           style: TextStyle(
-            fontSize: getPercentageWidth(5, context),
+            fontSize: getTextScale(5, context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -147,7 +147,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       // Convert the map into a formatted string and add calories
                       '${widget.item.macros.entries.map((entry) => '${entry.key.toUpperCase()}: ${entry.value}g').join(', ')}${widget.item.calories != null ? ', KCAL: ${widget.item.calories}' : ''}',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(2.5, context),
+                        fontSize: getTextScale(2.5, context),
                       ),
                     ),
                   ),
@@ -157,7 +157,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 Text(
                   'per 100 grams',
                   style: TextStyle(
-                    fontSize: getPercentageWidth(2, context),
+                    fontSize: getTextScale(2, context),
                   ),
                 ),
 
@@ -382,7 +382,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                             Text(
                               "You may also like",
                               style: TextStyle(
-                                fontSize: getPercentageWidth(4, context),
+                                fontSize: getTextScale(4, context),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -408,7 +408,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                                       "Refresh",
                                       style: TextStyle(
                                         color: isDarkMode ? kWhite : kBlack,
-                                        fontSize: getPercentageWidth(3, context),
+                                        fontSize: getTextScale(3, context),
                                       ),
                                     ),
                                     Icon(
@@ -429,7 +429,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     : const SizedBox.shrink(),
                 widget.isRefresh
                     ? Padding(
-                        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.5, context)),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(0.5, context)),
                         child: GridView.builder(
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
@@ -532,7 +533,7 @@ class RecomendationItem extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.clip,
             style: TextStyle(
-              fontSize: getPercentageWidth(3, context),
+              fontSize: getTextScale(3, context),
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -566,7 +567,7 @@ class TopFeatures extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w400,
               color: isDarkMode ? kWhite : kBlack,
-              fontSize: getPercentageWidth(4.5, context),
+              fontSize: getTextScale(4.5, context),
             ),
           ),
           SizedBox(width: getPercentageWidth(2, context)),
@@ -583,7 +584,9 @@ class TopFeatures extends StatelessWidget {
           ? const SizedBox.shrink()
           : Container(
               margin: EdgeInsets.only(right: getPercentageWidth(1, context)),
-              padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1.2, context), vertical: getPercentageHeight(0.8, context)),
+              padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(1.2, context),
+                  vertical: getPercentageHeight(0.8, context)),
               decoration: BoxDecoration(
                 color: kAccent.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(50),
@@ -594,7 +597,7 @@ class TopFeatures extends StatelessWidget {
                   Text(
                     getFeatureIcon(entry.key),
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(0.4, context)),
@@ -603,7 +606,7 @@ class TopFeatures extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? kWhite : kBlack,
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                     ),
                   ),
                 ],

@@ -285,7 +285,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         capitalizeFirstLetter(widget.meal.title),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                           fontWeight: FontWeight.bold,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -293,8 +293,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       SizedBox(height: getPercentageHeight(0.5, context)),
                       Text(
                         " $serves: ${widget.meal.serveQty}",
-                        style:
-                            TextStyle(fontSize: getPercentageWidth(3, context)),
+                        style: TextStyle(fontSize: getTextScale(3, context)),
                       ),
                     ],
                   ),
@@ -318,7 +317,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: kRed,
-                            size: getPercentageWidth(5, context),
+                            size: getResponsiveBoxSize(context, 15, 15),
                           ),
                         ),
                       ),
@@ -360,10 +359,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         }
                       },
                       icon:
-                          Icon(Icons.add, size: getPercentageWidth(5, context)),
+                          Icon(Icons.add, size: getResponsiveBoxSize(context, 15, 15)),
                       label: Text('Today\'s Meal',
-                          style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context))),
+                          style:
+                              TextStyle(fontSize: getTextScale(3.5, context))),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
                         padding: EdgeInsets.symmetric(
@@ -393,7 +392,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           child: Icon(
                             Icons.share,
                             color: kAccentLight,
-                            size: getPercentageWidth(4.5, context),
+                            size: getResponsiveBoxSize(context, 15, 15),
                           ),
                         ),
                       ),
@@ -405,10 +404,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       TextButton.icon(
                         onPressed: widget.onEdit,
                         icon: Icon(Icons.edit,
-                            size: getPercentageWidth(4, context)),
+                            size: getResponsiveBoxSize(context, 15, 15)),
                         label: Text('Edit Meal',
                             style: TextStyle(
-                                fontSize: getPercentageWidth(3.5, context))),
+                                fontSize: getTextScale(3.5, context))),
                         style: TextButton.styleFrom(
                           foregroundColor: kAccent,
                           padding: EdgeInsets.symmetric(
@@ -417,7 +416,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       ),
                       IconButton(
                         icon: Icon(Icons.delete_outline, color: kRed),
-                        iconSize: getPercentageWidth(5, context),
+                        iconSize: getIconScale(7, context),
                         tooltip: 'Delete Meal',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
@@ -436,7 +435,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                               ? kWhite
                                               : kDarkGrey,
                                       fontSize:
-                                          getPercentageWidth(4.5, context))),
+                                          getTextScale(4.5, context))),
                               content: Text(
                                   'Are you sure you want to delete this meal? This action cannot be undone.',
                                   style: TextStyle(
@@ -445,7 +444,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                               ? kWhite
                                               : kDarkGrey,
                                       fontSize:
-                                          getPercentageWidth(3.5, context))),
+                                          getTextScale(3.5, context))),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
@@ -456,16 +455,16 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                                   .isDarkMode
                                               ? kWhite
                                               : kDarkGrey,
-                                          fontSize: getPercentageWidth(
-                                              3.5, context))),
+                                          fontSize:
+                                              getTextScale(3.5, context))),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   child: Text('Delete',
                                       style: TextStyle(
                                           color: kRed,
-                                          fontSize: getPercentageWidth(
-                                              3.5, context))),
+                                          fontSize:
+                                              getTextScale(3.5, context))),
                                 ),
                               ],
                             ),
@@ -566,7 +565,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                     }
                   },
                   child: CircleAvatar(
-                    radius: getPercentageWidth(6, context),
+                    radius: getResponsiveBoxSize(context, 20, 20),
                     backgroundColor: kAccent.withOpacity(kOpacity),
                     child: CircleAvatar(
                       backgroundImage: widget.mealUser?.profileImage != null &&
@@ -575,7 +574,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                           ? NetworkImage(widget.mealUser!.profileImage!)
                           : const AssetImage(intPlaceholderImage)
                               as ImageProvider,
-                      radius: getPercentageWidth(5.5, context),
+                      radius: getResponsiveBoxSize(context, 18, 18),
                     ),
                   ),
                 ),
@@ -590,7 +589,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                       capitalizeFirstLetter(
                           widget.mealUser?.displayName ?? appName),
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4, context),
+                        fontSize: getTextScale(4, context),
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.bold,
                       ),
@@ -687,11 +686,12 @@ class NutritionFacts extends StatelessWidget {
                   children: [
                     // Nutrition type (key)
                     Text(
-                      capitalizeFirstLetter(nutritionEntries[index].key), // Display key
+                      capitalizeFirstLetter(
+                          nutritionEntries[index].key), // Display key
                       style: TextStyle(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.bold,
-                        fontSize: getPercentageWidth(3, context),
+                        fontSize: getTextScale(3, context),
                       ),
                     ),
                     // Quantity (value)
@@ -700,7 +700,7 @@ class NutritionFacts extends StatelessWidget {
                       style: TextStyle(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w500,
-                        fontSize: getPercentageWidth(2.5, context),
+                        fontSize: getTextScale(2.5, context),
                       ),
                     ),
                   ],
@@ -744,10 +744,11 @@ class IngredientsTittle extends StatelessWidget {
           children: [
             Text(ingredients,
                 style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
-            Text("${meal.ingredients.length} $items", style: TextStyle(fontSize: getPercentageWidth(2.5, context)))
+            Text("${meal.ingredients.length} $items",
+                style: TextStyle(fontSize: getTextScale(2.5, context)))
           ],
         ),
       ),
@@ -825,14 +826,14 @@ class IngredientsCard extends StatelessWidget {
               Text(
                 capitalizeFirstLetter(ingredientName),
                 style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     fontWeight: FontWeight.w700,
                     color: isDarkMode ? kWhite : kBlack),
               ),
               //ingredient quantity
               Text(ingredientQty,
                   style: TextStyle(
-                      fontSize: getPercentageWidth(2.5, context),
+                      fontSize: getTextScale(2.5, context),
                       fontWeight: FontWeight.w500,
                       color: isDarkMode ? kWhite : kBlack))
             ],
@@ -866,10 +867,11 @@ class DirectionsTittle extends StatelessWidget {
           children: [
             Text(directions,
                 style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold)),
-            Text("${meal.steps.length} steps", style: TextStyle(fontSize: getPercentageWidth(2.5, context)))
+            Text("${meal.steps.length} steps",
+                style: TextStyle(fontSize: getTextScale(2.5, context)))
           ],
         ),
       ),
@@ -938,13 +940,13 @@ class DirectionsCard extends StatelessWidget {
               'Step ${index + 1}',
               style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: getPercentageWidth(3, context),
+                  fontSize: getTextScale(3, context),
                   color: isDarkMode ? kWhite : kBlack),
             ),
             //direction
             Text(
               direction,
-              style: TextStyle(fontSize: getPercentageWidth(2.5, context)),
+              style: TextStyle(fontSize: getTextScale(2.5, context)),
             )
           ],
         ),

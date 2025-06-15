@@ -262,7 +262,7 @@ class _VoteScreenState extends State<VoteScreen> {
         title: Text(
           'Vote',
           style: TextStyle(
-            fontSize: getPercentageWidth(5, context),
+            fontSize: getTextScale(5, context),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -295,12 +295,12 @@ class _VoteScreenState extends State<VoteScreen> {
                 ),
               ] else ...[
                 const SizedBox(height: 25),
-                const Column(
+                Column(
                   children: [
                     Text(
                       'Vote for your favorite dish!',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: getTextScale(3, context),
                         fontWeight: FontWeight.w400,
                         color: kAccentLight,
                       ),
@@ -310,7 +310,7 @@ class _VoteScreenState extends State<VoteScreen> {
                       child: Text(
                         'Simply tap on the dish you like the most. \nRemember, presentation is key!',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: getTextScale(2.5, context),
                           fontWeight: FontWeight.w400,
                         ),
                         textAlign: TextAlign.center,

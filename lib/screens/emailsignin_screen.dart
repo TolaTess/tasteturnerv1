@@ -16,8 +16,7 @@ class EmailSigninScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const IconCircleButton(
-          ),
+          icon: const IconCircleButton(),
         ),
       ),
       body: SafeArea(
@@ -34,7 +33,7 @@ class EmailSigninScreen extends StatelessWidget {
                 Text(
                   "Sign In",
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4, context),
+                    fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -42,7 +41,7 @@ class EmailSigninScreen extends StatelessWidget {
                 Text(
                   welcomeMessage,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     color: kAccent,
                     fontStyle: FontStyle.italic,
                   ),
@@ -115,7 +114,7 @@ class _SigninFormState extends State<SigninForm> {
                     title: Text(
                       'Reset Password',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(3.5, context),
+                        fontSize: getTextScale(3.5, context),
                         color: kAccent,
                       ),
                     ),
@@ -125,7 +124,7 @@ class _SigninFormState extends State<SigninForm> {
                         Text(
                           'Enter your email address and we\'ll send you a link to reset your password.',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(3, context),
+                            fontSize: getTextScale(3, context),
                           ),
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),
@@ -134,7 +133,7 @@ class _SigninFormState extends State<SigninForm> {
                           decoration: InputDecoration(
                             hintText: 'Email',
                             hintStyle: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getTextScale(3.5, context),
                             ),
                             border: OutlineInputBorder(),
                           ),
@@ -147,7 +146,7 @@ class _SigninFormState extends State<SigninForm> {
                         child: Text(
                           'Cancel',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(3.3, context),
+                            fontSize: getTextScale(3.3, context),
                             color: isDarkMode ? kWhite : kBlack,
                           ),
                         ),
@@ -168,7 +167,7 @@ class _SigninFormState extends State<SigninForm> {
                         child: Text(
                           'Reset Password',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(3.5, context),
+                            fontSize: getTextScale(3.5, context),
                             color: kAccent,
                           ),
                         ),
@@ -180,7 +179,7 @@ class _SigninFormState extends State<SigninForm> {
               child: Text(
                 "Forgot password?",
                 style: TextStyle(
-                  fontSize: getPercentageWidth(3.5, context),
+                  fontSize: getTextScale(3.5, context),
                   decoration: TextDecoration.underline,
                 ),
               ),

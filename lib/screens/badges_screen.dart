@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -86,7 +85,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                                   child: Text(
                                     'Streak',
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(4, context),
+                                      fontSize: getTextScale(4, context),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -96,7 +95,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                                   return Text(
                                     '${dailyDataController.streakDays}',
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(10, context),
+                                      fontSize: getTextScale(10, context),
                                       fontWeight: FontWeight.bold,
                                       color: kAccentLight,
                                     ),
@@ -111,7 +110,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                                   child: Text(
                                     'Points',
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(4, context),
+                                      fontSize: getTextScale(4, context),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -120,7 +119,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                                   return Text(
                                     '${dailyDataController.pointsAchieved}',
                                     style: TextStyle(
-                                      fontSize: getPercentageWidth(10, context),
+                                      fontSize: getTextScale(10, context),
                                       fontWeight: FontWeight.bold,
                                       color: kAccentLight,
                                     ),
@@ -133,11 +132,12 @@ class _BadgesScreenState extends State<BadgesScreen> {
                       ),
                       if (dailyDataController.streakDays > 0)
                         Padding(
-                          padding: EdgeInsets.only(top: getPercentageHeight(1, context)), 
+                          padding: EdgeInsets.only(
+                              top: getPercentageHeight(1, context)),
                           child: Text(
                             "This is the longest Streak days you've ever had!",
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: getThemeProvider(context).isDarkMode
                                   ? kWhite
                                   : kDarkGrey,
@@ -166,20 +166,23 @@ class _BadgesScreenState extends State<BadgesScreen> {
                           final badge = myBadge[index];
                           return Container(
                             width: getPercentageWidth(30, context),
-                            margin: EdgeInsets.only(right: getPercentageWidth(1, context)),
+                            margin: EdgeInsets.only(
+                                right: getPercentageWidth(1, context)),
                             child: Column(
                               children: [
                                 // Background Image
                                 CircleAvatar(
-                                  radius: getPercentageWidth(10, context),
+                                  radius: getResponsiveBoxSize(context, 18, 18),
                                   backgroundImage: const AssetImage(
                                     'assets/images/vegetable_stamp.jpg',
                                   ),
                                 ),
-                                SizedBox(height: getPercentageHeight(1, context)),
+                                SizedBox(
+                                    height: getPercentageHeight(1, context)),
                                 Text(
                                   badge.title,
-                                  style: TextStyle(fontSize: getPercentageWidth(3, context)),
+                                  style: TextStyle(
+                                      fontSize: getTextScale(3, context)),
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -191,43 +194,45 @@ class _BadgesScreenState extends State<BadgesScreen> {
                       ),
                     ),
 
-                      SizedBox(height: getPercentageHeight(3, context)),
+                  SizedBox(height: getPercentageHeight(3, context)),
 
                   // Badge Categories
                   Text(
                     'Badges to Earn',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3.5, context),   
+                      fontSize: getTextScale(3.5, context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   SizedBox(height: getPercentageHeight(3, context)),
                   SizedBox(
-                    height: getPercentageHeight(20, context),  
+                    height: getPercentageHeight(20, context),
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: restBadge.length,
                       itemBuilder: (context, index) {
                         final category = restBadge[index];
                         return Container(
-                          width: getPercentageWidth(30, context),     
-                          margin: EdgeInsets.only(right: getPercentageWidth(1, context)),
+                          width: getPercentageWidth(30, context),
+                          margin: EdgeInsets.only(
+                              right: getPercentageWidth(1, context)),
                           child: Column(
                             children: [
                               // Background Image
                               Opacity(
                                 opacity: kMidOpacity,
                                 child: CircleAvatar(
-                                  radius: getPercentageWidth(10, context),
+                                  radius: getResponsiveBoxSize(context, 18, 18),
                                   backgroundImage: const AssetImage(
                                     'assets/images/vegetable_stamp.jpg',
                                   ),
                                 ),
                               ),
-                              SizedBox(height: getPercentageHeight(1, context)), 
+                              SizedBox(height: getPercentageHeight(1, context)),
                               Text(
                                 category.title,
-                                style: TextStyle(fontSize: getPercentageWidth(3, context)),
+                                style: TextStyle(
+                                    fontSize: getTextScale(3, context)),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -239,7 +244,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                     ),
                   ),
 
-                    SizedBox(height: getPercentageHeight(2, context)),
+                  SizedBox(height: getPercentageHeight(2, context)),
                 ],
               ),
             ),
@@ -251,14 +256,14 @@ class _BadgesScreenState extends State<BadgesScreen> {
 
   Widget _buildProgressItem(String label, String value, bool isDarkMode) {
     return Padding(
-      padding: EdgeInsets.only(bottom: getPercentageHeight(1, context)),  
+      padding: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
             label,
             style: TextStyle(
-              fontSize: getPercentageWidth(3.5, context),
+              fontSize: getTextScale(3.5, context),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -266,7 +271,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: getPercentageWidth(3.5, context),
+              fontSize: getTextScale(3.5, context),
               fontWeight: FontWeight.bold,
               color: kAccentLight,
             ),

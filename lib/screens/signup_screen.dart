@@ -120,7 +120,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               words[_index],
                               key: ValueKey<String>(words[_index]),
                               style: TextStyle(
-                                fontSize: getPercentageWidth(5, context),
+                                fontSize: getTextScale(5, context),
                                 fontWeight: FontWeight.w600,
                                 color: kDarkGrey,
                               ),
@@ -131,7 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         Text(
                           "with Confidence",
                           style: TextStyle(
-                            fontSize: getPercentageWidth(5, context),
+                            fontSize: getTextScale(5, context),
                             fontWeight: FontWeight.w600,
                             color: kWhite,
                           ),
@@ -214,7 +214,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                    SizedBox(height: getPercentageHeight(2.5, context)),
+                  SizedBox(height: getPercentageHeight(2.5, context)),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -222,7 +222,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       Text(
                         "Already have an account? ",
                         style: TextStyle(
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
                         ),
@@ -233,16 +233,15 @@ class _SignupScreenState extends State<SignupScreen> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                EmailSigninScreen(
-                          welcomeMessage: _welcomeMessage,
-                        ), // go to sign up screen
+                            builder: (context) => EmailSigninScreen(
+                              welcomeMessage: _welcomeMessage,
+                            ), // go to sign up screen
                           ),
                         ),
                         child: Text(
                           "Log in",
                           style: TextStyle(
-                            fontSize: getPercentageWidth(3.5, context),
+                            fontSize: getTextScale(3.5, context),
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             decoration: TextDecoration.underline,

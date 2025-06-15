@@ -84,14 +84,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           child: const IconCircleButton(),
         ),
         centerTitle: true,
-        title: Text("Edit Profile", style: TextStyle(fontSize: getPercentageWidth(4, context))),
+        title: Text("Edit Profile",
+            style: TextStyle(fontSize: getTextScale(4, context))),
       ),
       body: SafeArea(
         child: SizedBox(
           width: double.infinity,
           child: SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+              padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context)),
               child: Column(
                 children: [
                   SizedBox(height: getPercentageHeight(2, context)),

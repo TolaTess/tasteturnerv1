@@ -138,14 +138,14 @@ class _PremiumSectionState extends State<PremiumSection> {
           widget.titleOne,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: getPercentageWidth(3, context),
+            fontSize: getTextScale(3, context),
           ),
         ),
         Text(
           widget.titleTwo,
           style: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: getPercentageWidth(3, context),
+            fontSize: getTextScale(3, context),
           ),
         ),
       ],

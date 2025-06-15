@@ -206,7 +206,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           'No items available',
           style: TextStyle(
             color: isDarkMode ? kWhite : kBlack,
-            fontSize: 16,
+            fontSize: getTextScale(3, context),
           ),
         ),
       );
@@ -220,12 +220,10 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             children: [
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width > 1100
-                      ? getPercentageWidth(45, context)
+                  maxWidth: MediaQuery.of(context).size.width > 800
+                      ? getPercentageWidth(55, context)
                       : getPercentageWidth(65, context),
-                  minWidth: MediaQuery.of(context).size.width > 1100
-                      ? getPercentageWidth(25, context)
-                      : getPercentageWidth(45, context),
+                  minWidth: getPercentageWidth(45, context),
                 ),
                 child: WidgetSpinningWheel(
                   key: _spinningWheelKey,
@@ -259,7 +257,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           title: Text(
                             "Selected Option",
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.bold,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -267,7 +265,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           content: Text(
                             capitalizeFirstLetter(label),
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getTextScale(3.5, context),
                               color: isDarkMode ? kBlue : kAccent,
                             ),
                           ),
@@ -300,9 +298,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                 ),
               ),
               Positioned(
-                top: MediaQuery.of(context).size.height > 1100
-                    ? 17
-                    : 7,
+                top: MediaQuery.of(context).size.width > 800 ? 60 : 7,
                 child: SizedBox(
                   width: getPercentageWidth(6.5, context),
                   height: getPercentageWidth(6.5, context),
@@ -318,7 +314,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
               ),
             ],
           ),
-          SizedBox(height: getPercentageHeight(3, context)),
+          SizedBox(height: getProportionalHeight(2, context)),
           AcceptedItemsList(
             acceptedItems: acceptedItems,
             isMealSpin: widget.isMealSpin,
@@ -513,7 +509,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Text('No meals selected',
-                    style: TextStyle(fontSize: getPercentageWidth(3, context)));
+                    style: TextStyle(fontSize: getTextScale(3, context)));
               } else {
                 final displayedItems = snapshot.data!;
                 return _buildContent(context, displayedItems, true);
@@ -533,7 +529,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Text(
                   'No ingredients selected',
-                  style: TextStyle(fontSize: getPercentageWidth(3, context)),
+                  style: TextStyle(fontSize: getTextScale(3, context)),
                 );
               } else {
                 final displayedItems = snapshot.data!;
@@ -577,7 +573,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           Text(
                             '${widget.acceptedItems.length} ',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getTextScale(3.5, context),
                               fontWeight: FontWeight.bold,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -585,7 +581,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                           Text(
                             'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getTextScale(3.5, context),
                               fontWeight: FontWeight.w400,
                               color: isDarkMode ? kWhite : kBlack,
                             ),
@@ -620,8 +616,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                     capitalizeFirstLetter(
                                         widget.acceptedItems[i]),
                                     style: TextStyle(
-                                      fontSize:
-                                          getPercentageWidth(3.5, context),
+                                      fontSize: getTextScale(3.5, context),
                                       fontWeight: FontWeight.normal,
                                       color: kAccentLight,
                                     ),
@@ -629,7 +624,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.close,
-                                    size: getPercentageWidth(4.5, context),
+                                    size: getTextScale(4.5, context),
                                     color: kAccentLight,
                                   ),
                                 ],
@@ -648,7 +643,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                 Text(
                   '${widget.acceptedItems.length} ${widget.acceptedItems.length == 1 ? 'meal' : 'meals'} accepted',
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4.5, context),
+                    fontSize: getTextScale(4.5, context),
                     fontWeight: FontWeight.w800,
                     color: isDarkMode ? kWhite : kBlack,
                   ),
@@ -708,8 +703,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               : 'Go Premium to generate a meal!',
                       style: TextStyle(
                         fontSize: isMealSpin
-                            ? getPercentageWidth(3.5, context)
-                            : getPercentageWidth(3.5, context),
+                            ? getTextScale(3.5, context)
+                            : getTextScale(3.5, context),
                         fontWeight: FontWeight.w500,
                         color: isDarkMode ? kWhite : kBlack,
                       ),

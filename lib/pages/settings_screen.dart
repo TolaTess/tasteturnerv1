@@ -45,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
                       child: Text(
                         settings,
                         style: TextStyle(
-                          fontSize: getPercentageWidth(5, context),
+                          fontSize: getTextScale(5, context),
                         ),
                       ),
                     ),
@@ -60,7 +60,8 @@ class SettingsScreen extends StatelessWidget {
               width: double.infinity,
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context)),
                   child: Column(
                     children: [
                       SizedBox(
@@ -172,7 +173,7 @@ class _SettingCategoryState extends State<SettingCategory> {
                           Text(
                             widget.setting.category,
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                             ),
                           ),
                         ],
@@ -207,7 +208,7 @@ class _SettingCategoryState extends State<SettingCategory> {
                           Text(
                             widget.setting.category,
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                             ),
                           ),
                         ],

@@ -162,7 +162,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
             Text(
               isYearlyPlan ? 'Your Yearly Plan' : 'Your Monthly Plan',
               style: TextStyle(
-                fontSize: getPercentageWidth(5, context),
+                fontSize: getTextScale(5, context),
                 fontWeight: FontWeight.bold,
                 color: isDarkMode ? kLightGrey : kBlack,
               ),
@@ -170,8 +170,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               '\$${currentPrice.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 32,
+              style: TextStyle(
+                fontSize: getTextScale(5, context),
                 fontWeight: FontWeight.bold,
                 color: kAccent,
               ),
@@ -180,7 +180,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               Text(
                 '\$${perMonthPrice.toStringAsFixed(2)}/mo',
                 style: TextStyle(
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   color: isDarkMode ? kLightGrey : kBlack,
                 ),
               ),
@@ -214,7 +214,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     'Monthly',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(5, context),
+                      fontSize: getTextScale(5, context),
                       fontWeight: FontWeight.bold,
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
@@ -224,7 +224,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     Text(
                       '\$${monthlyPrice.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getTextScale(4.5, context),
                         decoration: TextDecoration.lineThrough,
                         color: isDarkMode ? Colors.grey : Colors.grey[600],
                       ),
@@ -232,7 +232,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '\$${monthlyPerMonth.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(5, context),
+                      fontSize: getTextScale(5, context),
                       fontWeight: FontWeight.bold,
                       color: kAccent,
                     ),
@@ -240,7 +240,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '/month',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
                   ),
@@ -275,7 +275,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       Text(
                         'Yearly',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(5, context),
+                          fontSize: getTextScale(5, context),
                           fontWeight: FontWeight.bold,
                           color: isDarkMode ? kLightGrey : kBlack,
                         ),
@@ -308,7 +308,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     Text(
                       '\$${yearlyPrice.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getTextScale(4.5, context),
                         decoration: TextDecoration.lineThrough,
                         color: isDarkMode ? Colors.grey : Colors.grey[600],
                       ),
@@ -316,7 +316,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '\$${discountedYearlyPrice.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(5, context),
+                      fontSize: getTextScale(5, context),
                       fontWeight: FontWeight.bold,
                       color: kAccent,
                     ),
@@ -324,7 +324,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Text(
                     '\$${yearlyPerMonth.toStringAsFixed(2)}/mo',
                     style: TextStyle(
-                      fontSize: getPercentageWidth(3.5, context),
+                      fontSize: getTextScale(3.5, context),
                       color: isDarkMode ? kLightGrey : kBlack,
                     ),
                   ),
@@ -351,7 +351,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
         title: Text(
           isUserPremium ? 'Your Plan' : 'Go Premium',
           style: TextStyle(
-            fontSize: getPercentageWidth(3.5, context),
+            fontSize: getTextScale(3.5, context),
           ),
         ),
         centerTitle: true,
@@ -374,7 +374,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         style: TextStyle(
-                            fontSize: getPercentageWidth(5, context),
+                            fontSize: getTextScale(5, context),
                             fontWeight: FontWeight.w300,
                             color: isDarkMode ? kLightGrey : kBlack),
                         children: [
@@ -396,7 +396,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ? 'You are currently enjoying an ad-free experience! Along with the below benefits.'
                           : 'Upgrade to Premium for an ad-free experience!',
                       style: TextStyle(
-                        fontSize: getPercentageWidth(4.5, context),
+                        fontSize: getTextScale(4.5, context),
                         fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
@@ -416,7 +416,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           Text(
                             isUserPremium ? '' : 'Premium Benefits',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4.5, context),
+                              fontSize: getTextScale(4.5, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -491,7 +491,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         child: Text(
                           'Cancel anytime',
                           style: TextStyle(
-                            fontSize: getPercentageWidth(4, context),
+                            fontSize: getTextScale(4, context),
                             color: isDarkMode ? kLightGrey : kBlack,
                           ),
                         ),
@@ -523,7 +523,7 @@ class BulletPoint extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: getPercentageWidth(4, context)),
+              style: TextStyle(fontSize: getTextScale(4, context)),
             ),
           ),
         ],

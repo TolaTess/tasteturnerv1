@@ -72,15 +72,15 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
             GestureDetector(
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: CircleAvatar(
-                radius: MediaQuery.of(context).size.height > 1000
-                    ? getPercentageHeight(2.2, context)
-                    : getPercentageHeight(2.5, context),
+                radius: MediaQuery.of(context).size.height > 1100
+                    ? getResponsiveBoxSize(context, 14, 14)
+                    : getResponsiveBoxSize(context, 18, 18),
                 backgroundColor: kAccent.withOpacity(kOpacity),
                 child: CircleAvatar(
                   backgroundImage: getAvatarImage(avatarUrl),
-                  radius: MediaQuery.of(context).size.height > 1000
-                      ? getPercentageHeight(2, context)
-                      : getPercentageHeight(2.2, context),
+                  radius: MediaQuery.of(context).size.height > 1100
+                      ? getResponsiveBoxSize(context, 12, 12)
+                      : getResponsiveBoxSize(context, 16, 16),
                 ),
               ),
             ),
@@ -90,7 +90,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 child: Text(
                   'Spin and Shop',
                   style: TextStyle(
-                    fontSize: getPercentageWidth(4.5, context),
+                    fontSize: getTextScale(4.5, context),
                     fontWeight: FontWeight.w400,
                     color:
                         themeProvider.isDarkMode ? Colors.white : Colors.black,
@@ -152,7 +152,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
               indicatorColor: themeProvider.isDarkMode ? kWhite : kBlack,
               labelStyle: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
               ),
               labelColor: themeProvider.isDarkMode ? kWhite : kBlack,
               unselectedLabelColor: kLightGrey,

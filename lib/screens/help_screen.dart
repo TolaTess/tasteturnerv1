@@ -21,11 +21,11 @@ class HelpSupport extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Center(
+                Center(
                   child: Text(
                     'Frequently Asked Questions',
                     style: TextStyle(
-                        fontSize: 20,
+                        fontSize: getTextScale(4.5, context),
                         fontWeight: FontWeight.bold,
                         color: kAccent),
                     textAlign: TextAlign.center,
@@ -54,7 +54,7 @@ class HelpSupport extends StatelessWidget {
                         'More FAQs',
                         style: TextStyle(
                           color: kAccentLight,
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                           decoration: TextDecoration.underline,
                         ),
                       ),
@@ -71,7 +71,7 @@ class HelpSupport extends StatelessWidget {
                         'Privacy Policy',
                         style: TextStyle(
                           color: kAccentLight,
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                           decoration: TextDecoration.underline,
                         ),
                       ),
@@ -88,7 +88,7 @@ class HelpSupport extends StatelessWidget {
                           'Our website',
                           style: TextStyle(
                             color: kAccentLight,
-                            fontSize: getPercentageWidth(4, context),
+                            fontSize: getTextScale(4, context),
                             decoration: TextDecoration.underline,
                           ),
                         ),

@@ -291,8 +291,8 @@ class TutorialPopupService {
                   message,
                   style: TextStyle(
                     fontSize: MediaQuery.of(context).size.width > 1000
-                        ? getPercentageWidth(2.5, context)
-                        : getPercentageWidth(3, context),
+                        ? getTextScale(2.5, context)
+                        : getTextScale(3, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
@@ -314,7 +314,7 @@ class TutorialPopupService {
               child: Text(
                 'Got it',
                 style: TextStyle(
-                    color: kAccent, fontSize: getPercentageWidth(3, context)),
+                    color: kAccent, fontSize: getTextScale(3, context)),
               ),
             ),
           ),

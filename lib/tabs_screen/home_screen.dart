@@ -286,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       drawer: const CustomDrawer(),
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(getProportionalHeight(100, context)),
+        preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
         child: Container(
           decoration: BoxDecoration(
             color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
@@ -311,11 +311,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             },
                             child: CircleAvatar(
                               key: _addProfileButtonKey,
-                              radius: getPercentageWidth(6, context),
+                              radius: getResponsiveBoxSize(context, 20, 20),
                               backgroundColor: kAccent.withOpacity(kOpacity),
                               child: CircleAvatar(
                                 backgroundImage: getAvatarImage(avatarUrl),
-                                radius: getPercentageWidth(5.5, context),
+                                radius: getResponsiveBoxSize(context, 18, 18),
                               ),
                             ),
                           );
@@ -331,8 +331,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 fontSize:
                                     currentUser.displayName?.length != null &&
                                             currentUser.displayName!.length > 10
-                                        ? getPercentageWidth(4, context)
-                                        : getPercentageWidth(4.5, context),
+                                        ? getTextScale(4, context)
+                                        : getTextScale(4.5, context),
                               ),
                             ),
                             Text(
@@ -341,8 +341,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 fontSize:
                                     currentUser.displayName?.length != null &&
                                             currentUser.displayName!.length > 15
-                                        ? getPercentageWidth(2.5, context)
-                                        : getPercentageWidth(3, context),
+                                        ? getTextScale(2.5, context)
+                                        : getTextScale(3, context),
                                 fontWeight: FontWeight.w400,
                                 color: kLightGrey,
                                 overflow: TextOverflow.ellipsis,
@@ -367,9 +367,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           },
                           child: SvgPicture.asset(
                             'assets/images/svg/message.svg',
-                            height: getPercentageWidth(6.5, context),
-                            width: getPercentageWidth(6.5, context),
-                            color: isDarkMode ? kAccent : kDarkGrey,
+                            height: getIconScale(8, context),
+                            width: getIconScale(8, context),
+                            color: isDarkMode
+                                ? kAccent
+                                : kDarkGrey.withOpacity(0.7),
                           ),
                         ),
                         SizedBox(width: getPercentageWidth(2, context)),
@@ -409,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 unreadCount.toString(),
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: getPercentageWidth(2.5, context),
+                                  fontSize: getTextScale(2.5, context),
                                 ),
                               ),
                             );
@@ -467,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         icon: Icon(
                           Icons.arrow_back_ios_new,
-                          size: getPercentageWidth(4.5, context),
+                          size: getIconScale(7, context),
                           color: currentDate.isBefore(DateTime.now()
                                   .subtract(const Duration(days: 7)))
                               ? isDarkMode
@@ -481,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Text(
                             '${getRelativeDayString(currentDate)},',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -491,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Text(
                               DateFormat('d MMMM').format(currentDate),
                               style: TextStyle(
-                                fontSize: getPercentageWidth(4, context),
+                                fontSize: getTextScale(4, context),
                                 fontWeight: FontWeight.w400,
                                 color: Colors.amber[700],
                               ),
@@ -520,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         icon: Icon(
                           Icons.arrow_forward_ios,
-                          size: getPercentageWidth(4.5, context),
+                          size: getIconScale(7, context),
                           color: getCurrentDate(currentDate)
                               ? isDarkMode
                                   ? kLightGrey.withOpacity(0.5)
@@ -598,15 +600,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Row(
                       children: [
                         Icon(Icons.shopping_cart,
-                            color: kAccent,
-                            size: getPercentageWidth(10, context)),
+                            color: kAccent, size: getIconScale(7, context)),
                         SizedBox(width: getPercentageWidth(1, context)),
                         Expanded(
                           child: Text(
                             "It's your shopping day! Don't forget to check your shopping list.",
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: getPercentageWidth(3.5, context),
+                              fontSize: getTextScale(3.5, context),
                               color: kAccent,
                             ),
                           ),
@@ -632,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           },
                           child: Text('Go',
                               style: TextStyle(
-                                  fontSize: getPercentageWidth(3.5, context))),
+                                  fontSize: getTextScale(3.5, context))),
                         ),
                       ],
                     ),
@@ -694,25 +695,20 @@ double _calculateHeight({
       ? maxHeight
       : MediaQuery.of(context).size.height;
 
-  double designHeight;
-  print('availableHeight: $availableHeight');
-  print('hasFamilyMode: $hasFamilyMode');
-  print('hasMealPlan: $hasMealPlan');
+  final double availableWidth = MediaQuery.of(context).size.width;
 
-  if (availableHeight > 1100) {
+  double designHeight;
+
+  if (availableHeight > 1000 && availableWidth > 800) {
     designHeight =
-        hasFamilyMode ? (hasMealPlan ? 570 : 435) : (hasMealPlan ? 485 : 350);
-  } else if (availableHeight > 855 && availableHeight < 1009) {
+        hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);
+  } else if (availableHeight > 855 && availableHeight < 1001) {
     designHeight =
         hasFamilyMode ? (hasMealPlan ? 470 : 350) : (hasMealPlan ? 385 : 270);
-  } else if (availableHeight > 700 && availableHeight <= 855) {
-    designHeight =
-        hasFamilyMode ? (hasMealPlan ? 590 : 440) : (hasMealPlan ? 520 : 370);
   } else {
     designHeight =
-        hasFamilyMode ? (hasMealPlan ? 540 : 390) : (hasMealPlan ? 460 : 320);
+        hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);
   }
-
   double calculated = (designHeight / 840.0) * availableHeight;
 
   // Clamp to availableHeight to avoid overflow

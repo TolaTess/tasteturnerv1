@@ -159,7 +159,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         title: Text(
           'Leaderboard',
           style: TextStyle(
-              fontSize: getPercentageWidth(3.5, context),
+              fontSize: getTextScale(3.5, context),
               fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
@@ -171,7 +171,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 right: MediaQuery.of(context).size.width > 1100
                     ? getPercentageWidth(2, context)
                     : getPercentageWidth(0.5, context)),
-            icon: Icon(Icons.refresh, size: getPercentageWidth(6, context)),
+            icon: Icon(Icons.refresh, size: getIconScale(7, context)),  
             onPressed: _onRefresh,
           ),
         ],
@@ -204,13 +204,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                   color: getThemeProvider(context).isDarkMode
                                       ? kWhite
                                       : kBlack,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getTextScale(3, context),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               SizedBox(width: getPercentageWidth(1.2, context)),
                               CircleAvatar(
-                                radius: getPercentageWidth(2, context),
+                                radius: getResponsiveBoxSize(context, 10, 10),
                                 backgroundImage: _getImageProvider(
                                     currentUserRank!['profileImage']),
                               ),
@@ -222,7 +222,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                     color: getThemeProvider(context).isDarkMode
                                         ? kWhite
                                         : kBlack,
-                                    fontSize: getPercentageWidth(3, context),
+                                    fontSize: getTextScale(3, context),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -233,7 +233,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                                   color: getThemeProvider(context).isDarkMode
                                       ? kWhite
                                       : kBlack,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getTextScale(3, context),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -303,23 +303,23 @@ class LeaderboardItem extends StatelessWidget {
     if (rank == 1) {
       return Text(
         '🥇',
-        style: TextStyle(fontSize: getPercentageWidth(6, context)),
+        style: TextStyle(fontSize: getTextScale(6, context)),
       );
     } else if (rank == 2) {
       return Text(
         '🥈',
-        style: TextStyle(fontSize: getPercentageWidth(6, context)),
+        style: TextStyle(fontSize: getTextScale(6, context)),
       );
     } else if (rank == 3) {
       return Text(
         '🥉',
-        style: TextStyle(fontSize: getPercentageWidth(6, context)),
+        style: TextStyle(fontSize: getTextScale(6, context)),
       );
     } else {
       return Text(
         "#$rank",
         style: TextStyle(
-          fontSize: getPercentageWidth(5, context),
+          fontSize: getTextScale(5, context),
           fontWeight: FontWeight.w600,
           color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
         ),
@@ -350,7 +350,7 @@ class LeaderboardItem extends StatelessWidget {
               );
             },
             child: CircleAvatar(
-              radius: getPercentageWidth(5.5, context),
+              radius: getResponsiveBoxSize(context, 18, 18),
               backgroundImage: getImageProvider(imageUrl),
             ),
           ),
@@ -359,7 +359,7 @@ class LeaderboardItem extends StatelessWidget {
             child: Text(
               name,
               style: TextStyle(
-                fontSize: getPercentageWidth(4, context),
+                fontSize: getTextScale(4, context),
                 fontWeight: FontWeight.w600,
                 color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
               ),
@@ -368,7 +368,7 @@ class LeaderboardItem extends StatelessWidget {
           Text(
             "$points",
             style: TextStyle(
-              fontSize: getPercentageWidth(4, context),
+              fontSize: getTextScale(4, context),
               fontWeight: FontWeight.w600,
               color: kAccent,
             ),

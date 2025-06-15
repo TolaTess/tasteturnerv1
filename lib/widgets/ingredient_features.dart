@@ -182,7 +182,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
           'Ingredient Features',
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            fontSize: getPercentageWidth(4, context),
+            fontSize: getTextScale(4, context),
           ),
         ),
       ),
@@ -202,7 +202,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
           Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(1, context)),
+                horizontal: getPercentageWidth(2, context),
+                vertical: getPercentageHeight(1, context)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -210,7 +211,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                   'Ingredients',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: getPercentageWidth(3.5, context),
+                    fontSize: getTextScale(3.5, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
@@ -246,7 +247,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                               'See More',
                               style: TextStyle(
                                   color: kWhite,
-                                  fontSize: getPercentageWidth(3, context)),
+                                  fontSize: getTextScale(3, context)),
                             ),
                     ),
                   ),
@@ -279,8 +280,10 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                         child: Builder(
                           builder: (context) {
                             // Calculate total table width
-                            final double checkboxColWidth = getPercentageWidth(10, context);
-                            final double titleColWidth = getPercentageWidth(20, context);
+                            final double checkboxColWidth =
+                                getPercentageWidth(10, context);
+                            final double titleColWidth =
+                                getPercentageWidth(20, context);
                             final double featureColWidth =
                                 getPercentageWidth(20, context);
                             final double totalTableWidth = checkboxColWidth +
@@ -305,8 +308,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                             'Check \nto save',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w500,
-                                              fontSize: getPercentageWidth(
-                                                  3, context),
+                                              fontSize:
+                                                  getTextScale(3, context),
                                               color: kAccentLight,
                                             ),
                                             textAlign: TextAlign.center,
@@ -329,7 +332,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                     color: isDarkMode
                                                         ? kPrimaryColor
                                                         : kBlack,
-                                                    fontSize: getPercentageWidth(3, context),
+                                                    fontSize: getTextScale(
+                                                        3, context),
                                                   ),
                                                 ),
                                               ),
@@ -406,8 +410,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                       item.title),
                                                   style: TextStyle(
                                                     fontSize:
-                                                        getPercentageWidth(
-                                                            3, context),
+                                                        getTextScale(3, context),
                                                     fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
@@ -456,7 +459,10 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .w500,
-                                                                  fontSize: getPercentageWidth(2.5, context),
+                                                                  fontSize:
+                                                                      getTextScale(
+                                                                          2.5,
+                                                                          context),
                                                                   color: checkSeason(
                                                                       featureValue
                                                                           .toString())),
@@ -495,7 +501,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                           ? '${featureValue.toString()}'
                                                                           : '-',
                                                                       style: TextStyle(
-                                                                          fontSize: getPercentageWidth(
+                                                                          fontSize: getTextScale(
                                                                               2,
                                                                               context)),
                                                                     ),
@@ -512,7 +518,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                                                                       TextOverflow
                                                                           .ellipsis,
                                                                   style: TextStyle(
-                                                                      fontSize: getPercentageWidth(2.5, context)),
+                                                                      fontSize: getTextScale(
+                                                                          2.5,
+                                                                          context)),
                                                                 ),
                                                 ),
                                               ),

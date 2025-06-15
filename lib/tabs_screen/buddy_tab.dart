@@ -278,7 +278,7 @@ class _BuddyTabState extends State<BuddyTab> {
               Text(
                 isPremium ? tastyMessage : tastyMessage1,
                 style: TextStyle(
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -294,7 +294,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           : tastyMessage4,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: getPercentageWidth(3, context),
+                    fontSize: getTextScale(3, context),
                     color: Colors.grey,
                   ),
                 ),
@@ -413,7 +413,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         style: TextStyle(
                           color: getDayTypeColor('chef tasty', isDarkMode),
                           fontWeight: FontWeight.w600,
-                          fontSize: getPercentageWidth(4.8, context),
+                          fontSize: getTextScale(4.8, context),
                         ),
                       ),
                     ),
@@ -429,7 +429,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         'Generate New Plan',
                         style: TextStyle(
                           color: isDarkMode ? kWhite : kBlack,
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                         ),
                       ),
                     ),
@@ -445,7 +445,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             parts[0] + ':',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.w600,
                               color: kAccent,
                             ),
@@ -453,7 +453,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             parts.length > 1 ? parts[1] : '',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: kLightGrey,
                               fontWeight: FontWeight.w500,
                             ),
@@ -471,14 +471,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCalories']}',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Calories',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -489,14 +489,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Protein',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -507,14 +507,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Carbs',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -525,14 +525,14 @@ class _BuddyTabState extends State<BuddyTab> {
                           Text(
                             '${selectedGeneration['nutritionalSummary']['totalFat']}g',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Fat',
                             style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               color: Colors.grey,
                             ),
                           ),
@@ -581,14 +581,14 @@ class _BuddyTabState extends State<BuddyTab> {
                                           color:
                                               isDarkMode ? kWhite : kDarkGrey,
                                           fontWeight: FontWeight.w500,
-                                          fontSize: getPercentageWidth(
-                                              3.5, context))),
+                                          fontSize:
+                                              getTextScale(3.5, context))),
                                   subtitle: Text('Start: $formattedDate',
                                       style: TextStyle(
                                           color:
                                               isDarkMode ? kWhite : kDarkGrey,
                                           fontSize:
-                                              getPercentageWidth(3, context))),
+                                              getTextScale(3, context))),
                                   onTap: () async {
                                     Navigator.pop(ctx);
                                     await helperController.saveMealPlanBuddy(
@@ -632,7 +632,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           vertical: getPercentageHeight(1, context)),
                       child: Text('Add meals to your calendar',
                           style: TextStyle(
-                              fontSize: getPercentageWidth(4, context),
+                              fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.w600,
                               color: kAccent)),
                     ),
@@ -730,7 +730,7 @@ class _BuddyTabState extends State<BuddyTab> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
-                                fontSize: getPercentageWidth(3.5, context),
+                                fontSize: getTextScale(3.5, context),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -746,7 +746,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                   '${meal['calories'] ?? 0} kcal',
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.7),
-                                    fontSize: getPercentageWidth(3, context),
+                                    fontSize: getTextScale(3, context),
                                   ),
                                 ),
                               ],

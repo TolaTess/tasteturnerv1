@@ -131,10 +131,15 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
       if (widget.isFamilyMode && widget.familyMember != null) {
         // Append family member to each meal ID for family mode
-        if (widget.familyMember?.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
-          selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${userService.userId}').toList();
+        if (widget.familyMember?.toLowerCase() ==
+            userService.currentUser?.displayName?.toLowerCase()) {
+          selectedMealIds = selectedMealIds
+              .map((mealId) => '$mealId/${userService.userId}')
+              .toList();
         } else {
-          selectedMealIds = selectedMealIds.map((mealId) => '$mealId/${widget.familyMember}').toList();
+          selectedMealIds = selectedMealIds
+              .map((mealId) => '$mealId/${widget.familyMember}')
+              .toList();
         }
       }
 
@@ -185,14 +190,16 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
                     // Home app bar
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(0.5, context)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(0.5, context)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Back arrow
                           InkWell(
                             onTap: () {
-                              if (widget.isBack || widget.isBackToMealPlan == true) {
+                              if (widget.isBack ||
+                                  widget.isBackToMealPlan == true) {
                                 Get.back();
                               } else {
                                 Get.to(() => const BottomNavSec(
@@ -207,7 +214,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                           Text(
                             'Meals',
                             style: TextStyle(
-                                fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w700),
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.w700),
                           ),
                           // Add new recipe button
                           InkWell(
@@ -283,23 +291,23 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       floatingActionButton: widget.isMealplan
           ? MediaQuery.of(context).size.height > 1100
               ? FloatingActionButton.large(
-              onPressed: selectedMealIds.isNotEmpty
-                  ? () => addMealsToMealPlan(
-                      appendMealTypes(selectedMealIds), widget.mealPlanDate)
-                  : null,
-              backgroundColor:
-                  selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
-              child: Icon(Icons.save, size: getPercentageWidth(6, context)),
-            )
-          : FloatingActionButton(
-              onPressed: selectedMealIds.isNotEmpty
-                  ? () => addMealsToMealPlan(
-                      appendMealTypes(selectedMealIds), widget.mealPlanDate)
-                  : null,
-              backgroundColor:
-                  selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
-              child: Icon(Icons.save, size: getPercentageWidth(6, context)),
-            )
+                  onPressed: selectedMealIds.isNotEmpty
+                      ? () => addMealsToMealPlan(
+                          appendMealTypes(selectedMealIds), widget.mealPlanDate)
+                      : null,
+                  backgroundColor:
+                      selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
+                  child: Icon(Icons.save, size: getPercentageWidth(6, context)),
+                )
+              : FloatingActionButton(
+                  onPressed: selectedMealIds.isNotEmpty
+                      ? () => addMealsToMealPlan(
+                          appendMealTypes(selectedMealIds), widget.mealPlanDate)
+                      : null,
+                  backgroundColor:
+                      selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
+                  child: Icon(Icons.save, size: getPercentageWidth(6, context)),
+                )
           : null,
     );
   }

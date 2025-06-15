@@ -50,15 +50,18 @@ class _FriendScreenState extends State<FriendScreen> {
           child: Text(
             textAlign: TextAlign.center,
             'Friends',
-            style: TextStyle(fontSize: getPercentageWidth(4, context), fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: getTextScale(4, context),
+                fontWeight: FontWeight.w500),
           ),
         ),
       ),
       body: Column(
         children: [
-            SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(1, context)),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context)),
             child: SearchButton2(
               controller: _searchController,
               onChanged: _onSearchChanged,
@@ -171,7 +174,7 @@ class _FriendScreenState extends State<FriendScreen> {
                             style: TextStyle(
                               color: themeProvider.isDarkMode ? kWhite : kBlack,
                               fontWeight: FontWeight.w500,
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 2,

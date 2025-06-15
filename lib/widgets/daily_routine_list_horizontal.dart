@@ -220,7 +220,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                       Text(
                         !_badgeAwarded ? 'Daily Routine' : 'Routine',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(4, context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -228,7 +228,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                       IconButton(
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        iconSize: getPercentageWidth(5, context),
+                        iconSize: getIconScale(7, context), 
                         color: kAccentLight.withOpacity(0.8),
                         onPressed: () async {
                           await Get.to(() => const NutritionSettingsPage(
@@ -236,7 +236,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               ));
                           controller.loadRoutineItems();
                         },
-                        icon: const Icon(Icons.edit),
+                        icon: Icon(Icons.edit, size: getIconScale(6, context)), 
                       ),
                     ],
                   ),
@@ -256,7 +256,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                           Icon(
                             Icons.emoji_events,
                             color: kAccentLight.withOpacity(0.8),
-                            size: getPercentageWidth(5, context),
+                            size: getIconScale(7, context), 
                           ),
                         SizedBox(width: getPercentageHeight(0.5, context)),
                         Text(
@@ -264,7 +264,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                           style: TextStyle(
                             color: kAccent,
                             fontWeight: FontWeight.bold,
-                            fontSize: getPercentageWidth(3, context),
+                            fontSize: getTextScale(3, context),
                           ),
                         ),
                       ],
@@ -320,7 +320,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               decorationColor:
                                   isDarkMode ? kWhite : kAccentLight,
                               decorationThickness: 2,
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               fontWeight: FontWeight.w600,
                             ),
                           ),

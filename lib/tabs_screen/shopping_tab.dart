@@ -101,7 +101,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                           day,
                           style: TextStyle(
                             color: isDarkMode ? kWhite : kBlack,
-                            fontSize: getPercentageWidth(3.5, context),
+                            fontSize: getTextScale(3.5, context),
                           ),
                         ),
                         if (_selectedDay == day)
@@ -203,14 +203,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                         style: TextStyle(
                                             color: kAccent,
                                             fontWeight: FontWeight.w600,
-                                            fontSize: getPercentageWidth(
-                                                4, context))),
+                                            fontSize:
+                                                getTextScale(4, context))),
                                     content: Text(
                                         'Shopping List based on your meal plan for this week. \nDo you want to update?',
                                         style: TextStyle(
                                             color: isDarkMode ? kWhite : kBlack,
-                                            fontSize: getPercentageWidth(
-                                                3.5, context))),
+                                            fontSize:
+                                                getTextScale(3.5, context))),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.pop(context),
@@ -219,8 +219,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                                 color: isDarkMode
                                                     ? kWhite
                                                     : kBlack,
-                                                fontSize: getPercentageWidth(
-                                                    3, context))),
+                                                fontSize:
+                                                    getTextScale(3, context))),
                                       ),
                                       TextButton(
                                         onPressed: () async {
@@ -235,8 +235,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                         child: Text('Update',
                                             style: TextStyle(
                                                 color: kAccent,
-                                                fontSize: getPercentageWidth(
-                                                    3, context))),
+                                                fontSize:
+                                                    getTextScale(3, context))),
                                       ),
                                     ],
                                   ),
@@ -256,7 +256,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                   ? kAccent
                                   : (isDarkMode ? kWhite : kBlack),
                               fontWeight: FontWeight.bold,
-                              fontSize: getPercentageWidth(
+                              fontSize: getTextScale(
                                   showGroceryList ? 3.5 : 3, context))),
                       Switch(
                         value: showGroceryList,
@@ -278,7 +278,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                   ? kAccent
                                   : (isDarkMode ? kWhite : kBlack),
                               fontWeight: FontWeight.bold,
-                              fontSize: getPercentageWidth(
+                              fontSize: getTextScale(
                                   showGroceryList ? 3 : 3.5, context))),
                     ],
                   ),
@@ -288,7 +288,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       child: Text(
                         'Last week\'s list:',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                           fontWeight: FontWeight.w600,
                           color: kAccent,
                         ),
@@ -310,7 +310,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         textAlign: TextAlign.center,
                         'SEE MORE INGREDIENTS',
                         style: TextStyle(
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.5, context),
                           fontWeight: FontWeight.w600,
                           color: kAccentLight,
                         ),
@@ -362,7 +362,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize:
-                                          getPercentageWidth(4.5, context),
+                                          getTextScale(4, context),
                                       color: kAccent,
                                     ),
                                   ),
@@ -397,8 +397,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                           style: TextStyle(
                                             color: kAccent,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: getPercentageWidth(
-                                                3.5, context),
+                                            fontSize:
+                                                getTextScale(3, context),
                                           ),
                                         ),
                                       ],
@@ -414,7 +414,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize:
-                                          getPercentageWidth(4.5, context),
+                                            getTextScale(4, context),
                                       color: kAccent,
                                     ),
                                   ),
@@ -455,8 +455,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                           return Text(
                                             '$purchased / $total',
                                             style: TextStyle(
-                                              fontSize: getPercentageWidth(
-                                                  3.5, context),
+                                              fontSize:
+                                                  getTextScale(3, context),
                                               fontWeight: FontWeight.bold,
                                               color: kAccent,
                                             ),
@@ -484,7 +484,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                       child: Text(
                           'Your generated shopping list from this week\'s Meal Plan',
                           style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               overflow: TextOverflow.ellipsis,
                               fontWeight: FontWeight.w400,
                               color: kAccent)),
@@ -494,7 +494,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   ? Center(
                       child: Text('Your selected and spin list',
                           style: TextStyle(
-                              fontSize: getPercentageWidth(3, context),
+                              fontSize: getTextScale(3, context),
                               fontWeight: FontWeight.w400,
                               color: kAccent)),
                     )

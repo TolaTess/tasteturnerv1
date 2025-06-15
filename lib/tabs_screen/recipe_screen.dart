@@ -447,7 +447,8 @@ class MealsCard extends StatelessWidget {
         }
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(1, context)),
+        padding:
+            EdgeInsets.symmetric(horizontal: getPercentageWidth(1, context)),
         // Image + Shade
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -500,12 +501,13 @@ class MealsCard extends StatelessWidget {
                 style: TextStyle(
                   color: kWhite,
                   fontWeight: FontWeight.w600,
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   shadows: [
                     Shadow(
                       blurRadius: getPercentageWidth(1.5, context),
                       color: kBlack,
-                      offset: Offset(getPercentageWidth(0.3, context), getPercentageWidth(0.3, context)),
+                      offset: Offset(getPercentageWidth(0.3, context),
+                          getPercentageWidth(0.3, context)),
                     ),
                   ],
                 ),
@@ -521,12 +523,13 @@ class MealsCard extends StatelessWidget {
                       : dataSrc.subtitle,
               style: TextStyle(
                 color: kWhite,
-                fontSize: getPercentageWidth(3, context),
+                fontSize: getTextScale(3, context),
                 shadows: [
                   Shadow(
                     blurRadius: getPercentageWidth(1.5, context),
                     color: kBlack,
-                    offset: Offset(getPercentageWidth(0.3, context), getPercentageWidth(0.3, context)),
+                    offset: Offset(getPercentageWidth(0.3, context),
+                        getPercentageWidth(0.3, context)),
                   ),
                 ],
               ),

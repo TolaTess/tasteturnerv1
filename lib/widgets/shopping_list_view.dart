@@ -129,7 +129,9 @@ class _ShoppingListViewState extends State<ShoppingListView> {
             final isFallback = macro.id == null || macro.title.isEmpty;
 
             Widget listItem = Container(
-              margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(0.5, context)),
+              margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(0.5, context)),
               decoration: BoxDecoration(
                 color:
                     isDarkMode ? Colors.white.withOpacity(0.05) : Colors.white,
@@ -146,7 +148,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
               child: ListTile(
                 leading: isFallback
                     ? CircleAvatar(
-                        radius: getPercentageWidth(6, context),
+                        radius: getResponsiveBoxSize(context, 18, 18),
                         backgroundColor: kAccentLight.withOpacity(0.2),
                         child: Text(
                           idWithoutAmount.isNotEmpty
@@ -155,12 +157,12 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                           style: TextStyle(
                             color: kAccent,
                             fontWeight: FontWeight.bold,
-                            fontSize: getPercentageWidth(4, context),
+                            fontSize: getTextScale(4, context),
                           ),
                         ),
                       )
                     : CircleAvatar(
-                        radius: getPercentageWidth(6, context),
+                        radius: getResponsiveBoxSize(context, 18, 18),
                         backgroundImage: macro.mediaPaths.isNotEmpty &&
                                 macro.mediaPaths.first.startsWith('http')
                             ? NetworkImage(macro.mediaPaths.first)
@@ -174,7 +176,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     ? Text(
                         capitalizeFirstLetter(idWithoutAmount),
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(3.5, context),
                           fontWeight: FontWeight.w500,
                           color: purchased
                               ? kAccentLight
@@ -188,7 +190,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     : Text(
                         capitalizeFirstLetter(macro.title),
                         style: TextStyle(
-                          fontSize: getPercentageWidth(4, context),
+                          fontSize: getTextScale(3.5, context),
                           fontWeight: FontWeight.w500,
                           color: purchased
                               ? kAccentLight
@@ -203,7 +205,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                     ? Text(
                         amount,
                         style: TextStyle(
-                          fontSize: getPercentageWidth(3, context),
+                          fontSize: getTextScale(3, context),
                           color: isDarkMode ? kWhite : kDarkGrey,
                         ),
                       )
@@ -214,7 +216,9 @@ class _ShoppingListViewState extends State<ShoppingListView> {
                         isDarkMode ? Colors.white : Colors.black,
                   ),
                   child: Transform.scale(
-                    scale: MediaQuery.of(context).size.height > 1100 ? 1.5 : 1, // Adjust this value to control checkbox size
+                    scale: MediaQuery.of(context).size.height > 1100
+                        ? 1.2
+                        : 1, // Adjust this value to control checkbox size
                     child: Checkbox(
                       value: purchased,
                       onChanged: (bool? value) {

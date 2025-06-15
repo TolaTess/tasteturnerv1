@@ -225,7 +225,7 @@ class _MessageScreenState extends State<MessageScreen>
                 inbox,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: getPercentageWidth(4, context),
+                  fontSize: getTextScale(4, context),
                   color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
               ),
@@ -255,7 +255,7 @@ class _MessageScreenState extends State<MessageScreen>
                     child: IconButton(
                       icon: Icon(
                         Icons.archive_outlined,
-                        size: getPercentageWidth(6, context),
+                        size: getIconScale(7, context),
                         color: kAccent,
                       ),
                       onPressed: () {
@@ -278,7 +278,7 @@ class _MessageScreenState extends State<MessageScreen>
                       key: _addFriendButtonKey,
                       icon: Icon(
                         Icons.people_outlined,
-                        size: getPercentageWidth(6, context),
+                        size: getIconScale(7, context),
                         color: kAccent,
                       ),
                       onPressed: () {
@@ -495,7 +495,7 @@ class _MessageItemState extends State<MessageItem> {
                           friend?.displayName ?? 'Loading...',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            fontSize: getPercentageWidth(3, context),
+                            fontSize: getTextScale(3, context),
                           ),
                         ),
                         SizedBox(height: getPercentageHeight(0.5, context)),
@@ -503,7 +503,7 @@ class _MessageItemState extends State<MessageItem> {
                           lastMessage,
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            fontSize: getPercentageWidth(3, context),
+                            fontSize: getTextScale(3, context),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -520,7 +520,7 @@ class _MessageItemState extends State<MessageItem> {
                         lastMessageTime ?? '',
                         style: TextStyle(
                           fontWeight: FontWeight.w400,
-                          fontSize: getPercentageWidth(3, context),
+                          fontSize: getTextScale(3, context),
                         ),
                       ),
                       unreadCount > 0
@@ -540,7 +540,7 @@ class _MessageItemState extends State<MessageItem> {
                                 unreadCount.toString(),
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: getTextScale(3, context),
                                 ),
                               ),
                             )

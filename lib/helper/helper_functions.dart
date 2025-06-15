@@ -76,17 +76,17 @@ class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
 
 Widget buildProfileAvatar({
   required String imageUrl,
-  double outerRadius = 5,
-  double innerRadius = 4.5,
-  double imageSize = 50,
+  double outerRadius = 25,
+  double innerRadius = 23,
+  double imageSize = 100,
   Color? backgroundColor,
   required BuildContext context,
 }) {
   return CircleAvatar(
-    radius: getPercentageHeight(outerRadius, context),
+    radius: getResponsiveBoxSize(context, outerRadius, outerRadius),
     backgroundColor: backgroundColor ?? kAccent.withOpacity(kOpacity),
     child: CircleAvatar(
-      radius: getPercentageHeight(innerRadius, context),
+      radius: getResponsiveBoxSize(context, innerRadius, innerRadius),
       child: ClipOval(
         child: OptimizedImage(
           imageUrl: imageUrl,
@@ -154,8 +154,8 @@ Widget getBirthdayTextContainer(
       style: TextStyle(
         color: kAccentLight,
         fontSize: isShrink
-            ? getPercentageWidth(2.5, context)
-            : getPercentageWidth(3, context),
+            ? getTextScale(2.5, context)
+            : getTextScale(3, context),
         fontWeight: isShrink ? FontWeight.normal : FontWeight.w400,
         overflow: isShrink ? TextOverflow.ellipsis : TextOverflow.visible,
       ),
@@ -535,15 +535,15 @@ Future<void> showFeatureDialog(
           children: [
             Text(
               getFeatureIcon(key),
-              style: const TextStyle(fontSize: 24),
+              style: TextStyle(fontSize: getTextScale(3, context)),
             ),
             const SizedBox(width: 8),
             Text(
               key.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: kAccent,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: getTextScale(3, context),
               ),
             ),
           ],
