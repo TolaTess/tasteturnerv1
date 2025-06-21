@@ -61,8 +61,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     List<Widget> pages = [
       const HomeScreen(),
-      const AddFoodScreen(),
-      // FoodTabScreen(initialTabIndex: _currentTabIndex),
+      FoodTabScreen(initialTabIndex: _currentTabIndex),
       const TastyScreen(),
       RecipeTabScreen(initialTabIndex: _currentTabIndex),
       MealDesignScreen(

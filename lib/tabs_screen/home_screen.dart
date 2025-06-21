@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
+import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/daily_info_page.dart';
@@ -16,11 +17,13 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
+import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/second_nav_widget.dart';
+import 'food_challenge_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> familyList = [];
   bool hasMealPlan = true;
+  Map<String, dynamic> mealPlan = {};
   @override
   void initState() {
     super.initState();
@@ -116,6 +120,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<List<MealWithType>> _loadMealsForUI(
+      String userName, List<Map<String, dynamic>> familyList) async {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    QuerySnapshot snapshot = await firestore
+        .collection('mealPlans')
+        .doc(userService.userId)
+        .collection('date')
+        .where('date', isEqualTo: formattedDate)
+        .get();
+
+    List<MealWithType> mealWithTypes = [];
+
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
+      final mealsList = data?['meals'] as List<dynamic>? ?? [];
+      mealPlan = data ?? {};
+      for (final item in mealsList) {
+        if (item is String && item.contains('/')) {
+          final parts = item.split('/');
+          final mealId = parts[0];
+          final mealType = parts.length > 1 ? parts[1] : '';
+          final mealMember = parts.length > 2 ? parts[2] : '';
+          final meal = await mealManager.getMealbyMealID(mealId);
+          if (meal != null) {
+            mealWithTypes.add(MealWithType(
+                meal: meal, mealType: mealType, familyMember: mealMember));
+          }
+        }
+      }
+    }
+    return updateMealForFamily(mealWithTypes, userName, familyList);
+  }
+
   void _setupDataListeners() {
     // Show Tasty popup after a short delay
     _onRefresh();
@@ -127,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await helperController.fetchWinners();
     await firebaseService.fetchGeneralData();
     loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
+    await macroManager.fetchIngredients();
     _scheduleMealReminderNotification();
   }
 
@@ -539,6 +577,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ? getPercentageHeight(2, context)
                         : getPercentageHeight(0.5, context)),
 
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3.5, context),
+                      vertical: getPercentageHeight(1, context)),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      //challenge
+                      SecondNavWidget(
+                        label: 'Track',
+                        icon: Icons.whatshot_outlined,
+                        color: kAccentLight,
+                        destinationScreen: const AddFoodScreen(),
+                      ),
+                      //shopping
+                      SecondNavWidget(
+                        label: 'Challenge',
+                        icon: Icons.shopping_cart_outlined,
+                        color: kAccent,
+                        destinationScreen: const FoodChallengeScreen(),
+                      ),
+                      //Planner
+                      SecondNavWidget(
+                        label: 'Shopping',
+                        icon: Icons.image_search,
+                        color: kPurple,
+                        destinationScreen: BottomNavSec(
+                          selectedIndex: 3,
+                          foodScreenTabIndex: 1,
+                        ),
+                      ),
+                      //spin
+                      SecondNavWidget(
+                        label: 'Spin',
+                        icon: Icons.casino_outlined,
+                        color: kBlue,
+                        destinationScreen: const BottomNavSec(
+                          selectedIndex: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Add Horizontal Routine List
                 if (!allDisabled)
                   DailyRoutineListHorizontal(
@@ -546,59 +628,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (!allDisabled)
                   SizedBox(height: getPercentageHeight(1, context)),
 
-                Padding(
-                  padding: EdgeInsets.all(getPercentageHeight(1, context)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      //challenge
-                      SecondNavWidget(
-                        icon: Icons.image_search,
-                        backgroundColor: kAccentLight
-                            .withOpacity(0.2), // Example color from your image
-                        destinationScreen: BottomNavSec(
-                          selectedIndex: 1,
-                        ),
-                        iconColor: kAccentLight, // Example icon color
-                      ),
-                      //shopping
-                      SecondNavWidget(
-                        icon: Icons.image_search,
-                        backgroundColor: kAccent
-                            .withOpacity(0.2), // Example color from your image
-                        destinationScreen: BottomNavSec(
-                          selectedIndex: 1,
-                        ),
-                        iconColor: kAccent, // Example icon color
-                      ),
-                      //spin
-                      SecondNavWidget(
-                        icon: Icons.image_search,
-                        backgroundColor: kBlue
-                            .withOpacity(0.2), // Example color from your image
-                        destinationScreen: BottomNavSec(
-                          selectedIndex: 1,
-                        ),
-                        iconColor: kBlue, // Example icon color
-                      ),
-                      //
-                      SecondNavWidget(
-                        icon: Icons.image_search,
-                        backgroundColor: kPurple
-                            .withOpacity(0.2), // Example color from your image
-                        destinationScreen: BottomNavSec(
-                          selectedIndex: 1,
-                        ),
-                        iconColor: kPurple, // Example icon color
-                      ),
-                    ],
-                  ),
-                ),
-
                 //water, track, steps
                 const SizedBox(height: 20),
-
-       
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   SizedBox(height: getPercentageHeight(1, context)),
@@ -699,27 +730,127 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // Nutrition Overview
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    return SizedBox(
-                      height: _calculateHeight(
-                        context: context,
-                        maxHeight: constraints.maxHeight,
-                        hasFamilyMode: familyMode,
-                        hasMealPlan: hasMealPlan,
-                      ),
-                      child: PageView(
-                        controller: _pageController,
-                        onPageChanged: (value) => setState(() {
-                          currentPage = value;
-                        }),
-                        children: [
-                          DailyNutritionOverview(
-                            settings: userService.currentUser?.settings ??
-                                {} as Map<String, dynamic>,
-                            currentDate: currentDate,
-                            familyMode: familyMode,
+                    final isDarkMode = getThemeProvider(context).isDarkMode;
+                    final currentUser = {
+                      'name': userService.currentUser?.displayName ?? '',
+                      'fitnessGoal':
+                          userService.currentUser?.settings['fitnessGoal'] ??
+                              '',
+                      'foodGoal':
+                          userService.currentUser?.settings['foodGoal'] ?? '',
+                      'meals': [],
+                      'avatar': null,
+                    };
+
+                    final familyMembers =
+                        userService.currentUser?.familyMembers ?? [];
+                    final familyList =
+                        familyMembers.map((f) => f.toMap()).toList();
+                    final displayList = [currentUser, ...familyList];
+                    final user = familyMode
+                        ? displayList[selectedUserIndex]
+                        : displayList[0];
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (familyMode)
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(2, context)),
+                            child: Container(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(2, context)),
+                              decoration: BoxDecoration(
+                                color: kAccent.withOpacity(kMidOpacity),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: kAccent, width: 1.5),
+                              ),
+                              child: Center(
+                                child: FamilySelectorSection(
+                                  familyMode: familyMode,
+                                  selectedUserIndex: selectedUserIndex,
+                                  displayList: displayList,
+                                  onSelectUser: (index) {
+                                    setState(() {
+                                      selectedUserIndex = index;
+                                    });
+                                  },
+                                  isDarkMode: isDarkMode,
+                                ),
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(2, context)),
+                          child: Container(
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(2, context)),
+                            decoration: BoxDecoration(
+                              color: kAccent.withOpacity(kMidOpacity),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: kAccent, width: 1.5),
+                            ),
+                            child: UserDetailsSection(
+                              user: user,
+                              isDarkMode: isDarkMode,
+                              showCaloriesAndGoal:
+                                  true, // manage state if needed
+                              familyMode: familyMode,
+                              selectedUserIndex: selectedUserIndex,
+                              displayList: displayList,
+                              onToggleShowCalories: () {
+                                // Implement toggling logic or pass from a state management solution
+                              },
+                              onEdit: (editedUser, isDarkMode) {
+                                // Implement edit logic, maybe show a dialog
+                              },
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        if (hasMealPlan)
+                          FutureBuilder<List<MealWithType>>(
+                            future: _loadMealsForUI(
+                                displayList[selectedUserIndex]['name'],
+                                familyList),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const CircularProgressIndicator(
+                                  color: kAccent,
+                                );
+                              }
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(2, context)),
+                                child: Container(
+                                  padding: EdgeInsets.all(
+                                      getPercentageWidth(2, context)),
+                                  decoration: BoxDecoration(
+                                    color: kAccent.withOpacity(kMidOpacity),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border:
+                                        Border.all(color: kAccent, width: 1.5),
+                                  ),
+                                  child: MealPlanSection(
+                                    meals: snapshot.data!,
+                                    mealPlan: mealPlan,
+                                    isDarkMode: isDarkMode,
+                                    showCaloriesAndGoal: true,
+                                    user: user,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        SizedBox(height: getPercentageHeight(3, context)),
+                      ],
                     );
                   },
                 ),
@@ -737,40 +868,4 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-}
-
-double _calculateHeight({
-  required BuildContext context,
-  required double maxHeight,
-  required bool hasFamilyMode,
-  required bool hasMealPlan,
-}) {
-  // Use maxHeight if it's finite, otherwise fallback to screen height
-  final double availableHeight = (maxHeight.isFinite && maxHeight > 0)
-      ? maxHeight
-      : MediaQuery.of(context).size.height;
-
-  final double availableWidth = MediaQuery.of(context).size.width;
-
-  double designHeight;
-
-  if (availableHeight > 1000 && availableWidth >= 800) {
-    designHeight =
-        hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);
-  } else if (availableHeight > 855 && availableHeight < 1000) {
-    designHeight =
-        hasFamilyMode ? (hasMealPlan ? 470 : 350) : (hasMealPlan ? 385 : 270);
-  } else if (availableHeight > 790 &&
-      availableWidth >= 590 &&
-      availableWidth < 800) {
-    designHeight =
-        hasFamilyMode ? (hasMealPlan ? 590 : 450) : (hasMealPlan ? 520 : 370);
-  } else {
-    designHeight =
-        hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);
-  }
-  double calculated = (designHeight / 840.0) * availableHeight;
-
-  // Clamp to availableHeight to avoid overflow
-  return calculated.clamp(0, availableHeight);
 }
