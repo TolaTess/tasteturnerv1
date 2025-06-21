@@ -87,6 +87,7 @@ class _ShoppingListViewState extends State<ShoppingListView> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    print(MediaQuery.of(context).size.width);
 
     return Theme(
       data: Theme.of(context).copyWith(

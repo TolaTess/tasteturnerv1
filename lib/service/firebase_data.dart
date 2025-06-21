@@ -54,13 +54,11 @@ class FirebaseService extends GetxController {
       final userDoc = await userDocRef.get();
 
       if (!userDoc.exists) {
-        print('User document not found');
         return;
       }
 
       final userData = userDoc.data();
       if (userData == null) {
-        print('User data is null');
         return;
       }
 

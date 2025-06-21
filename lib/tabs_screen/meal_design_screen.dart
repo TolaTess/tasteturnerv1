@@ -1605,13 +1605,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  icon: Icon(Icons.close, size: getIconScale(7, context)),
+                  icon: Icon(Icons.close, size: getIconScale(5, context)),
                   onPressed: () => Navigator.pop(context),
                   color: isDarkMode ? kWhite : kBlack,
                 ),
                 if (isPersonalCalendar)
                   IconButton(
-                    icon: Icon(Icons.share, size: getIconScale(7, context)),
+                    icon: Icon(Icons.share, size: getIconScale(5, context)),
                     onPressed: () async {
                       Navigator.pop(context);
                       _shareCalendar('single_day');

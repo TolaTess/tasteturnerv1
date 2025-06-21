@@ -7,6 +7,7 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
+import '../pages/daily_info_page.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../widgets/bottom_nav.dart';
@@ -38,6 +39,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   List<dynamic> _searchResults = [];
   final userId = userService.userId ?? '';
   final TextEditingController _searchController = TextEditingController();
+  final ValueNotifier<double> currentNotifier = ValueNotifier<double>(0);
+  final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   final MealApiService _apiService = MealApiService();
   final FoodApiService _macroApiService = FoodApiService();
   final RxBool _isSearching = false.obs;
@@ -713,7 +716,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           widget.title,
           style: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: getTextScale(3, context),
+            fontSize: getTextScale(5, context),
           ),
         ),
       ),
@@ -723,6 +726,60 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: getPercentageHeight(2, context)),
+
+              // Water widgets
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  // Water
+                  Expanded(
+                    child: Obx(() {
+                      final settings = userService.currentUser!.settings;
+                      final double waterTotal = settings['waterIntake'] != null
+                          ? double.tryParse(
+                                  settings['waterIntake'].toString()) ??
+                              0.0
+                          : 0.0;
+                      final double currentWater =
+                          dailyDataController.currentWater.value.toDouble();
+                      return SizedBox(
+                        height: getPercentageHeight(10, context),
+                        child: DailyFoodPage(
+                          total: waterTotal,
+                          current: currentWater,
+                          currentNotifier: currentNotifier,
+                          title: 'Update Water',
+                        ),
+                      );
+                    }),
+                  ),
+                  Spacer(),
+
+                  // Steps
+                  Expanded(
+                    child: Obx(() {
+                      final settings = userService.currentUser!.settings;
+                      final double stepsTotal = settings['targetSteps'] != null
+                          ? double.tryParse(
+                                  settings['targetSteps'].toString()) ??
+                              0.0
+                          : 0.0;
+                      final double currentSteps =
+                          dailyDataController.currentSteps.value.toDouble();
+                      return SizedBox(
+                        height: getPercentageHeight(10, context),
+                        child: DailyFoodPage(
+                          total: stepsTotal,
+                          current: currentSteps,
+                          currentNotifier: currentStepsNotifier,
+                          title: 'Update Steps',
+                          increment: 1000,
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
 
               // Selected Items List
               SizedBox(
@@ -795,8 +852,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                 child: Text(
                                                   'Breakfast',
                                                   style: TextStyle(
-                                                    fontSize:
-                                                        getTextScale(3.5, context),
+                                                    fontSize: getTextScale(
+                                                        3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -917,8 +974,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                 child: Text(
                                                   'Lunch',
                                                   style: TextStyle(
-                                                    fontSize:
-                                                        getTextScale(3.5, context),
+                                                    fontSize: getTextScale(
+                                                        3.5, context),
                                                     fontWeight: FontWeight.bold,
                                                     color: isDarkMode
                                                         ? kWhite
@@ -1072,8 +1129,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           color: isDarkMode
                                               ? kWhite.withOpacity(0.5)
                                               : kDarkGrey.withOpacity(0.5),
-                                          fontSize:
-                                              getTextScale(3.5, context),
+                                          fontSize: getTextScale(3.5, context),
                                         ),
                                       ),
                                     )
@@ -1136,7 +1192,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           ],
         ),
         trailing: IconButton(
-          icon: Icon(Icons.delete_outline, color: kRed, size: getIconScale(5.5, context)),
+          icon: Icon(Icons.delete_outline,
+              color: kRed, size: getIconScale(5.5, context)),
           onPressed: () async {
             // Delete the meal
             await dailyDataController.removeMeal(

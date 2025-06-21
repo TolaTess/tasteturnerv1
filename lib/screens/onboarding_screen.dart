@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tasteturner/helper/calculation_helper.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
@@ -119,6 +119,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     });
   }
 
+
+
   void _submitOnboarding() async {
     try {
       if (widget.userId.isEmpty) {
@@ -146,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         freeTrialDate: DateTime.now().add(const Duration(days: 30)),
         settings: <String, dynamic>{
           'waterIntake': '2000',
-          'foodGoal': '2000',
+          'foodGoal': calculateRecommendedGoals(selectedGoals.first),
           'goalWeight': "${targetWeightController.text} $selectedWeightUnit",
           'startingWeight': "${weightController.text} $selectedWeightUnit",
           "currentWeight": "${weightController.text} $selectedWeightUnit",
@@ -894,7 +896,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Future<void> _setFirebaseConsent() async {
     final canRequest = await ConsentInformation.instance.canRequestAds();
-    print('canRequest: $canRequest');
     await FirebaseAnalytics.instance.setConsent(
       adStorageConsentGranted: canRequest,
       analyticsStorageConsentGranted: canRequest,

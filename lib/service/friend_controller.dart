@@ -144,7 +144,6 @@ class FriendController extends GetxController {
       if (friendUserId != tastyId) {
         sendFriendRequest(currentUserId, friendUserId, friendName, context);
       } else {
-        print('following tasty');
         await firestore
             .collection('friends')
             .doc(currentUserId)

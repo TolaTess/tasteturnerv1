@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:tasteturner/widgets/ingredient_features.dart';
 
@@ -220,7 +219,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             children: [
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width > 800
+                  maxWidth: MediaQuery.of(context).size.width >= 800
                       ? getPercentageWidth(55, context)
                       : getPercentageWidth(65, context),
                   minWidth: getPercentageWidth(45, context),
@@ -298,7 +297,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                 ),
               ),
               Positioned(
-                top: MediaQuery.of(context).size.width > 800 ? 60 : 7,
+                top: MediaQuery.of(context).size.width >= 800 ? 58 : 7,
                 child: SizedBox(
                   width: getPercentageWidth(6.5, context),
                   height: getPercentageWidth(6.5, context),

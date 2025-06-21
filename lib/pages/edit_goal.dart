@@ -139,7 +139,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       fontSize: getTextScale(3.2, context)),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: "Daily Water Intake (liters)",
+                    labelText: "Daily Water Intake (mls)",
                     labelStyle: TextStyle(
                         color: isDarkMode ? kWhite : kDarkGrey,
                         fontSize: getTextScale(3, context)),

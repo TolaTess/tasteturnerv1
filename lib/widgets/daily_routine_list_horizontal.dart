@@ -228,7 +228,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                       IconButton(
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        iconSize: getIconScale(7, context), 
+                        iconSize: getIconScale(7, context),
                         color: kAccentLight.withOpacity(0.8),
                         onPressed: () async {
                           await Get.to(() => const NutritionSettingsPage(
@@ -236,7 +236,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               ));
                           controller.loadRoutineItems();
                         },
-                        icon: Icon(Icons.edit, size: getIconScale(6, context)), 
+                        icon: Icon(Icons.edit, size: getIconScale(6, context)),
                       ),
                     ],
                   ),
@@ -256,7 +256,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                           Icon(
                             Icons.emoji_events,
                             color: kAccentLight.withOpacity(0.8),
-                            size: getIconScale(7, context), 
+                            size: getIconScale(7, context),
                           ),
                         SizedBox(width: getPercentageHeight(0.5, context)),
                         Text(
@@ -274,7 +274,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             SizedBox(
-              height: getPercentageHeight(5, context),
+              height: getPercentageHeight(9, context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
@@ -284,14 +284,13 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                   if (!item.isEnabled) return const SizedBox.shrink();
                   return Padding(
                     padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(0.7, context)),
+                        horizontal: getPercentageWidth(1, context)),
                     child: InkWell(
                       onTap: () =>
                           controller.toggleCompletion(item.title, isCompleted),
                       child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(3, context),
-                            vertical: getPercentageHeight(0.5, context)),
+                        width: getPercentageWidth(35, context),
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
                         decoration: BoxDecoration(
                           color: isCompleted
                               ? isDarkMode
@@ -306,24 +305,33 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                                 ? isDarkMode
                                     ? kLightGrey.withOpacity(0.5)
                                     : kAccentLight.withOpacity(0.5)
-                                : (isDarkMode ? kLightGrey : kDarkGrey),
+                                : (isDarkMode
+                                    ? kLightGrey.withOpacity(0.5)
+                                    : kDarkGrey.withOpacity(0.5)),
                           ),
                         ),
-                        child: Center(
-                          child: Text(
-                            capitalizeFirstLetter(item.title),
-                            style: TextStyle(
-                              color: isDarkMode ? kWhite : kBlack,
-                              decoration: isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              decorationColor:
-                                  isDarkMode ? kWhite : kAccentLight,
-                              decorationThickness: 2,
-                              fontSize: getTextScale(3, context),
-                              fontWeight: FontWeight.w600,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              capitalizeFirstLetter(item.title),
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w700,
+                                fontSize: getPercentageWidth(3.5, context),
+                              ),
                             ),
-                          ),
+                            SizedBox(height: getPercentageHeight(0.2, context)),
+                            Text(
+                              item.value != null ? item.value.toString() : '-',
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w400,
+                                fontSize: getPercentageWidth(3, context),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

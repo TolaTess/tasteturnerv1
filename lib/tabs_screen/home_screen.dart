@@ -9,6 +9,8 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../pages/daily_info_page.dart';
+import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
@@ -18,6 +20,7 @@ import '../widgets/premium_widget.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/second_nav_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,8 +32,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int currentPage = 0;
   final PageController _pageController = PageController();
-  final ValueNotifier<double> currentNotifier = ValueNotifier<double>(0);
-  final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   bool familyMode = userService.currentUser?.familyMode ?? false;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
@@ -443,8 +444,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                    height: MediaQuery.of(context).size.height > 1100
-                        ? getPercentageHeight(2, context)
+                    height: MediaQuery.of(context).size.width > 800
+                        ? getPercentageHeight(1.5, context)
                         : getPercentageHeight(0.5, context)),
                 Padding(
                   padding: EdgeInsets.symmetric(
@@ -544,6 +545,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       userId: userService.userId!, date: currentDate),
                 if (!allDisabled)
                   SizedBox(height: getPercentageHeight(1, context)),
+
+                Padding(
+                  padding: EdgeInsets.all(getPercentageHeight(1, context)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      //challenge
+                      SecondNavWidget(
+                        icon: Icons.image_search,
+                        backgroundColor: kAccentLight
+                            .withOpacity(0.2), // Example color from your image
+                        destinationScreen: BottomNavSec(
+                          selectedIndex: 1,
+                        ),
+                        iconColor: kAccentLight, // Example icon color
+                      ),
+                      //shopping
+                      SecondNavWidget(
+                        icon: Icons.image_search,
+                        backgroundColor: kAccent
+                            .withOpacity(0.2), // Example color from your image
+                        destinationScreen: BottomNavSec(
+                          selectedIndex: 1,
+                        ),
+                        iconColor: kAccent, // Example icon color
+                      ),
+                      //spin
+                      SecondNavWidget(
+                        icon: Icons.image_search,
+                        backgroundColor: kBlue
+                            .withOpacity(0.2), // Example color from your image
+                        destinationScreen: BottomNavSec(
+                          selectedIndex: 1,
+                        ),
+                        iconColor: kBlue, // Example icon color
+                      ),
+                      //
+                      SecondNavWidget(
+                        icon: Icons.image_search,
+                        backgroundColor: kPurple
+                            .withOpacity(0.2), // Example color from your image
+                        destinationScreen: BottomNavSec(
+                          selectedIndex: 1,
+                        ),
+                        iconColor: kPurple, // Example icon color
+                      ),
+                    ],
+                  ),
+                ),
+
+                //water, track, steps
+                const SizedBox(height: 20),
+
+       
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   SizedBox(height: getPercentageHeight(1, context)),
@@ -699,12 +754,17 @@ double _calculateHeight({
 
   double designHeight;
 
-  if (availableHeight > 1000 && availableWidth > 800) {
+  if (availableHeight > 1000 && availableWidth >= 800) {
     designHeight =
         hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);
-  } else if (availableHeight > 855 && availableHeight < 1001) {
+  } else if (availableHeight > 855 && availableHeight < 1000) {
     designHeight =
         hasFamilyMode ? (hasMealPlan ? 470 : 350) : (hasMealPlan ? 385 : 270);
+  } else if (availableHeight > 790 &&
+      availableWidth >= 590 &&
+      availableWidth < 800) {
+    designHeight =
+        hasFamilyMode ? (hasMealPlan ? 590 : 450) : (hasMealPlan ? 520 : 370);
   } else {
     designHeight =
         hasFamilyMode ? (hasMealPlan ? 520 : 370) : (hasMealPlan ? 450 : 300);

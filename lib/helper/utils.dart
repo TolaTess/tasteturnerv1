@@ -429,7 +429,7 @@ double getPercentageWidth(double percentage, BuildContext context) {
 double getTextScale(double inputTextSize, BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
   final blockSizeHorizontal = screenWidth / 100;
-  if (screenWidth > 800) {
+  if (screenWidth >= 800) {
     return (blockSizeHorizontal * inputTextSize) - 10;
   }
   return blockSizeHorizontal * inputTextSize;
@@ -438,8 +438,8 @@ double getTextScale(double inputTextSize, BuildContext context) {
 double getIconScale(double inputIconSize, BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
   final blockSizeHorizontal = screenWidth / 100;
-  if (screenWidth > 800) {
-    return (blockSizeHorizontal * inputIconSize) - 20;
+  if (screenWidth >= 800) {
+    return (blockSizeHorizontal * inputIconSize) - 10;
   }
   return blockSizeHorizontal * inputIconSize;
 }

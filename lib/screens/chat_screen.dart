@@ -110,7 +110,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _handleCalendarShare(Map<String, dynamic> data) async {
     final type = data['type'] as String;
-    print('type: ${userService.userId}');
 
     String date;
     String message;
@@ -120,11 +119,9 @@ class _ChatScreenState extends State<ChatScreen> {
       date = DateFormat('MMM d, yyyy').format(DateTime.now());
       calendarId = data['calendarId'] as String?;
     } else {
-      print('data: $data');
       date = data['date'] as String? ?? 'No date specified';
       message = 'I\'d like to share my meal plan for $date with you.';
       calendarId = data['calendarId'] as String?;
-      print('calendarId: $calendarId');
     }
 
     await chatController.sendMessage(

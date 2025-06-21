@@ -52,13 +52,10 @@ class AuthController extends GetxController {
   void _handleAuthState(User? user) async {
     if (user == null) {
       // User not authenticated
-      print("Auth state changed: User is null (signed out)");
       await _setLoggedIn(false);
       Get.offAll(() => const SplashScreen());
       return;
     }
-
-    print("Auth state changed: User authenticated");
 
     try {
       final userDoc = await _fetchUserDocWithRetry(user.uid);
@@ -281,7 +278,6 @@ class AuthController extends GetxController {
   /// ✅ Apple Sign-In Function
   Future<void> signInWithApple(BuildContext context) async {
     try {
-      print('Apple');
       // Begin sign in process
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
@@ -289,7 +285,6 @@ class AuthController extends GetxController {
           AppleIDAuthorizationScopes.fullName,
         ],
       );
-      print('Apple Credential: $appleCredential');
 
       // Create OAuthCredential for Firebase
       final oauthCredential = OAuthProvider("apple.com").credential(

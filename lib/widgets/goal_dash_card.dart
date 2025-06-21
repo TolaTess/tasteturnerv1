@@ -344,8 +344,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           fontWeight: FontWeight.bold,
                                           fontSize: user['name'].length > 10
                                               ? getTextScale(4, context)
-                                              : getTextScale(
-                                                  4.5, context),
+                                              : getTextScale(4.5, context),
                                           letterSpacing: 0.5,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -457,7 +456,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         ? Icons.visibility_off
                                         : Icons.visibility,
                                     color: isDarkMode ? kAccent : kWhite,
-                                    size: getIconScale(7, context)),  
+                                    size: getIconScale(7, context)),
                               ),
                             ),
                           ),
@@ -536,8 +535,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                           ? kWhite.withOpacity(0.7)
                                           : kDarkGrey.withOpacity(0.7),
                                       fontWeight: FontWeight.w500,
-                                      fontSize:
-                                          getTextScale(3.2, context),
+                                      fontSize: getTextScale(3.2, context),
                                     ),
                                   ),
                               ],
@@ -579,8 +577,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
                                     style: TextStyle(
                                       color: isDarkMode ? kWhite : kDarkGrey,
-                                      fontSize:
-                                          getTextScale(3.5, context),
+                                      fontSize: getTextScale(3.5, context),
                                     ),
                                   ),
                                 ),
@@ -647,8 +644,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                               mealPlan['dayType']
                                                   .replaceAll('_', ' '),
                                               isDarkMode),
-                                          fontSize:
-                                              getTextScale(4, context),
+                                          fontSize: getTextScale(4, context),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -656,7 +652,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                         width: getPercentageWidth(1, context)),
                                     Icon(
                                       Icons.edit,
-                                      size: getIconScale(5.5, context),   
+                                      size: getIconScale(5.5, context),
                                       color: getDayTypeColor(
                                           mealPlan['dayType']
                                               .replaceAll('_', ' '),
@@ -671,12 +667,12 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                       SizedBox(height: getPercentageHeight(1.5, context)),
                       if (meals.isNotEmpty)
                         SizedBox(
-                          height: MediaQuery.of(context).size.height > 1100
-                              ? getProportionalHeight(165, context)
-                              : MediaQuery.of(context).size.height > 850 &&
-                                      MediaQuery.of(context).size.height < 1100
-                                  ? getProportionalHeight(145, context)
-                                  : getProportionalHeight(170, context),
+                          height: MediaQuery.of(context).size.width >= 800
+                              ? getProportionalHeight(150, context)
+                              : MediaQuery.of(context).size.width >= 590 &&
+                                      MediaQuery.of(context).size.width < 800
+                                  ? getProportionalHeight(135, context)
+                                  : getProportionalHeight(150, context),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: meals.length,
@@ -776,10 +772,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                                                 isDarkMode ? kWhite : kDarkGrey,
                                             fontSize:
                                                 meal.meal.title.length > 13
-                                                    ? getTextScale(
-                                                        2.8, context)
-                                                    : getTextScale(
-                                                        3, context),
+                                                    ? getTextScale(2.8, context)
+                                                    : getTextScale(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                           maxLines: 2,

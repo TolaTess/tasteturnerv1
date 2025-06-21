@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/screens/add_food_screen.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
@@ -60,7 +61,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     List<Widget> pages = [
       const HomeScreen(),
-      FoodTabScreen(initialTabIndex: _currentTabIndex),
+      const AddFoodScreen(),
+      // FoodTabScreen(initialTabIndex: _currentTabIndex),
       const TastyScreen(),
       RecipeTabScreen(initialTabIndex: _currentTabIndex),
       MealDesignScreen(

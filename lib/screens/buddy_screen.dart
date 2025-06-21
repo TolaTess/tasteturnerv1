@@ -298,8 +298,7 @@ class _TastyScreenState extends State<TastyScreen> {
                                       .titleMedium
                                       ?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        fontSize:
-                                            getTextScale(4, context),
+                                        fontSize: getTextScale(4, context),
                                         color: themeProvider.isDarkMode
                                             ? kWhite
                                             : kDarkGrey,
@@ -718,7 +717,6 @@ Greet the user warmly and offer guidance based on:
         }
       });
     } else {
-      print('new chat');
       // New chat - create it and listen
       await chatController.initializeChat('buddy').then((_) {
         setState(() {

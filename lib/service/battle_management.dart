@@ -143,10 +143,6 @@ class BattleManagement {
           final userId = winners[i]['userId'];
           final points = _calculatePoints(i);
           final position = _getPositionSuffix(i);
-
-          print(
-              'Awarding $points points to user $userId for position $position');
-
           // Update user points
           await updateUserPoints(userId, points);
 
@@ -262,9 +258,6 @@ class BattleManagement {
           body: message,
         );
       }
-
-      print(
-          'Notification sent to winner $displayName ($position place in $category)');
     } catch (e) {
       print('Error sending winner notification: $e');
     }

@@ -232,7 +232,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             actions: [
               GestureDetector(
                 onTap: () {
-                  print('Settings');
                   Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -296,8 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       userService.currentUser!.displayName ??
                                           '',
                                       style: TextStyle(
-                                        fontSize:
-                                            getTextScale(4.5, context),
+                                        fontSize: getTextScale(4.5, context),
                                         fontWeight: FontWeight.w600,
                                         color: isDarkMode ? kWhite : kDarkGrey,
                                       ),
@@ -591,8 +589,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ? startWeight.toInt().toString()
                                               : startWeight.toStringAsFixed(1),
                                           style: TextStyle(
-                                            fontSize:
-                                                getTextScale(3, context),
+                                            fontSize: getTextScale(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -646,8 +643,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               ? goalWeight.toInt().toString()
                                               : goalWeight.toStringAsFixed(1),
                                           style: TextStyle(
-                                            fontSize:
-                                                getTextScale(3, context),
+                                            fontSize: getTextScale(3, context),
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -704,8 +700,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: Text(
                                     "No ongoing battles, join a battle now!",
                                     style: TextStyle(
-                                      fontSize:
-                                          getTextScale(3.5, context),
+                                      fontSize: getTextScale(3.5, context),
                                       color: isDarkMode ? kLightGrey : kAccent,
                                       decoration: TextDecoration.underline,
                                     ),

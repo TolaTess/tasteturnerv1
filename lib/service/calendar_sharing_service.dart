@@ -174,7 +174,7 @@ class CalendarSharingService extends GetxController {
     return SharedCalendar.fromFirestore(doc);
   }
 
-
+  // Get meals for a specific date for a shared calendar
   Future<Map<String, List<UserMeal>>> fetchSharedMealsForCalendarAndDate(
       String calendarId, DateTime date) async {
     final dateStr = DateFormat('yyyy-MM-dd').format(date);
@@ -196,29 +196,23 @@ class CalendarSharingService extends GetxController {
 
   Future<Map<String, List<UserMeal>>> fetchMealsByDateForCalendar(
       String calendarId) async {
-    print('fetchMealsByDateForCalendar: $calendarId');
     final querySnapshot = await firestore
         .collection('shared_calendars')
         .doc(calendarId)
         .collection('date')
         .get();
-    print('querySnapshot: ${querySnapshot.docs.length}');
     if (querySnapshot.docs.isEmpty) return {};
 
     final result = <String, List<UserMeal>>{};
 
     for (var doc in querySnapshot.docs) {
-      print('doc: ${doc.id}');
       final data = doc.data();
       final meals = (data['meals'] as List<dynamic>?)
               ?.map((m) => UserMeal.fromMap(m as Map<String, dynamic>))
               .toList() ??
           [];
       result[doc.id] = meals; // doc.id is the date string
-      print('meals: ${meals.length}');
     }
-    print('result: ${result.length}');
-    print('result: ${result.keys}');
     return result;
   }
 }
