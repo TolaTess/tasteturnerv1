@@ -6,17 +6,18 @@ import '../helper/utils.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../widgets/category_selector.dart';
 import '../service/battle_service.dart';
 
 class VoteScreen extends StatefulWidget {
   final bool isDarkMode;
   final String category;
+  final String? initialCandidateId;
 
   const VoteScreen({
     super.key,
     required this.isDarkMode,
     required this.category,
+    this.initialCandidateId,
   });
 
   @override
@@ -25,17 +26,27 @@ class VoteScreen extends StatefulWidget {
 
 class _VoteScreenState extends State<VoteScreen> {
   List<Map<String, dynamic>> candidates = [];
-  int? selectedIndex;
+  PageController? _pageController;
+  int _currentIndex = 0;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _fetchCandidates(widget.category);
+  }
 
-    _fetchCandidates('general');
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
   }
 
   /// **Fetch candidates based on `category` from Firestore**
   void _fetchCandidates(String category) async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
       await firebaseService.fetchGeneralData();
       QuerySnapshot snapshot = await firestore
@@ -49,9 +60,28 @@ class _VoteScreenState extends State<VoteScreen> {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         // Get current date's battle data
         final dates = data['dates'] as Map<String, dynamic>;
-        // final endedAt = dates.keys.first;
-        final endedAt = firebaseService.generalData['currentBattle'];
-        final currentBattle = dates[endedAt];
+
+        Map<String, dynamic>? currentBattle;
+        final now = DateTime.now();
+
+        // Find the battle that is currently active by checking date ranges
+        for (var dateKey in dates.keys) {
+          try {
+            final startDate = DateTime.parse(dateKey);
+            final endDate = startDate.add(const Duration(days: 7));
+            if (now.isAfter(startDate) && now.isBefore(endDate)) {
+              currentBattle = dates[dateKey];
+              break; // Found the active battle
+            }
+          } catch (e) {
+            // Ignore keys that aren't valid dates
+          }
+        }
+
+        // Fallback to the first entry if no active battle is found
+        if (currentBattle == null && dates.isNotEmpty) {
+          currentBattle = dates[dates.keys.first];
+        }
 
         if (currentBattle != null) {
           final participants =
@@ -60,22 +90,19 @@ class _VoteScreenState extends State<VoteScreen> {
           for (var entry in participants.entries) {
             final userId = entry.key;
             final user = entry.value as Map<String, dynamic>;
-            String imageUrl =
-                user['image']?.toString().trim() ?? intPlaceholderImage;
+            final imageUrl = user['image']?.toString().trim() ?? '';
 
-            // ✅ Ensure image is a valid URL (not null, empty, or missing "http")
-            if (!imageUrl.startsWith('http')) {
-              imageUrl = intPlaceholderImage;
+            // Only add candidates with a valid, uploaded image
+            if (imageUrl.startsWith('http')) {
+              fetchedCandidates.add({
+                'id': doc.id,
+                'category': data['category'] ?? '',
+                'userid': userId,
+                'name': user['name'] ?? '',
+                'image': imageUrl,
+                'votes': List<String>.from(user['votes'] ?? []),
+              });
             }
-
-            fetchedCandidates.add({
-              'id': doc.id,
-              'category': data['category'] ?? '',
-              'userid': userId,
-              'name': user['name'] ?? '',
-              'image': imageUrl,
-              'votes': List<String>.from(user['votes'] ?? []),
-            });
           }
         }
       }
@@ -101,15 +128,31 @@ class _VoteScreenState extends State<VoteScreen> {
       if (mounted) {
         setState(() {
           candidates = candidatesWithPercentages;
+          _isLoading = false;
+
+          int initialIndex = 0;
+          if (widget.initialCandidateId != null) {
+            initialIndex = candidates
+                .indexWhere((c) => c['userid'] == widget.initialCandidateId);
+            if (initialIndex == -1) initialIndex = 0;
+          }
+          _currentIndex = initialIndex;
+          _pageController = PageController(initialPage: initialIndex);
         });
       }
     } catch (e) {
       print("Error fetching candidates: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _confirmSelection(int index) async {
-    final selectedCandidate = candidates[index];
+  void _confirmSelection() async {
+    if (candidates.isEmpty) return;
+    final selectedCandidate = candidates[_currentIndex];
 
     // Check if user has already voted
     bool hasVoted = await _checkIfUserVoted(selectedCandidate['id']);
@@ -154,13 +197,11 @@ class _VoteScreenState extends State<VoteScreen> {
             ),
             TextButton(
               onPressed: () async {
-                setState(() {
-                  selectedIndex = index;
-                });
-
+                Navigator.pop(context);
                 await castVote(selectedCandidate['id'],
                     selectedCandidate['userid'], userService.userId, context);
-                Navigator.pop(context);
+                // Refresh data after voting
+                _fetchCandidates(widget.category);
               },
               child: const Text('Confirm'),
             ),
@@ -268,246 +309,156 @@ class _VoteScreenState extends State<VoteScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              if (dateInPast) ...[
-                const SizedBox(height: 60),
-                noItemTastyWidget(
-                  "Previous Battle Has Ended",
-                  "The next battle will start soon. Stay tuned!",
-                  context,
-                  false,
-                  '',
-                ),
-              ] else if (candidates.isEmpty || candidates.length <= 1) ...[
-                const SizedBox(height: 60),
-                noItemTastyWidget(
-                  candidates.length == 1
-                      ? "Waiting for more users to join..."
-                      : "No candidates yet",
-                  '',
-                  context,
-                  false,
-                  '',
-                ),
-              ] else ...[
-                const SizedBox(height: 25),
-                Column(
-                  children: [
-                    Text(
-                      'Vote for your favorite dish!',
-                      style: TextStyle(
-                        fontSize: getTextScale(3, context),
-                        fontWeight: FontWeight.w400,
-                        color: kAccentLight,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: kAccent))
+            : Stack(
+                children: [
+                  if (dateInPast)
+                    noItemTastyWidget(
+                      "Previous Battle Has Ended",
+                      "The next battle will start soon. Stay tuned!",
+                      context,
+                      false,
+                      '',
+                    )
+                  else if (candidates.isEmpty || candidates.length <= 1)
+                    noItemTastyWidget(
+                      candidates.length == 1
+                          ? "Waiting for more users to join..."
+                          : "No candidates yet",
+                      '',
+                      context,
+                      false,
+                      '',
+                    )
+                  else if (_pageController != null)
+                    PageView.builder(
+                      controller: _pageController,
+                      itemCount: candidates.length,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        final candidate = candidates[index];
+                        return VoteCandidatePage(
+                          candidate: candidate,
+                          isDarkMode: isDarkMode,
+                        );
+                      },
+                    ),
+                  if (!dateInPast && candidates.length > 1)
+                    Positioned(
+                      bottom: getPercentageHeight(2, context),
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: FutureBuilder<bool>(
+                          future: _checkIfUserVoted(
+                              candidates[_currentIndex]['id']),
+                          builder: (context, snapshot) {
+                            final bool hasVoted = snapshot.data ?? false;
+                            return ElevatedButton(
+                              onPressed: hasVoted ? null : _confirmSelection,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kAccent,
+                                foregroundColor: kWhite,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(10, context),
+                                    vertical: getPercentageHeight(2, context)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: Text(
+                                hasVoted ? 'Voted' : 'Vote for this Dish',
+                                style: TextStyle(
+                                  fontSize: getTextScale(5, context),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Text(
-                        'Simply tap on the dish you like the most. \nRemember, presentation is key!',
-                        style: TextStyle(
-                          fontSize: getTextScale(2.5, context),
-                          fontWeight: FontWeight.w400,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                if (candidates.length >= 2)
-                  Row(
-                    children: [
-                      for (int i = 0; i < 2; i++)
-                        Expanded(
-                          child: FutureBuilder<double>(
-                            future: calculateVotePercentage(
-                                candidates[i]['userid']),
-                            builder: (context, snapshot) {
-                              final double votePercentage =
-                                  snapshot.data ?? 0.0;
-                              return VoteItemCard(
-                                item: candidates[i],
-                                votePercentage: votePercentage,
-                                onTap: () => _confirmSelection(i),
-                                isDarkMode: isDarkMode,
-                                isLarge: true,
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                if (candidates.length > 2) ...[
-                  const SizedBox(height: 24),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.6,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 10,
-                    ),
-                    itemCount: candidates.length - 2,
-                    itemBuilder: (context, index) {
-                      final actualIndex = index + 2;
-                      return FutureBuilder<double>(
-                        future: calculateVotePercentage(
-                            candidates[actualIndex]['userid']),
-                        builder: (context, snapshot) {
-                          final double votePercentage = snapshot.data ?? 0.0;
-                          return VoteItemCard(
-                            item: candidates[actualIndex],
-                            votePercentage: votePercentage,
-                            onTap: () => _confirmSelection(actualIndex),
-                            isDarkMode: isDarkMode,
-                            isLarge: false,
-                          );
-                        },
-                      );
-                    },
-                  ),
                 ],
-              ],
-            ],
-          ),
-        ),
+              ),
       ),
     );
   }
 }
 
-class VoteItemCard extends StatelessWidget {
-  final Map<String, dynamic> item;
-  final double votePercentage;
-  final VoidCallback onTap;
+class VoteCandidatePage extends StatelessWidget {
+  final Map<String, dynamic> candidate;
   final bool isDarkMode;
-  final bool isLarge;
 
-  const VoteItemCard({
+  const VoteCandidatePage({
     super.key,
-    required this.item,
-    required this.votePercentage,
-    required this.onTap,
+    required this.candidate,
     required this.isDarkMode,
-    required this.isLarge,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _checkIfUserVoted(item['id']),
-      builder: (context, snapshot) {
-        final bool hasVoted = snapshot.data ?? false;
+    final double votePercentage = candidate['votePercentage'] ?? 0.0;
+    final String imageUrl = candidate['image'] ?? intPlaceholderImage;
 
-        return GestureDetector(
-          onTap: hasVoted
-              ? () {
-                  showTastySnackbar(
-                    'Please try again.',
-                    'You have already voted in this battle',
-                    context,
-                  );
-                }
-              : onTap,
-          child: Opacity(
-            opacity: hasVoted ? 0.5 : 1.0,
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: isLarge ? 8 : 4),
-              decoration: BoxDecoration(
-                color: isDarkMode ? kDarkModeAccent.withOpacity(0.1) : kWhite,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: isLarge ? 16 : 4),
-                      Text(
-                        '${votePercentage.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: isLarge ? 32 : 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? kWhite : kBlack,
-                        ),
-                      ),
-                      SizedBox(height: isLarge ? 16 : 4),
-                      Container(
-                        height: isLarge ? 120 : 60,
-                        width: isLarge ? 120 : 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: kAccent.withOpacity(0.5),
-                            width: isLarge ? 3 : 2,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: item['image'].startsWith('http')
-                              ? Image.network(
-                                  item['image'],
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.asset(
-                                      getAssetImageForItem(item['image']),
-                                      fit: BoxFit.cover,
-                                    );
-                                  },
-                                )
-                              : Image.asset(
-                                  getAssetImageForItem(item['image']),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                      SizedBox(height: isLarge ? 16 : 4),
-                      Flexible(
-                        child: Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: isLarge ? 8 : 4),
-                          child: Text(
-                            capitalizeFirstLetter(item['name'] ?? 'Tasty'),
-                            style: TextStyle(
-                              fontSize: isLarge ? 18 : 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: isLarge ? 16 : 4),
-                    ],
-                  ),
-                ],
-              ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '${votePercentage.toStringAsFixed(1)}%',
+          style: TextStyle(
+            fontSize: getTextScale(6, context),
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? kWhite : kBlack,
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(4, context),
+                vertical: getPercentageHeight(2, context)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: imageUrl.startsWith('http')
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Image.asset(intPlaceholderImage, fit: BoxFit.cover),
+                    )
+                  : Image.asset(imageUrl, fit: BoxFit.cover),
             ),
           ),
-        );
-      },
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Uploaded by ',
+              style: TextStyle(
+                fontSize: getTextScale(4, context),
+                fontWeight: FontWeight.w400,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            Text(
+              capitalizeFirstLetter(candidate['name'] ?? 'Tasty'),
+              style: TextStyle(
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: getPercentageHeight(12, context)), // Space for the floating button
+      ],
     );
-  }
-
-  Future<bool> _checkIfUserVoted(String battleId) async {
-    try {
-      final userId = userService.userId;
-      if (userId == null) return false;
-      return await BattleService.instance.hasUserVoted(battleId, userId);
-    } catch (e) {
-      print("Error checking vote status: $e");
-      return false;
-    }
   }
 }

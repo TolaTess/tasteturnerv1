@@ -28,8 +28,8 @@ class SecondNavWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: getPercentageWidth(15, context),
-            height: getPercentageWidth(15, context),
+            width: getPercentageWidth(10.5, context),
+            height: getPercentageWidth(10.5, context),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -48,7 +48,7 @@ class SecondNavWidget extends StatelessWidget {
             child: Center(
               child: Icon(
                 icon,
-                size: getIconScale(8, context),
+                size: getIconScale(5, context),
                 color: Colors.white,
               ),
             ),

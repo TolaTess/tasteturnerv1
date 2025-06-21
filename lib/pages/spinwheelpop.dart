@@ -326,6 +326,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Spin Wheel'),
+      ),
       body: SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(

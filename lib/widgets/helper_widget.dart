@@ -164,6 +164,8 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                         builder: (context) => ChallengeDetailScreen(
                           screen: widget.listType,
                           dataSrc: data,
+                          allPosts: searchContentDatas,
+                          initialIndex: index,
                         ),
                       ),
                     ),
@@ -375,7 +377,7 @@ class SearchContent extends StatelessWidget {
               child: Icon(
                 Icons.content_copy,
                 color: Colors.white,
-                    size: getPercentageWidth(4, context),
+                size: getPercentageWidth(4, context),
               ),
             ),
         ],

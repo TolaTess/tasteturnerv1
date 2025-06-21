@@ -6,6 +6,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/tabs_screen/shopping_tab.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
@@ -603,10 +604,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         label: 'Shopping',
                         icon: Icons.image_search,
                         color: kPurple,
-                        destinationScreen: BottomNavSec(
-                          selectedIndex: 3,
-                          foodScreenTabIndex: 1,
-                        ),
+                        destinationScreen: ShoppingTab(),
                       ),
                       //spin
                       SecondNavWidget(
@@ -620,6 +618,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(1, context)),
 
                 // Add Horizontal Routine List
                 if (!allDisabled)

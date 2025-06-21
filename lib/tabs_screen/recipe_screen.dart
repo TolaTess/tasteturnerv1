@@ -244,6 +244,9 @@ class _RecipeScreenState extends State<RecipeScreen> {
         user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Recipes'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -292,19 +295,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
                     ),
               SizedBox(height: getPercentageHeight(2, context)),
 
-              //category options - here is category widget - chatgpt
-              CategorySelector(
-                categories: _categoryDatasIngredient,
-                selectedCategoryId: selectedCategoryId,
-                onCategorySelected: _updateCategoryData,
-                isDarkMode: isDarkMode,
-                accentColor: kAccentLight,
-                darkModeAccentColor: kDarkModeAccent,
-              ),
-              SizedBox(
-                height: getPercentageHeight(2, context),
-              ),
-
               // ------------------------------------Premium / Ads------------------------------------
 
               userService.currentUser?.isPremium ?? false
@@ -325,35 +315,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               // ------------------------------------Premium / Ads-------------------------------------
 
               SizedBox(height: getPercentageHeight(1, context)),
-              //Search by Ingredients
-              TitleSection(
-                title: searchIngredients,
-                press: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => IngredientFeatures(
-                      items: fullLabelsList,
-                      isRecipe: true,
-                    ),
-                  ),
-                ),
-                more: seeAll,
-              ),
-              SizedBox(
-                height: getPercentageHeight(2, context),
-              ),
-              //rows of Ingredients
-              IngredientListViewRecipe(
-                demoAcceptedData: fullLabelsList.take(10).toList(),
-                spin: false,
-                isEdit: false,
-                onRemoveItem: (int) {},
-              ),
-              Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
-              SizedBox(
-                height: getPercentageHeight(1, context),
-              ),
               //Search by Meals
               TitleSection(
                 title: searchMeal,

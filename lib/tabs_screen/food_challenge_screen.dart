@@ -14,6 +14,9 @@ import '../widgets/countdown.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
+import '../tabs_screen/inspiration_screen.dart';
+import '../service/battle_service.dart';
+import '../detail_screen/challenge_detail_screen.dart';
 
 class FoodChallengeScreen extends StatefulWidget {
   const FoodChallengeScreen({super.key});
@@ -28,6 +31,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   final GlobalKey _addJoinButtonKey = GlobalKey();
   final GlobalKey _addInspirationButtonKey = GlobalKey();
   bool showBattle = false;
+  List<Map<String, dynamic>> participants = [];
   @override
   void initState() {
     super.initState();
@@ -73,10 +77,35 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   Future<void> _onRefresh() async {
     await firebaseService.fetchGeneralData();
     await _updateIngredientList();
+    if (battleList.isNotEmpty) {
+      await _fetchParticipants('general');
+    }
     if (!mounted) return;
     setState(() {
       showBattle = battleList.isNotEmpty;
     });
+  }
+
+  Future<void> _fetchParticipants(String category) async {
+    try {
+      final battleId =
+          battleList.isNotEmpty ? battleList.first['categoryId'] : null;
+      if (battleId == null) {
+        setState(() => participants = []);
+        return;
+      }
+
+      final fetchedParticipants =
+          await BattleService.instance.getBattleParticipants(battleId);
+
+      if (mounted) {
+        setState(() {
+          participants = fetchedParticipants;
+        });
+      }
+    } catch (e) {
+      print("Error fetching participants: $e");
+    }
   }
 
   @override
@@ -111,6 +140,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     final isBattleDeadlineShow = isDateToday(battleDeadline);
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Challenge'),
+      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: SafeArea(
@@ -441,10 +473,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             '• Submit before the deadline\n\n'
                                                             'Remember: Presentation is key! Users will vote based on appearance.',
                                                             style: TextStyle(
-                                                              height:
-                                                                  getPercentageHeight(
-                                                                      2,
-                                                                      context),
                                                               color: Theme.of(
                                                                       context)
                                                                   .textTheme
@@ -503,6 +531,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     user!.displayName ?? '',
                                                     '',
                                                   );
+                                                  await _fetchParticipants(
+                                                      'general');
                                                   if (!mounted) return;
                                                   setState(() {});
                                                 } catch (e) {
@@ -523,11 +553,88 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                     },
                                   ),
                           ),
+                          SizedBox(height: getPercentageHeight(2, context)),
                         ],
                       ),
                     ),
                   ],
                 ),
+                SizedBox(height: getPercentageHeight(2, context)),
+
+                if (participants.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(4, context)),
+                        child: Text(
+                          'Current Challengers',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: getTextScale(4, context),
+                              color: isDarkMode ? kWhite : kDarkGrey),
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      SizedBox(
+                        height: getPercentageHeight(30, context),
+                        child: GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: participants.length,
+                          itemBuilder: (context, index) {
+                            final participant = participants[index];
+                            final imageUrl = participant['image'] as String? ??
+                                intPlaceholderImage;
+                            return GestureDetector(
+                              onTap: () {
+                                if (imageUrl.startsWith('http')) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VoteScreen(
+                                        isDarkMode: isDarkMode,
+                                        category: 'general',
+                                        initialCandidateId:
+                                            participant['userid'],
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  if (mounted) {
+                                    showTastySnackbar(
+                                      'Please try again.',
+                                      'Image not uploaded yet',
+                                      context,
+                                    );
+                                  }
+                                }
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: imageUrl.startsWith('http')
+                                    ? Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Image.asset(intPlaceholderImage,
+                                                    fit: BoxFit.cover),
+                                      )
+                                    : Image.asset(intPlaceholderImage,
+                                        fit: BoxFit.cover),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
 
                 SizedBox(
                   height: getPercentageHeight(1, context),
@@ -555,57 +662,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     : SizedBox(
                         height: getPercentageHeight(1.5, context),
                       ),
-
-                Padding(
-                  padding: EdgeInsets.only(
-                      left: getPercentageWidth(2.5, context),
-                      right: getPercentageWidth(1.5, context)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => Get.to(
-                          () => const UploadBattleImageScreen(
-                            battleId: battleIdConstant,
-                            isMainPost: true,
-                          ),
-                        ),
-                        child: Text(
-                          'Get Inspired',
-                          style: TextStyle(
-                            fontSize: getTextScale(4, context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        key: _addInspirationButtonKey,
-                        icon: Icon(Icons.add,
-                            color: kAccent,
-                            size: getIconScale(7, context)),  
-                        onPressed: () => Get.to(
-                          () => const UploadBattleImageScreen(
-                            battleId: battleIdConstant,
-                            isMainPost: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: getPercentageHeight(1, context),
-                ),
-
-                //food challenge
-                const Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5.0),
-                  child: SearchContentGrid(
-                    screenLength: 12,
-                    listType: 'battle_post',
-                    selectedCategory: 'general',
-                  ),
-                ),
 
                 SizedBox(
                   height: getPercentageHeight(7, context),

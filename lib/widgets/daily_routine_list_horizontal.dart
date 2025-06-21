@@ -274,7 +274,7 @@ class DailyRoutineListHorizontal extends StatelessWidget {
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             SizedBox(
-              height: getPercentageHeight(9, context),
+              height: getPercentageHeight(8, context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
@@ -318,8 +318,8 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               capitalizeFirstLetter(item.title),
                               style: TextStyle(
                                 color: isDarkMode ? kWhite : kBlack,
-                                fontWeight: FontWeight.w700,
-                                fontSize: getPercentageWidth(3.5, context),
+                                fontWeight: FontWeight.w400,
+                                fontSize: getPercentageWidth(3, context),
                               ),
                             ),
                             SizedBox(height: getPercentageHeight(0.2, context)),
@@ -327,8 +327,8 @@ class DailyRoutineListHorizontal extends StatelessWidget {
                               item.value != null ? item.value.toString() : '-',
                               style: TextStyle(
                                 color: isDarkMode ? kWhite : kBlack,
-                                fontWeight: FontWeight.w400,
-                                fontSize: getPercentageWidth(3, context),
+                                fontWeight: FontWeight.w600,
+                                fontSize: getPercentageWidth(3.5, context),
                               ),
                             ),
                           ],

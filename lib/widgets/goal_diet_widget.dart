@@ -35,7 +35,7 @@ class GoalDietWidget extends StatefulWidget {
 
 class _GoalDietWidgetState extends State<GoalDietWidget>
     with SingleTickerProviderStateMixin {
-  bool _expanded = false;
+  bool _expanded = true;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   bool showCaloriesAndGoal = true;
@@ -56,6 +56,16 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
       ),
     );
     _loadShowCaloriesPref();
+    if (_expanded) {
+      _shakeController.repeat(reverse: true);
+      if (widget.onRefresh != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            widget.onRefresh!();
+          }
+        });
+      }
+    }
   }
 
   Future<void> _loadShowCaloriesPref() async {
@@ -240,7 +250,6 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                 ],
               ),
               if (widget.featuredMeal != null) ...[
-               
                 Text(
                   'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',
                   style: TextStyle(
@@ -313,8 +322,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                   child: Text(
                                     '${widget.featuredMeal!.calories.toString()} kcal',
                                     style: TextStyle(
-                                      fontSize:
-                                          getTextScale(2.5, context),
+                                      fontSize: getTextScale(2.5, context),
                                       color: isDarkMode ? kAccentLight : kWhite,
                                       fontWeight: FontWeight.w800,
                                     ),

@@ -186,6 +186,36 @@ class BattleService extends GetxController {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getBattleParticipants(
+      String battleId) async {
+    try {
+      final battleDoc = await battlesRef.doc(battleId).get();
+      if (!battleDoc.exists) return [];
+
+      final currentBattle = _getCurrentBattleData(battleDoc);
+      if (currentBattle == null) return [];
+
+      final participants =
+          currentBattle['participants'] as Map<String, dynamic>?;
+      if (participants == null) return [];
+
+      final List<Map<String, dynamic>> participantList = [];
+      participants.forEach((userId, userData) {
+        final data = userData as Map<String, dynamic>;
+        participantList.add({
+          'userid': userId,
+          'name': data['name'] ?? '',
+          'image': data['image'] ?? '',
+        });
+      });
+
+      return participantList;
+    } catch (e) {
+      print('Error getting battle participants: $e');
+      return [];
+    }
+  }
+
   // Check if user has voted
   Future<bool> hasUserVoted(String battleId, String userId) async {
     try {
