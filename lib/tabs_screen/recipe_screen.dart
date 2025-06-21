@@ -245,7 +245,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Recipes'),
+        title: const Text('Recipes'),
+        leading: const SizedBox.shrink(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

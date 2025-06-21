@@ -47,6 +47,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
+  final colors = [
+    kAccent.withOpacity(kMidOpacity),
+    kBlue.withOpacity(kMidOpacity),
+    kAccentLight.withOpacity(kMidOpacity),
+    kPurple.withOpacity(kMidOpacity),
+    kPink.withOpacity(kMidOpacity)
+  ];
 
   @override
   void initState() {
@@ -593,10 +600,66 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 SizedBox(height: getPercentageHeight(1, context)),
 
+                if (_isTodayShoppingDay())
+                  Container(
+                    margin: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context)),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context),
+                        vertical: getPercentageHeight(0.5, context)),
+                    decoration: BoxDecoration(
+                      color: kAccentLight.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kAccentLight, width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.shopping_cart,
+                            color: kAccentLight,
+                            size: getIconScale(7, context)),
+                        SizedBox(width: getPercentageWidth(1, context)),
+                        Expanded(
+                          child: Text(
+                            "It's your shopping day! Don't forget to check your shopping list.",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: getTextScale(3.5, context),
+                              color: kAccentLight,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: Size(getPercentageWidth(10, context),
+                                getPercentageHeight(5, context)),
+                            backgroundColor: kAccentLight,
+                            foregroundColor: kWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ShoppingTab(),
+                              ),
+                            );
+                          },
+                          child: Text('Go',
+                              style: TextStyle(
+                                  fontSize: getTextScale(3.5, context))),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_isTodayShoppingDay())
+                  SizedBox(height: getPercentageHeight(1, context)),
+
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(3.5, context),
-                      vertical: getPercentageHeight(1, context)),
+                      horizontal: getPercentageWidth(4.5, context),
+                      vertical: getPercentageHeight(1.5, context)),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -604,30 +667,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       SecondNavWidget(
                         label: 'Diary',
                         icon: Icons.whatshot_outlined,
-                        color: kAccentLight,
+                        color: kAccent,
                         destinationScreen: const AddFoodScreen(),
                       ),
                       //shopping
                       SecondNavWidget(
                         label: 'Challenge',
                         icon: Icons.shopping_cart_outlined,
-                        color: kAccent,
+                        color: kBlue,
                         destinationScreen: const FoodChallengeScreen(),
                       ),
                       //Planner
                       SecondNavWidget(
                         label: 'Shopping',
                         icon: Icons.image_search,
-                        color: kPurple,
+                        color: kAccentLight,
                         destinationScreen: ShoppingTab(),
                       ),
                       //spin
                       SecondNavWidget(
                         label: 'Spin',
                         icon: Icons.casino_outlined,
-                        color: kBlue,
+                        color: kPurple,
                         destinationScreen: const BottomNavSec(
-                          selectedIndex: 2,
+                          selectedIndex: 3,
                         ),
                       ),
                     ],
@@ -679,59 +742,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 userService.currentUser?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : SizedBox(height: getPercentageHeight(1, context)),
-
-                if (_isTodayShoppingDay())
-                  Container(
-                    margin: EdgeInsets.all(getPercentageWidth(1, context)),
-                    padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                    decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kAccent, width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.shopping_cart,
-                            color: kAccent, size: getIconScale(7, context)),
-                        SizedBox(width: getPercentageWidth(1, context)),
-                        Expanded(
-                          child: Text(
-                            "It's your shopping day! Don't forget to check your shopping list.",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: getTextScale(3.5, context),
-                              color: kAccent,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: Size(getPercentageWidth(10, context),
-                                getPercentageHeight(5, context)),
-                            backgroundColor: kAccent,
-                            foregroundColor: kWhite,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const BottomNavSec(
-                                    selectedIndex: 3, foodScreenTabIndex: 1),
-                              ),
-                            );
-                          },
-                          child: Text('Go',
-                              style: TextStyle(
-                                  fontSize: getTextScale(3.5, context))),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_isTodayShoppingDay())
-                  SizedBox(height: getPercentageHeight(1, context)),
 
                 // Nutrition Overview
                 LayoutBuilder(
@@ -795,9 +805,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             padding:
                                 EdgeInsets.all(getPercentageWidth(2, context)),
                             decoration: BoxDecoration(
-                              color: kAccent.withOpacity(kMidOpacity),
+                              color: colors[selectedUserIndex].withOpacity(
+                                  kMidOpacity),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kAccent, width: 1.5),
+                              border: Border.all(
+                                  color: colors[selectedUserIndex],
+                                  width: 1.5),
                             ),
                             child: UserDetailsSection(
                               user: user,
@@ -841,10 +854,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   padding: EdgeInsets.all(
                                       getPercentageWidth(2, context)),
                                   decoration: BoxDecoration(
-                                    color: kAccent.withOpacity(kMidOpacity),
+                                    color: colors[selectedUserIndex]
+                                        .withOpacity(kMidOpacity),
                                     borderRadius: BorderRadius.circular(12),
-                                    border:
-                                        Border.all(color: kAccent, width: 1.5),
+                                    border: Border.all(
+                                        color: colors[selectedUserIndex],
+                                        width: 1.5),
                                   ),
                                   child: MealPlanSection(
                                     meals: snapshot.data!,

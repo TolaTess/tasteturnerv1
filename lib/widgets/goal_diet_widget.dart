@@ -192,7 +192,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                       spin: false,
                       isEdit: false,
                       onRemoveItem: (int) {},
-                      radius: 18,
+                      radius: 23,
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(2, context)),

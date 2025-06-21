@@ -9,6 +9,7 @@ class InspirationScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Get Inspired'),
+        leading: const SizedBox.shrink(),
       ),
       body: const SingleChildScrollView(
         child: Padding(

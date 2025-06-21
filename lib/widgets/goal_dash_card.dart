@@ -738,7 +738,7 @@ class MealPlanSection extends StatelessWidget {
         SizedBox(height: getPercentageHeight(1.5, context)),
         if (meals.isNotEmpty)
           SizedBox(
-            height: getProportionalHeight(120, context),
+            height: getProportionalHeight(140, context),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: meals.length,

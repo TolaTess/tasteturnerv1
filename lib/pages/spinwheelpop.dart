@@ -327,7 +327,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Spin Wheel'),
+        title: const Text('Spin Wheel'),
+        leading: const SizedBox.shrink(),
       ),
       body: SingleChildScrollView(
         child: ConstrainedBox(

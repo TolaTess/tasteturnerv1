@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/shopping_list_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ShoppingTab extends StatefulWidget {
@@ -29,6 +27,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
   ];
 
   bool _isLoading = false;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -119,17 +118,38 @@ class _ShoppingTabState extends State<ShoppingTab> {
     _onRefresh();
   }
 
-  Future<void> _onRefresh() async {
-    setState(() => _isLoading = true);
-    // Only generate grocery list if the grocery list is empty
-    if (macroManager.groceryList.isEmpty) {
-      await macroManager.generateGroceryList();
+  Future<void> _onRefresh({bool isPullToRefresh = false}) async {
+    // If this is an initial load and we already have a list, do nothing.
+    // This prevents the list from being cleared on tab switch.
+    if (!isPullToRefresh && macroManager.groceryList.isNotEmpty) {
+      return;
     }
-    await _fetchGroceryList();
-    await _fetchShoppingList();
-    await macroManager.fetchIngredients();
-    if (mounted) {
-      setState(() => _isLoading = false);
+
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    try {
+      // Fetch any existing lists from the backend first.
+      await _fetchGroceryList();
+      await _fetchShoppingList();
+
+      // If both lists are empty after fetching, then generate a new one.
+      if (macroManager.groceryList.isEmpty &&
+          macroManager.shoppingList.isEmpty) {
+        await macroManager.generateGroceryList();
+      }
+
+      await macroManager.fetchIngredients();
+    } catch (e) {
+      print('Error loading shopping list: $e');
+      if (mounted) {
+        setState(() => _hasError = true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -152,7 +172,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
         title: const Text('Shopping List'),
       ),
       body: RefreshIndicator(
-        onRefresh: _onRefresh,
+        onRefresh: () => _onRefresh(isPullToRefresh: true),
         child: Column(
           children: [
             // Action buttons row
@@ -323,92 +343,98 @@ class _ShoppingTabState extends State<ShoppingTab> {
             ),
 
             Expanded(
-              child: Obx(() {
-                if (_isLoading) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: kAccent));
-                }
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: kAccent))
+                  : _hasError
+                      ? Center(
+                          child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Failed to load shopping list.'),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _onRefresh,
+                              child: const Text('Try Again'),
+                            )
+                          ],
+                        ))
+                      : Obx(() {
+                          // By accessing the ingredient list here, we ensure this Obx rebuilds
+                          // when the ingredients are loaded, which in turn rebuilds the list.
+                          final _ = macroManager.ingredient.length;
 
-                if (macroManager.groceryList.isEmpty &&
-                    macroManager.shoppingList.isEmpty) {
-                  return noItemTastyWidget(
-                    'No items in shopping list',
-                    'Add meal plan or use Tasty Spin!',
-                    context,
-                    true,
-                    'spin',
-                  );
-                }
+                          if (macroManager.groceryList.isEmpty &&
+                              macroManager.shoppingList.isEmpty) {
+                            return noItemTastyWidget(
+                              'No items in shopping list',
+                              'Add meal plan or use Tasty Spin!',
+                              context,
+                              true,
+                              'spin',
+                            );
+                          }
 
-                final groceryItems = macroManager.groceryList.keys;
-                final shoppingItems = macroManager.shoppingList.keys;
+                          final groceryItems = macroManager.groceryList.keys;
+                          final shoppingItems = macroManager.shoppingList.keys;
 
-                return ListView.builder(
-                  itemCount: (groceryItems.isNotEmpty ? 1 : 0) +
-                      groceryItems.length +
-                      (shoppingItems.isNotEmpty ? 1 : 0) +
-                      shoppingItems.length,
-                  itemBuilder: (context, index) {
-                    if (groceryItems.isNotEmpty) {
-                      if (index == 0) {
-                        return _buildSectionHeader('Generated List');
-                      }
-                      if (index <= groceryItems.length) {
-                        final itemId = groceryItems.elementAt(index - 1);
-                        return ShoppingListItem(
-                          itemId: itemId,
-                          status: macroManager.groceryList[itemId] ?? false,
-                          onToggle: () {
-                            macroManager.markItemPurchased(
-                                userService.userId!, itemId,
-                                collectionName: 'groceryList');
-                          },
-                        );
-                      }
-                    }
+                          return ListView.builder(
+                            itemCount: (shoppingItems.isNotEmpty ? 1 : 0) +
+                                shoppingItems.length +
+                                (groceryItems.isNotEmpty ? 1 : 0) +
+                                groceryItems.length,
+                            itemBuilder: (context, index) {
+                              if (shoppingItems.isNotEmpty) {
+                                if (index == 0) {
+                                  return _buildSectionHeader('Spin/Selected');
+                                }
+                                if (index <= shoppingItems.length) {
+                                  final itemId =
+                                      shoppingItems.elementAt(index - 1);
+                                  return ShoppingListItem(
+                                    itemId: itemId,
+                                    status: macroManager.shoppingList[itemId] ??
+                                        false,
+                                    onToggle: () {
+                                      macroManager.markItemPurchased(
+                                          userService.userId!, itemId,
+                                          collectionName: 'shoppingList');
+                                    },
+                                  );
+                                }
+                              }
 
-                    int shoppingStartIndex =
-                        (groceryItems.isNotEmpty ? 1 : 0) + groceryItems.length;
+                              int groceryStartIndex =
+                                  (shoppingItems.isNotEmpty ? 1 : 0) +
+                                      shoppingItems.length;
 
-                    if (shoppingItems.isNotEmpty) {
-                      if (index == shoppingStartIndex) {
-                        return _buildSectionHeader('Spin/Selected');
-                      }
-                      if (index > shoppingStartIndex) {
-                        final itemIndex = index - shoppingStartIndex - 1;
-                        final itemId = shoppingItems.elementAt(itemIndex);
-                        return ShoppingListItem(
-                          itemId: itemId,
-                          status: macroManager.shoppingList[itemId] ?? false,
-                          onToggle: () {
-                            macroManager.markItemPurchased(
-                                userService.userId!, itemId,
-                                collectionName: 'shoppingList');
-                          },
-                        );
-                      }
-                    }
-                    return const SizedBox.shrink(); // Should not be reached
-                  },
-                );
-              }),
+                              if (groceryItems.isNotEmpty) {
+                                if (index == groceryStartIndex) {
+                                  return _buildSectionHeader('Generated List');
+                                }
+                                if (index > groceryStartIndex) {
+                                  final itemIndex =
+                                      index - groceryStartIndex - 1;
+                                  final itemId =
+                                      groceryItems.elementAt(itemIndex);
+                                  return ShoppingListItem(
+                                    itemId: itemId,
+                                    status: macroManager.groceryList[itemId] ??
+                                        false,
+                                    onToggle: () {
+                                      macroManager.markItemPurchased(
+                                          userService.userId!, itemId,
+                                          collectionName: 'groceryList');
+                                    },
+                                  );
+                                }
+                              }
+                              return const SizedBox
+                                  .shrink(); // Should not be reached
+                            },
+                          );
+                        }),
             ),
-            // ------------------------------------Premium / Ads------------------------------------
-            if (!(userService.currentUser?.isPremium ?? false)) ...[
-              const SizedBox(height: 15),
-              PremiumSection(
-                isPremium: userService.currentUser?.isPremium ?? false,
-                titleOne: joinChallenges,
-                titleTwo: premium,
-                isDiv: false,
-              ),
-              const SizedBox(height: 10),
-              Divider(
-                color:
-                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              ),
-            ]
-            // ------------------------------------Premium / Ads-------------------------------------
           ],
         ),
       ),
@@ -469,13 +495,14 @@ class ShoppingListItem extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return ListTile(
+      tileColor: isDarkMode ? kDarkGrey : kWhite,
       title: Text(
-        ingredient.title,
+        capitalizeFirstLetter(ingredient.title),
         style: TextStyle(
             decoration:
                 status ? TextDecoration.lineThrough : TextDecoration.none,
             color: status
-                ? (isDarkMode ? Colors.grey[600] : Colors.grey[700])
+                ? (isDarkMode ? Colors.grey[500] : Colors.grey[500])
                 : (isDarkMode ? kWhite : kBlack)),
       ),
       subtitle: amount != null && amount.isNotEmpty
@@ -485,16 +512,21 @@ class ShoppingListItem extends StatelessWidget {
                   decoration:
                       status ? TextDecoration.lineThrough : TextDecoration.none,
                   color: status
-                      ? (isDarkMode ? Colors.grey[600] : Colors.grey[700])
+                      ? (isDarkMode ? Colors.grey[500] : Colors.grey[500])
                       : (isDarkMode
                           ? kWhite.withOpacity(0.7)
                           : kBlack.withOpacity(0.7))),
             )
           : null,
-      trailing: Checkbox(
-        value: status,
-        onChanged: (_) => onToggle(),
-        activeColor: kAccent,
+      trailing: Theme(
+        data: Theme.of(context).copyWith(
+          unselectedWidgetColor: isDarkMode ? kPrimaryColor : kDarkGrey,
+        ),
+        child: Checkbox(
+          value: status,
+          onChanged: (_) => onToggle(),
+          activeColor: kAccent,
+        ),
       ),
       onTap: onToggle,
     );
