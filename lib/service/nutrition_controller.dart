@@ -19,10 +19,12 @@ class NutritionController extends GetxController {
   var breakfastCalories = 0.obs;
   var lunchCalories = 0.obs;
   var dinnerCalories = 0.obs;
+  var snacksCalories = 0.obs;
 
   var breakfastTarget = 0.obs;
   var lunchTarget = 0.obs;
   var dinnerTarget = 0.obs;
+  var snacksTarget = 0.obs;
 
   var targetWater = 0.0.obs;
   var currentWater = 0.0.obs;
@@ -40,6 +42,7 @@ class NutritionController extends GetxController {
   final ValueNotifier<double> breakfastNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> lunchNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> dinnerNotifier = ValueNotifier<double>(0);
+  final ValueNotifier<double> snacksNotifier = ValueNotifier<double>(0);
 
   /// Fetches calories for the past 7 days (including today)
   Future<Map<String, int>> fetchCaloriesByDate(String userId) async {
@@ -363,6 +366,41 @@ class NutritionController extends GetxController {
     }
   }
 
+  Future<void> updateAllCalories(double newCalories, bool addCalories) async {
+    final targetCalories = this.targetCalories.value;
+    if (addCalories) {
+      newCalories = targetCalories - newCalories;
+      
+      // Add "Add Food" meal to Firestore
+      await addUserMeal(
+          userService.userId ?? '',
+          'Add Food',
+          UserMeal(
+            name: 'Add Food',
+            calories: newCalories.toInt(),
+            quantity: '1',
+            mealId: 'Add Food',
+          ));
+    } else {
+      final today = DateTime.now();
+      final date =
+          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+      // Remove "Add Food" meal from Firestore
+     final userMealRef = firestore
+          .collection('userMeals')
+          .doc(userService.userId ?? '')
+          .collection('meals')
+          .doc(date);
+
+      await userMealRef.update({
+        'meals.Add Food': FieldValue.delete(),
+      });
+    }
+
+    updateCalories(newCalories.toDouble(), targetCalories.toDouble());
+  }
+
 // Fetch calories for a specific meal type
   Future<void> fetchCalories(
       String userId, String mealType, DateTime mDate) async {
@@ -416,7 +454,7 @@ class NutritionController extends GetxController {
     switch (mealType) {
       case 'Breakfast':
         breakfastCalories.value = totalCalories;
-        breakfastTarget.value = (targetCalories.value * 0.30).toInt();
+        breakfastTarget.value = (targetCalories.value * 0.20).toInt();
 
         // Calculate progress percentage for breakfast
         double breakfastProgress = breakfastTarget.value <= 0
@@ -456,6 +494,19 @@ class NutritionController extends GetxController {
             ? 0.0
             : dinnerProgress.clamp(0.0, 100.0);
         break;
+      case 'Snacks':
+        snacksCalories.value = totalCalories;
+        snacksTarget.value = (targetCalories.value * 0.10).toInt();
+
+        // Calculate progress percentage for snacks
+        double snacksProgress = snacksTarget.value <= 0
+            ? 0.0
+            : (totalCalories / snacksTarget.value) * 100;
+
+        snacksNotifier.value = snacksProgress.isNaN || snacksProgress.isInfinite
+            ? 0.0
+            : snacksProgress.clamp(0.0, 100.0);
+        break;
     }
   }
 
@@ -464,7 +515,8 @@ class NutritionController extends GetxController {
     _updateMealTypeCalories(mealType, 0);
   }
 
-  void updateCalories(double newCalories, double targetCalories) {
+  void updateCalories(
+      double newCalories, double targetCalories) {
     eatenCalories.value = newCalories.toInt();
 
     // Prevent division by zero and handle edge cases
@@ -633,6 +685,7 @@ class NutritionController extends GetxController {
     await fetchCalories(userId, 'Breakfast', date);
     await fetchCalories(userId, 'Lunch', date);
     await fetchCalories(userId, 'Dinner', date);
+    await fetchCalories(userId, 'Snacks', date);
     if (getCurrentDate(date)) {
       fetchPointsAchieved(userId);
       fetchStreakDays(userId);
@@ -646,13 +699,25 @@ class NutritionController extends GetxController {
     await fetchCalories(userId, 'Breakfast', date);
     await fetchCalories(userId, 'Lunch', date);
     await fetchCalories(userId, 'Dinner', date);
+    await fetchCalories(userId, 'Snacks', date);
     resetCalories();
   }
 
   void resetCalories() {
-    eatenCalories.value =
-        breakfastCalories.value + lunchCalories.value + dinnerCalories.value;
-    dailyValueNotifier.value = eatenCalories.value / targetCalories.value * 100;
+    eatenCalories.value = breakfastCalories.value +
+        lunchCalories.value +
+        dinnerCalories.value +
+        snacksCalories.value;
+    double progressPercentage = targetCalories.value <= 0
+        ? 0.0
+        : (eatenCalories.value / targetCalories.value) * 100;
+
+    double safeProgressValue =
+        progressPercentage.isNaN || progressPercentage.isInfinite
+            ? 0.0
+            : progressPercentage.clamp(0.0, 100.0);
+
+    dailyValueNotifier.value = safeProgressValue;
   }
 
   // Add daily meal reminders

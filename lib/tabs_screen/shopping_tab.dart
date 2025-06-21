@@ -28,10 +28,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
     'Sunday'
   ];
 
-  bool showGroceryList = true; // NEW: toggle for grocery/general
-  bool _shoppingCardExpanded = false;
-  bool _isLoadingGrocery = false;
-  bool _isLoadingShopping = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -123,39 +120,28 @@ class _ShoppingTabState extends State<ShoppingTab> {
   }
 
   Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
     // Only generate grocery list if the grocery list is empty
     if (macroManager.groceryList.isEmpty) {
       await macroManager.generateGroceryList();
     }
-    if (showGroceryList) {
-      await _fetchGroceryList();
-    } else {
-      await _fetchShoppingList();
-    }
+    await _fetchGroceryList();
+    await _fetchShoppingList();
     await macroManager.fetchIngredients();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _fetchGroceryList() async {
-    setState(() {
-      _isLoadingGrocery = true;
-    });
     macroManager.fetchShoppingList(
         userService.userId ?? '', getCurrentWeek(), false,
         collectionName: 'groceryList');
-    setState(() {
-      _isLoadingGrocery = false;
-    });
   }
 
   Future<void> _fetchShoppingList() async {
-    setState(() {
-      _isLoadingShopping = true;
-    });
     macroManager.fetchShoppingList(
         userService.userId ?? '', getCurrentWeek(), false);
-    setState(() {
-      _isLoadingShopping = false;
-    });
   }
 
   @override
@@ -172,166 +158,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
             // Action buttons row
             SizedBox(height: getPercentageHeight(1, context)),
 
-            // NEW: Toggle for grocery/general list
-
-            Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(2, context),
-                  vertical: getPercentageHeight(1, context)),
-              child: Material(
-                color: kAccent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context),
-                    vertical: getPercentageHeight(1, context),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          showGroceryList
-                              ? IconButton(
-                                  onPressed: () async {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        backgroundColor:
-                                            isDarkMode ? kDarkGrey : kWhite,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        title: Text('Update Meal Plan List',
-                                            style: TextStyle(
-                                                color: kAccent,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: getPercentageHeight(
-                                                    2.2, context))),
-                                        content: Text(
-                                            'Shopping List based on your meal plan for this week. \nDo you want to update?',
-                                            style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kBlack,
-                                                fontSize: getPercentageHeight(
-                                                    2, context))),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-                                            child: Text('Cancel',
-                                                style: TextStyle(
-                                                    color: isDarkMode
-                                                        ? kWhite
-                                                        : kBlack,
-                                                    fontSize:
-                                                        getPercentageHeight(
-                                                            1.8, context))),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              Navigator.pop(context);
-                                              await macroManager
-                                                  .generateGroceryList();
-                                              showTastySnackbar(
-                                                  'Meal Plan List',
-                                                  'Meal Plan List updated for this week',
-                                                  context);
-                                            },
-                                            child: Text('Update',
-                                                style: TextStyle(
-                                                    color: kAccent,
-                                                    fontSize:
-                                                        getPercentageHeight(
-                                                            1.8, context))),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                  icon: Icon(
-                                    Icons.refresh,
-                                    color: kAccent,
-                                    size: getPercentageWidth(5, context),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text('Meal Plan List',
-                              style: TextStyle(
-                                  color: showGroceryList
-                                      ? kAccent
-                                      : (isDarkMode ? kWhite : kBlack),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageHeight(
-                                      showGroceryList ? 2.2 : 1.8, context))),
-                          Switch(
-                            value: showGroceryList,
-                            onChanged: (val) async {
-                              setState(() {
-                                showGroceryList = val;
-                              });
-                              if (val) {
-                                await _fetchGroceryList();
-                              } else {
-                                await _fetchShoppingList();
-                              }
-                            },
-                            activeColor: kAccent,
-                          ),
-                          Text('Shopping List',
-                              style: TextStyle(
-                                  color: !showGroceryList
-                                      ? kAccent
-                                      : (isDarkMode ? kWhite : kBlack),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: getPercentageHeight(
-                                      showGroceryList ? 1.8 : 2.2, context))),
-                        ],
-                      ),
-                      if (macroManager.shoppingList.isEmpty &&
-                          macroManager.previousShoppingList.isNotEmpty)
-                        Center(
-                          child: Text(
-                            'Last week\'s list:',
-                            style: TextStyle(
-                              fontSize: getPercentageHeight(2, context),
-                              fontWeight: FontWeight.w600,
-                              color: kAccent,
-                            ),
-                          ),
-                        ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => IngredientFeatures(
-                                items: macroManager.ingredient,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Center(
-                          child: Text(
-                            textAlign: TextAlign.center,
-                            'SEE MORE INGREDIENTS',
-                            style: TextStyle(
-                              fontSize: getPercentageHeight(2, context),
-                              fontWeight: FontWeight.w600,
-                              color: kAccentLight,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
             // Shopping schedule selector
             Padding(
               padding: EdgeInsets.symmetric(
@@ -342,10 +168,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 builder: (context) {
                   final groceryNotEmpty = macroManager.groceryList.isNotEmpty;
                   final shoppingNotEmpty = macroManager.shoppingList.isNotEmpty;
-                  final prevNotEmpty =
-                      macroManager.previousShoppingList.isNotEmpty;
-                  final shouldShow = (showGroceryList && groceryNotEmpty) ||
-                      (!showGroceryList && (shoppingNotEmpty || prevNotEmpty));
+
+                  final shouldShow = groceryNotEmpty || shoppingNotEmpty;
                   if (!shouldShow) return const SizedBox.shrink();
                   return Card(
                     elevation: 2,
@@ -457,17 +281,21 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                               width: getPercentageWidth(
                                                   1, context)),
                                           Obx(() {
-                                            final statusMap = showGroceryList
-                                                ? macroManager.groceryList
-                                                : macroManager
-                                                        .shoppingList.isNotEmpty
-                                                    ? macroManager.shoppingList
-                                                    : macroManager
-                                                        .previousShoppingList;
-                                            final total = statusMap.length;
-                                            final purchased = statusMap.values
-                                                .where((v) => v == true)
-                                                .length;
+                                            final groceryStatusMap =
+                                                macroManager.groceryList;
+                                            final shoppingStatusMap =
+                                                macroManager.shoppingList;
+
+                                            final total =
+                                                groceryStatusMap.length +
+                                                    shoppingStatusMap.length;
+                                            final purchased = groceryStatusMap
+                                                    .values
+                                                    .where((v) => v == true)
+                                                    .length +
+                                                shoppingStatusMap.values
+                                                    .where((v) => v == true)
+                                                    .length;
                                             return Text(
                                               '$purchased / $total',
                                               style: TextStyle(
@@ -494,85 +322,75 @@ class _ShoppingTabState extends State<ShoppingTab> {
               ),
             ),
 
-            showGroceryList
-                ? macroManager.groceryList.isNotEmpty
-                    ? Center(
-                        child: Text(
-                            'Your generated shopping list from this week\'s Meal Plan',
-                            style: TextStyle(
-                                fontSize: getTextScale(3.2, context),
-                                overflow: TextOverflow.ellipsis,
-                                fontWeight: FontWeight.w400,
-                                color: kAccent)),
-                      )
-                    : const SizedBox.shrink()
-                : macroManager.shoppingList.isNotEmpty
-                    ? Center(
-                        child: Text('Your selected and spin list',
-                            style: TextStyle(
-                                fontSize: getTextScale(3.2, context),
-                                fontWeight: FontWeight.w400,
-                                color: kAccent)),
-                      )
-                    : const SizedBox.shrink(),
-
-            SizedBox(height: getPercentageHeight(1, context)),
-
-            //Shopping list
             Expanded(
               child: Obx(() {
-                if (showGroceryList) {
-                  if (_isLoadingGrocery) {
-                    return const Center(
-                        child: CircularProgressIndicator(color: kAccent));
-                  }
-                  if (macroManager.groceryList.isEmpty) {
-                    return noItemTastyWidget(
-                      'No items in Meal Plan List',
-                      'Add meal plan to your Calendar!',
-                      context,
-                      true,
-                      'calendar',
-                    );
-                  }
-                  final statusMap = macroManager.groceryList;
-                  final itemIds = statusMap.keys.toList();
-                  return ShoppingListView(
-                    items: itemIds,
-                    statusMap: statusMap,
-                    onToggle: (itemId) {},
-                    isCurrentWeek: macroManager.groceryList.isNotEmpty,
-                    isGroceryList: true,
-                  );
-                } else {
-                  if (_isLoadingShopping) {
-                    return const Center(
-                        child: CircularProgressIndicator(color: kAccent));
-                  }
-                  // Show general shopping list (existing logic)
-                  if (macroManager.shoppingList.isEmpty &&
-                      macroManager.previousShoppingList.isEmpty) {
-                    return noItemTastyWidget(
-                      'No items in shopping list',
-                      'Add items using Tasty Spin!',
-                      context,
-                      true,
-                      'spin',
-                    );
-                  }
+                if (_isLoading) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: kAccent));
+                }
 
-                  // Use the ingredient id as the selection key
-                  final statusMap = macroManager.shoppingList.isNotEmpty
-                      ? macroManager.shoppingList
-                      : macroManager.previousShoppingList;
-                  final itemIds = statusMap.keys.toList();
-                  return ShoppingListView(
-                    items: itemIds,
-                    statusMap: statusMap,
-                    onToggle: (itemId) {}, // No-op, handled in ShoppingListView
-                    isCurrentWeek: macroManager.shoppingList.isNotEmpty,
+                if (macroManager.groceryList.isEmpty &&
+                    macroManager.shoppingList.isEmpty) {
+                  return noItemTastyWidget(
+                    'No items in shopping list',
+                    'Add meal plan or use Tasty Spin!',
+                    context,
+                    true,
+                    'spin',
                   );
                 }
+
+                final groceryItems = macroManager.groceryList.keys;
+                final shoppingItems = macroManager.shoppingList.keys;
+
+                return ListView.builder(
+                  itemCount: (groceryItems.isNotEmpty ? 1 : 0) +
+                      groceryItems.length +
+                      (shoppingItems.isNotEmpty ? 1 : 0) +
+                      shoppingItems.length,
+                  itemBuilder: (context, index) {
+                    if (groceryItems.isNotEmpty) {
+                      if (index == 0) {
+                        return _buildSectionHeader('Generated List');
+                      }
+                      if (index <= groceryItems.length) {
+                        final itemId = groceryItems.elementAt(index - 1);
+                        return ShoppingListItem(
+                          itemId: itemId,
+                          status: macroManager.groceryList[itemId] ?? false,
+                          onToggle: () {
+                            macroManager.markItemPurchased(
+                                userService.userId!, itemId,
+                                collectionName: 'groceryList');
+                          },
+                        );
+                      }
+                    }
+
+                    int shoppingStartIndex =
+                        (groceryItems.isNotEmpty ? 1 : 0) + groceryItems.length;
+
+                    if (shoppingItems.isNotEmpty) {
+                      if (index == shoppingStartIndex) {
+                        return _buildSectionHeader('Spin/Selected');
+                      }
+                      if (index > shoppingStartIndex) {
+                        final itemIndex = index - shoppingStartIndex - 1;
+                        final itemId = shoppingItems.elementAt(itemIndex);
+                        return ShoppingListItem(
+                          itemId: itemId,
+                          status: macroManager.shoppingList[itemId] ?? false,
+                          onToggle: () {
+                            macroManager.markItemPurchased(
+                                userService.userId!, itemId,
+                                collectionName: 'shoppingList');
+                          },
+                        );
+                      }
+                    }
+                    return const SizedBox.shrink(); // Should not be reached
+                  },
+                );
               }),
             ),
             // ------------------------------------Premium / Ads------------------------------------
@@ -594,6 +412,91 @@ class _ShoppingTabState extends State<ShoppingTab> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(4, context),
+        vertical: getPercentageHeight(1.5, context),
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: getTextScale(4, context),
+          fontWeight: FontWeight.bold,
+          color: kAccent,
+        ),
+      ),
+    );
+  }
+}
+
+class ShoppingListItem extends StatelessWidget {
+  final String itemId;
+  final bool status;
+  final VoidCallback onToggle;
+
+  const ShoppingListItem({
+    super.key,
+    required this.itemId,
+    required this.status,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = itemId.split('/');
+    final ingredientId = parts[0];
+    final amount = parts.length > 1 ? parts.sublist(1).join('/') : null;
+
+    final ingredient =
+        macroManager.ingredient.firstWhereOrNull((i) => i.id == ingredientId);
+
+    if (ingredient == null) {
+      // It might take a moment for ingredients to load, show a placeholder
+      return ListTile(
+        title: const Text('Loading ingredient...'),
+        trailing: Checkbox(
+          value: status,
+          onChanged: (_) => onToggle(),
+          activeColor: kAccent,
+        ),
+        onTap: onToggle,
+      );
+    }
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    return ListTile(
+      title: Text(
+        ingredient.title,
+        style: TextStyle(
+            decoration:
+                status ? TextDecoration.lineThrough : TextDecoration.none,
+            color: status
+                ? (isDarkMode ? Colors.grey[600] : Colors.grey[700])
+                : (isDarkMode ? kWhite : kBlack)),
+      ),
+      subtitle: amount != null && amount.isNotEmpty
+          ? Text(
+              amount,
+              style: TextStyle(
+                  decoration:
+                      status ? TextDecoration.lineThrough : TextDecoration.none,
+                  color: status
+                      ? (isDarkMode ? Colors.grey[600] : Colors.grey[700])
+                      : (isDarkMode
+                          ? kWhite.withOpacity(0.7)
+                          : kBlack.withOpacity(0.7))),
+            )
+          : null,
+      trailing: Checkbox(
+        value: status,
+        onChanged: (_) => onToggle(),
+        activeColor: kAccent,
+      ),
+      onTap: onToggle,
     );
   }
 }

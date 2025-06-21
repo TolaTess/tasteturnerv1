@@ -11,16 +11,13 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../pages/daily_info_page.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
-import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/second_nav_widget.dart';
@@ -48,10 +45,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Map<String, dynamic>> familyList = [];
   bool hasMealPlan = true;
   Map<String, dynamic> mealPlan = {};
+  bool showCaloriesAndGoal = true;
+  static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
+
   @override
   void initState() {
     super.initState();
     // _initializeMealData();
+    _loadShowCaloriesPref();
     _getAllDisabled().then((value) {
       if (value) {
         allDisabled = value;
@@ -294,6 +295,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
+  }
+
+  Future<void> _loadShowCaloriesPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      showCaloriesAndGoal = prefs.getBool(_showCaloriesPrefKey) ?? true;
+    });
+  }
+
+  Future<void> _saveShowCaloriesPref(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showCaloriesPrefKey, value);
   }
 
   @override
@@ -578,6 +591,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ? getPercentageHeight(2, context)
                         : getPercentageHeight(0.5, context)),
 
+                SizedBox(height: getPercentageHeight(1, context)),
+
                 Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: getPercentageWidth(3.5, context),
@@ -587,7 +602,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       //challenge
                       SecondNavWidget(
-                        label: 'Track',
+                        label: 'Diary',
                         icon: Icons.whatshot_outlined,
                         color: kAccentLight,
                         destinationScreen: const AddFoodScreen(),
@@ -620,15 +635,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
 
-                // Add Horizontal Routine List
-                if (!allDisabled)
-                  DailyRoutineListHorizontal(
-                      userId: userService.userId!, date: currentDate),
-                if (!allDisabled)
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                //water, track, steps
-                const SizedBox(height: 20),
+                //water, track, steps, spin
 
                 if (winners.isNotEmpty && isAnnounceShow)
                   SizedBox(height: getPercentageHeight(1, context)),
@@ -795,13 +802,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             child: UserDetailsSection(
                               user: user,
                               isDarkMode: isDarkMode,
-                              showCaloriesAndGoal:
-                                  true, // manage state if needed
+                              showCaloriesAndGoal: showCaloriesAndGoal,
                               familyMode: familyMode,
                               selectedUserIndex: selectedUserIndex,
                               displayList: displayList,
                               onToggleShowCalories: () {
-                                // Implement toggling logic or pass from a state management solution
+                                setState(() {
+                                  showCaloriesAndGoal = !showCaloriesAndGoal;
+                                });
+                                _saveShowCaloriesPref(showCaloriesAndGoal);
                               },
                               onEdit: (editedUser, isDarkMode) {
                                 // Implement edit logic, maybe show a dialog
@@ -841,7 +850,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     meals: snapshot.data!,
                                     mealPlan: mealPlan,
                                     isDarkMode: isDarkMode,
-                                    showCaloriesAndGoal: true,
+                                    showCaloriesAndGoal: showCaloriesAndGoal,
                                     user: user,
                                   ),
                                 ),

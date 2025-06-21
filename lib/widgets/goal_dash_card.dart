@@ -425,14 +425,6 @@ class UserDetailsSection extends StatelessWidget {
                             width: user['name'].length > 10
                                 ? getPercentageWidth(0.5, context)
                                 : getPercentageWidth(1, context)),
-                      if (user['name'] == userService.currentUser?.displayName)
-                        InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () => Get.to(() => const AddFoodScreen()),
-                          child: Icon(Icons.add,
-                              color: kAccentLight,
-                              size: getIconScale(7, context)),
-                        ),
                     ],
                   ),
                   if ((user['fitnessGoal'] ?? '').isNotEmpty &&
@@ -562,8 +554,8 @@ class UserDetailsSection extends StatelessWidget {
                   ),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 600),
-                    height: getProportionalHeight(18, context),
-                    width: getPercentageWidth(70 * progress, context),
+                    height: getProportionalHeight(12, context),
+                    width: getPercentageWidth(100 * progress, context),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
@@ -746,12 +738,7 @@ class MealPlanSection extends StatelessWidget {
         SizedBox(height: getPercentageHeight(1.5, context)),
         if (meals.isNotEmpty)
           SizedBox(
-            height: MediaQuery.of(context).size.width >= 800
-                ? getProportionalHeight(150, context)
-                : MediaQuery.of(context).size.width >= 590 &&
-                        MediaQuery.of(context).size.width < 800
-                    ? getProportionalHeight(135, context)
-                    : getProportionalHeight(150, context),
+            height: getProportionalHeight(120, context),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: meals.length,

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../pages/edit_goal.dart';
 import '../service/battle_management.dart';
 import '../service/routine_service.dart';
+import 'package:tasteturner/data_models/routine_item.dart';
 
 class RoutineController extends GetxController {
   final String userId;
@@ -15,6 +14,7 @@ class RoutineController extends GetxController {
   final _routineService = RoutineService.instance;
   final RxList<Map<String, dynamic>> routineItems =
       <Map<String, dynamic>>[].obs;
+  final RxBool isLoading = true.obs;
   final RxBool badgeAwarded = false.obs;
   final String today = DateTime.now().toIso8601String().split('T')[0];
   final String yesterday = DateTime.now()
@@ -97,6 +97,7 @@ class RoutineController extends GetxController {
   }
 
   Future<void> loadRoutineItems() async {
+    isLoading.value = true;
     final items = await _routineService.getRoutineItems(userId);
     final completionStatus = await _loadCompletionStatus();
     final result = items.map((item) {
@@ -107,6 +108,7 @@ class RoutineController extends GetxController {
     }).toList();
     await _checkCurrentDayCompletion(result);
     routineItems.assignAll(result);
+    isLoading.value = false;
   }
 
   Future<void> _checkCurrentDayCompletion(List<dynamic> items) async {
@@ -164,6 +166,35 @@ class RoutineController extends GetxController {
         updatedData = doc.data() as Map<String, dynamic>;
       }
       updatedData[title] = !(currentStatus == true);
+      if (title.contains('Water') && !currentStatus == true) {
+        await dailyDataController.updateCurrentWater(
+            userId, dailyDataController.targetWater.value.toDouble());
+      } else if (title.contains('Water') && currentStatus == true) {
+        await dailyDataController.updateCurrentWater(
+            userId,
+            dailyDataController.targetWater.value.toDouble() -
+                dailyDataController.currentWater.value.toDouble());
+      }
+
+      if (title.contains('Steps') && !currentStatus == true) {
+        await dailyDataController.updateCurrentSteps(
+            userId, dailyDataController.targetSteps.value.toDouble());
+      } else if (title.contains('Steps') && currentStatus == true) {
+        await dailyDataController.updateCurrentSteps(
+            userId,
+            dailyDataController.targetSteps.value.toDouble() -
+                dailyDataController.currentSteps.value.toDouble());
+      }
+
+      if ((title.contains('Nutrition') || title.contains('Food')) &&
+          !currentStatus == true) {
+        dailyDataController.updateAllCalories(
+            dailyDataController.eatenCalories.value.toDouble(), true);
+      } else if ((title.contains('Nutrition') || title.contains('Food')) &&
+          currentStatus == true) {
+        dailyDataController.updateAllCalories(
+            dailyDataController.eatenCalories.value.toDouble(), false);
+      }
       await docRef.set(updatedData, SetOptions(merge: true));
       await loadRoutineItems();
     } catch (e) {
@@ -172,176 +203,204 @@ class RoutineController extends GetxController {
   }
 }
 
-class DailyRoutineListHorizontal extends StatelessWidget {
+class DailyRoutineListHorizontal extends StatefulWidget {
   final String userId;
   final DateTime date;
-  const DailyRoutineListHorizontal(
-      {Key? key, required this.userId, required this.date})
-      : super(key: key);
+  final bool isCardStyle;
+
+  const DailyRoutineListHorizontal({
+    super.key,
+    required this.userId,
+    required this.date,
+    required this.isCardStyle,
+  });
+
+  @override
+  State<DailyRoutineListHorizontal> createState() =>
+      _DailyRoutineListHorizontalState();
+}
+
+class _DailyRoutineListHorizontalState
+    extends State<DailyRoutineListHorizontal> {
+  late final RoutineController controller;
+  late final String controllerTag;
+
+  @override
+  void initState() {
+    super.initState();
+    controllerTag = '${widget.userId}-${widget.date.toIso8601String()}';
+    if (Get.isRegistered<RoutineController>(tag: controllerTag)) {
+      controller = Get.find<RoutineController>(tag: controllerTag);
+    } else {
+      controller = Get.put(
+          RoutineController(userId: widget.userId, date: widget.date),
+          tag: controllerTag);
+    }
+  }
+
+  @override
+  void dispose() {
+    Get.delete<RoutineController>(tag: controllerTag);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final RoutineController controller = Get.put(
-        RoutineController(userId: userId, date: date),
-        tag: '$userId-${date.toIso8601String()}');
+
     return Obx(() {
-      final items = controller.routineItems;
-      final _badgeAwarded = controller.badgeAwarded.value;
-      if (items.isEmpty) {
-        return SizedBox(
-          height: getPercentageHeight(6.5, context),
-          child: Center(child: CircularProgressIndicator(color: kAccent)),
+      if (controller.isLoading.value) {
+        return const Center(child: CircularProgressIndicator(color: kAccent));
+      }
+
+      if (controller.routineItems.isEmpty) {
+        return Center(
+          child: Text(
+            'No routines set. Go to settings to add a routine.',
+            style: TextStyle(
+              fontSize: getTextScale(3.5, context),
+              color: isDarkMode ? kWhite.withOpacity(0.5) : Colors.grey,
+            ),
+          ),
         );
       }
-      return Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color:
-              isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+
+      final routines = controller.routineItems;
+
+      if (widget.isCardStyle) {
+        return _buildCardStyle(context, isDarkMode, routines);
+      }
+      return _buildOriginalStyle(context, isDarkMode, routines);
+    });
+  }
+
+  Widget _buildCardStyle(BuildContext context, bool isDarkMode,
+      List<Map<String, dynamic>> routines) {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: routines.length,
+      itemBuilder: (context, index) {
+        final routineData = routines[index];
+        final item = routineData['item'] as RoutineItem;
+        final isCompleted = routineData['isCompleted'] as bool;
+
+        if (!item.isEnabled) return const SizedBox.shrink();
+        return GestureDetector(
+          onTap: () => controller.toggleCompletion(item.title, isCompleted),
+          child: Container(
+            width: getPercentageWidth(30, context),
+            margin: EdgeInsets.only(right: getPercentageWidth(1, context)),
+            padding: EdgeInsets.all(getPercentageWidth(1, context)),
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? kAccent.withOpacity(0.3)
+                  : kAccent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Flexible(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Text(
-                        !_badgeAwarded ? 'Daily Routine' : 'Routine',
-                        style: TextStyle(
-                          fontSize: getTextScale(4, context),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: getPercentageHeight(0.5, context)),
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        iconSize: getIconScale(7, context),
-                        color: kAccentLight.withOpacity(0.8),
-                        onPressed: () async {
-                          await Get.to(() => const NutritionSettingsPage(
-                                isRoutineExpand: true,
-                              ));
-                          controller.loadRoutineItems();
-                        },
-                        icon: Icon(Icons.edit, size: getIconScale(6, context)),
-                      ),
-                    ],
+                Text(
+                  item.title,
+                  style: TextStyle(
+                    fontSize: getTextScale(3, context),
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: getPercentageHeight(0.5, context)),
+                Text(
+                  item.value,
+                  style: TextStyle(
+                    fontSize: getTextScale(3, context),
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                   ),
                 ),
-                if (_badgeAwarded)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context),
-                        vertical: getPercentageHeight(0.5, context)),
-                    decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        if (_badgeAwarded)
-                          Icon(
-                            Icons.emoji_events,
-                            color: kAccentLight.withOpacity(0.8),
-                            size: getIconScale(7, context),
-                          ),
-                        SizedBox(width: getPercentageHeight(0.5, context)),
-                        Text(
-                          'Routine Champion! - ${DateFormat('d\'th\' MMM').format(DateTime.parse(controller.yesterday))}',
-                          style: TextStyle(
-                            color: kAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: getTextScale(3, context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            SizedBox(
-              height: getPercentageHeight(8, context),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index]['item'];
-                  final isCompleted = items[index]['isCompleted'];
-                  if (!item.isEnabled) return const SizedBox.shrink();
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(1, context)),
-                    child: InkWell(
-                      onTap: () =>
-                          controller.toggleCompletion(item.title, isCompleted),
-                      child: Container(
-                        width: getPercentageWidth(35, context),
-                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                        decoration: BoxDecoration(
-                          color: isCompleted
-                              ? isDarkMode
-                                  ? kLightGrey.withOpacity(0.5)
-                                  : kAccentLight.withOpacity(0.5)
-                              : isDarkMode
-                                  ? kDarkGrey
-                                  : kWhite,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isCompleted
-                                ? isDarkMode
-                                    ? kLightGrey.withOpacity(0.5)
-                                    : kAccentLight.withOpacity(0.5)
-                                : (isDarkMode
-                                    ? kLightGrey.withOpacity(0.5)
-                                    : kDarkGrey.withOpacity(0.5)),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOriginalStyle(BuildContext context, bool isDarkMode,
+      List<Map<String, dynamic>> routines) {
+    return SizedBox(
+      height: getPercentageHeight(20, context),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: routines.length,
+        itemBuilder: (context, index) {
+          final routineData = routines[index];
+          final item = routineData['item'] as RoutineItem;
+          final isCompleted = routineData['isCompleted'] as bool;
+
+          if (!item.isEnabled) return const SizedBox.shrink();
+          return Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(1, context)),
+            child: InkWell(
+              onTap: () => controller.toggleCompletion(item.title, isCompleted),
+              child: Container(
+                width: getPercentageWidth(35, context),
+                padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? isCompleted
+                          ? kLightGrey.withOpacity(0.5)
+                          : kDarkGrey
+                      : isCompleted
+                          ? kAccentLight.withOpacity(0.5)
+                          : kWhite,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? isCompleted
+                            ? kLightGrey.withOpacity(0.5)
+                            : kDarkGrey.withOpacity(0.5)
+                        : isCompleted
+                            ? kAccentLight.withOpacity(0.5)
+                            : kDarkGrey.withOpacity(0.5),
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          item.title,
+                          style: TextStyle(
+                            fontSize: getTextScale(3.5, context),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              capitalizeFirstLetter(item.title),
-                              style: TextStyle(
-                                color: isDarkMode ? kWhite : kBlack,
-                                fontWeight: FontWeight.w400,
-                                fontSize: getPercentageWidth(3, context),
-                              ),
-                            ),
-                            SizedBox(height: getPercentageHeight(0.2, context)),
-                            Text(
-                              item.value != null ? item.value.toString() : '-',
-                              style: TextStyle(
-                                color: isDarkMode ? kWhite : kBlack,
-                                fontWeight: FontWeight.w600,
-                                fontSize: getPercentageWidth(3.5, context),
-                              ),
-                            ),
-                          ],
-                        ),
+                        if (isCompleted)
+                          const Icon(
+                            Icons.check_circle,
+                            color: kAccent,
+                          )
+                      ],
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Text(
+                      item.value,
+                      style: TextStyle(
+                        fontSize: getTextScale(4.5, context),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      );
-    });
+          );
+        },
+      ),
+    );
   }
 }
