@@ -102,9 +102,6 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
     super.dispose();
   }
 
-  
-
-
   Future<void> removeFromShoppingList(String userId, MacroData item) async {
     try {
       if (item.id == null) {
@@ -164,7 +161,6 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
       return {};
     }
   }
-
 
   @override
   void didUpdateWidget(covariant SpinWheelWidget oldWidget) {
@@ -602,7 +598,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
   Widget _buildContent(
       BuildContext context, dynamic displayedItems, bool isMealSpin) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isInFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
@@ -721,7 +717,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   } else {
                     if (displayedItems.isNotEmpty &&
                         widget.acceptedItems.length > 1) {
-                      if ((userService.currentUser?.isPremium ?? false) ||
+                      if ((userService.currentUser.value?.isPremium ?? false) ||
                           isInFreeTrial) {
                         _generateMealFromIngredients(displayedItems);
                         return;
@@ -757,7 +753,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     child: Text(
                       isMealSpin
                           ? 'Save to Meal Plan'
-                          : (userService.currentUser?.isPremium ?? false) ||
+                          : (userService.currentUser.value?.isPremium ??
+                                      false) ||
                                   isInFreeTrial
                               ? 'Generate Meal with ingredients!'
                               : 'Go Premium to generate a meal!',

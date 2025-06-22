@@ -256,8 +256,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.remove,
-                                            size:
-                                                getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (proteinDishes > 0)
@@ -285,8 +284,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.add,
-                                            size:
-                                                getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             proteinDishes++;
@@ -319,8 +317,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.remove,
-                                            size:
-                                                getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (grainDishes > 0) grainDishes--;
@@ -347,8 +344,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.add,
-                                            size:
-                                                getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             grainDishes++;
@@ -381,8 +377,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.remove,
-                                            size:
-                                                getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             if (vegDishes > 0) vegDishes--;
@@ -409,8 +404,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         icon: Icon(Icons.add,
-                                            size:
-                                                  getIconScale(7, context)),
+                                            size: getIconScale(7, context)),
                                         onPressed: () {
                                           setState(() {
                                             vegDishes++;
@@ -535,8 +529,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     });
 
     // Update userService settings
-    if (userService.currentUser != null) {
-      userService.currentUser!.settings['dietPreference'] = selectedDiet;
+    if (userService.currentUser.value != null) {
+      userService.currentUser.value!.settings['dietPreference'] = selectedDiet;
     }
   }
 
@@ -569,7 +563,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;
     final dailyCalorieGoal =
-        userService.currentUser?.settings['foodGoals'] ?? 2000;
+        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
     final allergies = selectedAllergies.isEmpty
         ? ['No allergies']
         : selectedAllergies.toList();

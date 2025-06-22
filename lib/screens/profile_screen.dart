@@ -173,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final settings = userService.currentUser!.settings;
+    final settings = userService.currentUser.value!.settings;
     final double startWeight = double.tryParse(
             getNumberBeforeSpace(settings['startingWeight'].toString())) ??
         0.0;
@@ -186,7 +186,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         0.0;
     double progressPercentage =
         calculateWeightProgress(startWeight, goalWeight, currentWeight) / 100;
-    final fitnessGoal = userService.currentUser?.settings['fitnessGoal'] ?? '';
+    final fitnessGoal =
+        userService.currentUser.value?.settings['fitnessGoal'] ?? '';
     final shouldShowGoals =
         ["Family Nutrition", "AI Guidance"].contains(fitnessGoal);
 
@@ -202,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : getPercentageHeight(43, context),
             title: isShrink
                 ? Text(
-                    userService.currentUser!.displayName ?? '',
+                    userService.currentUser.value!.displayName ?? '',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: getTextScale(4.5, context),
@@ -264,14 +265,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             borderRadius: BorderRadius.circular(20),
                             image: DecorationImage(
                                 image: userService
-                                                .currentUser?.profileImage !=
+                                                .currentUser.value?.profileImage !=
                                             null &&
-                                        userService.currentUser!.profileImage!
-                                            .isNotEmpty &&
-                                        userService.currentUser!.profileImage!
+                                        userService.currentUser.value!
+                                            .profileImage!.isNotEmpty &&
+                                        userService
+                                            .currentUser.value!.profileImage!
                                             .contains('http')
-                                    ? NetworkImage(
-                                        userService.currentUser!.profileImage!)
+                                    ? NetworkImage(userService
+                                        .currentUser.value!.profileImage!)
                                     : const AssetImage(intPlaceholderImage)
                                         as ImageProvider,
                                 fit: BoxFit.cover),
@@ -291,7 +293,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      userService.currentUser!.displayName ??
+                                      userService
+                                              .currentUser.value!.displayName ??
                                           '',
                                       style: TextStyle(
                                         fontSize: getTextScale(4.5, context),
@@ -423,16 +426,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         radius: getResponsiveBoxSize(context, 20, 20),
                         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                         child: CircleAvatar(
-                          backgroundImage:
-                              userService.currentUser?.profileImage != null &&
-                                      userService.currentUser!.profileImage!
-                                          .isNotEmpty &&
-                                      userService.currentUser!.profileImage!
-                                          .contains('http')
-                                  ? NetworkImage(
-                                      userService.currentUser!.profileImage!)
-                                  : const AssetImage(intPlaceholderImage)
-                                      as ImageProvider,
+                          backgroundImage: userService
+                                          .currentUser.value?.profileImage !=
+                                      null &&
+                                  userService.currentUser.value!.profileImage!
+                                      .isNotEmpty &&
+                                  userService.currentUser.value!.profileImage!
+                                      .contains('http')
+                              ? NetworkImage(
+                                  userService.currentUser.value!.profileImage!)
+                              : const AssetImage(intPlaceholderImage)
+                                  as ImageProvider,
                           radius: getResponsiveBoxSize(context, 18, 18),
                         ),
                       ),
@@ -547,7 +551,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             Text(
-                              '${userService.currentUser?.settings['fitnessGoal']}',
+                              '${userService.currentUser.value?.settings['fitnessGoal']}',
                               style: TextStyle(
                                 fontSize: getTextScale(3.5, context),
                                 color: kAccent,

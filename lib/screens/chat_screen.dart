@@ -129,14 +129,14 @@ class _ChatScreenState extends State<ChatScreen> {
       shareRequest: {
         'type': type,
         'date': date,
-        'name': userService.currentUser?.displayName,
+        'name': userService.currentUser.value?.displayName,
         'friendName': widget.friend?.displayName,
         'calendarId': calendarId ?? 'No calendar ID',
         'header': data['header'] as String?,
       },
     );
     // If allowed, increment share count for non-premium users
-    if (!(userService.currentUser?.isPremium ?? false)) {
+    if (!(userService.currentUser.value?.isPremium ?? false)) {
       await firestore.collection('users').doc(userService.userId).set(
         {
           'calendarShares': FieldValue.increment(1),
@@ -321,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
       id: postId,
       userId: userService.userId ?? '',
       mediaPaths: uploadedUrls,
-      name: userService.currentUser?.displayName ?? '',
+      name: userService.currentUser.value?.displayName ?? '',
       category: 'general',
       isBattle: false,
       battleId: 'private',

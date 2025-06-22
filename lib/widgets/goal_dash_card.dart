@@ -130,7 +130,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
   void _showEditModal(Map<String, dynamic> user, bool isDarkMode) async {
     // Get the latest familyMembers list from the user model
     final List<FamilyMember> currentFamilyMembers =
-        userService.currentUser?.familyMembers ?? [];
+        userService.currentUser.value?.familyMembers ?? [];
     final List<Map<String, dynamic>> familyList =
         currentFamilyMembers.map((f) => f.toMap()).toList();
 
@@ -261,7 +261,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                     .update({
                   'familyMembers': updatedFamilyList,
                 });
-                userService.setUser(userService.currentUser!.copyWith(
+                userService.setUser(userService.currentUser.value!.copyWith(
                   familyMembers: updatedFamilyList
                       .map((f) => FamilyMember.fromMap(f))
                       .toList(),
@@ -284,16 +284,17 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final currentUser = {
-      'name': userService.currentUser?.displayName ?? '',
-      'fitnessGoal': userService.currentUser?.settings['fitnessGoal'] ?? '',
-      'foodGoal': userService.currentUser?.settings['foodGoal'] ?? '',
+      'name': userService.currentUser.value?.displayName ?? '',
+      'fitnessGoal':
+          userService.currentUser.value?.settings['fitnessGoal'] ?? '',
+      'foodGoal': userService.currentUser.value?.settings['foodGoal'] ?? '',
       'meals': [],
       'avatar': null,
     };
 
-    final bool familyMode = userService.currentUser?.familyMode ?? false;
+    final bool familyMode = userService.currentUser.value?.familyMode ?? false;
     final List<FamilyMember> familyMembers =
-        userService.currentUser?.familyMembers ?? [];
+        userService.currentUser.value?.familyMembers ?? [];
     final List<Map<String, dynamic>> familyList =
         familyMembers.map((f) => f.toMap()).toList();
 
@@ -420,7 +421,8 @@ class UserDetailsSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (user['name'] == userService.currentUser?.displayName)
+                      if (user['name'] ==
+                          userService.currentUser.value?.displayName)
                         SizedBox(
                             width: user['name'].length > 10
                                 ? getPercentageWidth(0.5, context)
@@ -481,7 +483,8 @@ class UserDetailsSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 onTap: () {
                   if (familyMode) {
-                    if (user['name'] == userService.currentUser?.displayName) {
+                    if (user['name'] ==
+                        userService.currentUser.value?.displayName) {
                       Get.to(() => const ProfileEditScreen());
                     } else {
                       onEdit(user, isDarkMode);
@@ -528,7 +531,7 @@ class UserDetailsSection extends StatelessWidget {
         SizedBox(height: getPercentageHeight(2, context)),
         // Sleek horizontal progress bar
         Obx(() {
-          if (user['name'] != userService.currentUser?.displayName) {
+          if (user['name'] != userService.currentUser.value?.displayName) {
             return const SizedBox.shrink();
           }
 
@@ -653,7 +656,7 @@ class MealPlanSection extends StatelessWidget {
                     padding: EdgeInsets.symmetric(
                         vertical: getPercentageHeight(1, context)),
                     child: Text(
-                      user['name'] == userService.currentUser?.displayName
+                      user['name'] == userService.currentUser.value?.displayName
                           ? 'Add a meal plan'
                           : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
                       style: TextStyle(
@@ -668,7 +671,7 @@ class MealPlanSection extends StatelessWidget {
           ),
         SizedBox(height: getPercentageHeight(0.5, context)),
         if (meals.isNotEmpty &&
-            (user['name'] == userService.currentUser?.displayName))
+            (user['name'] == userService.currentUser.value?.displayName))
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

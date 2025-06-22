@@ -354,7 +354,7 @@ class AuthController extends GetxController {
         // Handle settings updates specially to prevent overwriting
         if (updatedData.containsKey('settings')) {
           // If updating settings, merge with existing settings
-          final currentUser = userService.currentUser;
+          final currentUser = userService.currentUser.value;
           if (currentUser != null) {
             final existingSettings =
                 Map<String, dynamic>.from(currentUser.settings);
@@ -370,9 +370,9 @@ class AuthController extends GetxController {
         await firestore.collection('users').doc(userId).update(updatedData);
 
         // Update local model and userService
-        if (userService.currentUser != null) {
+        if (userService.currentUser.value != null) {
           final updatedUser = UserModel.fromMap({
-            ...userService.currentUser!.toMap(),
+            ...userService.currentUser.value!.toMap(),
             ...updatedData,
           });
           userService.setUser(updatedUser);
@@ -445,9 +445,9 @@ class AuthController extends GetxController {
       });
 
       // Update local user model in UserService
-      if (userService.currentUser != null) {
+      if (userService.currentUser.value != null) {
         final updatedUser = UserModel.fromMap({
-          ...userService.currentUser!.toMap(),
+          ...userService.currentUser.value!.toMap(),
           'isPremium': isPremium,
           'premiumPlan': plan,
         });

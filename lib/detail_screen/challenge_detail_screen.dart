@@ -193,7 +193,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             : 'Post';
       }
       final postName = _currentPostData['name'].toString();
-      final userName = userService.currentUser?.displayName ?? '';
+      final userName = userService.currentUser.value?.displayName ?? '';
       return userName == postName ? 'My Post' : postName;
     } else {
       return _currentPostData['title']?.toString().isNotEmpty == true

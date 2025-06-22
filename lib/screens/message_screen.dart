@@ -59,7 +59,7 @@ class _MessageScreenState extends State<MessageScreen>
     }
 
     friendController.getAllFriendData(userService.userId ?? '');
-    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
     setState(() {

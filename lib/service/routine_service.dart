@@ -51,21 +51,22 @@ class RoutineService {
       RoutineItem(
         id: 'Water Intake',
         title: 'Water Intake',
-        value: '${userService.currentUser!.settings['waterIntake']} ml',
+        value: '${userService.currentUser.value!.settings['waterIntake']} ml',
         type: 'quantity',
         isEnabled: true,
       ),
       RoutineItem(
         id: 'Nutrition Goal',
         title: 'Nutrition Goal',
-        value: '${userService.currentUser!.settings['foodGoal']} calories',
+        value:
+            '${userService.currentUser.value!.settings['foodGoal']} calories',
         type: 'quantity',
         isEnabled: true,
       ),
       RoutineItem(
         id: 'Steps',
         title: 'Steps',
-        value: '${userService.currentUser!.settings['targetSteps']}',
+        value: '${userService.currentUser.value!.settings['targetSteps']}',
         type: 'quantity',
         isEnabled: true,
       ),

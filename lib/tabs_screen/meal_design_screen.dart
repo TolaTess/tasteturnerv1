@@ -48,8 +48,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   bool showSharedCalendars = false;
   int get _tabCount => 2;
-  bool isPremium = userService.currentUser?.isPremium ?? false;
-  bool familyMode = userService.currentUser?.familyMode ?? false;
+  bool isPremium = userService.currentUser.value?.isPremium ?? false;
+  bool familyMode = userService.currentUser.value?.familyMode ?? false;
   final CalendarSharingController sharingController =
       Get.put(CalendarSharingController());
   String? selectedSharedCalendarId;
@@ -78,12 +78,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     if (familyMode) {
       final currentUser = {
-        'name': userService.currentUser?.displayName ?? 'Me',
-        'id': userService.currentUser?.userId ?? 'me',
+        'name': userService.currentUser.value?.displayName ?? 'Me',
+        'id': userService.userId ?? 'me',
       };
 
       final List<FamilyMember> familyMembers =
-          userService.currentUser?.familyMembers ?? [];
+          userService.currentUser.value?.familyMembers ?? [];
       final List<Map<String, dynamic>> familyList = familyMembers
           .map((f) => {
                 'name': f.name,
@@ -156,7 +156,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Future<void> _loadFriendsBirthdays() async {
     birthdays.clear();
-    final following = userService.currentUser?.following as List<dynamic>?;
+    final following =
+        userService.currentUser.value?.following as List<dynamic>?;
     if (following == null) return;
     for (final friendId in following) {
       final doc = await firestore.collection('users').doc(friendId).get();
@@ -196,7 +197,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
     if (!mounted) return;
     setState(() {
-      isPremium = userService.currentUser?.isPremium ?? false;
+      isPremium = userService.currentUser.value?.isPremium ?? false;
     });
   }
 
@@ -311,7 +312,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 mealWithTypes.add(MealWithType(
                     meal: meal,
                     mealType: 'default',
-                    familyMember: userService.currentUser?.displayName ?? '',
+                    familyMember:
+                        userService.currentUser.value?.displayName ?? '',
                     fullMealId: mealId));
               }
             }
@@ -351,7 +353,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   /// Returns true if the given date is the user's birthday and in personal view
   bool _isUserBirthday(DateTime date) {
     if (showSharedCalendars) return false;
-    final userDob = userService.currentUser?.dob;
+    final userDob = userService.currentUser.value?.dob;
     if (userDob == null || userDob.length != 5) return false;
     final month = int.tryParse(userDob.substring(0, 2));
     final day = int.tryParse(userDob.substring(3, 5));
@@ -363,7 +365,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final avatarUrl =
-        userService.currentUser?.profileImage ?? intPlaceholderImage;
+        userService.currentUser.value?.profileImage ?? intPlaceholderImage;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -861,18 +863,18 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
             ),
           ),
-          userService.currentUser?.isPremium ?? false
+          userService.currentUser.value?.isPremium ?? false
               ? const SizedBox.shrink()
               : SizedBox(height: getPercentageHeight(1, context)),
-          userService.currentUser?.isPremium ?? false
+          userService.currentUser.value?.isPremium ?? false
               ? const SizedBox.shrink()
               : PremiumSection(
-                  isPremium: userService.currentUser?.isPremium ?? false,
+                  isPremium: userService.currentUser.value?.isPremium ?? false,
                   titleOne: joinChallenges,
                   titleTwo: premium,
                   isDiv: false,
                 ),
-          userService.currentUser?.isPremium ?? false
+          userService.currentUser.value?.isPremium ?? false
               ? const SizedBox.shrink()
               : SizedBox(height: getPercentageHeight(0.5, context)),
 
@@ -890,7 +892,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     // Check if user is premium or has free share left
     final userDoc =
         await firestore.collection('users').doc(userService.userId).get();
-    final isPremium = userService.currentUser?.isPremium ?? false;
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
     int calendarShares = 0;
     if (userDoc.exists) {
       final data = userDoc.data() as Map<String, dynamic>;
@@ -1084,7 +1086,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     // Fallback to personal calendar logic
     List<MealWithType> personalMeals = [];
     final List<FamilyMember> currentFamilyMembers =
-        userService.currentUser?.familyMembers ?? [];
+        userService.currentUser.value?.familyMembers ?? [];
     final List<Map<String, dynamic>> familyList =
         currentFamilyMembers.map((f) => f.toMap()).toList();
 
@@ -1175,7 +1177,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   context, isDarkMode, false, currentDayType,
                   goStraightToAddMeal: !familyMode ||
                           selectedCategory.toLowerCase() ==
-                              userService.currentUser?.displayName
+                              userService.currentUser.value?.displayName
                                   ?.toLowerCase()
                       ? false
                       : true),
@@ -1743,7 +1745,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         context, isDarkMode, false, '',
                         goStraightToAddMeal: !familyMode ||
                                 selectedCategory.toLowerCase() ==
-                                    userService.currentUser?.displayName
+                                    userService.currentUser.value?.displayName
                                         ?.toLowerCase()
                             ? false
                             : true),
@@ -1864,7 +1866,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
               if (!familyMode ||
                   selectedCategory.toLowerCase() ==
-                      userService.currentUser?.displayName?.toLowerCase()) ...[
+                      userService.currentUser.value?.displayName
+                          ?.toLowerCase()) ...[
                 GestureDetector(
                   onTap: () => _addMealPlan(
                       context, isDarkMode, false, currentDayType,
@@ -1905,7 +1908,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         SizedBox(width: getPercentageWidth(1, context)),
                         Icon(
                           Icons.edit,
-                          size:  getIconScale(5, context),
+                          size: getIconScale(5, context),
                           color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode),
                         ),

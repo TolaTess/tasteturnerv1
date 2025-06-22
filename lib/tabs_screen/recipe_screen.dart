@@ -113,7 +113,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
       _isLoadingDietGoal = true;
     });
     Future.delayed(Duration.zero, () {
-      final user = userService.currentUser;
+      final user = userService.currentUser.value;
       final String userDiet =
           user?.settings['dietPreference']?.toString() ?? 'Balanced';
       final String userGoal =
@@ -237,7 +237,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final user = userService.currentUser;
+    final user = userService.currentUser.value;
     final String userDiet =
         user?.settings['dietPreference']?.toString() ?? 'Balanced';
     final String userGoal =
@@ -298,19 +298,20 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
               // ------------------------------------Premium / Ads------------------------------------
 
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : PremiumSection(
-                      isPremium: userService.currentUser?.isPremium ?? false,
+                      isPremium:
+                          userService.currentUser.value?.isPremium ?? false,
                       titleOne: joinChallenges,
                       titleTwo: premium,
                       isDiv: false,
                     ),
 
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : SizedBox(height: getPercentageHeight(1, context)),
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : Divider(color: isDarkMode ? kWhite : kDarkGrey),
               // ------------------------------------Premium / Ads-------------------------------------

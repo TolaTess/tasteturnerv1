@@ -38,7 +38,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
   @override
   void initState() {
     demoMealsPlanData = mealManager.meals;
-    isPremium = userService.currentUser?.isPremium;
+    isPremium = userService.currentUser.value?.isPremium;
     _checkIfItemInShoppingList();
     // Make a local copy of ingredientItems for shuffling
     _displayIngredientItems = List<MacroData>.from(widget.ingredientItems);
@@ -348,16 +348,17 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
 
 // ------------------------------------Premium------------------------------------
 
-                isPremium ?? userService.currentUser?.isPremium ?? false
+                isPremium ?? userService.currentUser.value?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : PremiumSection(
-                        isPremium: userService.currentUser?.isPremium ?? false,
+                        isPremium:
+                            userService.currentUser.value?.isPremium ?? false,
                         titleOne: joinChallenges,
                         titleTwo: premium,
                         isDiv: false,
                       ),
 
-                userService.currentUser?.isPremium ?? false
+                userService.currentUser.value?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : Divider(color: isDarkMode ? kWhite : kDarkGrey),
                 // ------------------------------------Premium------------------------------------

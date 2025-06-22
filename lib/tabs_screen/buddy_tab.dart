@@ -21,7 +21,7 @@ class BuddyTab extends StatefulWidget {
 
 class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
-  bool isPremium = userService.currentUser?.isPremium ?? false;
+  bool isPremium = userService.currentUser.value?.isPremium ?? false;
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _BuddyTabState extends State<BuddyTab> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     setState(() {
-      isPremium = userService.currentUser?.isPremium ?? false;
+      isPremium = userService.currentUser.value?.isPremium ?? false;
     });
     _initializeBuddyData();
   }
@@ -201,12 +201,12 @@ class _BuddyTabState extends State<BuddyTab> {
         "AI-powered food coach, crafting the perfect plan for a fitter you.";
 
     final date = DateFormat('d MMMM')
-        .format(userService.currentUser?.freeTrialDate ?? DateTime.now());
+        .format(userService.currentUser.value?.freeTrialDate ?? DateTime.now());
 
     String tastyMessage3 =
         "Please enjoy our AI-powered food coach, helping you craft the perfect plan for a fitter you. \n \n Free trail until $date";
 
-    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isInFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
@@ -220,21 +220,22 @@ class _BuddyTabState extends State<BuddyTab> {
               SizedBox(
                 height: getPercentageHeight(2, context),
               ),
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : PremiumSection(
-                      isPremium: userService.currentUser?.isPremium ?? false,
+                      isPremium:
+                          userService.currentUser.value?.isPremium ?? false,
                       titleOne: joinChallenges,
                       titleTwo: premium,
                       isDiv: false,
                     ),
 
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : SizedBox(height: getPercentageHeight(1, context)),
 
               // ------------------------------------Premium / Ads-------------------------------------
-              userService.currentUser?.isPremium ?? false
+              userService.currentUser.value?.isPremium ?? false
                   ? const SizedBox.shrink()
                   : SizedBox(height: getPercentageHeight(0.5, context)),
               SizedBox(
@@ -244,7 +245,7 @@ class _BuddyTabState extends State<BuddyTab> {
               TweenAnimationBuilder(
                 tween: Tween<double>(
                     begin: 0.8,
-                    end: userService.currentUser?.isPremium ?? false
+                    end: userService.currentUser.value?.isPremium ?? false
                         ? 1.2
                         : 1.0),
                 duration: const Duration(seconds: 2),
@@ -256,10 +257,10 @@ class _BuddyTabState extends State<BuddyTab> {
                   );
                 },
                 child: Container(
-                  width: userService.currentUser?.isPremium ?? false
+                  width: userService.currentUser.value?.isPremium ?? false
                       ? getPercentageWidth(17, context)
                       : getPercentageWidth(12, context),
-                  height: userService.currentUser?.isPremium ?? false
+                  height: userService.currentUser.value?.isPremium ?? false
                       ? getPercentageWidth(17, context)
                       : getPercentageWidth(12, context),
                   decoration: BoxDecoration(
@@ -587,8 +588,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                       style: TextStyle(
                                           color:
                                               isDarkMode ? kWhite : kDarkGrey,
-                                          fontSize:
-                                              getTextScale(3, context))),
+                                          fontSize: getTextScale(3, context))),
                                   onTap: () async {
                                     Navigator.pop(ctx);
                                     await helperController.saveMealPlanBuddy(

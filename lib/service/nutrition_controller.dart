@@ -60,7 +60,7 @@ class NutritionController extends GetxController {
   void listenToDailyData(String userId, DateTime mDate) {
     if (userId.isEmpty) return;
 
-    loadSettings(userService.currentUser?.settings);
+    loadSettings(userService.currentUser.value?.settings);
 
     // Cancel previous listeners to avoid multiple streams on date change
     _summarySubscription?.cancel();
@@ -370,7 +370,8 @@ class NutritionController extends GetxController {
       // Update the local observable
       currentSteps.value = newCurrentSteps;
       final targetSteps = double.parse(
-          userService.currentUser?.settings['targetSteps'].toString() ?? '0');
+          userService.currentUser.value?.settings['targetSteps'].toString() ??
+              '0');
 
       if (newCurrentSteps >= targetSteps) {
         await notificationService.showNotification(

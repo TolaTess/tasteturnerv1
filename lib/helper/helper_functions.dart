@@ -22,7 +22,7 @@ Widget buildTastyFloatingActionButton({
   return FloatingActionButton(
     key: buttonKey,
     onPressed: () {
-      if (isInFreeTrial || userService.currentUser!.isPremium) {
+      if (isInFreeTrial || userService.currentUser.value!.isPremium) {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -153,9 +153,8 @@ Widget getBirthdayTextContainer(
           : '${birthdayName}s birthday is today! 🎂',
       style: TextStyle(
         color: kAccentLight,
-        fontSize: isShrink
-            ? getTextScale(2.5, context)
-            : getTextScale(3, context),
+        fontSize:
+            isShrink ? getTextScale(2.5, context) : getTextScale(3, context),
         fontWeight: isShrink ? FontWeight.normal : FontWeight.w400,
         overflow: isShrink ? TextOverflow.ellipsis : TextOverflow.visible,
       ),
@@ -682,16 +681,23 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
   bool hasCategoryMatch = personalMeals.any(
       (meal) => meal.familyMember.toLowerCase() == familyName.toLowerCase());
 
-  bool isCurrentUser = personalMeals.any(
-      (meal) => meal.familyMember.toLowerCase() == userService.userId?.toLowerCase());
+  bool isCurrentUser = personalMeals.any((meal) =>
+      meal.familyMember.toLowerCase() == userService.userId?.toLowerCase());
 
-  if (isCurrentUser && familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
-    return personalMeals.where((meal) => meal.familyMember.toLowerCase() == userService.userId?.toLowerCase()).toList();
+  if (isCurrentUser &&
+      familyName.toLowerCase() ==
+          userService.currentUser.value?.displayName?.toLowerCase()) {
+    return personalMeals
+        .where((meal) =>
+            meal.familyMember.toLowerCase() ==
+            userService.userId?.toLowerCase())
+        .toList();
   }
 
   // If no matches found, only show meals if family name matches current user
   if (!hasCategoryMatch) {
-    if (familyName.toLowerCase() == userService.currentUser?.displayName?.toLowerCase()) {
+    if (familyName.toLowerCase() ==
+        userService.currentUser.value?.displayName?.toLowerCase()) {
       return personalMeals.where((meal) => meal.familyMember.isEmpty).toList();
     }
     return [];

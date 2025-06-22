@@ -340,7 +340,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final user = userService.currentUser;
+    final user = userService.currentUser.value;
 
     return Scaffold(
       appBar: AppBar(

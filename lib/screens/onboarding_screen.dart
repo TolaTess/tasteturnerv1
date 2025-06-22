@@ -119,8 +119,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     });
   }
 
-
-
   void _submitOnboarding() async {
     try {
       if (widget.userId.isEmpty) {
@@ -180,7 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             );
 
         // Set current user
-        userService.currentUser = newUser;
+        userService.currentUser.value = newUser;
         userService.userId = widget.userId;
 
         // Save to local storage using toJson()

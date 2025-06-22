@@ -25,7 +25,7 @@ class _TastyScreenState extends State<TastyScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController textController = TextEditingController();
   String? chatId;
-  bool get isPremium => userService.currentUser?.isPremium ?? false;
+  bool get isPremium => userService.currentUser.value?.isPremium ?? false;
 
   bool isInFreeTrial = false;
   late ChatController chatController;
@@ -49,7 +49,7 @@ class _TastyScreenState extends State<TastyScreen> {
       chatController = Get.put(ChatController());
     }
     chatId = userService.buddyId;
-    final freeTrialDate = userService.currentUser?.freeTrialDate;
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
     setState(() {
@@ -477,22 +477,24 @@ class _TastyScreenState extends State<TastyScreen> {
   // Helper method to get user context
   Map<String, dynamic> _getUserContext() {
     return {
-      'displayName': userService.currentUser?.displayName ?? 'there',
-      'fitnessGoal':
-          userService.currentUser?.settings['fitnessGoal'] ?? 'Healthy Eating',
-      'chatSummary': userService.currentUser?.bio ?? '',
+      'displayName': userService.currentUser.value?.displayName ?? 'there',
+      'fitnessGoal': userService.currentUser.value?.settings['fitnessGoal'] ??
+          'Healthy Eating',
+      'chatSummary': userService.currentUser.value?.bio ?? '',
       'currentWeight':
-          userService.currentUser?.settings['currentWeight'] ?? 0.0,
-      'goalWeight': userService.currentUser?.settings['goalWeight'] ?? 0.0,
+          userService.currentUser.value?.settings['currentWeight'] ?? 0.0,
+      'goalWeight':
+          userService.currentUser.value?.settings['goalWeight'] ?? 0.0,
       'startingWeight':
-          userService.currentUser?.settings['startingWeight'] ?? 0.0,
-      'gender': userService.currentUser?.settings['gender'] ?? '',
-      'foodGoal': userService.currentUser?.settings['foodGoal'] ?? 0.0,
+          userService.currentUser.value?.settings['startingWeight'] ?? 0.0,
+      'gender': userService.currentUser.value?.settings['gender'] ?? '',
+      'foodGoal': userService.currentUser.value?.settings['foodGoal'] ?? 0.0,
       'dietPreference':
-          userService.currentUser?.settings['dietPreference'] ?? 'Balanced',
-      'bodyType': userService.currentUser?.settings['bodyType'] ?? '',
+          userService.currentUser.value?.settings['dietPreference'] ??
+              'Balanced',
+      'bodyType': userService.currentUser.value?.settings['bodyType'] ?? '',
       'bodyTypeSymptoms':
-          userService.currentUser?.settings['bodyTypeSymptoms'] ?? '',
+          userService.currentUser.value?.settings['bodyTypeSymptoms'] ?? '',
     };
   }
 
@@ -623,7 +625,7 @@ Greet the user warmly and offer guidance based on:
           response =
               "Is there anything else you'd like to know about what we just discussed? I'm here to help!";
         } else {
-          final username = userService.currentUser?.displayName;
+          final username = userService.currentUser.value?.displayName;
           final prompt = "${userInput}, user name is ${username ?? ''}".trim();
           response = await geminiService.getResponse(
             prompt,

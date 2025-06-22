@@ -59,7 +59,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     super.initState();
     _onRefresh();
     _searchController.text = widget.searchIngredient;
-    if (userService.currentUser?.familyMode ?? false) {
+    if (userService.currentUser.value?.familyMode ?? false) {
       _categoryDatasIngredient = [...helperController.kidsCategory];
     } else {
       _categoryDatasIngredient = [...helperController.category];
@@ -132,7 +132,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       if (widget.isFamilyMode && widget.familyMember != null) {
         // Append family member to each meal ID for family mode
         if (widget.familyMember?.toLowerCase() ==
-            userService.currentUser?.displayName?.toLowerCase()) {
+            userService.currentUser.value?.displayName?.toLowerCase()) {
           selectedMealIds = selectedMealIds
               .map((mealId) => '$mealId/${userService.userId}')
               .toList();

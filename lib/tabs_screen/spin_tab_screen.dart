@@ -57,7 +57,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
   @override
   Widget build(BuildContext context) {
     final avatarUrl =
-        userService.currentUser?.profileImage ?? intPlaceholderImage;
+        userService.currentUser.value?.profileImage ?? intPlaceholderImage;
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       key: _scaffoldKey,

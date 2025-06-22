@@ -33,7 +33,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int currentPage = 0;
   final PageController _pageController = PageController();
-  bool familyMode = userService.currentUser?.familyMode ?? false;
+  bool familyMode = userService.currentUser.value?.familyMode ?? false;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -228,20 +228,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _initializeMealData() async {
     Map<String, String> settings = {};
-    userService.currentUser?.settings.forEach((key, value) {
+    userService.currentUser.value?.settings.forEach((key, value) {
       settings[key.toString()] = value.toString();
     });
 
-    dailyDataController.listenToDailyData(userService.userId!, DateTime.now());
+    dailyDataController.listenToDailyData(userService.userId ?? '', DateTime.now());
   }
 
   void _initializeMealDataByDate() async {
     Map<String, String> settings = {};
-    userService.currentUser?.settings.forEach((key, value) {
+    userService.currentUser.value?.settings.forEach((key, value) {
       settings[key.toString()] = value.toString();
     });
 
-    dailyDataController.listenToDailyData(userService.userId!, currentDate);
+    dailyDataController.listenToDailyData(userService.userId ?? '', currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -324,451 +324,483 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     // SizeConfig().init(context);
     final winners = helperController.winners;
-    final announceDate =
-        DateTime.parse(firebaseService.generalData['isAnnounceDate']);
-    final isAnnounceShow = isDateTodayAfterTime(announceDate);
-    // Safely access user data with null checks
-    final currentUser = userService.currentUser;
-    if (currentUser == null) {
-      // Show a loading state if user data isn't available yet
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: kAccent),
-        ),
-      );
-    }
-    final inspiration = currentUser.bio ?? getRandomBio(bios);
-    final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
 
-    return Scaffold(
-      drawer: const CustomDrawer(),
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
+    return Obx(() {
+          final currentUser = userService.currentUser.value;
+
+      if (currentUser == null) {
+        // Show a loading state if user data isn't available yet
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(color: kAccent),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Padding(
-                padding: EdgeInsets.symmetric(
-                    vertical: getPercentageHeight(2, context),
-                    horizontal: getPercentageWidth(2, context)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Avatar and Greeting Section
-                    Row(
-                      children: [
-                        Builder(builder: (context) {
-                          return GestureDetector(
-                            onTap: () {
-                              Scaffold.of(context).openDrawer();
-                            },
-                            child: CircleAvatar(
-                              key: _addProfileButtonKey,
-                              radius: getResponsiveBoxSize(context, 20, 20),
-                              backgroundColor: kAccent.withOpacity(kOpacity),
-                              child: CircleAvatar(
-                                backgroundImage: getAvatarImage(avatarUrl),
-                                radius: getResponsiveBoxSize(context, 18, 18),
-                              ),
-                            ),
-                          );
-                        }),
-                        SizedBox(width: getPercentageWidth(2, context)),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$greeting ${currentUser.displayName}!',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize:
-                                    currentUser.displayName?.length != null &&
-                                            currentUser.displayName!.length > 10
-                                        ? getTextScale(4, context)
-                                        : getTextScale(4.5, context),
-                              ),
-                            ),
-                            Text(
-                              inspiration,
-                              style: TextStyle(
-                                fontSize:
-                                    currentUser.displayName?.length != null &&
-                                            currentUser.displayName!.length > 15
-                                        ? getTextScale(2.5, context)
-                                        : getTextScale(3, context),
-                                fontWeight: FontWeight.w400,
-                                color: kLightGrey,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(width: getPercentageWidth(2, context)),
-                      ],
-                    ),
-                    // Message Section
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MessageScreen(),
-                              ),
-                            );
-                          },
-                          child: SvgPicture.asset(
-                            'assets/images/svg/message.svg',
-                            height: getIconScale(8, context),
-                            width: getIconScale(8, context),
-                            color: isDarkMode
-                                ? kAccent
-                                : kDarkGrey.withOpacity(0.7),
-                          ),
-                        ),
-                        SizedBox(width: getPercentageWidth(2, context)),
+        );
+      }
+      final announceDate =
+          DateTime.parse(firebaseService.generalData['isAnnounceDate']);
+      final isAnnounceShow = isDateTodayAfterTime(announceDate);
 
-                        // Unread Count Badge
-                        Obx(() {
-                          final nonBuddyChats = chatController.userChats
-                              .where((chat) => !(chat['participants'] as List)
-                                  .contains('buddy'))
-                              .toList();
+      // Safely access user data with null checks
+      familyMode = currentUser.familyMode ?? false;
+      final inspiration = currentUser.bio ?? getRandomBio(bios);
+      final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
 
-                          if (nonBuddyChats.isEmpty) {
-                            return const SizedBox
-                                .shrink(); // Hide badge if no chats
-                          }
-
-                          // Calculate total unread count across all non-buddy chats
-                          final int unreadCount = nonBuddyChats.fold<int>(
-                            0,
-                            (sum, chat) =>
-                                sum + (chat['unreadCount'] as int? ?? 0),
-                          );
-
-                          // Handle notifications
-                          _handleUnreadNotifications(unreadCount);
-
-                          if (unreadCount >= 1) {
-                            return Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(1.5, context),
-                                  vertical: getPercentageWidth(0.5, context)),
-                              decoration: BoxDecoration(
-                                color: kRed,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                unreadCount.toString(),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: getTextScale(2.5, context),
-                                ),
-                              ),
-                            );
-                          } else {
-                            return const SizedBox
-                                .shrink(); // Hide badge if unreadCount is 0
-                          }
-                        }),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await _onRefresh();
-          await _loadShoppingDay();
-        },
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                vertical: getPercentageHeight(0.5, context),
-                horizontal: getPercentageWidth(2, context)),
+      return Scaffold(
+        drawer: const CustomDrawer(),
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                SizedBox(
-                    height: MediaQuery.of(context).size.width > 800
-                        ? getPercentageHeight(1.5, context)
-                        : getPercentageHeight(0.5, context)),
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(0.3, context)),
+                      vertical: getPercentageHeight(2, context),
+                      horizontal: getPercentageWidth(2, context)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        onPressed: () {
-                          final DateTime sevenDaysAgo =
-                              DateTime.now().subtract(const Duration(days: 7));
-                          if (currentDate.isAfter(sevenDaysAgo)) {
-                            setState(() {
-                              currentDate = DateTime(
-                                currentDate.year,
-                                currentDate.month,
-                                currentDate.day,
-                              ).subtract(const Duration(days: 1));
-                            });
-                            _initializeMealDataByDate(); // Fetch data for new date
-                          }
-                        },
-                        icon: Icon(
-                          Icons.arrow_back_ios_new,
-                          size: getIconScale(7, context),
-                          color: currentDate.isBefore(DateTime.now()
-                                  .subtract(const Duration(days: 7)))
-                              ? isDarkMode
-                                  ? kLightGrey.withOpacity(0.5)
-                                  : kDarkGrey.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
+                      // Avatar and Greeting Section
                       Row(
                         children: [
-                          Text(
-                            '${getRelativeDayString(currentDate)},',
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(0.5, context)),
-                          if (getRelativeDayString(currentDate) != 'Today' &&
-                              getRelativeDayString(currentDate) != 'Yesterday')
-                            Text(
-                              DateFormat('d MMMM').format(currentDate),
-                              style: TextStyle(
-                                fontSize: getTextScale(4, context),
-                                fontWeight: FontWeight.w400,
-                                color: Colors.amber[700],
+                          Builder(builder: (context) {
+                            return GestureDetector(
+                              onTap: () {
+                                Scaffold.of(context).openDrawer();
+                              },
+                              child: CircleAvatar(
+                                key: _addProfileButtonKey,
+                                radius: getResponsiveBoxSize(context, 20, 20),
+                                backgroundColor: kAccent.withOpacity(kOpacity),
+                                child: CircleAvatar(
+                                  backgroundImage: getAvatarImage(avatarUrl),
+                                  radius: getResponsiveBoxSize(context, 18, 18),
+                                ),
                               ),
-                            ),
+                            );
+                          }),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$greeting ${currentUser.displayName}!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: currentUser.displayName?.length !=
+                                              null &&
+                                          currentUser.displayName!.length > 10
+                                      ? getTextScale(4, context)
+                                      : getTextScale(4.5, context),
+                                ),
+                              ),
+                              Text(
+                                inspiration,
+                                style: TextStyle(
+                                  fontSize: currentUser.displayName?.length !=
+                                              null &&
+                                          currentUser.displayName!.length > 15
+                                      ? getTextScale(2.5, context)
+                                      : getTextScale(3, context),
+                                  fontWeight: FontWeight.w400,
+                                  color: kLightGrey,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
                         ],
                       ),
-                      IconButton(
-                        onPressed: () {
-                          final DateTime now = DateTime.now();
-                          final DateTime nextDate = DateTime(
-                            currentDate.year,
-                            currentDate.month,
-                            currentDate.day,
-                          ).add(const Duration(days: 1));
+                      // Message Section
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MessageScreen(),
+                                ),
+                              );
+                            },
+                            child: SvgPicture.asset(
+                              'assets/images/svg/message.svg',
+                              height: getIconScale(8, context),
+                              width: getIconScale(8, context),
+                              color: isDarkMode
+                                  ? kAccent
+                                  : kDarkGrey.withOpacity(0.7),
+                            ),
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
 
-                          setState(() {
-                            if (!nextDate.isAfter(
-                                DateTime(now.year, now.month, now.day))) {
-                              currentDate = nextDate;
-                            } else {
-                              currentDate =
-                                  DateTime(now.year, now.month, now.day);
+                          // Unread Count Badge
+                          Obx(() {
+                            final nonBuddyChats = chatController.userChats
+                                .where((chat) => !(chat['participants'] as List)
+                                    .contains('buddy'))
+                                .toList();
+
+                            if (nonBuddyChats.isEmpty) {
+                              return const SizedBox
+                                  .shrink(); // Hide badge if no chats
                             }
-                          });
-                          _initializeMealDataByDate(); // Fetch data for new date
-                        },
-                        icon: Icon(
-                          Icons.arrow_forward_ios,
-                          size: getIconScale(7, context),
-                          color: getCurrentDate(currentDate)
-                              ? isDarkMode
-                                  ? kLightGrey.withOpacity(0.5)
-                                  : kDarkGrey.withOpacity(0.1)
-                              : null,
-                        ),
-                      ),
+
+                            // Calculate total unread count across all non-buddy chats
+                            final int unreadCount = nonBuddyChats.fold<int>(
+                              0,
+                              (sum, chat) =>
+                                  sum + (chat['unreadCount'] as int? ?? 0),
+                            );
+
+                            // Handle notifications
+                            _handleUnreadNotifications(unreadCount);
+
+                            if (unreadCount >= 1) {
+                              return Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        getPercentageWidth(1.5, context),
+                                    vertical: getPercentageWidth(0.5, context)),
+                                decoration: BoxDecoration(
+                                  color: kRed,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  unreadCount.toString(),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: getTextScale(2.5, context),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return const SizedBox
+                                  .shrink(); // Hide badge if unreadCount is 0
+                            }
+                          }),
+                        ],
+                      )
                     ],
                   ),
                 ),
-                SizedBox(
-                    height: MediaQuery.of(context).size.height > 1100
-                        ? getPercentageHeight(2, context)
-                        : getPercentageHeight(0.5, context)),
-
-                if (_isTodayShoppingDay())
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                if (_isTodayShoppingDay())
-                  Container(
-                    margin: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context)),
+              ],
+            ),
+          ),
+        ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await _onRefresh();
+            await _loadShoppingDay();
+          },
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(0.5, context),
+                  horizontal: getPercentageWidth(2, context)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                      height: MediaQuery.of(context).size.width > 800
+                          ? getPercentageHeight(1.5, context)
+                          : getPercentageHeight(0.5, context)),
+                  Padding(
                     padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(3, context),
-                        vertical: getPercentageHeight(0.5, context)),
-                    decoration: BoxDecoration(
-                      color: kAccentLight.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kAccentLight, width: 1.5),
-                    ),
+                        horizontal: getPercentageWidth(0.3, context)),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.shopping_cart,
-                            color: kAccentLight,
-                            size: getIconScale(7, context)),
-                        SizedBox(width: getPercentageWidth(1, context)),
-                        Expanded(
-                          child: Text(
-                            "It's your shopping day! Don't forget to check your shopping list.",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: getTextScale(3.5, context),
-                              color: kAccentLight,
-                            ),
+                        IconButton(
+                          onPressed: () {
+                            final DateTime sevenDaysAgo = DateTime.now()
+                                .subtract(const Duration(days: 7));
+                            if (currentDate.isAfter(sevenDaysAgo)) {
+                              setState(() {
+                                currentDate = DateTime(
+                                  currentDate.year,
+                                  currentDate.month,
+                                  currentDate.day,
+                                ).subtract(const Duration(days: 1));
+                              });
+                              _initializeMealDataByDate(); // Fetch data for new date
+                            }
+                          },
+                          icon: Icon(
+                            Icons.arrow_back_ios_new,
+                            size: getIconScale(7, context),
+                            color: currentDate.isBefore(DateTime.now()
+                                    .subtract(const Duration(days: 7)))
+                                ? isDarkMode
+                                    ? kLightGrey.withOpacity(0.5)
+                                    : kDarkGrey.withOpacity(0.1)
+                                : null,
                           ),
                         ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: Size(getPercentageWidth(10, context),
-                                getPercentageHeight(5, context)),
-                            backgroundColor: kAccentLight,
-                            foregroundColor: kWhite,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ShoppingTab(),
-                              ),
-                            );
-                          },
-                          child: Text('Go',
+                        Row(
+                          children: [
+                            Text(
+                              '${getRelativeDayString(currentDate)},',
                               style: TextStyle(
-                                  fontSize: getTextScale(3.5, context))),
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            SizedBox(width: getPercentageWidth(0.5, context)),
+                            if (getRelativeDayString(currentDate) != 'Today' &&
+                                getRelativeDayString(currentDate) !=
+                                    'Yesterday')
+                              Text(
+                                DateFormat('d MMMM').format(currentDate),
+                                style: TextStyle(
+                                  fontSize: getTextScale(4, context),
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.amber[700],
+                                ),
+                              ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            final DateTime now = DateTime.now();
+                            final DateTime nextDate = DateTime(
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                            ).add(const Duration(days: 1));
+
+                            setState(() {
+                              if (!nextDate.isAfter(
+                                  DateTime(now.year, now.month, now.day))) {
+                                currentDate = nextDate;
+                              } else {
+                                currentDate =
+                                    DateTime(now.year, now.month, now.day);
+                              }
+                            });
+                            _initializeMealDataByDate(); // Fetch data for new date
+                          },
+                          icon: Icon(
+                            Icons.arrow_forward_ios,
+                            size: getIconScale(7, context),
+                            color: getCurrentDate(currentDate)
+                                ? isDarkMode
+                                    ? kLightGrey.withOpacity(0.5)
+                                    : kDarkGrey.withOpacity(0.1)
+                                : null,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                if (_isTodayShoppingDay())
-                  SizedBox(height: getPercentageHeight(1, context)),
+                  SizedBox(
+                      height: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageHeight(2, context)
+                          : getPercentageHeight(0.5, context)),
 
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(4.5, context),
-                      vertical: getPercentageHeight(1.5, context)),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      //challenge
-                      SecondNavWidget(
-                        label: 'Diary',
-                        icon: Icons.whatshot_outlined,
-                        color: kAccent,
-                        destinationScreen: const AddFoodScreen(),
+                  if (_isTodayShoppingDay())
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                  if (_isTodayShoppingDay())
+                    Container(
+                      margin: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(3, context),
+                          vertical: getPercentageHeight(0.5, context)),
+                      decoration: BoxDecoration(
+                        color: kAccentLight.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: kAccentLight, width: 1.5),
                       ),
-                      //shopping
-                      SecondNavWidget(
-                        label: 'Challenge',
-                        icon: Icons.shopping_cart_outlined,
-                        color: kBlue,
-                        destinationScreen: const FoodChallengeScreen(),
+                      child: Row(
+                        children: [
+                          Icon(Icons.shopping_cart,
+                              color: kAccentLight,
+                              size: getIconScale(7, context)),
+                          SizedBox(width: getPercentageWidth(1, context)),
+                          Expanded(
+                            child: Text(
+                              "It's your shopping day! Don't forget to check your shopping list.",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: getTextScale(3.5, context),
+                                color: kAccentLight,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: Size(getPercentageWidth(10, context),
+                                  getPercentageHeight(5, context)),
+                              backgroundColor: kAccentLight,
+                              foregroundColor: kWhite,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ShoppingTab(),
+                                ),
+                              );
+                            },
+                            child: Text('Go',
+                                style: TextStyle(
+                                    fontSize: getTextScale(3.5, context))),
+                          ),
+                        ],
                       ),
-                      //Planner
-                      SecondNavWidget(
-                        label: 'Shopping',
-                        icon: Icons.image_search,
-                        color: kAccentLight,
-                        destinationScreen: ShoppingTab(),
-                      ),
-                      //spin
-                      SecondNavWidget(
-                        label: 'Spin',
-                        icon: Icons.casino_outlined,
-                        color: kPurple,
-                        destinationScreen: const BottomNavSec(
-                          selectedIndex: 3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: getPercentageHeight(1, context)),
+                    ),
+                  if (_isTodayShoppingDay())
+                    SizedBox(height: getPercentageHeight(1, context)),
 
-                //water, track, steps, spin
-
-                if (winners.isNotEmpty && isAnnounceShow)
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                if (winners.isNotEmpty && isAnnounceShow)
-                  AnnouncementWidget(
-                    title: '🏆 Winners of the week 🏆',
-                    announcements: winners,
-                    height: getPercentageHeight(
-                        5, context), // Optional, defaults to 90
-                    onTap: () {
-                      // Handle tap
-                    },
-                  ),
-                if (winners.isNotEmpty && isAnnounceShow)
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : SizedBox(height: getPercentageHeight(0.5, context)),
-
-                // ------------------------------------Premium / Ads------------------------------------
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : PremiumSection(
-                        isPremium: userService.currentUser?.isPremium ?? false,
-                        titleOne: joinChallenges,
-                        titleTwo: premium,
-                        isDiv: false,
-                      ),
-
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : SizedBox(height: getPercentageHeight(1, context)),
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
-                // ------------------------------------Premium / Ads-------------------------------------
-                userService.currentUser?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : SizedBox(height: getPercentageHeight(1, context)),
-
-                // Nutrition Overview
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isDarkMode = getThemeProvider(context).isDarkMode;
-                    final currentUser = {
-                      'name': userService.currentUser?.displayName ?? '',
-                      'fitnessGoal':
-                          userService.currentUser?.settings['fitnessGoal'] ??
-                              '',
-                      'foodGoal':
-                          userService.currentUser?.settings['foodGoal'] ?? '',
-                      'meals': [],
-                      'avatar': null,
-                    };
-
-                    final familyMembers =
-                        userService.currentUser?.familyMembers ?? [];
-                    final familyList =
-                        familyMembers.map((f) => f.toMap()).toList();
-                    final displayList = [currentUser, ...familyList];
-                    final user = familyMode
-                        ? displayList[selectedUserIndex]
-                        : displayList[0];
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(4.5, context),
+                        vertical: getPercentageHeight(1.5, context)),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (familyMode)
+                        //challenge
+                        SecondNavWidget(
+                          label: 'Diary',
+                          icon: Icons.whatshot_outlined,
+                          color: kAccent,
+                          destinationScreen: const AddFoodScreen(),
+                        ),
+                        //shopping
+                        SecondNavWidget(
+                          label: 'Challenge',
+                          icon: Icons.shopping_cart_outlined,
+                          color: kBlue,
+                          destinationScreen: const FoodChallengeScreen(),
+                        ),
+                        //Planner
+                        SecondNavWidget(
+                          label: 'Shopping',
+                          icon: Icons.image_search,
+                          color: kAccentLight,
+                          destinationScreen: ShoppingTab(),
+                        ),
+                        //spin
+                        SecondNavWidget(
+                          label: 'Spin',
+                          icon: Icons.casino_outlined,
+                          color: kPurple,
+                          destinationScreen: const BottomNavSec(
+                            selectedIndex: 3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
+
+                  //water, track, steps, spin
+
+                  if (winners.isNotEmpty && isAnnounceShow)
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                  if (winners.isNotEmpty && isAnnounceShow)
+                    AnnouncementWidget(
+                      title: '🏆 Winners of the week 🏆',
+                      announcements: winners,
+                      height: getPercentageHeight(
+                          5, context), // Optional, defaults to 90
+                      onTap: () {
+                        // Handle tap
+                      },
+                    ),
+                  if (winners.isNotEmpty && isAnnounceShow)
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                  currentUser.isPremium ?? false
+                      ? const SizedBox.shrink()
+                      : SizedBox(height: getPercentageHeight(0.5, context)),
+
+                  // ------------------------------------Premium / Ads------------------------------------
+
+                  currentUser.isPremium ?? false
+                      ? const SizedBox.shrink()
+                      : PremiumSection(
+                          isPremium: currentUser.isPremium ?? false,
+                          titleOne: joinChallenges,
+                          titleTwo: premium,
+                          isDiv: false,
+                        ),
+
+                  currentUser.isPremium ?? false
+                      ? const SizedBox.shrink()
+                      : SizedBox(height: getPercentageHeight(1, context)),
+                  currentUser.isPremium ?? false
+                      ? const SizedBox.shrink()
+                      : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+
+                  // ------------------------------------Premium / Ads-------------------------------------
+                  currentUser.isPremium ?? false
+                      ? const SizedBox.shrink()
+                      : SizedBox(height: getPercentageHeight(1, context)),
+
+                  // Nutrition Overview
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isDarkMode = getThemeProvider(context).isDarkMode;
+                      final userData = {
+                        'name': currentUser?.displayName ?? '',
+                        'fitnessGoal':
+                            currentUser?.settings['fitnessGoal'] ?? '',
+                        'foodGoal': currentUser?.settings['foodGoal'] ?? '',
+                        'meals': [],
+                        'avatar': null,
+                      };
+
+                      final familyMembers = currentUser?.familyMembers ?? [];
+                      final familyList =
+                          familyMembers.map((f) => f.toMap()).toList();
+                      final displayList = [userData, ...familyList];
+                      final user = familyMode 
+                          ? displayList[selectedUserIndex]
+                          : displayList[0];
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (familyMode)
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context)),
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(2, context)),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withOpacity(kMidOpacity),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border:
+                                      Border.all(color: kAccent, width: 1.5),
+                                ),
+                                child: Center(
+                                  child: FamilySelectorSection(
+                                    familyMode: familyMode,
+                                    selectedUserIndex: selectedUserIndex,
+                                    displayList: displayList,
+                                    onSelectUser: (index) {
+                                      setState(() {
+                                        selectedUserIndex = index;
+                                      });
+                                    },
+                                    isDarkMode: isDarkMode,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          SizedBox(height: getPercentageHeight(1, context)),
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(2, context)),
@@ -776,120 +808,96 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               padding: EdgeInsets.all(
                                   getPercentageWidth(2, context)),
                               decoration: BoxDecoration(
-                                color: kAccent.withOpacity(kMidOpacity),
+                                color: colors[selectedUserIndex % colors.length]
+                                    .withOpacity(kMidOpacity),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: kAccent, width: 1.5),
-                              ),
-                              child: Center(
-                                child: FamilySelectorSection(
-                                  familyMode: familyMode,
-                                  selectedUserIndex: selectedUserIndex,
-                                  displayList: displayList,
-                                  onSelectUser: (index) {
-                                    setState(() {
-                                      selectedUserIndex = index;
-                                    });
-                                  },
-                                  isDarkMode: isDarkMode,
-                                ),
-                              ),
-                            ),
-                          ),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(2, context)),
-                          child: Container(
-                            padding:
-                                EdgeInsets.all(getPercentageWidth(2, context)),
-                            decoration: BoxDecoration(
-                              color: colors[selectedUserIndex % colors.length]
-                                  .withOpacity(kMidOpacity),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color:
-                                      colors[selectedUserIndex % colors.length],
-                                  width: 1.5),
-                            ),
-                            child: UserDetailsSection(
-                              user: user,
-                              isDarkMode: isDarkMode,
-                              showCaloriesAndGoal: showCaloriesAndGoal,
-                              familyMode: familyMode,
-                              selectedUserIndex: selectedUserIndex,
-                              displayList: displayList,
-                              onToggleShowCalories: () {
-                                setState(() {
-                                  showCaloriesAndGoal = !showCaloriesAndGoal;
-                                });
-                                _saveShowCaloriesPref(showCaloriesAndGoal);
-                              },
-                              onEdit: (editedUser, isDarkMode) {
-                                // Implement edit logic, maybe show a dialog
-                              },
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        if (hasMealPlan)
-                          FutureBuilder<List<MealWithType>>(
-                            future: _loadMealsForUI(
-                                displayList[selectedUserIndex]['name'],
-                                familyList),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const CircularProgressIndicator(
-                                  color: kAccent,
-                                );
-                              }
-                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              return Padding(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: getPercentageWidth(2, context)),
-                                child: Container(
-                                  padding: EdgeInsets.all(
-                                      getPercentageWidth(2, context)),
-                                  decoration: BoxDecoration(
+                                border: Border.all(
                                     color: colors[
-                                            selectedUserIndex % colors.length]
-                                        .withOpacity(kMidOpacity),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: colors[
-                                            selectedUserIndex % colors.length],
-                                        width: 1.5),
-                                  ),
-                                  child: MealPlanSection(
-                                    meals: snapshot.data!,
-                                    mealPlan: mealPlan,
-                                    isDarkMode: isDarkMode,
-                                    showCaloriesAndGoal: showCaloriesAndGoal,
-                                    user: user,
-                                  ),
-                                ),
-                              );
-                            },
+                                        selectedUserIndex % colors.length],
+                                    width: 1.5),
+                              ),
+                              child: UserDetailsSection(
+                                user: userData,
+                                isDarkMode: isDarkMode,
+                                showCaloriesAndGoal: showCaloriesAndGoal,
+                                familyMode: familyMode,
+                                selectedUserIndex: selectedUserIndex,
+                                displayList: displayList,
+                                onToggleShowCalories: () {
+                                  setState(() {
+                                    showCaloriesAndGoal = !showCaloriesAndGoal;
+                                  });
+                                  _saveShowCaloriesPref(showCaloriesAndGoal);
+                                },
+                                onEdit: (editedUser, isDarkMode) {
+                                  // Implement edit logic, maybe show a dialog
+                                },
+                              ),
+                            ),
                           ),
-                        SizedBox(height: getPercentageHeight(3, context)),
-                      ],
-                    );
-                  },
-                ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          if (hasMealPlan)
+                            FutureBuilder<List<MealWithType>>(
+                              future: _loadMealsForUI(
+                                  displayList[selectedUserIndex]['name'] as String,
+                                  familyList),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const CircularProgressIndicator(
+                                    color: kAccent,
+                                  );
+                                }
+                                if (!snapshot.hasData ||
+                                    snapshot.data!.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          getPercentageWidth(2, context)),
+                                  child: Container(
+                                    padding: EdgeInsets.all(
+                                        getPercentageWidth(2, context)),
+                                    decoration: BoxDecoration(
+                                      color: colors[
+                                              selectedUserIndex % colors.length]
+                                          .withOpacity(kMidOpacity),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: colors[selectedUserIndex %
+                                              colors.length],
+                                          width: 1.5),
+                                    ),
+                                    child: MealPlanSection(
+                                      meals: snapshot.data!,
+                                      mealPlan: mealPlan,
+                                      isDarkMode: isDarkMode,
+                                      showCaloriesAndGoal: showCaloriesAndGoal,
+                                      user: userData,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          SizedBox(height: getPercentageHeight(3, context)),
+                        ],
+                      );
+                    },
+                  ),
 
-                // Weekly Ingredients Battle Widget
-                const WeeklyIngredientBattle(),
+                  // Weekly Ingredients Battle Widget
+                  const WeeklyIngredientBattle(),
 
-                SizedBox(
-                  height: getPercentageHeight(6, context),
-                ),
-              ],
+                  SizedBox(
+                    height: getPercentageHeight(6, context),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

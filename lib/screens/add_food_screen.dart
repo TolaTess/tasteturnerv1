@@ -747,7 +747,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   children: [
                     Expanded(
                       child: Obx(() {
-                        final settings = userService.currentUser!.settings;
+                        final settings =
+                            userService.currentUser.value!.settings;
                         final double waterTotal = double.tryParse(
                                 settings['waterIntake']?.toString() ?? '0') ??
                             0.0;
@@ -774,7 +775,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     SizedBox(width: getPercentageWidth(2, context)),
                     Expanded(
                       child: Obx(() {
-                        final settings = userService.currentUser!.settings;
+                        final settings =
+                            userService.currentUser.value!.settings;
                         final double stepsTotal = double.tryParse(
                                 settings['targetSteps']?.toString() ?? '0') ??
                             0.0;
@@ -887,7 +889,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   Widget _buildDailyRoutineCard(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final settings = userService.currentUser!.settings;
+    final settings = userService.currentUser.value!.settings;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1051,7 +1053,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   }
 
   String _getRecommendedCalories(String mealType) {
-    final settings = userService.currentUser?.settings;
+    final settings = userService.currentUser.value?.settings;
     final targetCalories = settings?['targetCalories'] as num? ?? 2000;
     double percentage = 0.0;
     switch (mealType) {

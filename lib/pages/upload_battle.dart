@@ -158,7 +158,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         id: widget.isMainPost ? '' : widget.battleId,
         userId: userService.userId ?? '',
         mediaPaths: uploadedImageUrls,
-        name: userService.currentUser?.displayName ?? '',
+        name: userService.currentUser.value?.displayName ?? '',
         category: widget.isMainPost ? 'general' : widget.battleCategory,
         isBattle: widget.isMainPost ? false : true,
         battleId: widget.isMainPost ? '' : widget.battleId,
@@ -237,8 +237,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       }
                     }
                   },
-                  icon:
-                      Icon(Icons.camera, size: getIconScale(7, context)),
+                  icon: Icon(Icons.camera, size: getIconScale(7, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 IconButton(

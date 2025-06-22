@@ -8,7 +8,7 @@ import '../constants.dart';
 class GeminiService {
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1';
   String? _activeModel; // Cache the working model name and full path
-  bool familyMode = userService.currentUser?.familyMode ?? false;
+  bool familyMode = userService.currentUser.value?.familyMode ?? false;
 
   // Initialize and find a working model
   Future<bool> initializeModel() async {
@@ -159,10 +159,12 @@ class GeminiService {
     }
 
     if (familyMode) {
-      prompt = 'For a family, generate a detailed meal plan based on the following requirements: $prompt';
+      prompt =
+          'For a family, generate a detailed meal plan based on the following requirements: $prompt';
     } else {
-      prompt = 'Generate a detailed meal plan based on the following requirements: $prompt';
-    } 
+      prompt =
+          'Generate a detailed meal plan based on the following requirements: $prompt';
+    }
 
     try {
       final response = await http.post(
@@ -263,9 +265,11 @@ Important:
     }
 
     if (familyMode) {
-      prompt = 'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
+      prompt =
+          'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
     } else {
-      prompt = 'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
+      prompt =
+          'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
     }
 
     final mealPrompt = '''

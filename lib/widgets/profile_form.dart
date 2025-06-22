@@ -101,7 +101,7 @@ class EditProfileForm extends StatelessWidget {
           ),
           SizedBox(height: getPercentageHeight(2, context)),
 
-          if (userService.currentUser?.familyMode == true)
+          if (userService.currentUser.value?.familyMode == true)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -112,7 +112,7 @@ class EditProfileForm extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => FamilyMembersDialog(
                             initialMembers:
-                                userService.currentUser?.familyMembers
+                                userService.currentUser.value?.familyMembers
                                         ?.map((e) => {
                                               'name': e.name,
                                               'ageGroup': e.ageGroup,
@@ -122,7 +122,7 @@ class EditProfileForm extends StatelessWidget {
                                         .toList() ??
                                     [],
                             onMembersChanged: (members) async {
-                              final updatedUser = userService.currentUser!
+                              final updatedUser = userService.currentUser.value!
                                   .copyWith(
                                       familyMembers: members
                                           .map((e) => FamilyMember.fromMap(e))
@@ -158,8 +158,7 @@ class EditProfileForm extends StatelessWidget {
                           builder: (context) => const NutritionSettingsPage()),
                     );
                   },
-                  icon: Icon(Icons.settings,
-                      size: getIconScale(7, context)),
+                  icon: Icon(Icons.settings, size: getIconScale(7, context)),
                 ),
               ],
             ),
@@ -169,7 +168,7 @@ class EditProfileForm extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              userService.currentUser?.isPremium == true
+              userService.currentUser.value?.isPremium == true
                   ? const SizedBox.shrink()
                   : Expanded(
                       child: AppButton(
@@ -190,8 +189,9 @@ class EditProfileForm extends StatelessWidget {
                   child: AppButton(
                       text: "Save",
                       onPressed: press,
-                      width:
-                          userService.currentUser?.isPremium == true ? 100 : 40,
+                      width: userService.currentUser.value?.isPremium == true
+                          ? 100
+                          : 40,
                       type: AppButtonType.secondary)),
             ],
           ),

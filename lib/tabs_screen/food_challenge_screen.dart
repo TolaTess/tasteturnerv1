@@ -544,8 +544,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                               if (shouldJoin == true &&
                                                   mounted) {
                                                 try {
-                                                  final user =
-                                                      userService.currentUser;
+                                                  final user = userService
+                                                      .currentUser.value;
                                                   await macroManager.joinBattle(
                                                     userId,
                                                     battleId,
@@ -602,23 +602,24 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
-                userService.currentUser?.isPremium ?? false
+                userService.currentUser.value?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : const SizedBox(height: 5),
 
                 // ------------------------------------Premium / Ads------------------------------------
 
-                userService.currentUser?.isPremium ?? false
+                userService.currentUser.value?.isPremium ?? false
                     ? const SizedBox.shrink()
                     : PremiumSection(
-                        isPremium: userService.currentUser?.isPremium ?? false,
+                        isPremium:
+                            userService.currentUser.value?.isPremium ?? false,
                         titleOne: joinChallenges,
                         titleTwo: premium,
                         isDiv: false,
                       ),
 
                 // ------------------------------------Premium / Ads-------------------------------------
-                userService.currentUser?.isPremium ?? false
+                userService.currentUser.value?.isPremium ?? false
                     ? SizedBox(
                         height: getPercentageHeight(0.5, context),
                       )

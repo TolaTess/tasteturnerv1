@@ -69,7 +69,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     }
 
     // Set default for meal diet categories
-    if (userService.currentUser?.familyMode ?? false) {
+    if (userService.currentUser.value?.familyMode ?? false) {
       _mealDietCategories = [...helperController.kidsCategory];
     } else {
       _mealDietCategories = [...helperController.category];
@@ -428,27 +428,27 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       List<Map<String, dynamic>> categoryDatatDiet) {
     return Column(
       children: [
-        userService.currentUser?.isPremium ?? false
+        userService.currentUser.value?.isPremium ?? false
             ? const SizedBox.shrink()
             : SizedBox(height: getPercentageHeight(0.5, context)),
 
         // ------------------------------------Premium / Ads------------------------------------
 
-        userService.currentUser?.isPremium ?? false
+        userService.currentUser.value?.isPremium ?? false
             ? const SizedBox.shrink()
             : PremiumSection(
-                isPremium: userService.currentUser?.isPremium ?? false,
+                isPremium: userService.currentUser.value?.isPremium ?? false,
                 titleOne: joinChallenges,
                 titleTwo: premium,
                 isDiv: false,
               ),
 
-        userService.currentUser?.isPremium ?? false
+        userService.currentUser.value?.isPremium ?? false
             ? const SizedBox.shrink()
             : SizedBox(height: getPercentageHeight(1, context)),
 
         // ------------------------------------Premium / Ads-------------------------------------
-        userService.currentUser?.isPremium ?? false
+        userService.currentUser.value?.isPremium ?? false
             ? SizedBox(height: getPercentageHeight(2, context))
             : const SizedBox.shrink(),
 

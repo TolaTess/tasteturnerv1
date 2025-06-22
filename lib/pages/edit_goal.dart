@@ -32,17 +32,21 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   void initState() {
     super.initState();
 
-    final settings = userService.currentUser!.settings;
-    waterController.text = settings['waterIntake']?.toString() ?? '';
-    foodController.text = settings['foodGoal'] ?? '';
-    goalWeightController.text = settings['goalWeight']?.toString() ?? '';
-    startingWeightController.text =
-        settings['startingWeight']?.toString() ?? '';
-    currentWeightController.text = settings['currentWeight']?.toString() ?? '';
-    fitnessGoalController.text = settings['fitnessGoal']?.toString() ?? '';
-    dietPerfController.text = settings['dietPreference']?.toString() ?? '';
-    targetStepsController.text = settings['targetSteps']?.toString() ?? '';
-    heightController.text = settings['height']?.toString() ?? '';
+    final user = userService.currentUser.value;
+    if (user != null) {
+      final settings = user.settings;
+      waterController.text = settings['waterIntake']?.toString() ?? '';
+      foodController.text = settings['foodGoal'] ?? '';
+      goalWeightController.text = settings['goalWeight']?.toString() ?? '';
+      startingWeightController.text =
+          settings['startingWeight']?.toString() ?? '';
+      currentWeightController.text =
+          settings['currentWeight']?.toString() ?? '';
+      fitnessGoalController.text = settings['fitnessGoal']?.toString() ?? '';
+      dietPerfController.text = settings['dietPreference']?.toString() ?? '';
+      targetStepsController.text = settings['targetSteps']?.toString() ?? '';
+      heightController.text = settings['height']?.toString() ?? '';
+    }
   }
 
   @override
@@ -372,7 +376,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               SizedBox(height: getPercentageHeight(1, context)),
 
               DailyRoutineList(
-                  userId: userService.currentUser?.userId ??
+                  userId: userService.userId ??
                       userService.userId ??
                       '',
                   isRoutineEdit: widget.isRoutineExpand),

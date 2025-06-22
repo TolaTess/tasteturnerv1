@@ -49,7 +49,7 @@ class CustomDrawer extends StatelessWidget {
                       );
                     },
                     child: buildProfileAvatar(
-                        imageUrl: userService.currentUser!.profileImage ??
+                        imageUrl: userService.currentUser.value!.profileImage ??
                             intPlaceholderImage,
                         context: context),
                   ),
@@ -60,7 +60,7 @@ class CustomDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        userService.currentUser!.displayName ?? '',
+                        userService.currentUser.value!.displayName ?? '',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: getTextScale(4, context),
@@ -100,8 +100,9 @@ class CustomDrawer extends StatelessWidget {
                 ),
                 child: DrawerItem(
                   icon: Icons.workspace_premium,
-                  title:
-                      userService.currentUser!.isPremium ? premiumM : premium,
+                  title: userService.currentUser.value!.isPremium
+                      ? premiumM
+                      : premium,
                   press: () {
                     Navigator.of(context).pop();
                     Navigator.push(

@@ -72,7 +72,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = userService.currentUser;
+    final user = userService.currentUser.value;
     final nameController = TextEditingController(text: user?.displayName);
     final bioController = TextEditingController(text: user?.bio);
     final dobController = TextEditingController(text: user?.dob);
