@@ -23,9 +23,7 @@ class IngredientFeatures extends StatefulWidget {
 }
 
 class _IngredientFeaturesState extends State<IngredientFeatures> {
-  final Set<String> headerSet = {};
   final TextEditingController _searchController = TextEditingController();
-  late final ScrollController _horizontalScrollController;
   Set<String> _selectedIngredients = {};
   List<MacroData> _filteredItems = [];
   int _displayedItemCount = 10;
@@ -34,10 +32,6 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   @override
   void initState() {
     super.initState();
-    _horizontalScrollController = ScrollController();
-    for (var item in widget.items) {
-      headerSet.addAll(item.features.keys);
-    }
     _filteredItems = widget.items.take(10).toList();
 
     // Fetch user's shopping list and pre-select items
@@ -63,7 +57,6 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
   @override
   void dispose() {
-    _horizontalScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -101,13 +94,15 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   void _filterItems(String query) {
     setState(() {
       if (query.isEmpty) {
-        _filteredItems = widget.items.take(10).toList();    
+        _filteredItems = widget.items.take(10).toList();
       } else {
         _filteredItems = widget.items
             .where((item) =>
                 item.title.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
+      // Reset displayed count on new search
+      _displayedItemCount = 10;
     });
   }
 
@@ -126,13 +121,13 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         _filteredItems = widget.items.take(_displayedItemCount).toList();
       } else {
         // If there's a search query, load more from filtered results
-        _displayedItemCount = nextBatch;
-        _filteredItems = widget.items
+        final allFiltered = widget.items
             .where((item) => item.title
                 .toLowerCase()
                 .contains(_searchController.text.toLowerCase()))
-            .take(_displayedItemCount)
             .toList();
+        _displayedItemCount = nextBatch;
+        _filteredItems = allFiltered.take(_displayedItemCount).toList();
       }
       _isLoading = false;
     });
@@ -141,20 +136,21 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final List<String> headers = headerSet.toList();
-
     final sortedItems = List<MacroData>.from(_filteredItems)
       ..sort((a, b) => a.title.compareTo(b.title));
 
     // Update hasMoreItems condition to check against the appropriate list
-    final hasMoreItems = _searchController.text.isEmpty
-        ? widget.items.length > _filteredItems.length
-        : widget.items
-                .where((item) => item.title
-                    .toLowerCase()
-                    .contains(_searchController.text.toLowerCase()))
-                .length >
-            _filteredItems.length;
+    final bool hasMoreItems;
+    if (_searchController.text.isEmpty) {
+      hasMoreItems = widget.items.length > _filteredItems.length;
+    } else {
+      final allFilteredCount = widget.items
+          .where((item) => item.title
+              .toLowerCase()
+              .contains(_searchController.text.toLowerCase()))
+          .length;
+      hasMoreItems = allFilteredCount > _filteredItems.length;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -256,294 +252,98 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             ),
           ),
 
-          // Table
+          // New List View
           Expanded(
-            child: Scrollbar(
-              thumbVisibility: true,
-              trackVisibility: true,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context),
-                    vertical: getPercentageHeight(2, context)),
-                scrollDirection: Axis.vertical,
-                child: Column(
-                  children: [
-                    // Horizontal RawScrollbar at the top, above the header
-                    RawScrollbar(
-                      controller: _horizontalScrollController,
-                      thumbVisibility: true,
-                      thickness: 8,
-                      radius: const Radius.circular(8),
-                      thumbColor: kAccentLight,
-                      child: SingleChildScrollView(
-                        controller: _horizontalScrollController,
-                        scrollDirection: Axis.horizontal,
-                        child: Builder(
-                          builder: (context) {
-                            // Calculate total table width
-                            final double checkboxColWidth =
-                                getPercentageWidth(10, context);
-                            final double titleColWidth =
-                                getPercentageWidth(20, context);
-                            final double featureColWidth =
-                                getPercentageWidth(20, context);
-                            final double totalTableWidth = checkboxColWidth +
-                                titleColWidth +
-                                headers.length * featureColWidth;
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Custom header row
-                                Container(
-                                  color: kAccentLight.withOpacity(0.1),
-                                  child: SizedBox(
-                                    width: totalTableWidth,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: checkboxColWidth,
-                                          padding: EdgeInsets.symmetric(
-                                              vertical: getPercentageHeight(
-                                                  1, context)),
-                                          child: Text(
-                                            'Check \nto save',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize:
-                                                  getTextScale(3, context),
-                                              color: kAccentLight,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                        Container(width: titleColWidth),
-                                        ...headers.map(
-                                          (header) => Container(
-                                            width: featureColWidth,
-                                            alignment: Alignment.center,
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                //todo - header page
-                                              },
-                                              child: Center(
-                                                child: Text(
-                                                  removeDashWithSpace(header),
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w500,
-                                                    color: isDarkMode
-                                                        ? kPrimaryColor
-                                                        : kBlack,
-                                                    fontSize: getTextScale(
-                                                        3, context),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Divider(
-                                  height: getPercentageHeight(0.5, context),
-                                  color: kAccentLight.withOpacity(0.1),
-                                ),
-                                // Table body (rows)
-                                SizedBox(
-                                  height: getPercentageHeight(60,
-                                      context), // or use MediaQuery to set max height
-                                  width: totalTableWidth,
-                                  child: ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: sortedItems.length,
-                                    itemBuilder: (context, rowIndex) {
-                                      final item = sortedItems[rowIndex];
-                                      return Row(
-                                        children: [
-                                          Container(
-                                            width: checkboxColWidth,
-                                            alignment: Alignment.center,
-                                            child: Theme(
-                                              data: Theme.of(context).copyWith(
-                                                unselectedWidgetColor:
-                                                    isDarkMode
-                                                        ? Colors.white
-                                                        : Colors.black,
-                                              ),
-                                              child: Checkbox(
-                                                value: _selectedIngredients
-                                                    .contains(item.title),
-                                                onChanged: (_) =>
-                                                    _toggleSelection(
-                                                        item.title),
-                                                activeColor: kAccent,
-                                                checkColor: isDarkMode
-                                                    ? kWhite
-                                                    : kBlack,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            width: titleColWidth,
-                                            alignment: Alignment.centerLeft,
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        IngredientDetailsScreen(
-                                                      item: item,
-                                                      ingredientItems:
-                                                          widget.items,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              child: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                    vertical:
-                                                        getPercentageHeight(
-                                                            1, context)),
-                                                child: Text(
-                                                  capitalizeFirstLetter(
-                                                      item.title),
-                                                  style: TextStyle(
-                                                    fontSize:
-                                                        getTextScale(3, context),
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          ...headers.map((header) {
-                                            final featureValue =
-                                                item.features[header];
-                                            return Container(
-                                              width: featureColWidth,
-                                              alignment: Alignment.center,
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  showFeatureDialog(
-                                                      context,
-                                                      isDarkMode,
-                                                      header,
-                                                      featureValue);
-                                                },
-                                                child: Center(
-                                                  child: header.toLowerCase() ==
-                                                          "rainbow"
-                                                      ? CircleAvatar(
-                                                          radius:
-                                                              getPercentageWidth(
-                                                                  2, context),
-                                                          backgroundColor:
-                                                              checkRainbowGroup(
-                                                                  featureValue
-                                                                      .toString()),
-                                                        )
-                                                      : header.toLowerCase() ==
-                                                              "season"
-                                                          ? Text(
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              featureValue !=
-                                                                      null
-                                                                  ? featureValue
-                                                                      .toString()
-                                                                      .toUpperCase()
-                                                                  : '-',
-                                                              style: TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500,
-                                                                  fontSize:
-                                                                      getTextScale(
-                                                                          2.5,
-                                                                          context),
-                                                                  color: checkSeason(
-                                                                      featureValue
-                                                                          .toString())),
-                                                            )
-                                                          : header.toLowerCase() ==
-                                                                  "water"
-                                                              ? Row(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .center,
-                                                                  children: [
-                                                                    Expanded(
-                                                                      child:
-                                                                          SizedBox(
-                                                                        width: getPercentageWidth(
-                                                                            80,
-                                                                            context),
-                                                                        child:
-                                                                            LinearProgressIndicator(
-                                                                          value:
-                                                                              (double.tryParse(featureValue.toString()) ?? 0) / 100,
-                                                                          backgroundColor:
-                                                                              kBlue.withOpacity(kOpacity),
-                                                                          color:
-                                                                              kBlueLight.withOpacity(kOpacity),
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                    SizedBox(
-                                                                        width: getPercentageWidth(
-                                                                            1,
-                                                                            context)),
-                                                                    Text(
-                                                                      featureValue !=
-                                                                              null
-                                                                          ? '${featureValue.toString()}'
-                                                                          : '-',
-                                                                      style: TextStyle(
-                                                                          fontSize: getTextScale(
-                                                                              2,
-                                                                              context)),
-                                                                    ),
-                                                                  ],
-                                                                )
-                                                              : Text(
-                                                                  featureValue !=
-                                                                          null
-                                                                      ? capitalizeFirstLetter(
-                                                                              featureValue)
-                                                                          .toString()
-                                                                      : '-',
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
-                                                                  style: TextStyle(
-                                                                      fontSize: getTextScale(
-                                                                          2.5,
-                                                                          context)),
-                                                                ),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(1, context)),
+              itemCount: sortedItems.length,
+              itemBuilder: (context, index) {
+                final item = sortedItems[index];
+                return _buildIngredientListItem(item, isDarkMode);
+              },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  String _buildSubtitle(MacroData item) {
+    List<String> parts = [];
+    if (item.calories > 0) {
+      parts.add('${item.calories} cal');
+    }
+
+    // Add up to 3 features from macros and features map
+    int featuresCount = 0;
+
+    for (var entry in item.macros.entries) {
+      if (featuresCount >= 3) break;
+      if (entry.key != 'amount' &&
+          entry.value != null &&
+          entry.value.toString().isNotEmpty) {
+        parts.add('${capitalizeFirstLetter(entry.key)}: ${entry.value}');
+        featuresCount++;
+      }
+    }
+
+    for (var entry in item.features.entries) {
+      if (featuresCount >= 3) break;
+      if (entry.value != null && entry.value.toString().isNotEmpty) {
+        parts.add(
+            '${capitalizeFirstLetter(removeDashWithSpace(entry.key))}: ${entry.value}');
+        featuresCount++;
+      }
+    }
+
+    return parts.join(', ');
+  }
+
+  Widget _buildIngredientListItem(MacroData item, bool isDarkMode) {
+    final bool isSelected = _selectedIngredients.contains(item.title);
+
+    // Subtitle generation logic
+    String subtitle = _buildSubtitle(item);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      elevation: 2,
+      color: isDarkMode ? kDarkGrey : kWhite,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => IngredientDetailsScreen(
+                item: item,
+                ingredientItems: widget.items,
+              ),
+            ),
+          );
+        },
+        title: Text(
+          capitalizeFirstLetter(item.title),
+          style: TextStyle(
+              fontWeight: FontWeight.bold, color: isDarkMode ? kWhite : kBlack),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: Colors.grey[500]),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          icon: Icon(
+            isSelected ? Icons.check_circle : Icons.add_circle_outline,
+            color: isSelected ? kAccent : (isDarkMode ? kWhite : kDarkGrey),
+            size: 30,
+          ),
+          onPressed: () => _toggleSelection(item.title),
+        ),
       ),
     );
   }
