@@ -70,6 +70,7 @@ dependencies:
   google_mobile_ads: ^6.0.0
   in_app_purchase: ^3.2.1
   crop_your_image: ^0.7.5
+  cloud_functions: ^5.5.2
 
 
 

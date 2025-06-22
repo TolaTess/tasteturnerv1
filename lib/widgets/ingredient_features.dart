@@ -47,8 +47,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   void _preselectShoppingList() async {
     final userId = userService.userId;
     if (userId == null) return;
+    final currentWeek = getCurrentWeek();
     final shoppingListMap = await macroManager
-        .fetchShoppingListForWeekWithStatus(userId, getCurrentWeek());
+        .fetchShoppingListForWeekWithStatus(userId, currentWeek);
     final selectedTitles = widget.items
         .where((item) =>
             shoppingListMap[item.id] == true ||
@@ -90,7 +91,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     );
     if (item.id != null && item.title.isNotEmpty) {
       if (_selectedIngredients.contains(title)) {
-        macroManager.addToShoppingList(userService.userId ?? '', item);
+        macroManager.saveShoppingList([item]);
       } else {
         macroManager.removeFromShoppingList(userService.userId ?? '', item);
       }
@@ -100,7 +101,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   void _filterItems(String query) {
     setState(() {
       if (query.isEmpty) {
-        _filteredItems = widget.items.take(10).toList();
+        _filteredItems = widget.items.take(10).toList();    
       } else {
         _filteredItems = widget.items
             .where((item) =>

@@ -803,11 +803,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             padding:
                                 EdgeInsets.all(getPercentageWidth(2, context)),
                             decoration: BoxDecoration(
-                              color: colors[selectedUserIndex]
+                              color: colors[selectedUserIndex % colors.length]
                                   .withOpacity(kMidOpacity),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: colors[selectedUserIndex], width: 1.5),
+                                  color:
+                                      colors[selectedUserIndex % colors.length],
+                                  width: 1.5),
                             ),
                             child: UserDetailsSection(
                               user: user,
@@ -851,11 +853,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   padding: EdgeInsets.all(
                                       getPercentageWidth(2, context)),
                                   decoration: BoxDecoration(
-                                    color: colors[selectedUserIndex]
+                                    color: colors[
+                                            selectedUserIndex % colors.length]
                                         .withOpacity(kMidOpacity),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color: colors[selectedUserIndex],
+                                        color: colors[
+                                            selectedUserIndex % colors.length],
                                         width: 1.5),
                                   ),
                                   child: MealPlanSection(

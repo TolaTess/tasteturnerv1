@@ -84,10 +84,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           final List<MacroData> ingredientList =
               await macroManager.fetchAndEnsureIngredientsExist(acceptedItems);
 
-          await macroManager.saveShoppingList(
-            userService.userId ?? '',
-            ingredientList,
-          );
+          await macroManager.saveShoppingList(ingredientList);
 
           if (!widget.isMealSpin) {
             showTastySnackbar(
@@ -104,6 +101,70 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 
     super.dispose();
   }
+
+  
+
+
+  Future<void> removeFromShoppingList(String userId, MacroData item) async {
+    try {
+      if (item.id == null) {
+        print("Cannot remove item with null ID");
+        return;
+      }
+
+      final currentWeek = getCurrentWeek();
+      final userMealsRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList')
+          .doc('week_$currentWeek');
+
+      // Remove the ingredient id from the map
+      await userMealsRef.set({
+        'items': {item.id!: FieldValue.delete()},
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Error removing item from shopping list: $e");
+      throw Exception("Failed to remove item from shopping list");
+    }
+  }
+
+  // Add method to fetch shopping list for a specific week
+  Future<Map<String, bool>> fetchShoppingListForWeekWithStatus(
+      String userId, int week,
+      [int? year]) async {
+    try {
+      year ??= DateTime.now().year;
+      final userMealsRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList')
+          .doc('week_$week');
+
+      final docSnapshot = await userMealsRef.get();
+
+      if (!docSnapshot.exists) {
+        print("No shopping list found for week $week of year $year.");
+        return {};
+      }
+
+      final data = docSnapshot.data();
+      if (data != null && data['items'] != null && data['year'] == year) {
+        final Map<String, dynamic> itemsMap =
+            Map<String, dynamic>.from(data['items']);
+        final Map<String, bool> statusMap =
+            itemsMap.map((key, value) => MapEntry(key, value == true));
+        return statusMap;
+      }
+
+      return {};
+    } catch (e) {
+      print("Error fetching shopping list for week $week: $e");
+      return {};
+    }
+  }
+
 
   @override
   void didUpdateWidget(covariant SpinWheelWidget oldWidget) {

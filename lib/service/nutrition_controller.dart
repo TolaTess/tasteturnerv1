@@ -60,6 +60,8 @@ class NutritionController extends GetxController {
   void listenToDailyData(String userId, DateTime mDate) {
     if (userId.isEmpty) return;
 
+    loadSettings(userService.currentUser?.settings);
+
     // Cancel previous listeners to avoid multiple streams on date change
     _summarySubscription?.cancel();
     _metricsSubscription?.cancel();
@@ -425,8 +427,6 @@ class NutritionController extends GetxController {
       case 'Breakfast':
         breakfastCalories.value = totalCalories;
         breakfastTarget.value = (targetCalories.value * 0.20).toInt();
-        print('breakfastTarget: $breakfastTarget.value');
-        print('breakfastCalories: $breakfastCalories.value');
 
         // Calculate progress percentage for breakfast
         double breakfastProgress = breakfastTarget.value <= 0

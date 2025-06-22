@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -8,13 +9,23 @@ import '../helper/utils.dart';
 import 'meal_api_service.dart';
 import 'battle_service.dart';
 import 'package:tasteturner/helper/helper_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class MacroManager extends GetxController {
   static final MacroManager instance = Get.put(MacroManager());
   final BattleService _battleService = Get.find<BattleService>();
+  final FirebaseFunctions functions = FirebaseFunctions.instance;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final FirebaseAuth auth = FirebaseAuth.instance;
 
   List<MacroData> _demoIngredientData = [];
   RxList<Map<String, dynamic>> _ingredientBattle = <Map<String, dynamic>>[].obs;
+  RxList<MacroData> generatedShoppingList = <MacroData>[].obs;
+  RxList<MacroData> manualShoppingList = <MacroData>[].obs;
+  RxBool isShoppingListLoading = true.obs;
+
+  StreamSubscription? _shoppingListSubscription;
 
   // Getter to retrieve ingredients
   List<MacroData> get ingredient => _demoIngredientData;
@@ -22,6 +33,33 @@ class MacroManager extends GetxController {
   final RxMap<String, bool> shoppingList = <String, bool>{}.obs;
   final RxMap<String, bool> previousShoppingList = <String, bool>{}.obs;
   final RxMap<String, bool> groceryList = <String, bool>{}.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    if (userService.userId != null) {
+      _listenToShoppingList(userService.userId!);
+    }
+    // Listen for auth changes to start/stop the listener
+    auth.authStateChanges().listen((user) {
+      _shoppingListSubscription?.cancel();
+      if (user != null) {
+        _listenToShoppingList(user.uid);
+      } else {
+        // Clear lists when user logs out
+        generatedShoppingList.clear();
+        manualShoppingList.clear();
+        isShoppingListLoading.value = false;
+      }
+    });
+  }
+
+  @override
+  void onClose() {
+    _shoppingListSubscription?.cancel();
+    super.onClose();
+  }
+
   Future<void> fetchIngredients() async {
     try {
       final snapshot = await firestore.collection('ingredients').get();
@@ -30,14 +68,7 @@ class MacroManager extends GetxController {
         return;
       }
       _demoIngredientData = snapshot.docs
-          .map((doc) {
-            try {
-              return MacroData.fromJson(doc.data(), doc.id);
-            } catch (e) {
-              print('Error parsing ingredient data: $e');
-              return null;
-            }
-          })
+          .map((doc) => MacroData.fromJson(doc.data(), doc.id))
           .whereType<MacroData>()
           .toList();
     } catch (e) {
@@ -71,55 +102,30 @@ class MacroManager extends GetxController {
         .toList();
   }
 
-  Future<void> saveShoppingList(
-      String userId, List<MacroData> newShoppingList) async {
+  /// Saves a list of ingredients to the manual shopping list by calling a Cloud Function.
+  /// Used for features like the "Spin the Wheel".
+  Future<void> saveShoppingList(List<MacroData> items) async {
     try {
-      if (newShoppingList.isEmpty) {
-        print("Error: Attempted to save an empty shopping list.");
-        throw Exception("Shopping list is empty.");
-      }
+      final HttpsCallable callable =
+          functions.httpsCallable('addManualItemsToShoppingList');
 
-      final currentWeek = getCurrentWeek();
-      final userMealsRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection('shoppingList')
-          .doc('week_$currentWeek');
+      // Convert the List<MacroData> to the format expected by the Cloud Function.
+      final List<Map<String, String?>> itemsPayload = items.map((item) {
+        // The amount is stored in the macros map as a workaround.
+        final amount = item.macros['amount'] as String?;
+        return {
+          'ingredientId': item.id,
+          'amount': amount,
+        };
+      }).toList();
 
-      // Get the existing document first
-      final docSnapshot = await userMealsRef.get();
-      Map<String, dynamic> existingItems = {};
-
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data();
-        if (data != null && data['items'] != null) {
-          existingItems = Map<String, dynamic>.from(data['items']);
-        }
-      }
-
-      // Build a map of new items to add (id: false)
-      final Map<String, bool> newItemsMap = {
-        for (var item in newShoppingList)
-          if (item.id != null && item.id!.isNotEmpty) item.id!: false
-      };
-
-      // Merge: preserve existing status, add new as false
-      final Map<String, bool> mergedItems = {
-        ...existingItems.map((k, v) => MapEntry(k, v == true)),
-        ...newItemsMap,
-      };
-
-      // Save the merged data with week information
-      await userMealsRef.set({
-        'items': mergedItems,
-        'week': currentWeek,
-        'year': DateTime.now().year,
-        'created_at': docSnapshot.exists ? FieldValue.serverTimestamp() : null,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await callable.call(<String, dynamic>{
+        'items': itemsPayload,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      print('Failed to save manual items batch: ${e.code} - ${e.message}');
     } catch (e) {
-      print("Error saving shopping list: $e");
-      throw Exception("Failed to save shopping list");
+      print('An unexpected error occurred while saving shopping list: $e');
     }
   }
 
@@ -177,110 +183,13 @@ class MacroManager extends GetxController {
     }
   }
 
-  Future<void> generateGroceryList() async {
-    final today = DateTime.now();
-    final dayOfWeek = today.weekday;
-    final monday = today.subtract(Duration(days: dayOfWeek - 1));
-    final sunday = monday.add(const Duration(days: 6));
-    final last7daysFormatted = DateFormat('yyyy-MM-dd').format(monday);
-    final formattedDate = DateFormat('yyyy-MM-dd').format(sunday);
-    final doc = await firestore
-        .collection('mealPlans')
-        .doc(userService.userId!)
-        .collection('date')
-        .where('date', isGreaterThanOrEqualTo: last7daysFormatted)
-        .where('date', isLessThanOrEqualTo: formattedDate)
-        .get();
-    if (doc.docs.isEmpty) return;
-    final mealIds = <String>{};
-    for (final d in doc.docs) {
-      final meals =
-          (d.data()?['meals'] as List<dynamic>?)?.cast<String>() ?? [];
-      for (final meal in meals) {
-        if (meal.contains('/')) {
-          final parts = meal.split('/');
-          final mealId = parts[0];
-          mealIds.add(mealId);
-        } else {
-          mealIds.add(meal);
-        }
-      }
-    }
-    if (mealIds.isEmpty) {
-      return;
-    }
-
-    // Fetch all meal docs by ID
-    final mealDocs = await firestore
-        .collection('meals')
-        .where(FieldPath.documentId, whereIn: mealIds)
-        .get();
-
-    final List<MacroData> allMacros = [];
-    for (final mealDoc in mealDocs.docs) {
-      final mealData = mealDoc.data();
-      final ingredients = mealData['ingredients'] as Map<String, dynamic>?;
-      if (ingredients != null) {
-        for (final entry in ingredients.entries) {
-          final name = entry.key;
-          final amount = entry.value.toString();
-
-          // Check if ingredient exists in MacroManager local cache
-          MacroData? existing = macroManager.ingredient.firstWhereOrNull(
-            (m) => m.title.toLowerCase() == name.toLowerCase(),
-          );
-          if (existing == null) {
-            // Check Firestore for ingredient by name (case-insensitive)
-            final firestoreIngredient =
-                await macroManager.fetchIngredientByName(name);
-            if (firestoreIngredient != null) {
-              existing = firestoreIngredient;
-              // Add to local cache if not present
-              if (!macroManager.ingredient
-                  .any((m) => m.id == firestoreIngredient.id)) {
-                macroManager._demoIngredientData.add(firestoreIngredient);
-              }
-            }
-          }
-          MacroData macro;
-          if (existing == null) {
-            // Create new MacroData and add to Firestore
-            macro = MacroData(
-              title: name,
-              type: '',
-              mediaPaths: [],
-              macros: {},
-              categories: [],
-              features: {},
-            );
-            final added = await macroManager.addIngredient(macro);
-            macro = added ?? macro;
-            print(
-                'Added ingredient to Firestore: [32m${macro.title} with ID: ${macro.id}[0m');
-          } else {
-            macro = existing;
-          }
-          // Attach amount to macros for consolidation
-          macro = macro.copyWith(macros: {...macro.macros, 'amount': amount});
-          allMacros.add(macro);
-        }
-      }
-    }
-    // Batch add consolidated grocery list
-    if (allMacros.isNotEmpty) {
-      await macroManager.addToShoppingList(userService.userId!, allMacros,
-          collectionName: 'groceryList');
-    }
-  }
-
   /// Fetch shopping list and listen for real-time updates
-  void fetchShoppingList(String userId, int currentWeek, bool isPreviousList,
-      {String? collectionName}) {
+  void fetchShoppingList(String userId, String currentWeek) {
     firestore
         .collection('userMeals')
         .doc(userId)
-        .collection(collectionName ?? 'shoppingList')
-        .doc('week_$currentWeek')
+        .collection('shoppingList')
+        .doc(currentWeek)
         .snapshots()
         .listen((docSnapshot) async {
       if (docSnapshot.exists && docSnapshot.data() != null) {
@@ -292,147 +201,69 @@ class MacroManager extends GetxController {
               itemsMap.map((key, value) => MapEntry(key, value == true));
           if (statusMap.isEmpty) {
             shoppingList.clear();
-            previousShoppingList.clear();
-            groceryList.clear();
             return;
           }
 
-          if (isPreviousList) {
-            previousShoppingList.assignAll(statusMap);
-          } else if (collectionName == 'groceryList') {
-            groceryList.assignAll(statusMap);
-          } else {
-            shoppingList.assignAll(statusMap);
-          }
+          shoppingList.assignAll(statusMap);
         } else {
           shoppingList.clear();
-          previousShoppingList.clear();
-          groceryList.clear();
         }
       } else {
         shoppingList.clear();
-        previousShoppingList.clear();
-        groceryList.clear();
       }
     }, onError: (e) {
       print("Error fetching shopping list: $e");
     });
   }
 
-  /// Add an item or batch of items to the shopping list (not yet bought)
-  Future<void> addToShoppingList(String userId, dynamic item,
-      {String? collectionName, String? amount}) async {
+  /// Toggles an item's purchased status in Firestore.
+  /// This function reads the document, modifies the map in memory,
+  /// and writes the entire map back to overcome Firestore's path limitations with '/'.
+  Future<void> markItemPurchased(String key, bool isPurchased,
+      {required bool isManual}) async {
+    final userId = auth.currentUser?.uid;
+    if (userId == null) {
+      print("Cannot mark item, user not logged in.");
+      return;
+    }
+
+    final weekId = getCurrentWeek();
+    final docRef = firestore
+        .collection('userMeals')
+        .doc(userId)
+        .collection('shoppingList')
+        .doc(weekId);
+
     try {
-      final currentWeek = getCurrentWeek();
-      final userMealsRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection(collectionName ?? 'shoppingList')
-          .doc('week_$currentWeek');
+      await firestore.runTransaction((transaction) async {
+        final docSnapshot = await transaction.get(docRef);
 
-      if (collectionName == 'groceryList' && item is List<MacroData>) {
-        // Batch add: consolidate by name/amount
-        final List<Map<String, String>> rawItems = item
-            .map((macro) => {
-                  'name': macro.title,
-                  'amount': macro.macros['amount']?.toString() ?? '',
-                  'id': macro.id ?? '',
-                })
-            .toList();
-        final consolidated = consolidateGroceryAmounts(rawItems);
-        final Map<String, bool> batchMap = {};
-        for (final entry in consolidated.entries) {
-          // Find MacroData for this name
-          final macro = item.firstWhere(
-              (m) => m.title.toLowerCase() == entry.key.toLowerCase(),
-              orElse: () => MacroData(
-                  title: entry.key,
-                  type: '',
-                  mediaPaths: [],
-                  macros: {},
-                  categories: [],
-                  features: {}));
-          final id = macro.id ?? entry.key;
-          final key = '$id/${entry.value}';
-          batchMap[key] = false;
-        }
-        // Fetch existing items for the week
-        final docSnapshot = await userMealsRef.get();
-        Map<String, dynamic> existingItems = {};
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data();
-          if (data != null && data['items'] != null) {
-            existingItems = Map<String, dynamic>.from(data['items']);
-          }
-        }
-        // Merge: preserve purchased status for existing keys
-        final Map<String, bool> mergedItems = {
-          ...batchMap,
-          ...existingItems.map((k, v) => MapEntry(k, v == true)),
-        };
-        // For each key in batchMap, if it exists in existingItems, keep its value
-        batchMap.forEach((k, v) {
-          if (existingItems.containsKey(k)) {
-            mergedItems[k] = existingItems[k] == true;
-          }
-        });
-        await userMealsRef.set({
-          'items': mergedItems,
-          'week': currentWeek,
-          'year': DateTime.now().year,
-          'updated_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        return;
-      }
-
-      // Single item logic (default)
-      if (item is MacroData) {
-        if (item.id == null) {
-          print("Cannot add item with null ID");
+        if (!docSnapshot.exists) {
+          print("Shopping list document does not exist, cannot update item.");
           return;
         }
-        final key = (amount != null && amount.isNotEmpty)
-            ? '${item.id}/$amount'
-            : item.id!;
-        await userMealsRef.set({
-          'items': {key: false},
-          'week': currentWeek,
-          'year': DateTime.now().year,
-          'updated_at': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+
+        // Get the entire data map from the document.
+        final data = docSnapshot.data()!;
+        final mapFieldToUpdate = isManual ? 'manualItems' : 'generatedItems';
+
+        // Make a mutable copy of the specific map we need to change.
+        final Map<String, dynamic> itemsMap =
+            Map<String, dynamic>.from(data[mapFieldToUpdate] ?? {});
+
+        // Update the value for our specific key.
+        if (itemsMap.containsKey(key)) {
+          itemsMap[key] = isPurchased;
+        } else {
+          print("Warning: Item key '$key' not found in '$mapFieldToUpdate'.");
+          return;
+        }
+
+        // Write the entire modified map back to the document.
+        transaction.update(docRef, {mapFieldToUpdate: itemsMap});
+      });
     } catch (e) {
-      print("Error adding to shopping list: $e");
-    }
-  }
-
-  /// Toggle an item's purchased status (true/false)
-  Future<void> markItemPurchased(String userId, String id,
-      {String? collectionName}) async {
-    try {
-      if (id.isEmpty) {
-        print("Cannot mark item with null ID as purchased");
-        return;
-      }
-      final currentWeek = getCurrentWeek();
-      final userMealsRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection(collectionName ?? 'shoppingList')
-          .doc('week_$currentWeek');
-
-      // Get current status
-      final doc = await userMealsRef.get();
-      final data = doc.data();
-      final currentStatus = data?['items']?[id] ?? false;
-
-      // Toggle status
-      await userMealsRef.set({
-        'items': {id!: !currentStatus},
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print("Error marking item as purchased: $e");
+      print("Error in transaction for marking item as purchased: $e");
     }
   }
 
@@ -463,25 +294,23 @@ class MacroManager extends GetxController {
 
   // Add method to fetch shopping list for a specific week
   Future<Map<String, bool>> fetchShoppingListForWeekWithStatus(
-      String userId, int week,
-      [int? year]) async {
+      String userId, String week) async {
     try {
-      year ??= DateTime.now().year;
       final userMealsRef = firestore
           .collection('userMeals')
           .doc(userId)
           .collection('shoppingList')
-          .doc('week_$week');
+          .doc(week);
 
       final docSnapshot = await userMealsRef.get();
 
       if (!docSnapshot.exists) {
-        print("No shopping list found for week $week of year $year.");
+        print("No shopping list found for week $week.");
         return {};
       }
 
       final data = docSnapshot.data();
-      if (data != null && data['items'] != null && data['year'] == year) {
+      if (data != null && data['items'] != null) {
         final Map<String, dynamic> itemsMap =
             Map<String, dynamic>.from(data['items']);
         final Map<String, bool> statusMap =
@@ -742,19 +571,17 @@ class MacroManager extends GetxController {
     try {
       final querySnapshot = await firestore
           .collection('ingredients')
-          .where('name', isEqualTo: ingredientName.trim())
+          .where('title', isEqualTo: ingredientName.trim())
           .limit(1)
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final ingredientDoc = querySnapshot.docs.first;
         return MacroData.fromJson(ingredientDoc.data(), ingredientDoc.id);
-      } else {
-        print('Ingredient with name $ingredientName not found');
-        return null;
       }
+      return null;
     } catch (e) {
-      print('Error fetching ingredient: $e');
+      print('Error fetching ingredient by name: $e');
       return null;
     }
   }
@@ -857,5 +684,146 @@ class MacroManager extends GetxController {
 
   Future<void> addMacro(MacroData macro) async {
     await firestore.collection('ingredients').add(macro.toJson());
+  }
+
+  // New function to call the Cloud Function and trigger shopping list generation
+  Future<void> generateAndFetchShoppingList() async {
+    try {
+      final HttpsCallable callable =
+          functions.httpsCallable('generateAndSaveWeeklyShoppingList');
+      final result = await callable.call();
+      print("Cloud function executed successfully: ${result.data}");
+      // The listener will automatically pick up the new list
+    } catch (e) {
+      print("Error calling cloud function: $e");
+    }
+  }
+
+  /// Listens to the weekly shopping list document in real-time.
+  /// This is now the single source of truth for the shopping list UI.
+  void _listenToShoppingList(String userId) {
+    isShoppingListLoading.value = true;
+    final weekId = getCurrentWeek();
+
+    final docRef = firestore
+        .collection('userMeals')
+        .doc(userId)
+        .collection('shoppingList')
+        .doc(weekId);
+
+    _shoppingListSubscription = docRef.snapshots().listen((snapshot) async {
+      isShoppingListLoading.value = true;
+      try {
+        List<MacroData> newGeneratedList = [];
+        List<MacroData> newManualList = [];
+
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          final generatedData = data['generatedItems'] as Map<String, dynamic>?;
+          final manualData = data['manualItems'] as Map<String, dynamic>?;
+
+          // Helper to process a map of items
+          Future<List<MacroData>> processItems(
+              Map<String, dynamic>? itemMap) async {
+            if (itemMap == null) return [];
+
+            List<MacroData> processedList = [];
+            for (var entry in itemMap.entries) {
+              final key = entry.key;
+              final isSelected = entry.value as bool;
+
+              final parts = key.split('/');
+              final id = parts[0];
+              final amount = parts.length > 1 ? parts.sublist(1).join('/') : '';
+
+              final ingredientDoc =
+                  await firestore.collection('ingredients').doc(id).get();
+              if (ingredientDoc.exists) {
+                final data = ingredientDoc.data()!;
+                final image = data['mediaPaths'] != null &&
+                        (data['mediaPaths'] as List).isNotEmpty
+                    ? data['mediaPaths'][0]
+                    : 'assets/images/placeholder.jpg';
+
+                final newItem = MacroData(
+                    id: key,
+                    title: data['title'] ?? 'Unknown Ingredient',
+                    isSelected: isSelected,
+                    macros: {'amount': amount},
+                    image: image,
+                    // These are dummy values as they aren't needed for the shopping list item view
+                    mediaPaths: [],
+                    type: '',
+                    categories: [],
+                    features: {});
+                processedList.add(newItem);
+              }
+            }
+            return processedList;
+          }
+
+          newGeneratedList = await processItems(generatedData);
+          newManualList = await processItems(manualData);
+        }
+
+        generatedShoppingList.assignAll(newGeneratedList);
+        manualShoppingList.assignAll(newManualList);
+      } catch (e) {
+        print('Error processing shopping list snapshot: $e');
+        generatedShoppingList.clear();
+        manualShoppingList.clear();
+      } finally {
+        isShoppingListLoading.value = false;
+      }
+    });
+  }
+
+  Future<Map<String, String>> _fetchIngredientsData(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    final Map<String, String> ingredientsMap = {};
+
+    // Firestore 'whereIn' queries are limited to 30 elements per query.
+    for (var i = 0; i < ids.length; i += 30) {
+      final sublist = ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30);
+      try {
+        final snapshot = await firestore
+            .collection('ingredients')
+            .where(FieldPath.documentId, whereIn: sublist)
+            .get();
+        for (var doc in snapshot.docs) {
+          ingredientsMap[doc.id] =
+              (doc.data()['title'] as String?) ?? 'No Title';
+        }
+      } catch (e) {
+        print('Error fetching ingredient batch: $e');
+      }
+    }
+    return ingredientsMap;
+  }
+
+  /// Helper to fetch MacroData objects from a list of Firestore document IDs.
+  Future<List<MacroData>> _fetchMacroDataByIds(List<String> ids) async {
+    try {
+      if (ids.isEmpty) return [];
+      final List<MacroData> items = [];
+      // Firestore 'in' queries are limited to 10 items.
+      final chunks = <List<String>>[];
+      for (var i = 0; i < ids.length; i += 10) {
+        chunks.add(ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10));
+      }
+
+      for (final chunk in chunks) {
+        final querySnapshot = await firestore
+            .collection('ingredients')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        items.addAll(querySnapshot.docs
+            .map((doc) => MacroData.fromJson(doc.data(), doc.id)));
+      }
+      return items;
+    } catch (e) {
+      print("Error fetching macro data by IDs: $e");
+      return [];
+    }
   }
 }

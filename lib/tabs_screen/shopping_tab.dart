@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tasteturner/helper/helper_functions.dart';
+import 'package:tasteturner/service/macro_manager.dart';
+import 'package:tasteturner/widgets/ingredient_features.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../widgets/premium_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tasteturner/data_models/macro_data.dart';
 
 class ShoppingTab extends StatefulWidget {
   const ShoppingTab({super.key});
@@ -13,8 +16,6 @@ class ShoppingTab extends StatefulWidget {
 }
 
 class _ShoppingTabState extends State<ShoppingTab> {
-  // Removed unused shoppingList and myShoppingList assignments to avoid void assignment errors
-  Set<String> selectedShoppingItems = {};
   String? _selectedDay;
   final List<String> _daysOfWeek = [
     'Monday',
@@ -26,43 +27,43 @@ class _ShoppingTabState extends State<ShoppingTab> {
     'Sunday'
   ];
 
-  bool _isLoading = false;
-  bool _hasError = false;
+  final MacroManager _macroManager = Get.find<MacroManager>();
 
   @override
   void initState() {
     super.initState();
     _loadSelectedDay();
-    _setupDataListeners();
+    _macroManager.fetchIngredients();
   }
 
   Future<void> _loadSelectedDay() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _selectedDay = prefs.getString('shopping_day');
-    });
+    if (mounted) {
+      setState(() {
+        _selectedDay = prefs.getString('shopping_day');
+      });
+    }
   }
 
   Future<void> _saveSelectedDay(String day) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('shopping_day', day);
-    setState(() {
-      _selectedDay = day;
-    });
-    // Cancel previous scheduled notification
+    if (mounted) {
+      setState(() {
+        _selectedDay = day;
+      });
+    }
     await notificationService.cancelScheduledNotification(1001);
-    // Schedule weekly notification for the selected day at 10:00 AM
-    int dayIndex = _daysOfWeek.indexOf(day); // 0 = Monday
-    int weekday = dayIndex + 1; // DateTime weekday: Monday=1, ..., Sunday=7
+    int dayIndex = _daysOfWeek.indexOf(day);
+    int weekday = dayIndex + 1;
     await notificationService.scheduleWeeklyReminder(
-      id: 1001, // Unique ID for shopping reminder
+      id: 1001,
       title: 'Shopping Reminder',
       body:
           'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
       weekday: weekday,
       hour: 10,
       minute: 0,
-      // Optionally, pass timezone if needed
     );
   }
 
@@ -114,56 +115,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
     );
   }
 
-  void _setupDataListeners() {
-    _onRefresh();
-  }
-
-  Future<void> _onRefresh({bool isPullToRefresh = false}) async {
-    // If this is an initial load and we already have a list, do nothing.
-    // This prevents the list from being cleared on tab switch.
-    if (!isPullToRefresh && macroManager.groceryList.isNotEmpty) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
-    try {
-      // Fetch any existing lists from the backend first.
-      await _fetchGroceryList();
-      await _fetchShoppingList();
-
-      // If both lists are empty after fetching, then generate a new one.
-      if (macroManager.groceryList.isEmpty &&
-          macroManager.shoppingList.isEmpty) {
-        await macroManager.generateGroceryList();
-      }
-
-      await macroManager.fetchIngredients();
-    } catch (e) {
-      print('Error loading shopping list: $e');
-      if (mounted) {
-        setState(() => _hasError = true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _fetchGroceryList() async {
-    macroManager.fetchShoppingList(
-        userService.userId ?? '', getCurrentWeek(), false,
-        collectionName: 'groceryList');
-  }
-
-  Future<void> _fetchShoppingList() async {
-    macroManager.fetchShoppingList(
-        userService.userId ?? '', getCurrentWeek(), false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -171,273 +122,150 @@ class _ShoppingTabState extends State<ShoppingTab> {
       appBar: AppBar(
         title: const Text('Shopping List'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => _onRefresh(isPullToRefresh: true),
-        child: Column(
-          children: [
-            // Action buttons row
-            SizedBox(height: getPercentageHeight(1, context)),
+      body: Obx(() {
+        final generatedItems = _macroManager.generatedShoppingList;
+        final manualItems = _macroManager.manualShoppingList;
 
-            // Shopping schedule selector
+        if (generatedItems.isEmpty && manualItems.isEmpty) {
+          return noItemTastyWidget(
+            'Your shopping list is empty!',
+            'Take a spin on the wheel to generate a list.',
+            context,
+            true,
+            'spin',
+          );
+        }
+
+        final consolidatedCounts = _getConsolidatedCounts();
+        final purchasedCount = consolidatedCounts['purchased'];
+        final totalCount = consolidatedCounts['total'];
+        List<Widget> listWidgets = [];
+
+        if (manualItems.isNotEmpty) {
+          listWidgets.add(_buildSectionHeader('Added Manually'));
+          listWidgets.addAll(
+              _buildConsolidatedList(manualItems.toList(), isManual: true));
+        }
+
+        if (generatedItems.isNotEmpty) {
+          listWidgets.add(_buildSectionHeader('From Your Meal Plan'));
+          listWidgets.addAll(
+              _buildConsolidatedList(generatedItems.toList(), isManual: false));
+        }
+
+        return Column(
+          children: [
             Padding(
               padding: EdgeInsets.symmetric(
                 vertical: getPercentageHeight(1, context),
                 horizontal: getPercentageWidth(2.5, context),
               ),
-              child: Builder(
-                builder: (context) {
-                  final groceryNotEmpty = macroManager.groceryList.isNotEmpty;
-                  final shoppingNotEmpty = macroManager.shoppingList.isNotEmpty;
-
-                  final shouldShow = groceryNotEmpty || shoppingNotEmpty;
-                  if (!shouldShow) return const SizedBox.shrink();
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    color: isDarkMode ? kDarkGrey : kWhite,
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _showDayPicker(context, isDarkMode),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              vertical: getPercentageHeight(1, context),
-                              horizontal: getPercentageWidth(3.5, context),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  children: [
-                                    Text(
-                                      'Shopping Day',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize:
-                                            getPercentageHeight(2.2, context),
-                                        color: kAccent,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                        height:
-                                            getPercentageHeight(1, context)),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal:
-                                            getPercentageWidth(3, context),
-                                        vertical:
-                                            getPercentageHeight(1, context),
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: kAccent.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.edit_calendar,
-                                            color: kAccent,
-                                            size:
-                                                getPercentageWidth(5, context),
-                                          ),
-                                          SizedBox(
-                                              width: getPercentageWidth(
-                                                  1, context)),
-                                          Text(
-                                            textAlign: TextAlign.center,
-                                            _selectedDay == null ||
-                                                    _selectedDay == ''
-                                                ? 'Select Day'
-                                                : _selectedDay!,
-                                            style: TextStyle(
-                                              color: kAccent,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: getPercentageHeight(
-                                                  1.8, context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Items',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize:
-                                            getPercentageHeight(2.2, context),
-                                        color: kAccent,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                        height:
-                                            getPercentageHeight(1, context)),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal:
-                                            getPercentageWidth(3, context),
-                                        vertical:
-                                            getPercentageHeight(1, context),
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: kAccent.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.shopping_basket,
-                                            color: kAccent,
-                                            size:
-                                                getPercentageWidth(5, context),
-                                          ),
-                                          SizedBox(
-                                              width: getPercentageWidth(
-                                                  1, context)),
-                                          Obx(() {
-                                            final groceryStatusMap =
-                                                macroManager.groceryList;
-                                            final shoppingStatusMap =
-                                                macroManager.shoppingList;
-
-                                            final total =
-                                                groceryStatusMap.length +
-                                                    shoppingStatusMap.length;
-                                            final purchased = groceryStatusMap
-                                                    .values
-                                                    .where((v) => v == true)
-                                                    .length +
-                                                shoppingStatusMap.values
-                                                    .where((v) => v == true)
-                                                    .length;
-                                            return Text(
-                                              '$purchased / $total',
-                                              style: TextStyle(
-                                                fontSize: getPercentageHeight(
-                                                    1.8, context),
-                                                fontWeight: FontWeight.bold,
-                                                color: kAccent,
-                                              ),
-                                            );
-                                          }),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                color: isDarkMode ? kDarkGrey : kWhite,
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showDayPicker(context, isDarkMode),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1, context),
+                          horizontal: getPercentageWidth(3.5, context),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildInfoColumn(
+                              context,
+                              title: 'Shopping Day',
+                              icon: Icons.edit_calendar,
+                              text: _selectedDay ?? 'Select Day',
+                            ),
+                            _buildInfoColumn(
+                              context,
+                              title: 'Items',
+                              icon: Icons.shopping_basket,
+                              text: '$purchasedCount / $totalCount',
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  );
-                },
+                    GestureDetector(
+                      onTap: () => Get.to(() => IngredientFeatures(
+                            items: macroManager.ingredient,
+                          )),
+                      child: Text(
+                        'SEE MORE INGREDIENTS',
+                        style: TextStyle(
+                          fontSize: getTextScale(4, context),
+                          fontWeight: FontWeight.w600,
+                          color: kAccentLight,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                  ],
+                ),
               ),
             ),
-
             Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: kAccent))
-                  : _hasError
-                      ? Center(
-                          child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Failed to load shopping list.'),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: _onRefresh,
-                              child: const Text('Try Again'),
-                            )
-                          ],
-                        ))
-                      : Obx(() {
-                          // By accessing the ingredient list here, we ensure this Obx rebuilds
-                          // when the ingredients are loaded, which in turn rebuilds the list.
-                          final _ = macroManager.ingredient.length;
-
-                          if (macroManager.groceryList.isEmpty &&
-                              macroManager.shoppingList.isEmpty) {
-                            return noItemTastyWidget(
-                              'No items in shopping list',
-                              'Add meal plan or use Tasty Spin!',
-                              context,
-                              true,
-                              'spin',
-                            );
-                          }
-
-                          final groceryItems = macroManager.groceryList.keys;
-                          final shoppingItems = macroManager.shoppingList.keys;
-
-                          return ListView.builder(
-                            itemCount: (shoppingItems.isNotEmpty ? 1 : 0) +
-                                shoppingItems.length +
-                                (groceryItems.isNotEmpty ? 1 : 0) +
-                                groceryItems.length,
-                            itemBuilder: (context, index) {
-                              if (shoppingItems.isNotEmpty) {
-                                if (index == 0) {
-                                  return _buildSectionHeader('Spin/Selected');
-                                }
-                                if (index <= shoppingItems.length) {
-                                  final itemId =
-                                      shoppingItems.elementAt(index - 1);
-                                  return ShoppingListItem(
-                                    itemId: itemId,
-                                    status: macroManager.shoppingList[itemId] ??
-                                        false,
-                                    onToggle: () {
-                                      macroManager.markItemPurchased(
-                                          userService.userId!, itemId,
-                                          collectionName: 'shoppingList');
-                                    },
-                                  );
-                                }
-                              }
-
-                              int groceryStartIndex =
-                                  (shoppingItems.isNotEmpty ? 1 : 0) +
-                                      shoppingItems.length;
-
-                              if (groceryItems.isNotEmpty) {
-                                if (index == groceryStartIndex) {
-                                  return _buildSectionHeader('Generated List');
-                                }
-                                if (index > groceryStartIndex) {
-                                  final itemIndex =
-                                      index - groceryStartIndex - 1;
-                                  final itemId =
-                                      groceryItems.elementAt(itemIndex);
-                                  return ShoppingListItem(
-                                    itemId: itemId,
-                                    status: macroManager.groceryList[itemId] ??
-                                        false,
-                                    onToggle: () {
-                                      macroManager.markItemPurchased(
-                                          userService.userId!, itemId,
-                                          collectionName: 'groceryList');
-                                    },
-                                  );
-                                }
-                              }
-                              return const SizedBox
-                                  .shrink(); // Should not be reached
-                            },
-                          );
-                        }),
+              child: ListView(
+                children: listWidgets,
+              ),
             ),
           ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildInfoColumn(BuildContext context,
+      {required String title, required IconData icon, required String text}) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: getPercentageHeight(2.2, context),
+            color: kAccent,
+          ),
         ),
-      ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(3, context),
+            vertical: getPercentageHeight(1, context),
+          ),
+          decoration: BoxDecoration(
+            color: kAccent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: kAccent,
+                size: getPercentageWidth(5, context),
+              ),
+              SizedBox(width: getPercentageWidth(1, context)),
+              Text(
+                textAlign: TextAlign.center,
+                text,
+                style: TextStyle(
+                  color: kAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: getPercentageHeight(1.8, context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -457,78 +285,208 @@ class _ShoppingTabState extends State<ShoppingTab> {
       ),
     );
   }
+
+  List<Widget> _buildConsolidatedList(List<MacroData> items,
+      {required bool isManual}) {
+    if (items.isEmpty) {
+      return [];
+    }
+
+    // Group items by title (case-insensitive)
+    final Map<String, List<MacroData>> groupedByTitle = {};
+    for (final item in items) {
+      final title = item.title.toLowerCase();
+      (groupedByTitle[title] ??= []).add(item);
+    }
+
+    final List<Widget> widgets = [];
+
+    groupedByTitle.forEach((title, groupedItems) {
+      final MacroData displayItem;
+      VoidCallback onToggle;
+
+      if (groupedItems.length > 1) {
+        // Consolidate item
+        final itemsToConsolidate = groupedItems.map((item) {
+          return {
+            'name': item.title,
+            'amount': item.macros['amount'] as String? ?? '',
+          };
+        }).toList();
+
+        final consolidatedAmounts =
+            consolidateGroceryAmounts(itemsToConsolidate);
+        final newAmount = consolidatedAmounts[title];
+
+        final templateItem = groupedItems.first;
+        // The consolidated item is 'selected' only if all its parts are selected
+        final bool isSelected = groupedItems.every((item) => item.isSelected);
+
+        displayItem = templateItem.copyWith(
+          macros: {'amount': newAmount ?? ''},
+          isSelected: isSelected,
+        );
+
+        onToggle = () {
+          final newSelectedState = !displayItem.isSelected;
+          for (final itemToToggle in groupedItems) {
+            // Only update if state is different to avoid redundant writes
+            if (itemToToggle.isSelected != newSelectedState) {
+              _macroManager.markItemPurchased(
+                itemToToggle.id!,
+                newSelectedState,
+                isManual: isManual,
+              );
+            }
+          }
+        };
+      } else {
+        // Single item, no consolidation needed
+        displayItem = groupedItems.first;
+        onToggle = () => _macroManager.markItemPurchased(
+              displayItem.id!,
+              !displayItem.isSelected,
+              isManual: isManual,
+            );
+      }
+
+      widgets.add(ShoppingListItem(
+        item: displayItem,
+        onToggle: onToggle,
+      ));
+    });
+
+    // Sort widgets alphabetically by item title
+    widgets.sort((a, b) {
+      final itemA = (a as ShoppingListItem).item.title;
+      final itemB = (b as ShoppingListItem).item.title;
+      return itemA.toLowerCase().compareTo(itemB.toLowerCase());
+    });
+
+    return widgets;
+  }
+
+  Map<String, int> _getConsolidatedCounts() {
+    final generatedItems = _macroManager.generatedShoppingList;
+    final manualItems = _macroManager.manualShoppingList;
+
+    int totalCount = 0;
+    int purchasedCount = 0;
+
+    void processList(List<MacroData> items) {
+      if (items.isEmpty) return;
+
+      final Map<String, List<MacroData>> groupedByTitle = {};
+      for (final item in items) {
+        final title = item.title.toLowerCase();
+        (groupedByTitle[title] ??= []).add(item);
+      }
+
+      totalCount += groupedByTitle.length;
+
+      for (final group in groupedByTitle.values) {
+        if (group.every((item) => item.isSelected)) {
+          purchasedCount++;
+        }
+      }
+    }
+
+    processList(generatedItems.toList());
+    processList(manualItems.toList());
+
+    return {'purchased': purchasedCount, 'total': totalCount};
+  }
 }
 
 class ShoppingListItem extends StatelessWidget {
-  final String itemId;
-  final bool status;
+  final MacroData item;
   final VoidCallback onToggle;
 
   const ShoppingListItem({
     super.key,
-    required this.itemId,
-    required this.status,
+    required this.item,
     required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final parts = itemId.split('/');
-    final ingredientId = parts[0];
-    final amount = parts.length > 1 ? parts.sublist(1).join('/') : null;
-
-    final ingredient =
-        macroManager.ingredient.firstWhereOrNull((i) => i.id == ingredientId);
-
-    if (ingredient == null) {
-      // It might take a moment for ingredients to load, show a placeholder
-      return ListTile(
-        title: const Text('Loading ingredient...'),
-        trailing: Checkbox(
-          value: status,
-          onChanged: (_) => onToggle(),
-          activeColor: kAccent,
-        ),
-        onTap: onToggle,
-      );
-    }
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final String title = capitalizeFirstLetter(item.title);
+    final String? amount = item.macros['amount'] as String?;
 
-    return ListTile(
-      tileColor: isDarkMode ? kDarkGrey : kWhite,
-      title: Text(
-        capitalizeFirstLetter(ingredient.title),
-        style: TextStyle(
-            decoration:
-                status ? TextDecoration.lineThrough : TextDecoration.none,
-            color: status
-                ? (isDarkMode ? Colors.grey[500] : Colors.grey[500])
-                : (isDarkMode ? kWhite : kBlack)),
-      ),
-      subtitle: amount != null && amount.isNotEmpty
-          ? Text(
-              amount,
-              style: TextStyle(
-                  decoration:
-                      status ? TextDecoration.lineThrough : TextDecoration.none,
-                  color: status
-                      ? (isDarkMode ? Colors.grey[500] : Colors.grey[500])
-                      : (isDarkMode
-                          ? kWhite.withOpacity(0.7)
-                          : kBlack.withOpacity(0.7))),
-            )
-          : null,
-      trailing: Theme(
-        data: Theme.of(context).copyWith(
-          unselectedWidgetColor: isDarkMode ? kPrimaryColor : kDarkGrey,
+    final textStyle = TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: getTextScale(4, context),
+        decoration:
+            item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
+        color: item.isSelected
+            ? Colors.grey[500]
+            : (isDarkMode ? kWhite : kBlack));
+
+    final amountTextStyle = TextStyle(
+        fontSize: getTextScale(3.5, context),
+        decoration:
+            item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
+        color: Colors.grey[600]);
+
+    ImageProvider<Object> backgroundImage;
+    if (item.mediaPaths.isNotEmpty &&
+        item.mediaPaths.first.startsWith('http')) {
+      backgroundImage = NetworkImage(item.mediaPaths.first);
+    } else {
+      backgroundImage = AssetImage(getAssetImageForItem(item.type));
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(2, context),
+          vertical: getPercentageHeight(1, context)),
+      child: Card(
+        elevation: 1.5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
         ),
-        child: Checkbox(
-          value: status,
-          onChanged: (_) => onToggle(),
-          activeColor: kAccent,
+        color: isDarkMode ? kDarkGrey : kWhite,
+        child: InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(20.0),
+          child: Padding(
+            padding: EdgeInsets.all(getPercentageWidth(2, context)),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: getPercentageWidth(5, context),
+                  backgroundImage: backgroundImage,
+                ),
+                SizedBox(width: getPercentageWidth(2, context)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: textStyle),
+                      if (amount != null && amount.isNotEmpty) ...[
+                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        Text(amount, style: amountTextStyle),
+                      ]
+                    ],
+                  ),
+                ),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    unselectedWidgetColor:
+                        isDarkMode ? kPrimaryColor : kDarkGrey,
+                  ),
+                  child: Checkbox(
+                    value: item.isSelected,
+                    onChanged: (_) => onToggle(),
+                    activeColor: kAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      onTap: onToggle,
     );
   }
 }

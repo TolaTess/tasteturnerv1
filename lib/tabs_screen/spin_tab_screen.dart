@@ -39,8 +39,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
   Future<void> _onRefresh() async {
     setState(() {
       final currentWeek = getCurrentWeek();
-      macroManager.fetchShoppingList(
-          userService.userId ?? '', currentWeek, false);
+      macroManager.fetchShoppingList(userService.userId ?? '', currentWeek);
     });
   }
 

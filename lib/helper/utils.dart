@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../constants.dart';
@@ -223,11 +224,11 @@ String featureCheck(String featureName) {
 }
 
 // Helper method to get current week number
-int getCurrentWeek() {
+String getCurrentWeek() {
   final now = DateTime.now();
-  final firstDayOfYear = DateTime(now.year, 1, 1);
-  final days = now.difference(firstDayOfYear).inDays;
-  return (days / 7).ceil();
+  final dayOfYear = int.parse(DateFormat("D").format(now));
+  final weekNumber = ((dayOfYear - now.weekday + 10) / 7).floor();
+  return 'week_${now.year}-${weekNumber.toString().padLeft(2, '0')}';
 }
 
 String getRandomBio(List<String> type) {

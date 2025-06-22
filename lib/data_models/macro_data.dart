@@ -11,6 +11,7 @@ class MacroData {
   final bool isAntiInflammatory;
   bool isSelected;
   final List<String> alt;
+  final String image;
 
   MacroData({
     this.id,
@@ -26,6 +27,7 @@ class MacroData {
     this.isAntiInflammatory = false,
     this.isSelected = false,
     this.alt = const [],
+    this.image = '',
   });
 
   // Convert to JSON for storing in Firestore or other NoSQL databases
@@ -43,6 +45,7 @@ class MacroData {
       'storageOptions': storageOptions,
       'isAntiInflammatory': isAntiInflammatory,
       'alt': alt,
+      'image': image,
     };
   }
 
@@ -73,6 +76,7 @@ class MacroData {
       isSelected: json['isSelected'] as bool? ?? false,
       alt: (json['alt'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           [], // Safely cast
+      image: json['image'] ?? '',
     );
   }
 
@@ -90,6 +94,7 @@ class MacroData {
     bool? isAntiInflammatory,
     bool? isSelected,
     List<String>? alt,
+    String? image,
   }) {
     return MacroData(
       id: id ?? this.id,
@@ -105,6 +110,7 @@ class MacroData {
       isAntiInflammatory: isAntiInflammatory ?? this.isAntiInflammatory,
       isSelected: isSelected ?? this.isSelected,
       alt: alt ?? this.alt,
+      image: image ?? this.image,
     );
   }
 }

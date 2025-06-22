@@ -10,12 +10,28 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { HttpsError } = require("firebase-functions/v2/https");
+const { defineString } = require('firebase-functions/params');
+const { startOfWeek, endOfWeek, format } = require("date-fns");
 
 admin.initializeApp();
 
 // Initialize the Gemini client with the API key from function configuration
 const genAI = new GoogleGenerativeAI(functions.config().gemini.key);
-const firestore = admin.firestore();
+const firestore = getFirestore();
+
+// Helper to get week number
+function _getWeek(date) {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
 
 /**
  * A scheduled Cloud Function that generates new ingredients for the weekly battle.
@@ -241,7 +257,20 @@ exports.processBattleEnd = functions.pubsub
         isAnnounceDate: announceDateString,
       });
 
-      console.log(`Successfully processed battle for ${battleKeyToProcess}. Winners:`, winners);
+      await generalDataRef.set(
+        {
+          announcement: {
+            date: announceDateString,
+            type: "battleWinner",
+            winnerId: winners[0]?.userId, // Store the first winner's ID
+          },
+        },
+        { merge: true }
+      );
+
+      console.log(
+        `Successfully processed battle ${battleKeyToProcess} and awarded points.`
+      );
       return null;
     } catch (error) {
       console.error("Error processing battle end:", error);
@@ -250,67 +279,368 @@ exports.processBattleEnd = functions.pubsub
   });
 
 /**
- * A Firestore-triggered Cloud Function that calculates and aggregates daily nutritional data.
- * - Triggers on any write to a user's daily meal document.
- * - Calculates total calories, protein, carbs, and fat for the day.
- * - Saves the aggregated data to a 'daily_summary' collection for efficient client-side reads.
+ * A Firestore-triggered Cloud Function that automatically calculates and updates
+ * a user's total daily nutritional intake whenever a meal is added, updated,
+ * or deleted for that day.
+ * - Listens for writes on 'userMeals/{userId}/meals/{date}'.
+ * - Fetches all meals for that specific day.
+ * - Sums up the nutritional values (calories, protein, carbs, fat).
+ * - Writes the aggregated data to 'userDailyNutrition/{userId}/days/{date}'.
  */
 exports.calculateDailyNutrition = functions.firestore
   .document("userMeals/{userId}/meals/{date}")
   .onWrite(async (change, context) => {
     const { userId, date } = context.params;
-    const summaryRef = firestore
-      .collection("users")
-      .doc(userId)
-      .collection("daily_summary")
-      .doc(date);
+    console.log(`Calculating nutrition for user: ${userId} on date: ${date}`);
 
-    // If the document was deleted, we should delete the summary as well.
-    if (!change.after.exists) {
-      console.log(`Meals deleted for ${userId} on ${date}. Deleting summary.`);
-      return summaryRef.delete();
-    }
+    try {
+      const dayMealsRef = firestore
+        .collection("userMeals")
+        .doc(userId)
+        .collection("meals")
+        .doc(date)
+        .collection("items");
 
-    const data = change.after.data();
-    const meals = data.meals || {};
+      const snapshot = await dayMealsRef.get();
 
-    // 1. Calculate the totals
-    let totalCalories = 0;
-    let totalProtein = 0;
-    let totalCarbs = 0;
-    let totalFat = 0;
-    const mealTotals = {};
-
-    // The 'meals' field is a map of meal types (Breakfast, Lunch, etc.) to lists of food items
-    for (const mealType in meals) {
-      if (Array.isArray(meals[mealType])) {
-        let mealTypeCalories = 0;
-        meals[mealType].forEach((item) => {
-          const itemCalories = item.calories || 0;
-          totalCalories += itemCalories;
-          mealTypeCalories += itemCalories;
-          totalProtein += item.protein || 0;
-          totalCarbs += item.carbs || 0;
-          totalFat += item.fat || 0;
-        });
-        mealTotals[mealType] = mealTypeCalories;
+      // If no meals are left for the day, delete the nutrition doc
+      if (snapshot.empty) {
+        await firestore
+          .collection("userDailyNutrition")
+          .doc(userId)
+          .collection("days")
+          .doc(date)
+          .delete();
+        console.log(
+          `No meals for ${date}, deleted daily nutrition document for user ${userId}.`
+        );
+        return null;
       }
+
+      // Aggregate nutrition data from all meal items for the day
+      let totalCalories = 0;
+      let totalProtein = 0;
+      let totalCarbs = 0;
+      let totalFat = 0;
+
+      snapshot.forEach((doc) => {
+        const meal = doc.data();
+        totalCalories += meal.calories || 0;
+        totalProtein += meal.protein || 0;
+        totalCarbs += meal.carbs || 0;
+        totalFat += meal.fat || 0;
+      });
+
+      // Prepare the data for the daily nutrition document
+      const dailyNutritionData = {
+        totalCalories,
+        totalProtein,
+        totalCarbs,
+        totalFat,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // Write the aggregated data to the user's daily nutrition collection
+      await firestore
+        .collection("userDailyNutrition")
+        .doc(userId)
+        .collection("days")
+        .doc(date)
+        .set(dailyNutritionData, { merge: true });
+
+      console.log(
+        `Successfully updated daily nutrition for user ${userId} on ${date}.`
+      );
+      return null;
+    } catch (error) {
+      console.error(
+        `Error calculating daily nutrition for user ${userId} on ${date}:`,
+        error
+      );
+      return null;
     }
+  });
 
-    const summaryData = {
-      calories: totalCalories,
-      protein: totalProtein,
-      carbs: totalCarbs,
-      fat: totalFat,
-      mealTotals: mealTotals, // Add the per-meal breakdown
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
+/**
+ * Triggered when a user's meal for a specific day is created or updated.
+ * It reads all meals for the week, aggregates the ingredients, and
+ * updates the weekly shopping list for that user in the specified format.
+ */
+exports.generateAndSaveWeeklyShoppingList = functions.firestore
+  .document("mealPlans/{userId}/date/{date}")
+  .onWrite(async (change, context) => {
+    const { userId, date } = context.params;
     console.log(
-      `Updating summary for ${userId} on ${date}:`,
-      summaryData
+      `--- Running Shopping List Generation for user: ${userId} on date: ${date} ---`
     );
 
-    // 2. Write the summary data
-    return summaryRef.set(summaryData, { merge: true });
+    try {
+      // 1. Determine the week for the changed meal using the same logic as the test function
+      const mealDate = new Date(date);
+      const year = mealDate.getUTCFullYear();
+      const week = _getWeek(mealDate);
+      const weekId = `week_${year}-${String(week).padStart(2, "0")}`;
+
+      // 2. Fetch all meal plan documents for the entire week
+      const weekStart = startOfWeek(mealDate, { weekStartsOn: 0 }); // Sunday
+      const weekEnd = endOfWeek(mealDate, { weekStartsOn: 0 });
+
+      const startDateStr = format(weekStart, "yyyy-MM-dd");
+      const endDateStr = format(weekEnd, "yyyy-MM-dd");
+
+      console.log(
+        `Querying for meal plans between: ${startDateStr} and ${endDateStr}`
+      );
+
+      const mealsSnapshot = await firestore
+        .collection(`mealPlans/${userId}/date`)
+        .where(admin.firestore.FieldPath.documentId(), ">=", startDateStr)
+        .where(admin.firestore.FieldPath.documentId(), "<=", endDateStr)
+        .get();
+
+      console.log(
+        `Found ${mealsSnapshot.size} meal plan document(s) for the week.`
+      );
+
+      // 3. Collect all unique meal IDs from the documents
+      const allMealIds = new Set();
+      mealsSnapshot.forEach((dayDoc) => {
+        const data = dayDoc.data();
+        const mealPaths = data.meals || [];
+        mealPaths.forEach((path) => {
+          const mealId = path.split("/")[0];
+          if (mealId) allMealIds.add(mealId);
+        });
+      });
+
+      // If no meals are found for the week, clear the generated items and exit
+      if (allMealIds.size === 0) {
+        console.log("No meal IDs found for the week. Clearing generated list.");
+        const listRef = firestore
+          .collection("userMeals")
+          .doc(userId)
+          .collection("shoppingList")
+          .doc(weekId);
+        // Use set with merge to only clear the generatedItems field
+        await listRef.set({ generatedItems: {} }, { merge: true });
+        return null;
+      }
+
+      // Fetch all unique meal documents from the 'meals' collection
+      const mealDocs = await firestore
+        .collection("meals")
+        .where(admin.firestore.FieldPath.documentId(), "in", [...allMealIds])
+        .get();
+
+      // Aggregate the ingredients from these meals
+      const weeklyIngredients = {};
+      for (const mealDoc of mealDocs.docs) {
+        const mealData = mealDoc.data();
+        const ingredients = mealData.ingredients || {};
+        for (const [name, amountStr] of Object.entries(ingredients)) {
+          const quantityMatch = (amountStr || "").match(/^(\d+(\.\d+)?)/);
+          const unitMatch = (amountStr || "").match(/[a-zA-Z\s]+$/);
+          const quantity = quantityMatch ? Number(quantityMatch[1]) : 0;
+          const unit = unitMatch ? unitMatch[0].trim() : "";
+
+          if (name && quantity > 0) {
+            if (!weeklyIngredients[name]) {
+              weeklyIngredients[name] = { quantity: 0, unit: unit };
+            }
+            weeklyIngredients[name].quantity += quantity;
+          }
+        }
+      }
+
+      // 4. Find existing ingredients or create new ones, then build the map
+      const requiredItems = {};
+      for (const name in weeklyIngredients) {
+        const { quantity, unit } = weeklyIngredients[name];
+        const ingredientsRef = firestore.collection("ingredients");
+        let ingredientId = null;
+
+        const snapshot = await ingredientsRef
+          .where("title", "==", name)
+          .limit(1)
+          .get();
+
+        if (!snapshot.empty) {
+          ingredientId = snapshot.docs[0].id;
+        } else {
+          console.log(`Ingredient "${name}" not found. Generating...`);
+          ingredientId = await _generateAndSaveIngredient(name);
+        }
+
+        if (ingredientId) {
+          const key = `${ingredientId}/${quantity}${unit}`;
+          requiredItems[key] = false; // Default to false
+        }
+      }
+
+      // 5. Use a transaction to safely merge the new list with the existing one
+      const listRef = firestore
+        .collection("userMeals")
+        .doc(userId)
+        .collection("shoppingList")
+        .doc(weekId);
+
+      await firestore.runTransaction(async (transaction) => {
+        const doc = await transaction.get(listRef);
+        const existingGeneratedItems = doc.data()?.generatedItems || {};
+        const newGeneratedItems = {};
+
+        // Preserve the status of existing items.
+        // Add new items with a default status of 'false'.
+        // Items no longer in the plan are implicitly removed.
+        for (const key in requiredItems) {
+            newGeneratedItems[key] = existingGeneratedItems[key] || false;
+        }
+
+        transaction.set(
+          listRef,
+          {
+            generatedItems: newGeneratedItems,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true } // Merge to avoid overwriting 'manualItems'
+        );
+      });
+
+      console.log(
+        `Successfully updated shopping list for user ${userId}, week ${weekId}`
+      );
+      return null;
+    } catch (error) {
+      console.error("Error generating shopping list:", error);
+      return null;
+    }
   });
+
+/**
+ * Helper function to generate details for an ingredient using Gemini and save it.
+ * It uses .add() to create an auto-generated ID.
+ * @param {string} ingredientName The name of the ingredient.
+ * @returns {Promise<string|null>} The new ingredient's document ID or null.
+ */
+async function _generateAndSaveIngredient(ingredientName) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const prompt = `
+      Generate a detailed JSON object for the ingredient "${ingredientName}".
+      The JSON object must match this structure:
+      {
+        "title": "${ingredientName}",
+        "type": "...",
+        "mediaPaths": [],
+        "calories": ...,
+        "macros": {"protein": ..., "carbs": ..., "fat": ...},
+        "categories": [],
+        "features": {},
+        "techniques": [],
+        "storageOptions": {},
+        "isAntiInflammatory": ...,
+        "alt": []
+      }
+      Do not include any text, markdown, or formatting outside of the JSON object itself.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().replace(/```json|```/g, "").trim();
+    const ingredientData = JSON.parse(text);
+
+    ingredientData.createdAt = admin.firestore.FieldValue.serverTimestamp();
+
+    const newIngredientRef = await firestore.collection("ingredients").add(ingredientData);
+    
+    console.log(`Successfully generated and saved new ingredient: ${ingredientData.title} (ID: ${newIngredientRef.id})`);
+    return newIngredientRef.id;
+
+  } catch (error) {
+    console.error(`Error generating details for "${ingredientName}":`, error);
+    return null;
+  }
+}
+
+/**
+ * An on-call Cloud Function that allows a user to manually add a BATCH of
+ * ingredients to their weekly shopping list.
+ * - This is for features like the "spin wheel" that generate a list of items.
+ * - Items are stored in the 'manualItems' map.
+ */
+exports.addManualItemsToShoppingList = functions.https.onCall(
+  async (data, context) => {
+    // 1. Validate call
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "The function must be called while authenticated."
+      );
+    }
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "The function must be called with a non-empty 'items' array."
+      );
+    }
+
+    const userId = context.auth.uid;
+    const itemsToAdd = data.items; // e.g., [{ingredientId: 'X', amount: 'Y'}, ...]
+    console.log(`Manual batch add for user ${userId}:`, itemsToAdd);
+
+    try {
+      // 2. Determine the current week ID
+      const today = new Date();
+      const year = today.getUTCFullYear();
+      const weekNo = _getWeek(today);
+      const weekId = `week_${year}-${String(weekNo).padStart(2, "0")}`;
+
+      const listRef = firestore
+        .collection("userMeals")
+        .doc(userId)
+        .collection("shoppingList")
+        .doc(weekId);
+
+      // 3. Use a transaction to safely read, modify, and write the map.
+      await firestore.runTransaction(async (transaction) => {
+        const doc = await transaction.get(listRef);
+        const existingData = doc.data() || {};
+        const manualItems = existingData.manualItems || {};
+
+        itemsToAdd.forEach((item) => {
+          const { ingredientId, amount } = item;
+          if (ingredientId) {
+            const key = amount ? `${ingredientId}/${amount}` : ingredientId;
+            manualItems[key] = false; // Add new items as not purchased
+          }
+        });
+
+        if (Object.keys(manualItems).length === 0) {
+          console.log("No valid items to add.");
+          return; // Don't write if there's nothing to write
+        }
+
+        // Write the entire updated map back.
+        transaction.set(
+          listRef,
+          {
+            manualItems, // This contains old and new items
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true } // Merge to avoid overwriting 'generatedItems'
+        );
+      });
+
+      console.log(
+        `Successfully added batch of manual items for user ${userId}`
+      );
+      return { status: "success" };
+    } catch (error) {
+      console.error("Error adding manual items batch:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An error occurred while adding items to the shopping list."
+      );
+    }
+  }
+);

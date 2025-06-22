@@ -58,9 +58,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
   Future<void> _toggleShoppingList() async {
     if (isInShoppingList) {
       await macroManager.removeFromShoppingList(
-        userService.userId ?? '',
-        widget.item,
-      );
+          userService.userId ?? '', widget.item);
       if (mounted) {
         showTastySnackbar(
           'Success',
@@ -69,10 +67,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
         );
       }
     } else {
-      await macroManager.addToShoppingList(
-        userService.userId ?? '',
-        widget.item,
-      );
+      await macroManager.saveShoppingList([widget.item]);
       if (mounted) {
         showTastySnackbar(
           'Success',
