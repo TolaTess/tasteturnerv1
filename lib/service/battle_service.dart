@@ -466,4 +466,79 @@ class BattleService extends GetxController {
       rethrow;
     }
   }
+
+  Future<void> updateUserPoints(String userId, int points) async {
+    final userPointsRef = firestore.collection('points').doc(userId);
+
+    try {
+      await firestore.runTransaction((transaction) async {
+        final userPointsDoc = await transaction.get(userPointsRef);
+
+        if (userPointsDoc.exists) {
+          final currentPoints = userPointsDoc.data()?['points'] as int? ?? 0;
+          transaction.update(userPointsRef, {
+            'points': currentPoints + points,
+          });
+        } else {
+          transaction.set(userPointsRef, {
+            'points': points,
+          });
+        }
+      });
+    } catch (e) {
+      print('Error updating points for user $userId: $e');
+    }
+  }
+
+  // Get previous battle participants
+  Future<List<Map<String, dynamic>>> getPreviousBattleParticipants(
+      String battleId) async {
+    try {
+      final prevBattleDate = firebaseService.generalData['prevBattle'];
+      if (prevBattleDate == null) return [];
+
+      final battleDoc = await battlesRef.doc(battleId).get();
+      if (!battleDoc.exists) return [];
+
+      final data = battleDoc.data() as Map<String, dynamic>;
+      if (!data.containsKey('dates')) return [];
+
+      final dates = data['dates'] as Map<String, dynamic>;
+      if (!dates.containsKey(prevBattleDate)) return [];
+
+      final previousBattle = dates[prevBattleDate] as Map<String, dynamic>;
+      final participants =
+          previousBattle['participants'] as Map<String, dynamic>?;
+      if (participants == null) return [];
+
+      final List<Map<String, dynamic>> participantList = [];
+      participants.forEach((userId, userData) {
+        final data = userData as Map<String, dynamic>;
+        participantList.add({
+          'userid': userId,
+          'name': data['name'] ?? '',
+          'image': data['image'] ?? '',
+        });
+      });
+
+      return participantList;
+    } catch (e) {
+      print('Error getting previous battle participants: $e');
+      return [];
+    }
+  }
+
+  // Get winners of a battle
+  Future<List<String>> getBattleWinners(String battleId) async {
+    try {
+      // Implementation of getBattleWinners method
+      // This method should return a list of winners of the given battle
+      // Implementation details are not provided in the original file or the code block
+      // This method should be implemented based on the specific requirements of the application
+      throw Exception('Method not implemented');
+    } catch (e) {
+      print('Error getting battle winners: $e');
+      return [];
+    }
+  }
 }

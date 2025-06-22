@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,7 +8,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
-import 'battle_management.dart';
+import 'battle_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -44,7 +46,94 @@ class NutritionController extends GetxController {
   final ValueNotifier<double> dinnerNotifier = ValueNotifier<double>(0);
   final ValueNotifier<double> snacksNotifier = ValueNotifier<double>(0);
 
-  /// Fetches calories for the past 7 days (including today)
+  StreamSubscription? _summarySubscription;
+  StreamSubscription? _metricsSubscription;
+
+  @override
+  void onClose() {
+    _summarySubscription?.cancel();
+    _metricsSubscription?.cancel();
+    super.onClose();
+  }
+
+  /// Establishes a real-time listener for all daily nutritional data.
+  void listenToDailyData(String userId, DateTime mDate) {
+    if (userId.isEmpty) return;
+
+    // Cancel previous listeners to avoid multiple streams on date change
+    _summarySubscription?.cancel();
+    _metricsSubscription?.cancel();
+
+    final date = DateFormat('yyyy-MM-dd').format(mDate);
+
+    // Listener for calculated summaries (calories, macros)
+    _summarySubscription = firestore
+        .collection('users')
+        .doc(userId)
+        .collection('daily_summary')
+        .doc(date)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+        final mealTotals = data['mealTotals'] as Map<String, dynamic>? ?? {};
+
+        totalCalories.value = data['calories'] as int? ?? 0;
+        _updateMealTypeCalories(
+            'Breakfast', mealTotals['Breakfast'] as int? ?? 0);
+        _updateMealTypeCalories('Lunch', mealTotals['Lunch'] as int? ?? 0);
+        _updateMealTypeCalories('Dinner', mealTotals['Dinner'] as int? ?? 0);
+        _updateMealTypeCalories('Snacks', mealTotals['Snacks'] as int? ?? 0);
+        updateCalories(totalCalories.value.toDouble(), targetCalories.value);
+      } else {
+        // Reset all calorie values if no summary document exists
+        totalCalories.value = 0;
+        _resetMealTypeCalories('Breakfast');
+        _resetMealTypeCalories('Lunch');
+        _resetMealTypeCalories('Dinner');
+        _resetMealTypeCalories('Snacks');
+        updateCalories(0, targetCalories.value);
+      }
+    });
+
+    // Listener for manually tracked metrics (water, steps)
+    _metricsSubscription = firestore
+        .collection('userMeals')
+        .doc(userId)
+        .collection('meals')
+        .doc(date)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+        final waterValue = data['Water'];
+        if (waterValue != null) {
+          currentWater.value = (waterValue is num)
+              ? waterValue.toDouble()
+              : (double.tryParse(waterValue.toString()) ?? 0.0);
+        } else {
+          currentWater.value = 0.0;
+        }
+
+        final stepsValue = data['Steps'];
+        if (stepsValue != null) {
+          currentSteps.value = (stepsValue is num)
+              ? stepsValue.toDouble()
+              : (double.tryParse(stepsValue.toString()) ?? 0.0);
+        } else {
+          currentSteps.value = 0.0;
+        }
+      } else {
+        currentWater.value = 0.0;
+        currentSteps.value = 0.0;
+      }
+    });
+
+    // Also fetch the meal list for the day (this doesn't need to be a stream unless you want real-time adds/removes to show without a refresh)
+    fetchMealsForToday(userId, mDate);
+  }
+
+  /// Fetches calories for the past 7 days (including today) from the daily_summary collection.
   Future<Map<String, int>> fetchCaloriesByDate(String userId) async {
     if (userId.isEmpty) {
       print("Invalid user ID. Returning empty data.");
@@ -52,26 +141,30 @@ class NutritionController extends GetxController {
     }
 
     try {
-      final userMealsRef =
-          firestore.collection('userMeals').doc(userId).collection('meals');
-      final querySnapshot = await userMealsRef.get();
+      final today = DateTime.now();
+      final lastWeekDate = today.subtract(const Duration(days: 6));
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final lastWeekDateString = dateFormat.format(lastWeekDate);
 
+      final summaryRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('daily_summary')
+          .where(FieldPath.documentId,
+              isGreaterThanOrEqualTo: lastWeekDateString)
+          .get();
+
+      final querySnapshot = await summaryRef;
       if (querySnapshot.docs.isEmpty) {
         return {};
       }
 
-      final today = DateTime.now();
-      final lastWeekDate = today.subtract(const Duration(days: 6));
-      final dateFormat = DateFormat('yyyy-MM-dd');
-
       return {
         for (var doc in querySnapshot.docs)
-          if (doc.data().containsKey('date') && doc.data().containsKey('meals'))
-            if (_isWithinLastWeek(doc['date'], dateFormat, lastWeekDate, today))
-              doc['date']: _calculateDailyCalories(doc['meals'])
+          doc.id: doc.data()['calories'] as int? ?? 0
       };
     } catch (e) {
-      print("Error fetching calories: $e");
+      print("Error fetching calories from summary: $e");
       return {};
     }
   }
@@ -97,106 +190,33 @@ class NutritionController extends GetxController {
       return;
     }
 
-    final today = DateTime.now();
-    final lastWeekDate = today.subtract(const Duration(days: 6));
-    final dateFormat = DateFormat('yyyy-MM-dd');
-
-    final userMealsRef =
-        firestore.collection('userMeals').doc(userId).collection('meals');
-
-    final docSnapshot = await userMealsRef.get();
-
-    // Filter documents by date after fetching
-    final todayStr = dateFormat.format(today);
-    final lastWeekStr = dateFormat.format(lastWeekDate);
-
-    final data = docSnapshot.docs
-        .where((doc) {
-          final docDate = doc.id;
-          return docDate.compareTo(lastWeekStr) >= 0 &&
-              docDate.compareTo(todayStr) <= 0;
-        })
-        .map((doc) => doc.data())
-        .toList();
-
-    if (data.isEmpty) {
-      streakDays.value = 0;
-      return;
-    }
-
-    final streak = data.length;
-    // Add null check and filter out any null dates
-    final streakDates = data
-        .map((doc) => doc['date'])
-        .where((date) => date != null)
-        .map((date) => date.toString())
-        .toList();
-
-    // Only update streak if we have valid dates
-    streakDays.value = streakDates.isEmpty ? 0 : streak;
-  }
-
-  /// Fetches calories only for today's date
-  Future<void> fetchCaloriesForDate(String userId, DateTime mDate) async {
-    if (userId.isEmpty) {
-      totalCalories.value = 0;
-      return;
-    }
-
-    final date = DateFormat('yyyy-MM-dd').format(mDate);
-    int retries = 0;
-    const maxRetries = 3;
-    const delays = [1, 2, 4]; // seconds
-
-    while (retries < maxRetries) {
-      try {
-        final userMealsRef = firestore
-            .collection('userMeals')
-            .doc(userId)
-            .collection('meals')
-            .doc(date);
-
-        final docSnapshot = await userMealsRef.get();
-        final data = docSnapshot.data();
-
-        totalCalories.value = data != null && data.containsKey('meals')
-            ? _calculateDailyCalories(data['meals'])
-            : 0;
-        return; // Success, exit the function
-      } catch (e) {
-        print("Error fetching calories for $date: $e");
-        if (e.toString().contains('cloud_firestore/unavailable') &&
-            retries < maxRetries - 1) {
-          await Future.delayed(Duration(seconds: delays[retries]));
-          retries++;
-          continue;
-        }
-        totalCalories.value = 0;
-        return;
-      }
-    }
-  }
-
-  /// Helper function to calculate total daily calories
-  int _calculateDailyCalories(Map<String, dynamic> meals) {
-    return meals.entries.fold<int>(0, (total, entry) {
-      final mealList = entry.value as List<dynamic>? ?? [];
-      return total +
-          mealList.fold<int>(
-              0, (sum, meal) => sum + (meal['calories'] as int? ?? 0));
-    });
-  }
-
-  /// Helper function to check if the date is within the last 7 days
-  bool _isWithinLastWeek(String dateString, DateFormat formatter,
-      DateTime lastWeekDate, DateTime today) {
     try {
-      final DateTime date = formatter.parse(dateString);
-      return date.isAfter(lastWeekDate.subtract(const Duration(seconds: 1))) &&
-          date.isBefore(today.add(const Duration(days: 1)));
+      final today = DateTime.now();
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      int currentStreak = 0;
+
+      for (int i = 0; i < 7; i++) {
+        final dateToCheck = today.subtract(Duration(days: i));
+        final dateString = dateFormat.format(dateToCheck);
+
+        final summaryDoc = await firestore
+            .collection('users')
+            .doc(userId)
+            .collection('daily_summary')
+            .doc(dateString)
+            .get();
+
+        if (summaryDoc.exists && (summaryDoc.data()?['calories'] ?? 0) > 0) {
+          currentStreak++;
+        } else {
+          // Break the loop as soon as a day is missed
+          break;
+        }
+      }
+      streakDays.value = currentStreak;
     } catch (e) {
-      print("Error parsing date: $dateString - $e");
-      return false;
+      print("Error fetching streak days from summary: $e");
+      streakDays.value = 0;
     }
   }
 
@@ -320,7 +340,7 @@ class NutritionController extends GetxController {
               "Congratulations! You've reached your daily water intake goal! 10 points awarded! ",
         );
       }
-      await BattleManagement.instance
+      await BattleService.instance
           .updateUserPoints(userService.userId ?? '', 10);
     } catch (e) {
       print("Error updating current water: $e");
@@ -358,8 +378,6 @@ class NutritionController extends GetxController {
               "Congratulations! You've reached your daily steps goal! 10 points awarded!",
         );
       }
-      await BattleManagement.instance
-          .updateUserPoints(userService.userId ?? '', 10);
     } catch (e) {
       print("Error updating current steps: $e");
       throw Exception("Failed to update current steps");
@@ -370,7 +388,7 @@ class NutritionController extends GetxController {
     final targetCalories = this.targetCalories.value;
     if (addCalories) {
       newCalories = targetCalories - newCalories;
-      
+
       // Add "Add Food" meal to Firestore
       await addUserMeal(
           userService.userId ?? '',
@@ -387,7 +405,7 @@ class NutritionController extends GetxController {
           "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
       // Remove "Add Food" meal from Firestore
-     final userMealRef = firestore
+      final userMealRef = firestore
           .collection('userMeals')
           .doc(userService.userId ?? '')
           .collection('meals')
@@ -401,60 +419,14 @@ class NutritionController extends GetxController {
     updateCalories(newCalories.toDouble(), targetCalories.toDouble());
   }
 
-// Fetch calories for a specific meal type
-  Future<void> fetchCalories(
-      String userId, String mealType, DateTime mDate) async {
-    try {
-      final date = DateFormat('yyyy-MM-dd').format(mDate);
-
-      final userMealsRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection('meals')
-          .doc(date);
-
-      final docSnapshot = await userMealsRef.get();
-      final data = docSnapshot.data();
-
-      if (data == null || !data.containsKey('meals')) {
-        _resetMealTypeCalories(mealType);
-        return;
-      }
-
-      final meals = data['meals'] as Map<String, dynamic>? ?? {};
-
-      if (mealType == 'Add Food') {
-        // ✅ Calculate total calories from all meal types
-        int totalCalories = meals.values.fold(0, (sum, mealArray) {
-          return sum +
-              (mealArray as List<dynamic>).fold(0, (innerSum, meal) {
-                return innerSum + (meal['calories'] as int? ?? 0);
-              });
-        });
-
-        updateCalories(totalCalories.toDouble(), targetCalories.value);
-      } else if (meals.containsKey(mealType)) {
-        // ✅ Calculate calories for the specific meal type
-        final mealArray = meals[mealType] as List<dynamic>? ?? [];
-        int totalCalories = mealArray.fold(
-            0, (sum, meal) => sum + (meal['calories'] as int? ?? 0));
-
-        _updateMealTypeCalories(mealType, totalCalories);
-      } else {
-        _resetMealTypeCalories(mealType);
-      }
-    } catch (e) {
-      print('Error fetching calories for $mealType: $e');
-      _resetMealTypeCalories(mealType);
-    }
-  }
-
   /// ✅ Update the correct meal type calories
   void _updateMealTypeCalories(String mealType, int totalCalories) {
     switch (mealType) {
       case 'Breakfast':
         breakfastCalories.value = totalCalories;
         breakfastTarget.value = (targetCalories.value * 0.20).toInt();
+        print('breakfastTarget: $breakfastTarget.value');
+        print('breakfastCalories: $breakfastCalories.value');
 
         // Calculate progress percentage for breakfast
         double breakfastProgress = breakfastTarget.value <= 0
@@ -515,8 +487,7 @@ class NutritionController extends GetxController {
     _updateMealTypeCalories(mealType, 0);
   }
 
-  void updateCalories(
-      double newCalories, double targetCalories) {
+  void updateCalories(double newCalories, double targetCalories) {
     eatenCalories.value = newCalories.toInt();
 
     // Prevent division by zero and handle edge cases
@@ -566,7 +537,6 @@ class NutritionController extends GetxController {
       });
 
       userMealList.assignAll(parsedMeals);
-      await fetchCalories(userId, 'Add Food', mDate);
     } catch (e) {
       return;
     }
@@ -669,7 +639,6 @@ class NutritionController extends GetxController {
         userMealList[foodType]!.removeWhere((m) => m.name == meal.name);
         userMealList.refresh();
       }
-      await fetchCalories(userId, 'Add Food', mDate);
     } catch (e) {
       print('Error removing meal: $e');
     }
@@ -679,13 +648,7 @@ class NutritionController extends GetxController {
   Future<void> fetchAllMealData(
       String userId, Map<String, String> userSettings, DateTime date) async {
     loadSettings(userSettings);
-    await fetchUserDailyMetrics(userId, date);
-    await fetchCaloriesForDate(userId, date);
-    await fetchMealsForToday(userId, date);
-    await fetchCalories(userId, 'Breakfast', date);
-    await fetchCalories(userId, 'Lunch', date);
-    await fetchCalories(userId, 'Dinner', date);
-    await fetchCalories(userId, 'Snacks', date);
+    listenToDailyData(userId, date);
     if (getCurrentDate(date)) {
       fetchPointsAchieved(userId);
       fetchStreakDays(userId);
@@ -695,12 +658,7 @@ class NutritionController extends GetxController {
   Future<void> fetchAllMealDataByDate(
       String userId, Map<String, String> userSettings, DateTime date) async {
     loadSettings(userSettings);
-    await fetchUserDailyMetrics(userId, date);
-    await fetchCalories(userId, 'Breakfast', date);
-    await fetchCalories(userId, 'Lunch', date);
-    await fetchCalories(userId, 'Dinner', date);
-    await fetchCalories(userId, 'Snacks', date);
-    resetCalories();
+    listenToDailyData(userId, date);
   }
 
   void resetCalories() {

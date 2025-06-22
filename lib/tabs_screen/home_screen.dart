@@ -232,9 +232,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       settings[key.toString()] = value.toString();
     });
 
-    await dailyDataController.fetchAllMealData(
-        userService.userId!, settings, DateTime.now());
-    await firebaseService.fetchGeneralData();
+    dailyDataController.listenToDailyData(userService.userId!, DateTime.now());
   }
 
   void _initializeMealDataByDate() async {
@@ -243,8 +241,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       settings[key.toString()] = value.toString();
     });
 
-    await dailyDataController.fetchAllMealDataByDate(
-        userService.userId!, settings, currentDate);
+    dailyDataController.listenToDailyData(userService.userId!, currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -598,7 +595,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ? getPercentageHeight(2, context)
                         : getPercentageHeight(0.5, context)),
 
-                SizedBox(height: getPercentageHeight(1, context)),
+                if (_isTodayShoppingDay())
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                 if (_isTodayShoppingDay())
                   Container(
@@ -805,12 +803,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             padding:
                                 EdgeInsets.all(getPercentageWidth(2, context)),
                             decoration: BoxDecoration(
-                              color: colors[selectedUserIndex].withOpacity(
-                                  kMidOpacity),
+                              color: colors[selectedUserIndex]
+                                  .withOpacity(kMidOpacity),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: colors[selectedUserIndex],
-                                  width: 1.5),
+                                  color: colors[selectedUserIndex], width: 1.5),
                             ),
                             child: UserDetailsSection(
                               user: user,

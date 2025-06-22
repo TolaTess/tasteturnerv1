@@ -100,8 +100,7 @@ class _MealSpinListState extends State<MealSpinList> {
               child: IconCircleButton(
                 icon: Icons.save,
                 isColorChange: _selectedItems.isNotEmpty ? true : false,
-                h: _selectedItems.isNotEmpty ? 10 : 7,
-                w: _selectedItems.isNotEmpty ? 10 : 7,
+                size: kIconSizeMedium,
               ),
             ),
           ),

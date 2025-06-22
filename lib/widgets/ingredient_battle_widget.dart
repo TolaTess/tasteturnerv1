@@ -7,7 +7,7 @@ import '../helper/utils.dart';
 import '../data_models/profilescreen_data.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/badges_screen.dart';
-import '../service/battle_management.dart';
+import '../service/battle_service.dart';
 
 class WeeklyIngredientBattle extends StatefulWidget {
   const WeeklyIngredientBattle({super.key});
@@ -136,8 +136,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
             body:
                 '${_topIngredient1.value} wins this week with ${_count1.value} uses! Runner up: ${_topIngredient2.value} with ${_count2.value} uses. 10 points awarded!',
           );
-          await BattleManagement.instance
-              .updateUserPoints(userService.userId ?? '', 10);
+          await BattleService.instance.updateUserPoints(userId, 10);
         }
       }
     } catch (e) {

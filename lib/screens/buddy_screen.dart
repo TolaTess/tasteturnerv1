@@ -443,10 +443,9 @@ class _TastyScreenState extends State<TastyScreen> {
                     : null,
                 child: IconCircleButton(
                   icon: Icons.send,
-                  h: 10,
-                  w: 10,
-                  colorL: canSend ? kAccent : kLightGrey,
-                  colorD: canSend ? kAccent : kLightGrey,
+                  size: kIconSizeMedium,
+                  colorL: canSend ? kDarkGrey : kLightGrey,
+                  colorD: canSend ? kWhite : kLightGrey,
                 ),
               );
             }),

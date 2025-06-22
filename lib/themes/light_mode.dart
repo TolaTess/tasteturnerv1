@@ -23,20 +23,38 @@ class ThemeManager {
 
   IconThemeData iconTheme() => const IconThemeData(
         color: kBlack,
-        size: 24,
+        size: kIconSizeMedium,
       );
 
   TextTheme textTheme() {
     return const TextTheme(
-      bodyLarge: TextStyle(
-        color: kBlack,
-        fontWeight: FontWeight.w100,
-        fontSize: 12,
-      ),
-      bodyMedium: TextStyle(
-        color: kBlack,
-        fontSize: 12,
-      ),
+      displayLarge:
+          TextStyle(fontSize: 57.0, fontWeight: FontWeight.bold, color: kBlack),
+      displayMedium:
+          TextStyle(fontSize: 45.0, fontWeight: FontWeight.bold, color: kBlack),
+      displaySmall:
+          TextStyle(fontSize: 36.0, fontWeight: FontWeight.bold, color: kBlack),
+      headlineLarge:
+          TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold, color: kBlack),
+      headlineMedium:
+          TextStyle(fontSize: 28.0, fontWeight: FontWeight.bold, color: kBlack),
+      headlineSmall:
+          TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: kBlack),
+      titleLarge:
+          TextStyle(fontSize: 22.0, fontWeight: FontWeight.w600, color: kBlack),
+      titleMedium:
+          TextStyle(fontSize: 16.0, fontWeight: FontWeight.w600, color: kBlack),
+      titleSmall:
+          TextStyle(fontSize: 14.0, fontWeight: FontWeight.w500, color: kBlack),
+      bodyLarge: TextStyle(fontSize: 16.0, color: kBlack),
+      bodyMedium: TextStyle(fontSize: 14.0, color: kBlack),
+      bodySmall: TextStyle(fontSize: 12.0, color: kBlack),
+      labelLarge:
+          TextStyle(fontSize: 14.0, fontWeight: FontWeight.w600, color: kBlack),
+      labelMedium:
+          TextStyle(fontSize: 12.0, fontWeight: FontWeight.w500, color: kBlack),
+      labelSmall:
+          TextStyle(fontSize: 11.0, fontWeight: FontWeight.w400, color: kBlack),
     );
   }
 

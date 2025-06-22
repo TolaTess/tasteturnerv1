@@ -12,7 +12,6 @@ import 'constants.dart';
 import 'themes/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
-import 'service/battle_management.dart';
 import 'service/calendar_sharing_service.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
@@ -64,7 +63,6 @@ void main() async {
   // Any other non-UI async setup
   await FirebaseService.instance.fetchGeneralData();
   await MealManager.instance.fetchMealsByCategory("All");
-  BattleManagement.instance.startBattleManagement();
   final notificationService = NotificationService();
   try {
     await notificationService.initNotification();

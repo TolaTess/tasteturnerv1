@@ -89,7 +89,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       _allMeals = mealManager.meals;
       _allIngredients = macroManager.ingredient;
       final currentDate = DateTime.now();
-      dailyDataController.fetchMealsForToday(userId, currentDate);
+      dailyDataController.listenToDailyData(userId, currentDate);
       setState(() {});
     } catch (e) {
       print('Error loading data: $e');
@@ -719,17 +719,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BottomNavSec(),
-              ),
-            );
-          },
-          child: const IconCircleButton(),
-        ),
         title: Text(
           widget.title,
           style: TextStyle(
@@ -990,8 +979,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 LinearProgressIndicator(
                   value: progress,
                   minHeight: getProportionalHeight(60, context),
-                  backgroundColor:
-                      isDarkMode ? kDarkGrey.withOpacity(kLowOpacity) : kWhite.withOpacity(kLowOpacity),
+                  backgroundColor: isDarkMode
+                      ? kDarkGrey.withOpacity(kLowOpacity)
+                      : kWhite.withOpacity(kLowOpacity),
                   valueColor:
                       AlwaysStoppedAnimation<Color>(iconColor.withOpacity(0.5)),
                 ),

@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/profilescreen_data.dart';
 import '../helper/utils.dart';
-import '../service/battle_management.dart';
+import '../service/battle_service.dart';
 import '../widgets/icon_widget.dart';
 
 class BadgesScreen extends StatefulWidget {
@@ -289,6 +289,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
       body:
           "Congratulations! You've earned the ${badge.title} badge! 10 points awarded!",
     );
-    BattleManagement.instance.updateUserPoints(userService.userId ?? '', 10);
+    BattleService.instance.updateUserPoints(userService.userId ?? '', 10);
   }
 }

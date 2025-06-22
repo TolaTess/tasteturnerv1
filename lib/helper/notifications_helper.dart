@@ -2,10 +2,9 @@
 // and send one if we haven't
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 import '../constants.dart';
-import '../service/battle_management.dart';
+import '../service/battle_service.dart';
 
 void checkAndSendStepGoalNotification(int currentSteps, int targetSteps) async {
   try {
@@ -23,7 +22,7 @@ void checkAndSendStepGoalNotification(int currentSteps, int targetSteps) async {
         body:
             'Congratulations! You reached your goal of $targetSteps steps today. Keep moving! 10 points awarded!',
       );
-      await BattleManagement.instance
+      await BattleService.instance
           .updateUserPoints(userService.userId ?? '', 10);
 
       // Mark that we've sent a notification today

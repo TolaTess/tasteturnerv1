@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:tasteturner/tabs_screen/vote_screen.dart';
 import 'dart:async';
 
@@ -7,16 +6,11 @@ import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 import '../screens/profile_screen.dart';
-import '../pages/upload_battle.dart';
-import '../service/battle_management.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/countdown.dart';
-import '../widgets/helper_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
-import '../tabs_screen/inspiration_screen.dart';
 import '../service/battle_service.dart';
-import '../detail_screen/challenge_detail_screen.dart';
 
 class FoodChallengeScreen extends StatefulWidget {
   const FoodChallengeScreen({super.key});
@@ -32,6 +26,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   final GlobalKey _addInspirationButtonKey = GlobalKey();
   bool showBattle = false;
   List<Map<String, dynamic>> participants = [];
+  bool _isLoadingParticipants = true;
+  bool _isPreviousBattle = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +37,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showAddJoinTutorial();
-      BattleManagement.instance.startBattleManagement();
       setState(() {
         showBattle = battleList.isNotEmpty;
       });
@@ -87,24 +83,51 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   }
 
   Future<void> _fetchParticipants(String category) async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingParticipants = true;
+      _isPreviousBattle = false;
+    });
+
     try {
       final battleId =
           battleList.isNotEmpty ? battleList.first['categoryId'] : null;
       if (battleId == null) {
-        setState(() => participants = []);
+        if (mounted) {
+          setState(() {
+            participants = [];
+            _isLoadingParticipants = false;
+          });
+        }
         return;
       }
 
-      final fetchedParticipants =
+      var fetchedParticipants =
           await BattleService.instance.getBattleParticipants(battleId);
+
+      if (fetchedParticipants.isEmpty) {
+        fetchedParticipants = await BattleService.instance
+            .getPreviousBattleParticipants(battleId);
+        if (mounted) {
+          setState(() {
+            _isPreviousBattle = true;
+          });
+        }
+      }
 
       if (mounted) {
         setState(() {
           participants = fetchedParticipants;
+          _isLoadingParticipants = false;
         });
       }
     } catch (e) {
       print("Error fetching participants: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingParticipants = false;
+        });
+      }
     }
   }
 
@@ -172,19 +195,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       Text(
                         key: _addJoinButtonKey,
                         ingredientBattle,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(4, context),
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
                         showBattle
                             ? 'Join the battle to create a masterpiece!'
                             : 'Next battle will start soon! Check back later!',
-                        style: TextStyle(
-                          fontSize: getTextScale(3.5, context),
-                          color: kAccentLight,
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(color: kAccentLight),
                       ),
                       SizedBox(
                         height: getPercentageHeight(1, context),
@@ -209,7 +229,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                               Icon(
                                 Icons.hourglass_top_rounded,
                                 color: Color(0xFFDF2D20),
-                                size: getPercentageWidth(5, context),
+                                size: kIconSizeLarge,
                               ),
                               SizedBox(
                                 width: getPercentageWidth(1, context),
@@ -320,12 +340,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                           if (isDeadlineOver) {
                                             return Text(
                                               'Deadline Over',
-                                              style: TextStyle(
-                                                fontSize:
-                                                    getTextScale(3, context),
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                      color: Colors.red,
+                                                      fontWeight:
+                                                          FontWeight.w600),
                                             );
                                           }
 
@@ -359,12 +380,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                 !isBattleDeadlineShow
                                                     ? 'Manage in profile screen'
                                                     : 'Vote for your favorite dish!',
-                                                style: TextStyle(
-                                                  fontSize:
-                                                      getTextScale(4, context),
-                                                  color: kAccentLight,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleSmall
+                                                    ?.copyWith(
+                                                        color: kAccentLight,
+                                                        fontWeight:
+                                                            FontWeight.w600),
                                               ),
                                             );
                                           }
@@ -429,18 +451,18 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                         children: [
                                                           Text(
                                                             '🎨 Create a Masterpiece!',
-                                                            style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize:
-                                                                  getTextScale(
-                                                                      4,
-                                                                      context),
-                                                              color: isDarkMode
-                                                                  ? kWhite
-                                                                  : kBlack,
-                                                            ),
+                                                            style: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .titleSmall
+                                                                ?.copyWith(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: isDarkMode
+                                                                      ? kWhite
+                                                                      : kBlack,
+                                                                ),
                                                           ),
                                                           SizedBox(
                                                               height:
@@ -561,79 +583,20 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
-                if (participants.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(4, context)),
-                        child: Text(
-                          'Current Challengers',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: getTextScale(4, context),
-                              color: isDarkMode ? kWhite : kDarkGrey),
-                        ),
-                      ),
-                      SizedBox(height: getPercentageHeight(1, context)),
-                      SizedBox(
-                        height: getPercentageHeight(30, context),
-                        child: GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                          ),
-                          itemCount: participants.length,
-                          itemBuilder: (context, index) {
-                            final participant = participants[index];
-                            final imageUrl = participant['image'] as String? ??
-                                intPlaceholderImage;
-                            return GestureDetector(
-                              onTap: () {
-                                if (imageUrl.startsWith('http')) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => VoteScreen(
-                                        isDarkMode: isDarkMode,
-                                        category: 'general',
-                                        initialCandidateId:
-                                            participant['userid'],
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  if (mounted) {
-                                    showTastySnackbar(
-                                      'Please try again.',
-                                      'Image not uploaded yet',
-                                      context,
-                                    );
-                                  }
-                                }
-                              },
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: imageUrl.startsWith('http')
-                                    ? Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Image.asset(intPlaceholderImage,
-                                                    fit: BoxFit.cover),
-                                      )
-                                    : Image.asset(intPlaceholderImage,
-                                        fit: BoxFit.cover),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+                if (_isLoadingParticipants)
+                  const Center(child: CircularProgressIndicator(color: kAccent))
+                else if (participants.isNotEmpty)
+                  _buildChallengersSection(context, isDarkMode)
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: noItemTastyWidget(
+                      "No Challengers Yet",
+                      "Be the first to join the battle!",
+                      context,
+                      false,
+                      '',
+                    ),
                   ),
 
                 SizedBox(
@@ -671,6 +634,97 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildChallengersSection(BuildContext context, bool isDarkMode) {
+    final participantsWithImages = participants
+        .where((p) => p['image']?.startsWith('http') ?? false)
+        .toList();
+    final participantsWithoutImagesCount =
+        participants.length - participantsWithImages.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Text(
+            _isPreviousBattle
+                ? 'Previous Battle Challengers'
+                : 'Current Challengers',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+          ),
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        SizedBox(
+          height: getPercentageHeight(30, context),
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: participantsWithImages.length +
+                (participantsWithoutImagesCount > 0 ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == participantsWithImages.length &&
+                  participantsWithoutImagesCount > 0) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: kDarkGrey.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        '+$participantsWithoutImagesCount waiting to submit...',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: kWhite),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final participant = participantsWithImages[index];
+              final imageUrl =
+                  participant['image'] as String? ?? intPlaceholderImage;
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VoteScreen(
+                        isDarkMode: isDarkMode,
+                        category: 'general',
+                        initialCandidateId: participant['userid'],
+                      ),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Image.asset(intPlaceholderImage, fit: BoxFit.cover),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

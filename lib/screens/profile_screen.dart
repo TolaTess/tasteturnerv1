@@ -240,8 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const IconCircleButton(
                   isRemoveContainer: true,
                   icon: Icons.settings,
-                  w: 8,
-                  h: 8,
+                  size: kIconSizeMedium,
                 ),
               ),
               SizedBox(width: getPercentageWidth(2, context)),

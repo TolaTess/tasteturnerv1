@@ -370,8 +370,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
             child: const IconCircleButton(
               icon: Icons.camera_alt,
-              h: 10,
-              w: 10,
+              size: kIconSizeMedium,
             ),
           ),
           SizedBox(width: getPercentageWidth(1, context)),
@@ -416,8 +415,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
             child: const IconCircleButton(
               icon: Icons.send,
-              h: 10,
-              w: 10,
+              size: kIconSizeMedium,
             ),
           ),
         ],
