@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../service/notification_service.dart';
 import '../widgets/daily_routine_list.dart';
 import '../widgets/icon_widget.dart';
 import 'safe_text_field.dart';

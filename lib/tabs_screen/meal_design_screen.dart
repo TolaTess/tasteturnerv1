@@ -26,6 +26,7 @@ import '../widgets/premium_widget.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
+import 'shopping_tab.dart';
 
 class MealDesignScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -1831,10 +1832,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const BottomNavSec(
-                                    selectedIndex: 3,
-                                    foodScreenTabIndex: 1,
-                                  ),
+                                  builder: (context) => const ShoppingTab(),
                                 ),
                               );
                             },

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:tasteturner/helper/utils.dart';
 
 class SecondNavWidget extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final Color color;
   final String label;
   final Widget destinationScreen;
@@ -46,10 +47,12 @@ class SecondNavWidget extends StatelessWidget {
               ],
             ),
             child: Center(
-              child: Icon(
+              child: SvgPicture.asset(
                 icon,
-                size: getIconScale(5, context),
-                color: Colors.white,
+                height: getIconScale(5, context),
+                width: getIconScale(5, context),
+                colorFilter:
+                    const ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),
           ),

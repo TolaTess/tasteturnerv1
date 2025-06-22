@@ -8,17 +8,23 @@ class UserService extends GetxController {
 
   UserService._internal();
 
+  // A stable, non-reactive ID for the current session.
   String? userId;
   String? buddyId;
+  // A reactive object for all other user data that can change.
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
 
-  void setUserId(String? id) => userId = id;
+  void setUserId(String? id) {
+    userId = id;
+  }
+
   void setBuddyChatId(String? id) => buddyId = id;
 
   void setUser(UserModel? user) {
     currentUser.value = user;
+    // Also update the stable userId to ensure it's always in sync
+    // when the user object is first set.
     if (user != null) {
-      // Keep userId in sync for non-reactive parts of the app that might use it
       setUserId(user.userId);
     }
   }

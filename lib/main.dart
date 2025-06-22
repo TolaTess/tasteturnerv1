@@ -22,6 +22,7 @@ import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
 import 'service/helper_controller.dart';
 import 'service/battle_service.dart';
+import 'service/user_service.dart';
 import 'data_models/message_screen_data.dart';
 import 'data_models/profilescreen_data.dart';
 
@@ -59,6 +60,7 @@ void main() async {
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => BadgeController());
   Get.lazyPut(() => FriendController());
+  Get.put(UserService(), permanent: true);
 
   // Any other non-UI async setup
   await FirebaseService.instance.fetchGeneralData();

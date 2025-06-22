@@ -138,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         .collection('date')
         .where('date', isEqualTo: formattedDate)
         .get();
-
     List<MealWithType> mealWithTypes = [];
 
     if (snapshot.docs.isNotEmpty) {
@@ -232,7 +231,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       settings[key.toString()] = value.toString();
     });
 
-    dailyDataController.listenToDailyData(userService.userId ?? '', DateTime.now());
+    dailyDataController.listenToDailyData(
+        userService.userId ?? '', DateTime.now());
   }
 
   void _initializeMealDataByDate() async {
@@ -241,7 +241,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       settings[key.toString()] = value.toString();
     });
 
-    dailyDataController.listenToDailyData(userService.userId ?? '', currentDate);
+    dailyDataController.listenToDailyData(
+        userService.userId ?? '', currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -280,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Only show notification if we haven't shown it before
       if (!await notificationService.hasShownUnreadNotification) {
         await notificationService.showNotification(
-          title: 'Unread Messages',
+          title: 'Taste Turner - New Message',
           body: 'You have $unreadCount unread messages',
         );
         await notificationService.setHasShownUnreadNotification(true);
@@ -326,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final winners = helperController.winners;
 
     return Obx(() {
-          final currentUser = userService.currentUser.value;
+      final currentUser = userService.currentUser.value;
 
       if (currentUser == null) {
         // Show a loading state if user data isn't available yet
@@ -671,28 +672,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         //challenge
                         SecondNavWidget(
                           label: 'Diary',
-                          icon: Icons.whatshot_outlined,
+                          icon: 'assets/images/svg/diary.svg',
                           color: kAccent,
                           destinationScreen: const AddFoodScreen(),
                         ),
                         //shopping
                         SecondNavWidget(
                           label: 'Challenge',
-                          icon: Icons.shopping_cart_outlined,
+                          icon: 'assets/images/svg/target.svg',
                           color: kBlue,
                           destinationScreen: const FoodChallengeScreen(),
                         ),
                         //Planner
                         SecondNavWidget(
                           label: 'Shopping',
-                          icon: Icons.image_search,
+                          icon: 'assets/images/svg/shopping.svg',
                           color: kAccentLight,
                           destinationScreen: ShoppingTab(),
                         ),
                         //spin
                         SecondNavWidget(
                           label: 'Spin',
-                          icon: Icons.casino_outlined,
+                          icon: 'assets/images/svg/spin-outline.svg',
                           color: kPurple,
                           destinationScreen: const BottomNavSec(
                             selectedIndex: 3,
@@ -765,7 +766,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       final familyList =
                           familyMembers.map((f) => f.toMap()).toList();
                       final displayList = [userData, ...familyList];
-                      final user = familyMode 
+                      final user = familyMode
                           ? displayList[selectedUserIndex]
                           : displayList[0];
 
@@ -817,7 +818,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     width: 1.5),
                               ),
                               child: UserDetailsSection(
-                                user: userData,
+                                user: user,
                                 isDarkMode: isDarkMode,
                                 showCaloriesAndGoal: showCaloriesAndGoal,
                                 familyMode: familyMode,
@@ -839,7 +840,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (hasMealPlan)
                             FutureBuilder<List<MealWithType>>(
                               future: _loadMealsForUI(
-                                  displayList[selectedUserIndex]['name'] as String,
+                                  displayList[selectedUserIndex]['name']
+                                      as String,
                                   familyList),
                               builder: (context, snapshot) {
                                 if (snapshot.connectionState ==
@@ -874,7 +876,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       mealPlan: mealPlan,
                                       isDarkMode: isDarkMode,
                                       showCaloriesAndGoal: showCaloriesAndGoal,
-                                      user: userData,
+                                      user: user,
                                     ),
                                   ),
                                 );

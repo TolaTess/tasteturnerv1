@@ -178,8 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             );
 
         // Set current user
-        userService.currentUser.value = newUser;
-        userService.userId = widget.userId;
+        userService.setUser(newUser);
 
         // Save to local storage using toJson()
         final prefs = await SharedPreferences.getInstance();

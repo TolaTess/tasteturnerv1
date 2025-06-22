@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'package:tasteturner/helper/utils.dart';
 import 'package:tasteturner/tabs_screen/recipe_screen.dart';
 import 'package:tasteturner/tabs_screen/spin_screen.dart';
 import '../constants.dart';
@@ -58,30 +60,90 @@ class _BottomNavSecState extends State<BottomNavSec> {
         unselectedItemColor: themeProvider.isDarkMode
             ? kWhite.withOpacity(0.7)
             : kBlack.withOpacity(0.7),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
+            icon: SvgPicture.asset(
+              'assets/images/svg/home-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/home.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search_outlined),
-            activeIcon: Icon(Icons.search),
+            icon: SvgPicture.asset(
+              'assets/images/svg/explore-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/explore.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Explore',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.book_outlined),
-            activeIcon: Icon(Icons.book),
+            icon: SvgPicture.asset(
+              'assets/images/svg/book-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/book.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Recipes',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.casino_outlined),
-            activeIcon: Icon(Icons.casino),
+            icon: SvgPicture.asset(
+              'assets/images/svg/spin-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/spin.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Spin',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.edit_calendar_outlined),
-            activeIcon: Icon(Icons.edit_calendar),
+            icon: SvgPicture.asset(
+              'assets/images/svg/cal-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/cal.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Planner',
           ),
         ],

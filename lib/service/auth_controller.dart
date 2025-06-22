@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +17,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 class AuthController extends GetxController {
   static AuthController instance = Get.find();
 
-  final Rx<UserModel?> _currentUser = Rx<UserModel?>(null);
-  var userData = Rxn<UserModel>();
-
-  // Getter for accessing the user data
-  UserModel? get currentUser => _currentUser.value;
+  StreamSubscription? _userDataSubscription;
 
   // Shared Preferences key for login state
   final String _isLoggedInKey = 'isLoggedIn';
@@ -27,8 +25,6 @@ class AuthController extends GetxController {
   @override
   void onReady() async {
     super.onReady();
-    // Check login state from SharedPreferences
-    await _checkLoginState();
 
     Rx<User?> authState = Rx<User?>(null);
     authState.bindStream(firebaseAuth.authStateChanges());
@@ -37,25 +33,18 @@ class AuthController extends GetxController {
     ever(authState, _handleAuthState);
   }
 
-  Future<void> _checkLoginState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
-
-    if (isLoggedIn) {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId != null) {
-        await getCurrentUserData(userId);
-      }
-    }
-  }
-
   void _handleAuthState(User? user) async {
     if (user == null) {
       // User not authenticated
       await _setLoggedIn(false);
+      _userDataSubscription?.cancel();
+      userService.clearUser();
       Get.offAll(() => const SplashScreen());
       return;
     }
+
+    // Set the stable User ID as soon as authentication is confirmed.
+    userService.setUserId(user.uid);
 
     try {
       final userDoc = await _fetchUserDocWithRetry(user.uid);
@@ -67,7 +56,8 @@ class AuthController extends GetxController {
       } else {
         // Existing user - load data and proceed to main app
         try {
-          await getCurrentUserData(user.uid);
+          // Start listening to user data instead of one-time fetch
+          listenToUserData(user.uid);
           await _setLoggedIn(true);
           Get.offAll(() => const BottomNavSec());
         } catch (e) {
@@ -107,6 +97,82 @@ class AuthController extends GetxController {
     }
   }
 
+  void listenToUserData(String userId) {
+    // Cancel any existing listener
+    _userDataSubscription?.cancel();
+
+    _userDataSubscription =
+        firestore.collection('users').doc(userId).snapshots().listen(
+      (doc) async {
+        if (doc.exists) {
+          final userDataMap = doc.data()!;
+
+          List<String> following = [];
+          final followingSnapshot =
+              await firestore.collection('friends').doc(userId).get();
+
+          if (followingSnapshot.exists) {
+            final data = followingSnapshot.data()!;
+            final followingData = data['following'] as List<dynamic>? ?? [];
+            following = followingData.map((id) => id.toString()).toList();
+          }
+
+          DateTime? createdAt;
+          if (userDataMap['created_At'] is Timestamp) {
+            createdAt = (userDataMap['created_At'] as Timestamp).toDate();
+          } else if (userDataMap['created_At'] is String) {
+            createdAt = DateTime.tryParse(userDataMap['created_At']);
+          }
+          DateTime? freeTrialDate;
+          if (userDataMap['freeTrialDate'] is Timestamp) {
+            freeTrialDate =
+                (userDataMap['freeTrialDate'] as Timestamp).toDate();
+          } else if (userDataMap['freeTrialDate'] is String) {
+            freeTrialDate = DateTime.tryParse(userDataMap['freeTrialDate']);
+          }
+
+          final familyMembersRaw =
+              userDataMap['familyMembers'] as List<dynamic>? ?? [];
+          final familyMembers = familyMembersRaw
+              .map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
+              .toList();
+
+          final user = UserModel(
+            userId: doc.id,
+            displayName: userDataMap['displayName']?.toString() ?? '',
+            profileImage: userDataMap['profileImage']?.toString() ?? '',
+            bio: userDataMap['bio']?.toString() ?? getRandomBio(bios),
+            dob: userDataMap['dob']?.toString() ?? '',
+            settings: userDataMap['settings'] != null
+                ? Map<String, String>.from(
+                    (userDataMap['settings'] as Map).map(
+                      (key, value) =>
+                          MapEntry(key.toString(), value?.toString() ?? ''),
+                    ),
+                  )
+                : {},
+            following: following,
+            userType: userDataMap['userType']?.toString() ?? 'user',
+            isPremium: userDataMap['isPremium'] as bool? ?? false,
+            created_At: createdAt,
+            freeTrialDate: freeTrialDate,
+            familyMode: userDataMap['familyMode'] as bool? ?? false,
+            familyMembers: familyMembers,
+          );
+          userService.setUser(user);
+        } else {
+          print("User document does not exist, clearing user data.");
+          userService.clearUser();
+        }
+      },
+      onError: (error) {
+        print("Error listening to user data: $error");
+        // Optionally handle error, e.g., clear user data
+        userService.clearUser();
+      },
+    );
+  }
+
   Future<DocumentSnapshot<Map<String, dynamic>>> _fetchUserDocWithRetry(
       String userId,
       {int maxRetries = 3}) async {
@@ -125,83 +191,6 @@ class AuthController extends GetxController {
         }
         rethrow;
       }
-    }
-  }
-
-  Future<void> getCurrentUserData(String userId) async {
-    try {
-      final doc = await firestore.collection('users').doc(userId).get();
-
-      if (doc.exists) {
-        final userDataMap = doc.data()!;
-
-        // Fetch following
-        List<String> following = [];
-        final followingSnapshot =
-            await firestore.collection('friends').doc(userId).get();
-
-        if (followingSnapshot.exists) {
-          final data = followingSnapshot.data()!;
-
-          // Get following array and convert to List<String>
-          final followingData = data['following'] as List<dynamic>? ?? [];
-          following = followingData.map((id) => id.toString()).toList();
-        }
-
-        // Create user model with all data
-        DateTime? createdAt;
-        if (userDataMap['created_At'] is Timestamp) {
-          createdAt = (userDataMap['created_At'] as Timestamp).toDate();
-        } else if (userDataMap['created_At'] is String) {
-          createdAt = DateTime.tryParse(userDataMap['created_At']);
-        }
-        DateTime? freeTrialDate;
-        if (userDataMap['freeTrialDate'] is Timestamp) {
-          freeTrialDate = (userDataMap['freeTrialDate'] as Timestamp).toDate();
-        } else if (userDataMap['freeTrialDate'] is String) {
-          freeTrialDate = DateTime.tryParse(userDataMap['freeTrialDate']);
-        }
-
-        final familyMembersRaw =
-            userDataMap['familyMembers'] as List<dynamic>? ?? [];
-        final familyMembers = familyMembersRaw
-            .map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
-            .toList();
-
-        final user = UserModel(
-          userId: doc.id,
-          displayName: userDataMap['displayName']?.toString() ?? '',
-          profileImage: userDataMap['profileImage']?.toString() ?? '',
-          bio: userDataMap['bio']?.toString() ?? getRandomBio(bios),
-          dob: userDataMap['dob']?.toString() ?? '',
-          settings: userDataMap['settings'] != null
-              ? Map<String, String>.from(
-                  (userDataMap['settings'] as Map).map(
-                    (key, value) =>
-                        MapEntry(key.toString(), value?.toString() ?? ''),
-                  ),
-                )
-              : {},
-          following: following,
-          userType: userDataMap['userType']?.toString() ?? 'user',
-          isPremium: userDataMap['isPremium'] as bool? ?? false,
-          created_At: createdAt,
-          freeTrialDate: freeTrialDate,
-          familyMode: userDataMap['familyMode'] as bool? ?? false,
-          familyMembers: familyMembers,
-        );
-
-        // Update userService and current user
-        userService.setUser(user);
-        userService.setUserId(userId);
-        _currentUser.value = user;
-      } else {
-        print("User not found in Firestore.");
-      }
-    } catch (e) {
-      print("Error fetching user data: $e");
-      // Rethrow to handle in calling context if needed
-      rethrow;
     }
   }
 
@@ -349,40 +338,28 @@ class AuthController extends GetxController {
 
   Future<void> updateUserData(Map<String, dynamic> updatedData) async {
     try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId != null) {
-        // Handle settings updates specially to prevent overwriting
-        if (updatedData.containsKey('settings')) {
-          // If updating settings, merge with existing settings
-          final currentUser = userService.currentUser.value;
-          if (currentUser != null) {
-            final existingSettings =
-                Map<String, dynamic>.from(currentUser.settings);
-            final newSettings = updatedData['settings'] as Map<String, dynamic>;
-
-            // Merge the new settings with existing settings
-            existingSettings.addAll(newSettings);
-            updatedData['settings'] = existingSettings;
-          }
-        }
-
-        // Update data in Firebase
-        await firestore.collection('users').doc(userId).update(updatedData);
-
-        // Update local model and userService
-        if (userService.currentUser.value != null) {
-          final updatedUser = UserModel.fromMap({
-            ...userService.currentUser.value!.toMap(),
-            ...updatedData,
-          });
-          userService.setUser(updatedUser);
-          _currentUser.value = updatedUser;
-        }
-
-        update();
-      } else {
+      final userId = userService.userId;
+      if (userId == null) {
         print('No user is logged in.');
+        return;
       }
+
+      // If updating settings, merge them to avoid overwriting other settings.
+      if (updatedData.containsKey('settings')) {
+        final currentUser = userService.currentUser.value;
+        if (currentUser != null) {
+          final existingSettings =
+              Map<String, dynamic>.from(currentUser.settings);
+          final newSettings = updatedData['settings'] as Map<String, dynamic>;
+          existingSettings.addAll(newSettings);
+          updatedData['settings'] = existingSettings;
+        }
+      }
+
+      // The only job of this function is to write to Firestore.
+      // The real-time listener (`listenToUserData`) will automatically
+      // pick up the change and update the state in UserService.
+      await firestore.collection('users').doc(userId).update(updatedData);
     } catch (e) {
       print("Error updating user data: $e");
       rethrow; // Rethrow to handle in UI
@@ -395,8 +372,6 @@ class AuthController extends GetxController {
       final yesterday =
           DateTime.now().subtract(Duration(days: 1)).toIso8601String();
       final prefs = await SharedPreferences.getInstance();
-      await FirebaseAuth.instance.signOut();
-      await _setLoggedIn(false);
       await prefs.setString('shopping_day', '');
       await prefs.setString('top_ingredient_1', '');
       await prefs.setString('top_ingredient_2', '');
@@ -405,8 +380,8 @@ class AuthController extends GetxController {
       await prefs.setBool('ingredient_battle_new_week', true);
       await prefs.setBool('routine_notification_shown_$today', true);
       await prefs.setBool('routine_badge_$yesterday', false);
-      userService.clearUser();
-      Get.offAll(() => const SplashScreen());
+      // _userDataSubscription is cancelled by the _handleAuthState listener
+      await FirebaseAuth.instance.signOut();
     } catch (e) {
       print("Error signing out: $e");
     }
@@ -438,22 +413,11 @@ class AuthController extends GetxController {
         throw Exception("User ID is invalid or empty.");
       }
 
-      // Update Firestore
+      // The real-time listener will handle the update automatically.
       await firestore.collection('users').doc(userId).update({
         'isPremium': isPremium,
         'premiumPlan': plan,
       });
-
-      // Update local user model in UserService
-      if (userService.currentUser.value != null) {
-        final updatedUser = UserModel.fromMap({
-          ...userService.currentUser.value!.toMap(),
-          'isPremium': isPremium,
-          'premiumPlan': plan,
-        });
-        userService.setUser(updatedUser);
-        _currentUser.value = updatedUser;
-      }
 
       // Notify user of success
       if (isPremium) {

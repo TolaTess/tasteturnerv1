@@ -60,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     chartDataFuture = fetchChartData(userId);
     _fetchOngoingBattles(userId);
     dailyDataController.fetchPointsAchieved(userId);
-    authController.getCurrentUserData(userId);
+    authController.listenToUserData(userId);
     super.initState();
     setState(() {
       showBattle = ongoingBattles.isNotEmpty;
