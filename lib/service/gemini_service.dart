@@ -178,12 +178,23 @@ class GeminiService {
                   "text": '''
 You are a professional nutritionist and meal planner. $prompt
 
+Generate a 7-day meal plan that is:
+
+Balanced and diverse
+
+Aligned with the specified diet type
+
+Includes at least 2 meal options per meal type (breakfast, lunch, dinner, snack) per day
+
+Designed with real-world cooking practicality and variety
+
 Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
 {
   "meals": [
     {
       "title": "Dish name",
       "type": "protein|grain|vegetable",
+      "mealType": "breakfast | lunch | dinner | snack",
       "ingredients": {
         "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
         "ingredient2": "amount with unit"
@@ -213,7 +224,7 @@ Important:
 - Return ONLY the JSON object. Do not include any markdown formatting, explanations, or code block markers.
 - Ensure all measurements are in metric units and nutritional values are per serving.
 - Format ingredients as key-value pairs where the key is the ingredient name and the value is the amount with unit (e.g., "rice": "1 cup", "chicken breast": "200g")
-- Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free",).
+- Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free" "quick prep",).
 '''
                 }
               ]

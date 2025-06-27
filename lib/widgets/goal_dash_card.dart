@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,11 +9,11 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_functions.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../data_models/user_data_model.dart';
 import '../pages/profile_edit_screen.dart';
-import '../screens/add_food_screen.dart';
 import 'bottom_nav.dart';
 
 class DailyNutritionOverview extends StatefulWidget {
@@ -529,7 +528,8 @@ class UserDetailsSection extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(children: [
+              Stack(
+                children: [
                   Container(
                     height: getProportionalHeight(18, context),
                     decoration: BoxDecoration(
@@ -566,10 +566,10 @@ class UserDetailsSection extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (eatenCalories < targetCalories)
-                  Text(
-                    '${eatenCalories.toStringAsFixed(0)} kcal',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
+                    Text(
+                      '${eatenCalories.toStringAsFixed(0)} kcal',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                   if (targetCalories > 0 && showCaloriesAndGoal)
                     Text(
                       '${targetCalories.toStringAsFixed(0)} kcal',
@@ -641,156 +641,123 @@ class MealPlanSection extends StatelessWidget {
               ),
             ),
           ),
-        SizedBox(height: getPercentageHeight(0.5, context)),
-        if (meals.isNotEmpty &&
-            (user['name'] == userService.currentUser.value?.displayName))
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const BottomNavSec(selectedIndex: 4),
+        if (meals.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              Get.to(() => const BottomNavSec(selectedIndex: 4));
+            },
+            child: SizedBox(
+              height: getProportionalHeight(110, context),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: meals.length,
+                separatorBuilder: (context, i) =>
+                    SizedBox(width: getPercentageWidth(2, context)),
+                itemBuilder: (context, index) {
+                  final meal = meals[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Get.to(() => RecipeDetailScreen(mealData: meal.meal));
+                    },
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: getPercentageWidth(32, context),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(2, context),
+                            vertical: getPercentageHeight(2, context),
+                          ),
+                          decoration: BoxDecoration(
+                            color: getDayTypeColor(
+                                    (mealPlan['dayType'] ?? '')
+                                        .replaceAll('_', ' '),
+                                    isDarkMode)
+                                .withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: getDayTypeColor(
+                                        (mealPlan['dayType'] ?? '')
+                                            .replaceAll('_', ' '),
+                                        isDarkMode)
+                                    .withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: getDayTypeColor(
+                                      (mealPlan['dayType'] ?? '')
+                                          .replaceAll('_', ' '),
+                                      isDarkMode)
+                                  .withOpacity(0.18),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                capitalizeFirstLetter(meal.meal.title ?? ''),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (showCaloriesAndGoal &&
+                                  meal.meal.calories != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Text(
+                                    '${meal.meal.calories} kcal',
+                                    style:
+                                        Theme.of(context).textTheme.labelMedium,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Meal type icon as a top-level overlay
+                        Positioned(
+                          top: getPercentageWidth(-2, context),
+                          left: getPercentageWidth(-1, context),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? kDarkGrey : kWhite,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: kAccent.withOpacity(0.5),
+                                  blurRadius: getPercentageWidth(1, context),
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(2, context)),
+                            child: Text(
+                              getMealTypeSubtitle(meal.mealType),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displaySmall
+                                  ?.copyWith(
+                                    fontSize: getTextScale(5, context),
+                                    color: kAccent,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(1.2, context),
-                      vertical: getPercentageHeight(0.6, context)),
-                  decoration: BoxDecoration(
-                    color: getDayTypeColor(
-                            (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-                            isDarkMode)
-                        .withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      if (meals.isNotEmpty)
-                        Icon(
-                          getDayTypeIcon(
-                              (mealPlan['dayType'] ?? '').replaceAll('_', ' ')),
-                          size: getIconScale(5.5, context),
-                          color: getDayTypeColor(
-                              (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-                              isDarkMode),
-                        ),
-                      if (meals.isNotEmpty)
-                        SizedBox(width: getPercentageWidth(1, context)),
-                      if (meals.isNotEmpty)
-                        Text(
-                          (mealPlan['dayType'] ?? '').toLowerCase() ==
-                                  'regular_day'
-                              ? 'Meal Plan'
-                              : capitalizeFirstLetter(
-                                  (mealPlan['dayType'] ?? '')
-                                      .replaceAll('_', ' ')),
-                          style: Theme.of(context)
-                              .textTheme
-                              .displaySmall
-                              ?.copyWith(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w400,
-                                  color: getDayTypeColor(
-                                      (mealPlan['dayType'] ?? '')
-                                          .replaceAll('_', ' '),
-                                      isDarkMode)),
-                        ),
-                      SizedBox(width: getPercentageWidth(1, context)),
-                      Icon(
-                        Icons.edit,
-                        size: getIconScale(5.5, context),
-                        color: getDayTypeColor(
-                            (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-                            isDarkMode),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-            ],
-          ),
-        SizedBox(height: getPercentageHeight(1.5, context)),
-        if (meals.isNotEmpty)
-          SizedBox(
-            height: getProportionalHeight(120, context),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: meals.length,
-              separatorBuilder: (context, i) =>
-                  SizedBox(width: getPercentageWidth(2, context)),
-              itemBuilder: (context, index) {
-                final meal = meals[index];
-                return GestureDetector(
-                  onTap: () {
-                    Get.to(() => RecipeDetailScreen(mealData: meal.meal));
-                  },
-                  child: AnimatedScale(
-                    scale: 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Container(
-                      width: getPercentageWidth(32, context),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(2, context),
-                          vertical: getPercentageHeight(2, context)),
-                      decoration: BoxDecoration(
-                        color: kWhite.withOpacity(0.13),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: kAccent.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: kAccent.withOpacity(0.18),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _getMealIcon(meal.mealType),
-                                color: isDarkMode ? kWhite : kDarkGrey,
-                                size: getPercentageWidth(4, context),
-                              ),
-                              SizedBox(width: getPercentageWidth(0.8, context)),
-                              Expanded(
-                                child: Text(
-                                  capitalizeFirstLetter(meal.mealType ?? ''),
-                                  style: Theme.of(context).textTheme.labelLarge,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (showCaloriesAndGoal && meal.meal.calories != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2.0),
-                              child: Text(
-                                '${meal.meal.calories} kcal',
-                                style: Theme.of(context).textTheme.labelMedium,
-                              ),
-                            ),
-                          Text(
-                            capitalizeFirstLetter(meal.meal.title ?? ''),
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
           ),
       ],
@@ -856,7 +823,7 @@ class FamilySelectorSection extends StatelessWidget {
                         ? kDarkGrey.withOpacity(0.18)
                         : kWhite.withOpacity(0.25),
                 child: fam['avatar'] == null
-                    ? _getAvatar(fam['ageGroup'], context, isDarkMode)
+                    ? getAvatar(fam['ageGroup'], context, isDarkMode)
                     : ClipOval(
                         child: Image.asset(
                           fam['avatar'],
@@ -874,57 +841,6 @@ class FamilySelectorSection extends StatelessWidget {
   }
 }
 
-Widget _getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
-  switch (avatar?.toLowerCase()) {
-    case 'infant':
-    case 'baby':
-      return SvgPicture.asset('assets/images/svg/baby.svg',
-          height: getPercentageWidth(7, context),
-          width: getPercentageWidth(7, context),
-          colorFilter: ColorFilter.mode(
-              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
-    case 'toddler':
-      return SvgPicture.asset('assets/images/svg/toddler.svg',
-          height: getPercentageWidth(7, context),
-          width: getPercentageWidth(7, context),
-          colorFilter: ColorFilter.mode(
-              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
-    case 'child':
-      return SvgPicture.asset('assets/images/svg/child.svg',
-          height: getPercentageWidth(7, context),
-          width: getPercentageWidth(7, context),
-          colorFilter: ColorFilter.mode(
-              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
-    case 'teen':
-      return SvgPicture.asset('assets/images/svg/teen.svg',
-          height: getPercentageWidth(6, context),
-          width: getPercentageWidth(6, context),
-          colorFilter: ColorFilter.mode(
-              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
-    default:
-      return SvgPicture.asset('assets/images/svg/adult.svg',
-          height: getPercentageWidth(6, context),
-          width: getPercentageWidth(6, context),
-          colorFilter: ColorFilter.mode(
-              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
-  }
-}
-
-IconData _getMealIcon(String? type) {
-  switch (type?.toLowerCase()) {
-    case 'breakfast':
-      return Icons.emoji_food_beverage;
-    case 'lunch':
-      return Icons.lunch_dining;
-    case 'dinner':
-      return Icons.dinner_dining;
-    case 'snacks':
-      return Icons.fastfood;
-    default:
-      return Icons.restaurant_menu;
-  }
-}
-
 Widget _buildTagChip(dynamic tag, BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -939,3 +855,75 @@ Widget _buildTagChip(dynamic tag, BuildContext context) {
     ),
   );
 }
+
+
+      //  if (meals.isNotEmpty &&
+      //       (user['name'] == userService.currentUser.value?.displayName))
+      //     Row(
+      //       mainAxisAlignment: MainAxisAlignment.center,
+      //       children: [
+      //         GestureDetector(
+      //           onTap: () {
+      //             Navigator.of(context).push(
+      //               MaterialPageRoute(
+      //                 builder: (_) => const BottomNavSec(selectedIndex: 4),
+      //               ),
+      //             );
+      //           },
+      //           child: Container(
+      //             padding: EdgeInsets.symmetric(
+      //                 horizontal: getPercentageWidth(1.2, context),
+      //                 vertical: getPercentageHeight(0.6, context)),
+      //             decoration: BoxDecoration(
+      //               color: getDayTypeColor(
+      //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
+      //                       isDarkMode)
+      //                   .withOpacity(0.2),
+      //               borderRadius: BorderRadius.circular(12),
+      //             ),
+      //             child: Row(
+      //               children: [
+      //                 if (meals.isNotEmpty)
+      //                   Icon(
+      //                     getDayTypeIcon(
+      //                         (mealPlan['dayType'] ?? '').replaceAll('_', ' ')),
+      //                     size: getIconScale(5.5, context),
+      //                     color: getDayTypeColor(
+      //                         (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
+      //                         isDarkMode),
+      //                   ),
+      //                 if (meals.isNotEmpty)
+      //                   SizedBox(width: getPercentageWidth(1, context)),
+      //                 if (meals.isNotEmpty)
+      //                   Text(
+      //                     (mealPlan['dayType'] ?? '').toLowerCase() ==
+      //                             'regular_day'
+      //                         ? 'Meal Plan'
+      //                         : capitalizeFirstLetter(
+      //                             (mealPlan['dayType'] ?? '')
+      //                                 .replaceAll('_', ' ')),
+      //                     style: Theme.of(context)
+      //                         .textTheme
+      //                         .displaySmall
+      //                         ?.copyWith(
+      //                             fontSize: 18,
+      //                             fontWeight: FontWeight.w400,
+      //                             color: getDayTypeColor(
+      //                                 (mealPlan['dayType'] ?? '')
+      //                                     .replaceAll('_', ' '),
+      //                                 isDarkMode)),
+      //                   ),
+      //                 SizedBox(width: getPercentageWidth(1, context)),
+      //                 Icon(
+      //                   Icons.edit,
+      //                   size: getIconScale(5.5, context),
+      //                   color: getDayTypeColor(
+      //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
+      //                       isDarkMode),
+      //                 ),
+      //               ],
+      //             ),
+      //           ),
+      //         ),
+      //       ],
+      //     ),

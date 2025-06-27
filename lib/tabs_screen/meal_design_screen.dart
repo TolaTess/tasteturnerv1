@@ -443,7 +443,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Calendar',
+                  Text('Planner',
                       style: textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.w300,
                           fontSize: getPercentageWidth(6, context))),
@@ -498,7 +498,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(height: getPercentageHeight(2, context)),
+          SizedBox(height: getPercentageHeight(1, context)),
+          Text(
+            'Meal Planner',
+            style: textTheme.displaySmall?.copyWith(
+              color: kAccent,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
 
           // Collapsible Calendar Section
           Container(
@@ -1387,7 +1394,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDarkMode ? kWhite : kDarkGrey,
+                      color: isDarkMode ? kDarkGrey : kWhite,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -1398,10 +1405,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ],
                     ),
                     padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                    child: Icon(
-                      getMealTypeIcon(mealType),
-                      color: kAccent,
-                      size: getPercentageWidth(6, context),
+                    child: Text(
+                      getMealTypeSubtitle(mealType),
+                      style: textTheme.displaySmall?.copyWith(
+                        fontSize: getTextScale(5, context),
+                        color: kAccent,
+                      ),
                     ),
                   ),
                 ),
@@ -1422,27 +1431,28 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        final textTheme = Theme.of(context).textTheme;
         return Padding(
           padding: EdgeInsets.all(getPercentageWidth(2, context)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Select Meal Type',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: getTextScale(3.5, context),
+                  style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w200,
+                      fontSize: getTextScale(7, context),
                       color: isDarkMode ? kWhite : kBlack)),
               SizedBox(height: getPercentageHeight(1, context)),
               ...[
-                {'label': 'Breakfast', 'icon': Icons.emoji_food_beverage},
-                {'label': 'Lunch', 'icon': Icons.lunch_dining},
-                {'label': 'Dinner', 'icon': Icons.dinner_dining},
-                {'label': 'Snacks', 'icon': Icons.fastfood},
+                {'label': 'Breakfast (BF)', 'icon': Icons.emoji_food_beverage},
+                {'label': 'Lunch (LH)', 'icon': Icons.lunch_dining},
+                {'label': 'Dinner (DN)', 'icon': Icons.dinner_dining},
+                {'label': 'Snacks (SK)', 'icon': Icons.fastfood},
               ].map((item) => ListTile(
                     leading: Icon(item['icon'] as IconData,
                         color: isDarkMode ? kWhite : kBlack),
                     title: Text(item['label'] as String,
-                        style: TextStyle(
+                        style: textTheme.bodyLarge?.copyWith(
                           color: isDarkMode ? kWhite : kBlack,
                         )),
                     onTap: () => Navigator.pop(
@@ -1452,9 +1462,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text('Cancel',
-                    style: TextStyle(
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontSize: getTextScale(3, context))),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    )),
               ),
             ],
           ),

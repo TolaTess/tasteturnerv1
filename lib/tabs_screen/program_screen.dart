@@ -21,7 +21,8 @@ class ProgramScreen extends StatefulWidget {
   State<ProgramScreen> createState() => _ProgramScreenState();
 }
 
-class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProviderStateMixin {
+class _ProgramScreenState extends State<ProgramScreen>
+    with SingleTickerProviderStateMixin {
   final ProgramService _programService = Get.put(ProgramService());
   String selectedDiet =
       userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
@@ -67,12 +68,12 @@ class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProvider
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     // Start the animation and stop after one rotation
     _rotationController.forward().then((_) {
       _rotationController.reset();
     });
-    
+
     _pickDietGoalRecommendationsIfNeeded();
   }
 
@@ -352,66 +353,9 @@ class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProvider
         automaticallyImplyLeading: false,
         title: Text(
           'A Program Just for You',
-          style: textTheme.displayMedium?.copyWith(
-          ),
+          style: textTheme.displayMedium?.copyWith(),
         ),
         centerTitle: true,
-      ),
-      floatingActionButton: RotationTransition(
-        turns: _rotationController,
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BottomNavSec(selectedIndex: 3),
-              ),
-            );
-          },
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Base circle with gradient
-              Container(
-                width: getResponsiveBoxSize(context, 50, 50),
-                height: getResponsiveBoxSize(context, 50, 50),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      kAccent.withOpacity(0.3),
-                      kAccent.withOpacity(0.7),
-                    ],
-                    stops: const [0.2, 0.9],
-                  ),
-                ),
-              ),
-              // Text centered in circle
-              Positioned.fill(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(getPercentageWidth(1, context)),
-                    child: Transform.rotate(
-                      angle: -0.3,
-                      child: Text(
-                        'Spin',
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getPercentageWidth(3, context),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -469,9 +413,10 @@ class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProvider
               // AI Coach Section
               Text(
                 'Speak to "Tasty" AI Coach',
-                style: textTheme.titleLarge?.copyWith(
+                style: textTheme.displaySmall?.copyWith(
                   color: accent,
-                  fontWeight: FontWeight.bold,
+                  fontSize: getTextScale(7, context),
+                  fontWeight: FontWeight.w200,
                 ),
               ),
               SizedBox(height: getPercentageHeight(1, context)),
@@ -554,9 +499,8 @@ class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProvider
               // Program Cards
               Text(
                 'Customize Your Program',
-                style: textTheme.displaySmall?.copyWith(
+                style: textTheme.headlineMedium?.copyWith(
                   color: accent,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
               SizedBox(height: getPercentageHeight(2, context)),

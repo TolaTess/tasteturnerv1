@@ -941,3 +941,46 @@ String getRandomWelcomeMessage() {
   final random = Random();
   return welcomeMessages[random.nextInt(welcomeMessages.length)];
 }
+
+String getMealTypeLabel(String type) {
+  switch (type.toLowerCase()) {
+    case 'bf':
+      return 'Breakfast';
+    case 'lh':
+      return 'Lunch';
+    case 'dn':
+      return 'Dinner';
+    case 'sk':
+      return 'Snacks';
+    default:
+      return 'Meal';
+  }
+}
+
+String getMealTypeSubtitle(String type) {
+  switch (type.toLowerCase()) {
+    case 'breakfast':
+      return 'BF';
+    case 'lunch':
+      return 'LH';
+    case 'dinner':
+      return 'DN';
+    case 'snack':
+      return 'SK';
+    default:
+      return 'Meal';
+  }
+}
+
+appendMealType(String mealId, String mealType) {
+  if (mealType == 'breakfast') {
+    return '${mealId}/bf';
+  } else if (mealType == 'lunch') {
+    return '${mealId}/lh';
+  } else if (mealType == 'dinner') {
+    return '${mealId}/dn';
+  } else if (mealType == 'snack') {
+    return '${mealId}/sk';
+  }
+  return mealId;
+}

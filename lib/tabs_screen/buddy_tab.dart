@@ -404,7 +404,6 @@ class _BuddyTabState extends State<BuddyTab> {
                             Text(
                               parts[0] + ':',
                               style: textTheme.displaySmall?.copyWith(
-                                // fontSize: getTextScale(7, context),
                                 color: kAccent,
                               ),
                             ),
@@ -786,27 +785,12 @@ class _BuddyTabState extends State<BuddyTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${_getMealTypeLabel(mealType)}',
+                'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${getMealTypeLabel(mealType)}',
               ),
             ),
           );
         }
       }
-    }
-  }
-
-  String _getMealTypeLabel(String type) {
-    switch (type.toLowerCase()) {
-      case 'bf':
-        return 'Breakfast';
-      case 'lh':
-        return 'Lunch';
-      case 'dn':
-        return 'Dinner';
-      case 'sk':
-        return 'Snacks';
-      default:
-        return 'Meal';
     }
   }
 }

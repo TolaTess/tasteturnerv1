@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import '../constants.dart';
 import '../pages/dietary_choose_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'utils.dart';
 
 String calculateRecommendedGoals(String goal) {
   if (goal == "Lose Weight") {
@@ -66,4 +69,40 @@ void navigateToChooseDiet(BuildContext context, {bool isDontShowPicker = false})
       ),
     ),
   );
+}
+
+Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
+  switch (avatar?.toLowerCase()) {
+    case 'infant':
+    case 'baby':
+      return SvgPicture.asset('assets/images/svg/baby.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context),
+          colorFilter: ColorFilter.mode(
+              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
+    case 'toddler':
+      return SvgPicture.asset('assets/images/svg/toddler.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context),
+          colorFilter: ColorFilter.mode(
+              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
+    case 'child':
+      return SvgPicture.asset('assets/images/svg/child.svg',
+          height: getPercentageWidth(7, context),
+          width: getPercentageWidth(7, context),
+          colorFilter: ColorFilter.mode(
+              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
+    case 'teen':
+      return SvgPicture.asset('assets/images/svg/teen.svg',
+          height: getPercentageWidth(6, context),
+          width: getPercentageWidth(6, context),
+          colorFilter: ColorFilter.mode(
+              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
+    default:
+      return SvgPicture.asset('assets/images/svg/adult.svg',
+          height: getPercentageWidth(6, context),
+          width: getPercentageWidth(6, context),
+          colorFilter: ColorFilter.mode(
+              isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
+  }
 }

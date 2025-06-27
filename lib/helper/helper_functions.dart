@@ -267,6 +267,7 @@ Future<List<String>> saveMealsToFirestore(String userId,
     }
 
     final title = mealData['title']?.toString() ?? 'Untitled Meal';
+    final mealType = mealData['mealType']?.toString() ?? 'breakfast';
 
     // Explicitly construct JSON to avoid Meal class serialization issues
     final mealJson = {
@@ -291,9 +292,9 @@ Future<List<String>> saveMealsToFirestore(String userId,
 
     try {
       await mealCollection.doc(mealId).set(mealJson);
-      mealIds.add(mealId);
+      mealIds.add(appendMealType(mealId, mealType));
     } catch (e) {
-      print('Error saving meal $mealId: $e');
+      print('Error saving meal $mealId: $mealType $e');
       continue;
     }
   }

@@ -394,7 +394,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontSize: getPercentageWidth(5, context),
                                 ),
                               ),
-                              SizedBox(height: getPercentageHeight(0.5, context)),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
                               Text(
                                 inspiration,
                                 style: textTheme.bodyMedium?.copyWith(
@@ -626,11 +627,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           Icon(Icons.shopping_cart,
                               color: kAccentLight,
-                              size: getIconScale(7, context)),
+                              size: getIconScale(8, context)),
                           SizedBox(width: getPercentageWidth(1, context)),
                           Expanded(
                             child: Text(
-                              "It's your shopping day! Don't forget to check your shopping list.",
+                              familyMode
+                                  ? "Time to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                                  : "Ready to shop smart? Your grocery list is loaded with healthy picks for your goals!",
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kAccentLight,
                               ),
@@ -639,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               minimumSize: Size(getPercentageWidth(10, context),
-                                  getPercentageHeight(5, context)),
+                                  getPercentageHeight(4, context)),
                               backgroundColor: kAccentLight,
                               foregroundColor: kWhite,
                               shape: RoundedRectangleBorder(
@@ -676,7 +679,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Diary',
                           icon: 'assets/images/svg/diary.svg',
-                          color: isDarkMode ? kAccent : kAccent.withOpacity(0.5),
+                          color:
+                              isDarkMode ? kAccent : kAccent.withOpacity(0.5),
                           destinationScreen: const AddFoodScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -692,7 +696,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Shopping',
                           icon: 'assets/images/svg/shopping.svg',
-                          color: isDarkMode ? kAccentLight : kAccentLight.withOpacity(0.5),
+                          color: isDarkMode
+                              ? kAccentLight
+                              : kAccentLight.withOpacity(0.5),
                           destinationScreen: ShoppingTab(),
                           isDarkMode: isDarkMode,
                         ),
@@ -700,7 +706,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Recipes',
                           icon: 'assets/images/svg/book-outline.svg',
-                          color: isDarkMode ? kPurple : kPurple.withOpacity(0.5),
+                          color:
+                              isDarkMode ? kPurple : kPurple.withOpacity(0.5),
                           destinationScreen: RecipeScreen(),
                           isDarkMode: isDarkMode,
                         ),
