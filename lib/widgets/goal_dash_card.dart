@@ -410,15 +410,12 @@ class UserDetailsSection extends StatelessWidget {
                       Flexible(
                         child: Text(
                           capitalizeFirstLetter(user['name'] ?? ''),
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontWeight: FontWeight.bold,
-                            fontSize: user['name'].length > 10
-                                ? getTextScale(4, context)
-                                : getTextScale(4.5, context),
-                            letterSpacing: 0.5,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .displaySmall
+                              ?.copyWith(
+                                fontSize: 25,
+                              ),
                         ),
                       ),
                       if (user['name'] ==
@@ -435,14 +432,7 @@ class UserDetailsSection extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 2.0),
                       child: Text(
                         user['fitnessGoal'],
-                        style: TextStyle(
-                          color: isDarkMode ? kAccent : kWhite,
-                          fontWeight: FontWeight.w600,
-                          fontSize: user['name'].length > 10
-                              ? getTextScale(3, context)
-                              : getTextScale(3.5, context),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ),
                 ],
@@ -467,12 +457,7 @@ class UserDetailsSection extends StatelessWidget {
                 ),
                 child: Text(
                   '${user['foodGoal']} kcal',
-                  style: TextStyle(
-                    color: kWhite,
-                    fontWeight: FontWeight.bold,
-                    fontSize: getTextScale(3.5, context),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
             // Edit button as floating action
@@ -580,24 +565,15 @@ class UserDetailsSection extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  if (eatenCalories < targetCalories)
                   Text(
                     '${eatenCalories.toStringAsFixed(0)} kcal',
-                    style: TextStyle(
-                      color: isDarkMode ? kAccent : kWhite,
-                      fontWeight: FontWeight.bold,
-                      fontSize: getTextScale(3.2, context),
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge,
                   ),
                   if (targetCalories > 0 && showCaloriesAndGoal)
                     Text(
                       '${targetCalories.toStringAsFixed(0)} kcal',
-                      style: TextStyle(
-                        color: isDarkMode
-                            ? kWhite.withOpacity(0.7)
-                            : kDarkGrey.withOpacity(0.7),
-                        fontWeight: FontWeight.w500,
-                        fontSize: getTextScale(3.2, context),
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                 ],
               ),
@@ -658,10 +634,7 @@ class MealPlanSection extends StatelessWidget {
                       user['name'] == userService.currentUser.value?.displayName
                           ? 'Add a meal plan'
                           : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontSize: getTextScale(3.5, context),
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                   ),
                 ),
@@ -714,14 +687,16 @@ class MealPlanSection extends StatelessWidget {
                               : capitalizeFirstLetter(
                                   (mealPlan['dayType'] ?? '')
                                       .replaceAll('_', ' ')),
-                          style: TextStyle(
-                            color: getDayTypeColor(
-                                (mealPlan['dayType'] ?? '')
-                                    .replaceAll('_', ' '),
-                                isDarkMode),
-                            fontSize: getTextScale(4, context),
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .displaySmall
+                              ?.copyWith(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w400,
+                                  color: getDayTypeColor(
+                                      (mealPlan['dayType'] ?? '')
+                                          .replaceAll('_', ' '),
+                                      isDarkMode)),
                         ),
                       SizedBox(width: getPercentageWidth(1, context)),
                       Icon(
@@ -740,7 +715,7 @@ class MealPlanSection extends StatelessWidget {
         SizedBox(height: getPercentageHeight(1.5, context)),
         if (meals.isNotEmpty)
           SizedBox(
-            height: getProportionalHeight(140, context),
+            height: getProportionalHeight(120, context),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: meals.length,
@@ -790,11 +765,7 @@ class MealPlanSection extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   capitalizeFirstLetter(meal.mealType ?? ''),
-                                  style: TextStyle(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getTextScale(3.2, context),
-                                  ),
+                                  style: Theme.of(context).textTheme.labelLarge,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -805,24 +776,12 @@ class MealPlanSection extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 2.0),
                               child: Text(
                                 '${meal.meal.calories} kcal',
-                                style: TextStyle(
-                                  color: isDarkMode
-                                      ? kWhite.withOpacity(0.5)
-                                      : kDarkGrey.withOpacity(0.5),
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: getTextScale(2.8, context),
-                                ),
+                                style: Theme.of(context).textTheme.labelMedium,
                               ),
                             ),
                           Text(
                             capitalizeFirstLetter(meal.meal.title ?? ''),
-                            style: TextStyle(
-                              color: isDarkMode ? kWhite : kDarkGrey,
-                              fontSize: meal.meal.title.length > 13
-                                  ? getTextScale(2.8, context)
-                                  : getTextScale(3, context),
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -976,11 +935,7 @@ Widget _buildTagChip(dynamic tag, BuildContext context) {
     ),
     child: Text(
       tag.toString(),
-      style: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w500,
-        fontSize: getTextScale(2, context),
-      ),
+      style: Theme.of(context).textTheme.labelLarge,
     ),
   );
 }

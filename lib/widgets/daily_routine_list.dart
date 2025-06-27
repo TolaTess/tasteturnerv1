@@ -42,11 +42,9 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         title: Text(
           isNewItem ? 'Add Routine Item' : 'Edit Routine Item',
-          style: TextStyle(
-            height: 1.5,
-            color: isDarkMode ? kWhite : kBlack,
-            fontSize: getTextScale(4, context),
-          ),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -54,34 +52,31 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
             children: [
               SafeTextField(
                 controller: titleController,
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                 decoration: InputDecoration(
                   labelText: 'Title',
-                  labelStyle: TextStyle(
-                    height: 1.5,
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
+                  labelStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
                   enabledBorder: outlineInputBorder(20),
                   focusedBorder: outlineInputBorder(20),
                 ),
               ),
               SafeTextField(
                 controller: valueController,
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                 decoration: InputDecoration(
                   labelText: 'Value',
-                  labelStyle: TextStyle(
-                    height: 1.5,
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
-                  hintStyle: TextStyle(
-                    height: 1.5,
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
+                  labelStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
+                  hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
                   enabledBorder: outlineInputBorder(20),
                   focusedBorder: outlineInputBorder(20),
                 ),
@@ -100,10 +95,9 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                           value: type,
                           child: Text(
                             type.toUpperCase(),
-                            style: TextStyle(
-                              height: 1.5,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
                           ),
                         ))
                     .toList(),
@@ -122,10 +116,9 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(
-                height: 1.5,
-                color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                  ),
             ),
           ),
           TextButton(
@@ -156,10 +149,9 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
             },
             child: Text(
               isNewItem ? 'Add' : 'Save',
-              style: const TextStyle(
-                height: 1.5,
-                color: kAccent,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: kAccent,
+                  ),
             ),
           ),
         ],
@@ -194,9 +186,10 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               initiallyExpanded: widget.isRoutineEdit,
               title: Text(
                 'Routine Items',
-                style: TextStyle(
-                  fontSize: getTextScale(3.5, context),
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: kAccent,
+                    ),
               ),
               children: [
                 ListView.builder(
@@ -223,16 +216,16 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                         child: ListTile(
                           title: Text(
                             item.title,
-                            style: TextStyle(
-                              color: isDarkMode ? kWhite : kBlack,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                           subtitle: Text(
                             item.value,
-                            style: const TextStyle(
-                              color: kLightGrey,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: kLightGrey,
+                                ),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -271,7 +264,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                     await _routineService.setAllDisabled(false);
                                   }
 
-                                  await _routineService.toggleRoutineItem(
+                                  await _routineService.toggleRoutineItem(  
                                     widget.userId,
                                     item,
                                   );
@@ -297,8 +290,13 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton.icon(
                     onPressed: () => _showEditDialog(null, isDarkMode),
-                    icon: Icon(Icons.add, size: getIconScale(7, context)),  
-                    label: const Text('Add New Item'),
+                    icon: Icon(Icons.add, size: getIconScale(7, context)),
+                    label: Text(
+                      'Add New Item',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: kWhite,
+                          ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kAccent,
                       foregroundColor: kWhite,

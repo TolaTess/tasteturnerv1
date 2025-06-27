@@ -34,10 +34,14 @@ class ChallengeDetailScreen extends StatefulWidget {
   State<ChallengeDetailScreen> createState() => _ChallengeDetailScreenState();
 }
 
-class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
+class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
+    with SingleTickerProviderStateMixin {
   late List<Map<String, dynamic>> _posts;
   late int _currentIndex;
   late PageController _pageController;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fitAnimation;
 
   bool isLiked = false;
   bool isFollowing = false;
@@ -52,7 +56,40 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     _posts = widget.allPosts ?? [widget.dataSrc];
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 5),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _fitAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _animationController.forward();
+    });
+
     _loadCurrentPostData();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _onPageChanged(int index) {
@@ -202,10 +239,56 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     }
   }
 
+  Widget _buildImage(String imageUrl) {
+    return Stack(
+      children: [
+        // Blurred background
+        Positioned.fill(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              opacity: const AlwaysStoppedAnimation(0.3),
+              errorBuilder: (context, error, stackTrace) => Image.asset(
+                intPlaceholderImage,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ),
+        // Main image with natural aspect ratio
+        Center(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    intPlaceholderImage,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    // Real-time post stream for likes
+    final textTheme = Theme.of(context).textTheme;
     Stream<DocumentSnapshot<Map<String, dynamic>>> postStream() {
       final postId = _currentPostData['id'] ??
           (extractedItems.isNotEmpty ? extractedItems.first : '');
@@ -245,17 +328,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           ),
         ),
         title: Text(
+          'by ${capitalizeFirstLetter(getTitle())}',
           textAlign: TextAlign.center,
-          capitalizeFirstLetter(getTitle()),
-          style: TextStyle(
-            fontSize: getTextScale(4, context),
+          style: textTheme.displaySmall?.copyWith(
             fontWeight: FontWeight.w600,
             color: kWhite,
             shadows: [
               Shadow(
                 blurRadius: 10.0,
                 color: Colors.black.withOpacity(0.5),
-                offset: Offset(0, 0),
+                offset: const Offset(0, 0),
               ),
             ],
           ),
@@ -289,14 +371,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                   return GestureDetector(
                     onDoubleTap: () {
                       toggleLikePost();
-                      // Show heart animation
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.favorite, color: kWhite),
-                              SizedBox(width: 8),
+                              const Icon(Icons.favorite, color: kWhite),
+                              const SizedBox(width: 8),
                               Text(isLiked
                                   ? 'Added to favorites'
                                   : 'Removed from favorites'),
@@ -311,30 +392,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                         ),
                       );
                     },
-                    child: InteractiveViewer(
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        height: double.infinity,
-                        width: double.infinity,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Image.asset(
-                          intPlaceholderImage,
-                          fit: BoxFit.cover,
-                          height: double.infinity,
-                          width: double.infinity,
-                        ),
-                      ),
-                    ),
+                    child: _buildImage(imageUrl),
                   );
                 },
               );
             },
           ),
           Padding(
-            padding: const EdgeInsets.only(bottom: 30, left: 12, right: 12),
+            padding: EdgeInsets.only(
+                bottom: getPercentageHeight(15, context),
+                left: getPercentageWidth(10, context),
+                right: getPercentageWidth(10, context)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(50),
               child: BackdropFilter(
@@ -364,12 +432,23 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                             ),
                           ),
                           child: CircleAvatar(
-                            radius: getResponsiveBoxSize(context, 13, 13),
+                            radius: getResponsiveBoxSize(context, 17, 17),
                             backgroundColor: kAccent.withOpacity(kOpacity),
-                            child: Icon(
-                              Icons.person,
-                              color: kWhite,
-                              size: getResponsiveBoxSize(context, 18, 18),
+                            child: CircleAvatar(
+                              backgroundImage:
+                                  _currentPostData['profileImage'] != null &&
+                                          _currentPostData['profileImage']
+                                              .toString()
+                                              .isNotEmpty &&
+                                          _currentPostData['profileImage']
+                                              .toString()
+                                              .contains('http')
+                                      ? NetworkImage(
+                                          _currentPostData['profileImage']
+                                              .toString())
+                                      : const AssetImage(intPlaceholderImage)
+                                          as ImageProvider,
+                              radius: getResponsiveBoxSize(context, 15, 15),
                             ),
                           ),
                         ),
@@ -388,12 +467,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                             );
                           },
                           child: CircleAvatar(
-                            radius: getResponsiveBoxSize(context, 13, 13),
+                            radius: getResponsiveBoxSize(context, 17, 17),
                             backgroundColor: kAccent.withOpacity(kOpacity),
                             child: Icon(
                               Icons.add_circle,
                               color: kWhite,
-                              size: getResponsiveBoxSize(context, 18, 18),
+                              size: getResponsiveBoxSize(context, 15, 15),
                             ),
                           ),
                         ),
@@ -417,8 +496,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           );
                         },
                         child: Icon(
-                          Icons.share,
-                          size: getResponsiveBoxSize(context, 18, 18),
+                          Icons.ios_share,
+                          size: getResponsiveBoxSize(context, 23, 23),
                         ),
                       ),
                       SizedBox(width: getPercentageWidth(7, context)),
@@ -446,7 +525,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           },
                           child: Icon(
                             Icons.restaurant,
-                            size: getPercentageWidth(4.5, context),
+                            size: getResponsiveBoxSize(context, 23, 23),
                             color: kAccent,
                           ),
                         ),
@@ -470,7 +549,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       ? Icons.favorite
                                       : Icons.favorite_border,
                                   color: isLiked ? kAccent : null,
-                                  size: getPercentageWidth(4.5, context),
+                                  size: getResponsiveBoxSize(context, 23, 23),
                                 ),
                               ),
                               SizedBox(width: getPercentageWidth(1, context)),
@@ -501,7 +580,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ? Icons.people
                                   : Icons.person_add_alt_1_outlined,
                               color: isFollowing ? kAccentLight : null,
-                              size: getPercentageWidth(4.5, context),
+                              size: getResponsiveBoxSize(context, 23, 23),
                             ),
                           );
                         }),
@@ -580,7 +659,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           },
                           child: Icon(Icons.delete,
                               color: Colors.red,
-                              size: getPercentageWidth(4.5, context)),
+                              size: getResponsiveBoxSize(context, 23, 23)),
                         ),
                       if ((postUserId ??
                               (extractedItems.isNotEmpty

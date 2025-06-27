@@ -20,8 +20,6 @@ import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
 import '../widgets/premium_widget.dart';
-import '../widgets/ingredient_battle_widget.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/second_nav_widget.dart';
 import 'food_challenge_screen.dart';
 
@@ -325,6 +323,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     // SizeConfig().init(context);
     final winners = helperController.winners;
 
@@ -391,25 +390,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             children: [
                               Text(
                                 '$greeting ${currentUser.displayName}!',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: currentUser.displayName?.length !=
-                                              null &&
-                                          currentUser.displayName!.length > 10
-                                      ? getTextScale(4, context)
-                                      : getTextScale(4.5, context),
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontSize: getPercentageWidth(5, context),
                                 ),
                               ),
+                              SizedBox(height: getPercentageHeight(0.5, context)),
                               Text(
                                 inspiration,
-                                style: TextStyle(
-                                  fontSize: currentUser.displayName?.length !=
-                                              null &&
-                                          currentUser.displayName!.length > 15
-                                      ? getTextScale(2.5, context)
-                                      : getTextScale(3, context),
-                                  fontWeight: FontWeight.w400,
-                                  color: kLightGrey,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: kLightGrey.withOpacity(0.7),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -434,9 +423,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               'assets/images/svg/message.svg',
                               height: getIconScale(8, context),
                               width: getIconScale(8, context),
-                              color: isDarkMode
-                                  ? kAccent
-                                  : kDarkGrey.withOpacity(0.7),
+                              color: kAccent,
                             ),
                           ),
                           SizedBox(width: getPercentageWidth(2, context)),
@@ -564,9 +551,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               '${getRelativeDayString(currentDate)},',
-                              style: TextStyle(
-                                fontSize: getTextScale(4, context),
-                                fontWeight: FontWeight.w400,
+                              style: textTheme.displayMedium?.copyWith(
+                                fontSize: getPercentageWidth(4.5, context),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             SizedBox(width: getPercentageWidth(0.5, context)),
@@ -575,10 +562,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     'Yesterday')
                               Text(
                                 DateFormat('d MMMM').format(currentDate),
-                                style: TextStyle(
-                                  fontSize: getTextScale(4, context),
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.amber[700],
+                                style: textTheme.displayMedium?.copyWith(
+                                  fontSize: getPercentageWidth(4.5, context),
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                           ],
@@ -645,9 +631,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Expanded(
                             child: Text(
                               "It's your shopping day! Don't forget to check your shopping list.",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: getTextScale(3.5, context),
+                              style: textTheme.bodyMedium?.copyWith(
                                 color: kAccentLight,
                               ),
                             ),
@@ -671,8 +655,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               );
                             },
                             child: Text('Go',
-                                style: TextStyle(
-                                    fontSize: getTextScale(3.5, context))),
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: kWhite,
+                                )),
                           ),
                         ],
                       ),
@@ -684,36 +669,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(4.5, context),
                         vertical: getPercentageHeight(1.5, context)),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         //challenge
                         SecondNavWidget(
                           label: 'Diary',
                           icon: 'assets/images/svg/diary.svg',
-                          color: kAccent,
+                          color: isDarkMode ? kAccent : kAccent.withOpacity(0.5),
                           destinationScreen: const AddFoodScreen(),
+                          isDarkMode: isDarkMode,
                         ),
                         //shopping
                         SecondNavWidget(
                           label: 'Challenge',
                           icon: 'assets/images/svg/target.svg',
-                          color: kBlue,
+                          color: isDarkMode ? kBlue : kBlue.withOpacity(0.5),
                           destinationScreen: const FoodChallengeScreen(),
+                          isDarkMode: isDarkMode,
                         ),
                         //Planner
                         SecondNavWidget(
                           label: 'Shopping',
                           icon: 'assets/images/svg/shopping.svg',
-                          color: kAccentLight,
+                          color: isDarkMode ? kAccentLight : kAccentLight.withOpacity(0.5),
                           destinationScreen: ShoppingTab(),
+                          isDarkMode: isDarkMode,
                         ),
                         //spin
                         SecondNavWidget(
                           label: 'Recipes',
                           icon: 'assets/images/svg/book-outline.svg',
-                          color: kPurple,
+                          color: isDarkMode ? kPurple : kPurple.withOpacity(0.5),
                           destinationScreen: RecipeScreen(),
+                          isDarkMode: isDarkMode,
                         ),
                       ],
                     ),
@@ -853,7 +842,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
-                          if (hasMealPlan)
+                          if (hasMealPlan &&
+                              currentDate.isAfter(DateTime.now()
+                                  .subtract(const Duration(days: 1)))) ...[
                             FutureBuilder<List<MealWithType>>(
                               future: _loadMealsForUI(
                                   displayList[selectedUserIndex]['name']
@@ -898,6 +889,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 );
                               },
                             ),
+                          ],
                           SizedBox(height: getPercentageHeight(3, context)),
                         ],
                       );

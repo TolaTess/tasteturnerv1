@@ -12,6 +12,7 @@ import '../service/chat_controller.dart';
 import '../service/program_service.dart';
 import '../widgets/goal_diet_widget.dart';
 import '../widgets/program_card.dart';
+import '../widgets/bottom_nav.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -20,7 +21,7 @@ class ProgramScreen extends StatefulWidget {
   State<ProgramScreen> createState() => _ProgramScreenState();
 }
 
-class _ProgramScreenState extends State<ProgramScreen> {
+class _ProgramScreenState extends State<ProgramScreen> with SingleTickerProviderStateMixin {
   final ProgramService _programService = Get.put(ProgramService());
   String selectedDiet =
       userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
@@ -56,10 +57,29 @@ class _ProgramScreenState extends State<ProgramScreen> {
     },
   ];
 
+  // Add repeating animation controller
+  late final AnimationController _rotationController;
+
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    
+    // Start the animation and stop after one rotation
+    _rotationController.forward().then((_) {
+      _rotationController.reset();
+    });
+    
     _pickDietGoalRecommendationsIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
   }
 
   void _pickDietGoalRecommendationsIfNeeded({bool force = false}) {
@@ -201,13 +221,16 @@ class _ProgramScreenState extends State<ProgramScreen> {
     ];
 
     final answers = <String, String>{};
+    final textTheme = Theme.of(context).textTheme;
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Customize Your $programType Program',
-            style: TextStyle(color: kAccent)),
+        title: Text(
+          'Customize Your $programType Program',
+          style: textTheme.titleLarge?.copyWith(color: kAccent),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -218,11 +241,13 @@ class _ProgramScreenState extends State<ProgramScreen> {
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: question,
+                      labelStyle: textTheme.bodyMedium,
                       border: OutlineInputBorder(),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(color: kAccent),
                       ),
                     ),
+                    style: textTheme.bodyLarge,
                     onChanged: (value) => answers[question] = value,
                   ),
                 ),
@@ -231,14 +256,20 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         actions: [
           TextButton(
-            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: textTheme.labelLarge?.copyWith(color: Colors.grey),
+            ),
             onPressed: () => Navigator.pop(context, null),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: kAccent,
             ),
-            child: Text('Generate Program'),
+            child: Text(
+              'Generate Program',
+              style: textTheme.labelLarge?.copyWith(color: kWhite),
+            ),
             onPressed: () => Navigator.pop(context, answers),
           ),
         ],
@@ -312,18 +343,75 @@ class _ProgramScreenState extends State<ProgramScreen> {
         user?.settings['dietPreference']?.toString() ?? 'Balanced';
     final String userGoal =
         user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
         toolbarHeight: getPercentageHeight(10, context),
-        automaticallyImplyLeading: true,
+        automaticallyImplyLeading: false,
         title: Text(
           'A Program Just for You',
-          style: TextStyle(
-              fontSize: getTextScale(6, context), fontWeight: FontWeight.w600),
+          style: textTheme.displayMedium?.copyWith(
+          ),
         ),
         centerTitle: true,
+      ),
+      floatingActionButton: RotationTransition(
+        turns: _rotationController,
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(selectedIndex: 3),
+              ),
+            );
+          },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Base circle with gradient
+              Container(
+                width: getResponsiveBoxSize(context, 50, 50),
+                height: getResponsiveBoxSize(context, 50, 50),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      kAccent.withOpacity(0.3),
+                      kAccent.withOpacity(0.7),
+                    ],
+                    stops: const [0.2, 0.9],
+                  ),
+                ),
+              ),
+              // Text centered in circle
+              Positioned.fill(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                    child: Transform.rotate(
+                      angle: -0.3,
+                      child: Text(
+                        'Spin',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontSize: getPercentageWidth(3, context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -377,35 +465,22 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           : () =>
                               _pickDietGoalRecommendationsIfNeeded(force: true),
                     ),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(1.5, context)),
               // AI Coach Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Text('Ask "Tasty" AI Coach',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: getTextScale(3.5, context),
-                          color: accent)),
-                  InkWell(
-                    onTap: () =>
-                        Get.to(() => const TastyScreen(screen: 'message')),
-                    child: CircleAvatar(
-                      backgroundColor: kAccentLight.withOpacity(kMidOpacity),
-                      child: Image.asset(
-                        'assets/images/tasty/tasty.png',
-                        width: getIconScale(5, context),
-                        height: getIconScale(5, context),
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                'Speak to "Tasty" AI Coach',
+                style: textTheme.titleLarge?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               SizedBox(height: getPercentageHeight(1, context)),
               ElevatedButton.icon(
                 icon: const Icon(Icons.lightbulb, color: kWhite),
-                label: const Text('Get Meal Plan Guidance',
-                    style: TextStyle(color: kWhite)),
+                label: Text(
+                  'Get Meal Plan Guidance',
+                  style: textTheme.labelLarge?.copyWith(color: kWhite),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kAccentLight,
                   shape: RoundedRectangleBorder(
@@ -427,10 +502,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       decoration: BoxDecoration(
                         color: accent.withOpacity(0.08),
                       ),
-                      child: Text(aiCoachResponse,
-                          style: TextStyle(
-                              fontSize: getTextScale(2.7, context),
-                              color: isDarkMode ? kWhite : kDarkGrey)),
+                      child: Text(
+                        aiCoachResponse,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                        ),
+                      ),
                     ),
                     Container(
                       width: double.infinity,
@@ -447,10 +524,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                               Get.to(
                                   () => const TastyScreen(screen: 'message'));
                             },
-                            child: Text('Talk More',
-                                style: TextStyle(
-                                    fontSize: getTextScale(3, context),
-                                    color: kAccentLight)),
+                            child: Text(
+                              'Talk More',
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccentLight,
+                              ),
+                            ),
                           ),
                           GestureDetector(
                             onTap: () {
@@ -458,10 +537,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                     isDontShowPicker: true,
                                   ));
                             },
-                            child: Text('Generate a meal',
-                                style: TextStyle(
-                                    fontSize: getTextScale(3, context),
-                                    color: kAccentLight)),
+                            child: Text(
+                              'Generate a meal',
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccentLight,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -471,11 +552,13 @@ class _ProgramScreenState extends State<ProgramScreen> {
               ],
               SizedBox(height: getPercentageHeight(2, context)),
               // Program Cards
-              Text('Customize Your Program',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: getTextScale(4, context),
-                      color: accent)),
+              Text(
+                'Customize Your Program',
+                style: textTheme.displaySmall?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               SizedBox(height: getPercentageHeight(2, context)),
               SizedBox(
                 height: getPercentageHeight(20, context),

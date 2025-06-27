@@ -9,12 +9,9 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
-import '../pages/daily_info_page.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
-import '../widgets/icon_widget.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
@@ -254,13 +251,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         bottom: getPercentageHeight(2, context)),
                     child: Text(
                       'Add to $mealType',
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.w400,
-                        color: getThemeProvider(context).isDarkMode
-                            ? kWhite
-                            : kBlack,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontSize: getPercentageWidth(4.5, context),
+                            fontWeight: FontWeight.w400,
+                            color: getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kBlack,
+                          ),
                     ),
                   ),
                   // Search box
@@ -723,17 +720,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         centerTitle: true,
         title: Text(
           widget.title,
-          style: TextStyle(
-            fontWeight: FontWeight.w400,
-            fontSize: getTextScale(5, context),
-          ),
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(2, context)),
+                horizontal: getPercentageWidth(2.5, context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -746,11 +742,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     children: [
                       Text(
                         'Quick Update',
-                        style: TextStyle(
-                          fontSize: getTextScale(4.5, context),
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? kWhite : kBlack,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: getPercentageWidth(4.5, context),
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
                       ),
                       SizedBox(width: getPercentageWidth(2, context)),
                       InkWell(
@@ -779,17 +775,19 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   children: [
                     Text(
                       'Water',
-                      style: TextStyle(
-                        fontSize: getTextScale(4, context),
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                fontSize: getPercentageWidth(4.5, context),
+                                fontWeight: FontWeight.w200,
+                              ),
                     ),
                     Text(
                       'Steps',
-                      style: TextStyle(
-                        fontSize: getTextScale(3.5, context),
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                fontSize: getPercentageWidth(4.5, context),
+                                fontWeight: FontWeight.w200,
+                              ),
                     ),
                   ],
                 ),
@@ -862,17 +860,34 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
+                Center(
+                  child: Text(
+                    'Ingredient Tug-of-War',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: getPercentageWidth(4.5, context),
+                          fontWeight: FontWeight.w600,
+                          color: kAccentLight,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+
                 // Weekly Ingredients Battle Widget
                 const WeeklyIngredientBattle(),
 
                 SizedBox(height: getPercentageHeight(2, context)),
 
-                Text(
-                  'Track Your Meals',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.bold,
+                Center(
+                  child: Text(
+                    'Track Your Meals',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: getPercentageWidth(4.5, context),
+                          fontWeight: FontWeight.w600,
+                          color: kAccentLight,
+                        ),
                   ),
                 ),
 
@@ -969,7 +984,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   Widget _buildDailyRoutineCard(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final settings = userService.currentUser.value!.settings;
 
     return Card(
       margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
@@ -1014,7 +1028,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       clipBehavior: Clip.none,
       children: [
         Container(
-          height: 60,
+          height: getPercentageHeight(7, context),
           decoration: BoxDecoration(
             color: isDarkMode ? kDarkGrey : kWhite,
             borderRadius: BorderRadius.circular(16),
@@ -1044,20 +1058,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   children: [
                     Text(
                       '${currentValue.toInt()} ',
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.bold,
-                        fontSize: getTextScale(4, context),
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     SizedBox(width: getPercentageWidth(1, context)),
                     Text(
                       unit,
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.w400,
-                        fontSize: getTextScale(3.5, context),
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontWeight: FontWeight.w400,
+                          ),
                     ),
                   ],
                 ),
@@ -1138,6 +1150,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     required VoidCallback onAdd,
   }) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       margin: EdgeInsets.symmetric(
           horizontal: getPercentageWidth(2.5, context),
@@ -1157,30 +1170,29 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 children: [
                   Text(
                     mealType,
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
+                    style: textTheme.titleLarge?.copyWith(
+                          fontSize: getPercentageWidth(4.5, context),
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? kWhite : kBlack,
+                        ),
                   ),
                   SizedBox(height: getPercentageHeight(0.5, context)),
                   Text(
                     recommendedCalories,
-                    style: TextStyle(
-                      fontSize: getTextScale(3.5, context),
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                    ),
+                    style: textTheme.bodyLarge?.copyWith(
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        ),
                   ),
                   if (currentCalories > 0)
                     SizedBox(height: getPercentageHeight(1, context)),
                   if (currentCalories > 0)
                     Text(
                       'Added: $currentCalories kcal',
-                      style: TextStyle(
-                        fontSize: getTextScale(3.5, context),
-                        color: kAccent,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                            color: kAccent,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                   if (meals.isNotEmpty)
                     Padding(
@@ -1190,11 +1202,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         meals.map((e) => e.name).join(', '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: getTextScale(3, context),
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        ),
+                        style:
+                            textTheme.titleMedium?.copyWith(
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                ),
                       ),
                     ),
                 ],

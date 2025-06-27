@@ -5,7 +5,6 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
 import '../data_models/profilescreen_data.dart';
-import '../screens/add_food_screen.dart';
 import '../screens/badges_screen.dart';
 import '../service/battle_service.dart';
 
@@ -27,11 +26,32 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
   final RxString _badgeTitle = ''.obs;
   final BadgeController _badgeController = BadgeController.instance;
 
+  // Add test mode flag
+  final bool _isTestMode = false; // Set to true to use test data
+
   @override
   void initState() {
     super.initState();
-    _initializeIngredientData();
-    _scheduleWeeklyUpdate();
+    if (_isTestMode) {
+      _initializeTestData();
+    } else {
+      _initializeIngredientData();
+      _scheduleWeeklyUpdate();
+    }
+  }
+
+  // Add test data initialization
+  void _initializeTestData() {
+    _isLoading.value = true;
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _topIngredient1.value = 'Chicken';
+      _topIngredient2.value = 'Broccoli';
+      _count1.value = 8;
+      _count2.value = 5;
+      _showBadge.value = true;
+      _badgeTitle.value = 'Protein Pro';
+      _isLoading.value = false;
+    });
   }
 
   Future<void> _initializeIngredientData() async {
@@ -302,7 +322,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
       if (_topIngredient1.isEmpty || _topIngredient2.isEmpty) {
         return Container(
-          padding: const EdgeInsets.all(1),
+          padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(2, context),
+              vertical: getPercentageHeight(0.5, context)),
           decoration: BoxDecoration(
             color: isDarkMode
                 ? kDarkGrey.withOpacity(0.9)
@@ -316,25 +338,18 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               ),
             ],
           ),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddFoodScreen()),
-              );
-            },
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                child: Text(
-                  'Log more meals to see your top ingredients!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: getTextScale(3.5, context),
-                    fontStyle: FontStyle.italic,
-                    color: kLightGrey,
-                  ),
-                ),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(1, context),
+                  vertical: getPercentageHeight(1, context)),
+              child: Text(
+                'Log more meals to see your top ingredients!',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: kLightGrey,
+                    ),
               ),
             ),
           ),
@@ -373,15 +388,12 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Ingredient Tug-of-War',
-                      style: TextStyle(
-                        fontSize: getTextScale(4, context),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Text(
+                    'Your Favs:',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (_showBadge.value)
                     GestureDetector(
@@ -407,11 +419,13 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             Flexible(
                               child: Text(
                                 _badgeTitle.value,
-                                style: TextStyle(
-                                  fontSize: getTextScale(2.5, context),
-                                  fontWeight: FontWeight.w500,
-                                  color: kAccent,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: kAccent,
+                                    ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -450,20 +464,24 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             children: [
                               Text(
                                 _topIngredient1.value,
-                                style: TextStyle(
-                                  color: kWhite,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: getTextScale(3.5, context),
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: kWhite,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
                                 '${_count1.value} times',
-                                style: TextStyle(
-                                  color: kWhite,
-                                  fontSize: getTextScale(3, context),
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: kWhite,
+                                    ),
                               ),
                             ],
                           ),
@@ -493,20 +511,24 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                             children: [
                               Text(
                                 _topIngredient2.value,
-                                style: TextStyle(
-                                  color: kWhite,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: getTextScale(3.5, context),
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                      color: kWhite,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
                                 '${_count2.value} times',
-                                style: TextStyle(
-                                  color: kWhite,
-                                  fontSize: getTextScale(2.5, context),
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: kWhite,
+                                    ),
                               ),
                             ],
                           ),
@@ -519,11 +541,10 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 SizedBox(height: getPercentageHeight(1, context)),
                 Text(
                   'Based on your meal in last 7 days',
-                  style: TextStyle(
-                    fontSize: getTextScale(2.5, context),
-                    fontStyle: FontStyle.italic,
-                    color: isDarkMode ? kLightGrey : kDarkGrey,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
                 ),
               ],
             ),

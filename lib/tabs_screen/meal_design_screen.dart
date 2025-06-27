@@ -7,7 +7,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:tasteturner/pages/safe_text_field.dart';
-import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
 import '../data_models/user_data_model.dart';
@@ -365,6 +364,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final avatarUrl =
         userService.currentUser.value?.profileImage ?? intPlaceholderImage;
 
@@ -402,21 +402,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   children: [
                     Text(
                       '${getRelativeDayString(DateTime.now())}, ',
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.w400,
-                        color: getThemeProvider(context).isDarkMode
-                            ? Colors.white
-                            : Colors.black,
-                      ),
+                      style: textTheme.displayMedium?.copyWith(
+                          color: getThemeProvider(context).isDarkMode
+                              ? Colors.white
+                              : Colors.black,
+                          fontWeight: FontWeight.w500,
+                          fontSize: getPercentageWidth(4.5, context)),
                     ),
                     Text(
                       DateFormat('d MMMM').format(DateTime.now()),
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.w400,
-                        color: kAccentLight,
-                      ),
+                      style: textTheme.displayMedium?.copyWith(
+                          color: kAccentLight,
+                          fontWeight: FontWeight.w500,
+                          fontSize: getPercentageWidth(4.5, context)),
                     ),
                   ],
                 ),
@@ -445,7 +443,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Calendar'),
+                  Text('Calendar',
+                      style: textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w300,
+                          fontSize: getPercentageWidth(6, context))),
                   SizedBox(width: getPercentageWidth(1, context)),
                 ],
               ),
@@ -454,17 +455,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('$appNameBuddy'),
+                  Text('$appNameBuddy',
+                      style: textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w300,
+                          fontSize: getPercentageWidth(6, context))),
                   SizedBox(width: getPercentageWidth(1, context)),
                 ],
               ),
             ),
           ],
           labelColor: isDarkMode ? kWhite : kBlack,
-          labelStyle: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: getTextScale(4, context),
-          ),
+          labelStyle: textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: getPercentageWidth(4, context)),
           unselectedLabelColor: kLightGrey,
           indicatorColor: isDarkMode ? kWhite : kBlack,
         ),
@@ -490,7 +493,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildCalendarTab() {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-
+    final textTheme = Theme.of(context).textTheme;
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -515,7 +518,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             child: Padding(
               padding: EdgeInsets.all(getPercentageWidth(1, context)),
               child: ExpansionTile(
-                initiallyExpanded: false,
+                initiallyExpanded: true,
                 iconColor: kAccent,
                 collapsedIconColor: kAccent,
                 title: Row(
@@ -528,11 +531,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           : familyMode
                               ? 'Family'
                               : 'Personal',
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontWeight: FontWeight.bold,
-                        fontSize: getTextScale(3.5, context),
-                      ),
+                      style: textTheme.titleLarge?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontWeight: FontWeight.w600,
+                          fontSize: getPercentageWidth(4.5, context)),
                     ),
                     SizedBox(
                         width: MediaQuery.of(context).size.height > 1100
@@ -565,8 +567,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     IconButton(
                       key: _sharedCalendarButtonKey,
                       icon: Icon(
-                        Icons.share,
-                        size: getIconScale(7, context),
+                        Icons.ios_share,
+                        size: getIconScale(5.5, context),
                       ),
                       onPressed: () => _shareCalendar(''),
                     ),
@@ -575,10 +577,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     if (!showSharedCalendars)
                       Text(
                         DateFormat('d MMMM').format(selectedDate),
-                        style: TextStyle(
-                          fontSize: getTextScale(3.5, context),
-                          color: kAccent,
-                        ),
+                        style: textTheme.titleMedium?.copyWith(
+                            color: kAccent, fontWeight: FontWeight.w500),
                       ),
 
                     // Shared calendar selector
@@ -595,12 +595,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             }
                             if (!snapshot.hasData || snapshot.data!.isEmpty) {
                               return Text(
-                                'No shared calender yet',
-                                style: TextStyle(
-                                  fontSize: getTextScale(2, context),
-                                  overflow: TextOverflow.ellipsis,
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                ),
+                                'No shared calender',
+                                style: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                    overflow: TextOverflow.ellipsis),
                               );
                             }
                             final calendars = snapshot.data!;
@@ -613,13 +611,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               iconEnabledColor: kAccent,
                               value: selectedSharedCalendarId,
                               hint: Text('Select Calendar',
-                                  style: TextStyle(
+                                  style: textTheme.titleLarge?.copyWith(
                                       color: isDarkMode ? kWhite : kDarkGrey)),
-                              style: TextStyle(
-                                fontSize: getTextScale(2.5, context),
-                                color: isDarkMode ? kWhite : kDarkGrey,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                  overflow: TextOverflow.ellipsis),
                               items: calendars
                                   .map((cal) => DropdownMenuItem(
                                         value: cal.calendarId,
@@ -656,18 +652,23 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         horizontal: getPercentageWidth(1, context)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children:
-                          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                              .map((day) => Text(
-                                    day,
-                                    style: TextStyle(
-                                      fontSize: getTextScale(3, context),
-                                      color: isDarkMode
-                                          ? Colors.white54
-                                          : Colors.black54,
-                                    ),
-                                  ))
-                              .toList(),
+                      children: [
+                        'Mon',
+                        'Tue',
+                        'Wed',
+                        'Thu',
+                        'Fri',
+                        'Sat',
+                        'Sun'
+                      ]
+                          .map((day) => Text(
+                                day,
+                                style: textTheme.displayMedium?.copyWith(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                    fontWeight: FontWeight.w100,
+                                    fontSize: getPercentageWidth(3.5, context)),
+                              ))
+                          .toList(),
                     ),
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
@@ -782,13 +783,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                         Center(
                                           child: Text(
                                             '${date.day}',
-                                            style: TextStyle(
-                                              fontSize:
-                                                  getTextScale(3, context),
+                                            style:
+                                                textTheme.bodyLarge?.copyWith(
                                               color: isPastDate
                                                   ? isDarkMode
-                                                      ? Colors.white24
-                                                      : Colors.black26
+                                                      ? Colors.white54
+                                                      : Colors.black54
                                                   : !isCurrentMonth
                                                       ? isDarkMode
                                                           ? Colors.white38
@@ -1131,7 +1131,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: getPercentageHeight(3, context),
+          height: getPercentageHeight(familyMode ? 3 : 0.5, context),
         ),
         if (familyMode)
           CategorySelector(
@@ -1156,6 +1156,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildMealsRow(
       List<MealWithType> meals, String birthdayName, bool isDarkMode) {
+    final textTheme = Theme.of(context).textTheme;
     final normalizedDate =
         DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
     final currentDayType = dayTypes[normalizedDate] ?? 'regular_day';
@@ -1184,8 +1185,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       : true),
               icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
               label: Text('Add Meal',
-                  style: TextStyle(
-                      fontSize: getTextScale(3.5, context),
+                  style: textTheme.bodyMedium?.copyWith(
+                      fontSize: getPercentageWidth(3.5, context),
                       fontWeight: FontWeight.w400)),
               style: TextButton.styleFrom(
                 foregroundColor: kAccent,
@@ -1197,9 +1198,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ? 'No meals planned for ${getRelativeDayString(normalizedDate)}'
                   : 'No meals planned for this day',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white54 : Colors.black54,
-                fontSize: getTextScale(3, context),
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+                fontSize: getPercentageWidth(3.5, context),
               ),
             ),
             SizedBox(width: getPercentageWidth(1, context)),
@@ -1208,12 +1209,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ? 'Welcome to ${appName}!'
                   : 'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: textTheme.bodyMedium?.copyWith(
                 color: getDayTypeColor(
                     dayTypes[normalizedDate]?.replaceAll('_', ' ') ??
                         'regular_day',
                     isDarkMode),
-                fontSize: getTextScale(3, context),
+                fontSize: getPercentageWidth(3.5, context),
               ),
             ),
           ],
@@ -1234,171 +1235,178 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           final meal = mealWithType.meal;
           final mealType = mealWithType.mealType;
           final mealMember = mealWithType.familyMember;
-          return Container(
-            width: MediaQuery.of(context).size.height > 1100
-                ? getPercentageWidth(25.5, context)
-                : getPercentageWidth(30, context),
-            margin: EdgeInsets.only(right: getPercentageWidth(2, context)),
-            child: Card(
-              color: kAccentLight,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecipeDetailScreen(
-                            mealData: meal,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Column(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                            padding:
-                                EdgeInsets.all(getPercentageWidth(1, context)),
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: ClipOval(
-                                child: meal.mediaPaths.isNotEmpty
-                                    ? Image.asset(
-                                        getAssetImageForItem(
-                                            meal.mediaPaths.first),
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[300],
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            Icons.restaurant,
-                                            size:
-                                                getPercentageWidth(6, context),
-                                          ),
-                                        ),
-                                      )
-                                    : Image.asset(
-                                        getAssetImageForItem(
-                                            meal.category ?? 'default'),
-                                        fit: BoxFit.cover,
-                                      ),
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageWidth(25.5, context)
+                    : getPercentageWidth(30, context),
+                margin: EdgeInsets.only(right: getPercentageWidth(2, context)),
+                child: Card(
+                  color: kAccentLight,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Main meal content
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipeDetailScreen(
+                                mealData: meal,
                               ),
                             ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(1, context)),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Center(
-                                  child: Text(
-                                    meal.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: getTextScale(2.8, context),
-                                      fontWeight: FontWeight.bold,
-                                      color: isDarkMode ? kBlack : kWhite,
-                                    ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(1, context)),
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: ClipOval(
+                                    child: meal.mediaPaths.isNotEmpty
+                                        ? Image.asset(
+                                            getAssetImageForItem(
+                                                meal.mediaPaths.first),
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[300],
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.restaurant,
+                                                size: getPercentageWidth(
+                                                    6, context),
+                                              ),
+                                            ),
+                                          )
+                                        : Image.asset(
+                                            getAssetImageForItem(
+                                                meal.category ?? 'default'),
+                                            fit: BoxFit.cover,
+                                          ),
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).size.height > 1100 ? -4 : -1,
-                    left: MediaQuery.of(context).size.height > 1100 ? -4 : -1,
-                    child: GestureDetector(
-                      onTap: () {
-                        _updateMealType(mealWithType.fullMealId, meal.mealId,
-                            mealType, mealMember, isDarkMode);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: getPercentageWidth(1, context),
-                              offset: Offset(0, 2),
+                            Expanded(
+                              flex: 2,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(1, context)),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Center(
+                                      child: Text(
+                                        capitalizeFirstLetter(meal.title),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize:
+                                                getPercentageWidth(3, context)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        padding: EdgeInsets.all(getPercentageWidth(1, context)),
-                        child: Icon(
-                          getMealTypeIcon(mealType),
-                          color: kAccent,
-                          size: getPercentageWidth(5, context),
+                      ),
+                      // Close button
+                      Positioned(
+                        top: 0,
+                        right: MediaQuery.of(context).size.height > 1100
+                            ? -3
+                            : -11,
+                        child: IconButton(
+                          icon: Icon(Icons.close,
+                              size: getIconScale(6, context), color: kAccent),
+                          tooltip: 'Remove from meal plan',
+                          onPressed: () async {
+                            final formattedDate =
+                                DateFormat('yyyy-MM-dd').format(selectedDate);
+                            final userId = userService.userId;
+                            if (userId == null) return;
+
+                            final docRef = showSharedCalendars
+                                ? firestore
+                                    .collection('shared_calendars')
+                                    .doc(selectedSharedCalendarId)
+                                    .collection('date')
+                                    .doc(formattedDate)
+                                : firestore
+                                    .collection('mealPlans')
+                                    .doc(userId)
+                                    .collection('date')
+                                    .doc(formattedDate);
+
+                            final doc = await docRef.get();
+                            if (doc.exists) {
+                              await docRef.update({
+                                'meals': FieldValue.arrayRemove(
+                                    [mealWithType.fullMealId])
+                              });
+
+                              if (!mounted) return;
+                              setState(() {
+                                meals.removeAt(index);
+                              });
+                              _loadMealPlans();
+                            }
+                          },
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  Positioned(
-                    top: 0,
-                    right: MediaQuery.of(context).size.height > 1100 ? -3 : -11,
-                    child: IconButton(
-                      icon: Icon(Icons.close,
-                          size: getIconScale(7, context), color: kAccent),
-                      tooltip: 'Remove from meal plan',
-                      onPressed: () async {
-                        // Remove meal from Firestore for this date
-                        final formattedDate =
-                            DateFormat('yyyy-MM-dd').format(selectedDate);
-                        final userId = userService.userId;
-                        if (userId == null) return;
-
-                        final docRef = showSharedCalendars
-                            ? firestore
-                                .collection('shared_calendars')
-                                .doc(selectedSharedCalendarId)
-                                .collection('date')
-                                .doc(formattedDate)
-                            : firestore
-                                .collection('mealPlans')
-                                .doc(userId)
-                                .collection('date')
-                                .doc(formattedDate);
-
-                        final doc = await docRef.get();
-                        if (doc.exists) {
-                          await docRef.update({
-                            'meals': FieldValue.arrayRemove(
-                                [mealWithType.fullMealId])
-                          });
-
-                          // Refresh meal plans after removing
-                          if (!mounted) return;
-                          setState(() {
-                            meals.removeAt(index);
-                          });
-                          _loadMealPlans(); // Reload all meal plans
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              // Meal type icon as a top-level overlay
+              Positioned(
+                top: getPercentageWidth(-2, context),
+                left: getPercentageWidth(-1, context),
+                child: GestureDetector(
+                  onTap: () {
+                    _updateMealType(mealWithType.fullMealId, meal.mealId,
+                        mealType, mealMember, isDarkMode);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? kWhite : kDarkGrey,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: kAccent.withOpacity(0.5),
+                          blurRadius: getPercentageWidth(1, context),
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                    child: Icon(
+                      getMealTypeIcon(mealType),
+                      color: kAccent,
+                      size: getPercentageWidth(6, context),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -1482,6 +1490,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Future<void> _addMealPlan(
       BuildContext context, bool isDarkMode, bool needDatePicker, String typeW,
       {bool goStraightToAddMeal = false}) async {
+    final textTheme = Theme.of(context).textTheme;
     // Show date picker for future dates
     DateTime? pickedDate;
     if (needDatePicker) {
@@ -1561,10 +1570,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             children: [
               Text(
                 'What type of day is this?',
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                  fontSize: getTextScale(3, context),
-                ),
+                style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontSize: getPercentageWidth(3.5, context)),
               ),
               SizedBox(height: getPercentageWidth(1.5, context)),
               ...[
@@ -1582,10 +1590,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     selectedTileColor: kAccentLight.withOpacity(0.1),
                     title: Text(
                       type,
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontSize: getTextScale(3, context),
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getPercentageWidth(3.5, context)),
                     ),
                     leading: Icon(
                       getDayTypeIcon(type),
@@ -1608,13 +1615,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  icon: Icon(Icons.close, size: getIconScale(5, context)),
+                  icon: Icon(Icons.close, size: getIconScale(6, context)),
                   onPressed: () => Navigator.pop(context),
                   color: isDarkMode ? kWhite : kBlack,
                 ),
                 if (isPersonalCalendar)
                   IconButton(
-                    icon: Icon(Icons.share, size: getIconScale(5, context)),
+                    icon: Icon(Icons.ios_share, size: getIconScale(5, context)),
                     onPressed: () async {
                       Navigator.pop(context);
                       _shareCalendar('single_day');
@@ -1631,9 +1638,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     },
                     child: Text(
                       'Save',
-                      style: TextStyle(
+                      style: textTheme.displaySmall?.copyWith(
                           color: kAccentLight,
-                          fontSize: getTextScale(3, context)),
+                          fontSize: getPercentageWidth(4.5, context)),
                     ),
                   ),
                 ),
@@ -1645,8 +1652,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     },
                     child: Text(
                       'Add Meal',
-                      style: TextStyle(
-                          color: kAccent, fontSize: getTextScale(3, context)),
+                      style: textTheme.displaySmall?.copyWith(
+                          color: kAccent,
+                          fontSize: getPercentageWidth(4.5, context)),
                     ),
                   ),
                 ),
@@ -1723,6 +1731,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Widget _buildEmptyState(DateTime date, String birthdayName, bool isDarkMode) {
+    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
       height: 200,
       child: Center(
@@ -1752,8 +1761,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             : true),
                     icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
                     label: Text('Add Meal',
-                        style: TextStyle(
-                            fontSize: getTextScale(3.5, context),
+                        style: textTheme.bodyMedium?.copyWith(
+                            fontSize: getPercentageWidth(3.5, context),
                             fontWeight: FontWeight.w400)),
                     style: TextButton.styleFrom(
                       foregroundColor: kAccent,
@@ -1779,10 +1788,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           getRelativeDayString(selectedDate) == 'Tomorrow'
                       ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
                       : 'No meals planned for this day',
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.white54 : Colors.black54,
-                    fontSize: getTextScale(3, context),
-                  ),
+                  style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kLightGrey : kDarkGrey,
+                      fontSize: getPercentageWidth(3.5, context)),
                 ),
               ],
             ),
@@ -1797,7 +1805,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final isSpecialDay = specialMealDays[date] ?? false;
     final currentDayType = dayTypes[date] ?? 'regular_day';
     final isUserBirthday = _isUserBirthday(date);
-
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         Padding(
@@ -1813,11 +1821,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       children: [
                         Text(
                           DateFormat('MMMM d, yyyy').format(date),
-                          style: TextStyle(
-                            fontSize: getTextScale(4, context),
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : Colors.black,
-                          ),
+                          style: textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: getPercentageWidth(4.5, context)),
                         ),
                         if (isUserBirthday) ...[
                           SizedBox(width: getPercentageWidth(1, context)),
@@ -1854,10 +1860,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ],
                     Text(
                       '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'} planned',
-                      style: TextStyle(
-                        fontSize: getTextScale(3, context),
-                        color: isDarkMode ? Colors.white70 : Colors.black54,
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                          fontWeight: FontWeight.w500,
+                          fontSize: getPercentageWidth(3.5, context)),
                     ),
                   ],
                 ),
@@ -1895,13 +1901,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               ? 'Meal Plan'
                               : capitalizeFirstLetter(
                                   currentDayType.replaceAll('_', ' ')),
-                          style: TextStyle(
-                            color: getDayTypeColor(
-                                currentDayType.replaceAll('_', ' '),
-                                isDarkMode),
-                            fontSize: getTextScale(2.8, context),
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: textTheme.displaySmall?.copyWith(
+                              color: getDayTypeColor(
+                                  currentDayType.replaceAll('_', ' '),
+                                  isDarkMode),
+                              fontWeight: FontWeight.w600,
+                              fontSize: getPercentageWidth(4.5, context)),
                         ),
                         SizedBox(width: getPercentageWidth(1, context)),
                         Icon(
@@ -1947,6 +1952,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   void _showSpecialDayDetails(
       BuildContext context, DateTime date, String dayType) {
+    final textTheme = Theme.of(context).textTheme;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1955,21 +1961,21 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: Text(
           'Special Day',
-          style: TextStyle(
+          style: textTheme.titleLarge?.copyWith(
               color: getThemeProvider(context).isDarkMode ? kWhite : kBlack),
         ),
         content: Text(
           caseDayType(dayType),
-          style: TextStyle(
+          style: textTheme.bodyLarge?.copyWith(
               color: getDayTypeColor(dayType.replaceAll('_', ' '),
                   getThemeProvider(context).isDarkMode)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Close',
-              style: TextStyle(color: kAccent),
+              style: textTheme.bodyMedium?.copyWith(color: kAccent),
             ),
           ),
         ],

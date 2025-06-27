@@ -11,6 +11,8 @@ class InspirationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
@@ -20,17 +22,17 @@ class InspirationScreen extends StatelessWidget {
         centerTitle: true,
         title: Text(
           "What's on your plate?",
-          style: TextStyle(fontSize: getTextScale(6, context)),
+          style: textTheme.displayMedium?.copyWith(),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Get.to(
-            () => const UploadBattleImageScreen(battleId: battleIdConstant),
+            () => const UploadBattleImageScreen(battleId: 'general', isMainPost: true),
           );
         },
         backgroundColor: kAccent,
-        child: Icon(Icons.add_a_photo, color: kWhite),
+        child: Icon(Icons.add_a_photo, color: isDarkMode ? kWhite : kBlack),
       ),
       body: const SingleChildScrollView(
         child: SearchContentGrid(

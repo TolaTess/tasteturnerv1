@@ -390,7 +390,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(1.5, context)),
                           child: Icon(
-                            Icons.share,
+                            Icons.ios_share,
                             color: kAccentLight,
                             size: getResponsiveBoxSize(context, 15, 15),
                           ),

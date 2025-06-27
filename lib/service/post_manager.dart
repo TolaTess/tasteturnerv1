@@ -60,12 +60,22 @@ class PostController extends GetxController {
   }
 
   Future<List<Post>> getPostsByIds(List<String> postIds) async {
-    final snapshots = await FirebaseFirestore.instance
-        .collection('posts')
-        .where(FieldPath.documentId, whereIn: postIds)
-        .get();
+    final List<Post> allPosts = [];
 
-    return snapshots.docs.map((doc) => Post.fromFirestore(doc)).toList();
+    // Process postIds in chunks of 30 to comply with Firestore limitations
+    for (var i = 0; i < postIds.length; i += 30) {
+      final end = (i + 30 < postIds.length) ? i + 30 : postIds.length;
+      final chunk = postIds.sublist(i, end);
+
+      final snapshots = await FirebaseFirestore.instance
+          .collection('posts')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+
+      allPosts.addAll(snapshots.docs.map((doc) => Post.fromFirestore(doc)));
+    }
+
+    return allPosts;
   }
 
   Future<List<Post>> getUserPosts(String userId) async {

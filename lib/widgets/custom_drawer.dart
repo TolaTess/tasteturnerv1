@@ -22,6 +22,7 @@ class CustomDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     return Drawer(
       width: getPercentageWidth(70, context),
       backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
@@ -61,9 +62,8 @@ class CustomDrawer extends StatelessWidget {
                     children: [
                       Text(
                         userService.currentUser.value!.displayName ?? '',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: getTextScale(4, context),
+                        style: textTheme.displaySmall?.copyWith(
+                          fontSize: getPercentageWidth(7, context),
                         ),
                       ),
                     ],
@@ -243,6 +243,7 @@ class DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return InkWell(
       onTap: press,
       child: Padding(
@@ -263,9 +264,7 @@ class DrawerItem extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  fontSize: getTextScale(4, context),
-                ),
+                style: textTheme.bodyLarge?.copyWith(),
               ),
             ),
           ],

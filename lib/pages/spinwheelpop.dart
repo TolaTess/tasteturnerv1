@@ -83,7 +83,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       'name': 'Custom',
       'category': 'Custom'
     };
-    _categoryDatasIngredient = [...helperController.macros];
+    _categoryDatasIngredient = [...helperController.category];
     if (_categoryDatasIngredient.isEmpty ||
         _categoryDatasIngredient.first['id'] != 'custom') {
       _categoryDatasIngredient.insert(0, customCategory);
@@ -326,16 +326,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final categoryDatasIngredient = _categoryDatasIngredient;
     final categoryDatasIngredientDiet = _mealDietCategories;
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
         automaticallyImplyLeading: false,
         centerTitle: true,
-        toolbarHeight: getPercentageHeight(10, context), // Control height with percentage
+        toolbarHeight:
+            getPercentageHeight(10, context), // Control height with percentage
         title: Text(
           'Don\'t know what to eat?',
-          style: TextStyle(fontSize: getTextScale(6, context)),
+          style: textTheme.displayMedium
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -364,11 +366,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               children: [
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(
-                  'Spin the Wheel',
-                  style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.w600,
-                      color: kAccent),
+                  'Take a Spin!',
+                  style: textTheme.displaySmall?.copyWith(color: kAccent),
                 ),
                 SizedBox(height: getPercentageHeight(1.5, context)),
                 Row(
@@ -389,14 +388,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         showIngredientSpin
                             ? 'Switch to Meal Spin'
                             : 'Switch to Ingredient Spin',
-                        style: TextStyle(
-                          fontSize: getTextScale(4, context),
-                          color: kAccentLight,
-                        ),
+                        style: textTheme.titleMedium?.copyWith(
+                            color: kAccentLight, fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
-                      iconSize: getIconScale(7, context),
+                      iconSize: getIconScale(6, context),
                       icon: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
                       ),

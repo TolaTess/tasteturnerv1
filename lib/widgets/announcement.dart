@@ -126,11 +126,7 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
                 child: Center(
                   child: Text(
                     widget.title ?? '',
-                    style: TextStyle(
-                      fontSize: widget.height * 0.30,
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
               ),
@@ -149,22 +145,14 @@ class _AnnouncementWidgetState extends State<AnnouncementWidget> {
                       children: [
                         Text(
                           '${category.toUpperCase()}: ',
-                          style: TextStyle(
-                            fontSize: widget.height * 0.28,
-                            fontWeight: FontWeight.w600,
-                            color: isDarkMode ? kWhite : kBlack,
-                          ),
+                          style: Theme.of(context).textTheme.labelLarge,
                         ),
                         ...winners.map((winner) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: Text(
                               '${winner['displayName']} (${winner['position']})',
-                              style: TextStyle(
-                                fontSize: widget.height * 0.28,
-                                fontWeight: FontWeight.w500,
-                                color: isDarkMode ? kWhite : kBlack,
-                              ),
+                              style: Theme.of(context).textTheme.labelLarge,
                             ),
                           );
                         }).toList(),

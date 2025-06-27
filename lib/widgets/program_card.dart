@@ -14,6 +14,7 @@ class ProgramCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -63,32 +64,6 @@ class ProgramCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // // New/Popular Tag
-              // if (program['isNew'] == true || program['isPopular'] == true)
-              //   Positioned(
-              //     top: 12,
-              //     right: 12,
-              //     child: Container(
-              //       padding: EdgeInsets.symmetric(
-              //         horizontal: getPercentageWidth(2, context),
-              //         vertical: getPercentageHeight(0.5, context),
-              //       ),
-              //       decoration: BoxDecoration(
-              //         color: program['isNew'] == true
-              //             ? Colors.green
-              //             : kAccentLight,
-              //         borderRadius: BorderRadius.circular(12),
-              //       ),
-              //       child: Text(
-              //         program['isNew'] == true ? 'NEW' : 'POPULAR',
-              //         style: TextStyle(
-              //           color: kWhite,
-              //           fontSize: getTextScale(2, context),
-              //           fontWeight: FontWeight.w600,
-              //         ),
-              //       ),
-              //     ),
-              //   ),
               // Content
               Positioned(
                 left: 0,
@@ -102,19 +77,15 @@ class ProgramCard extends StatelessWidget {
                     children: [
                       Text(
                         program['subtitle'],
-                        style: TextStyle(
+                        style: textTheme.titleSmall?.copyWith(
                           color: kWhite,
-                          fontSize: getTextScale(2.5, context),
-                          height: 1.2,
                         ),
                       ),
                       SizedBox(height: getPercentageHeight(1, context)),
                       Text(
                         program['name'],
-                        style: TextStyle(
+                        style: textTheme.titleLarge?.copyWith(
                           color: kWhite,
-                          fontSize: getTextScale(4, context),
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       if (program['enrolled'] == true) ...[
@@ -124,14 +95,13 @@ class ProgramCard extends StatelessWidget {
                             Icon(
                               Icons.check_circle,
                               color: kWhite,
-                              size: getIconScale(3, context),
+                              size: getIconScale(4, context),
                             ),
                             SizedBox(width: getPercentageWidth(1, context)),
                             Text(
                               'Enrolled',
-                              style: TextStyle(
+                              style: textTheme.bodyMedium?.copyWith(
                                 color: kWhite,
-                                fontSize: getTextScale(2.5, context),
                               ),
                             ),
                           ],

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tasteturner/helper/utils.dart';
+
+import '../constants.dart';
+import '../helper/utils.dart';
+
+
 
 class CategorySelector extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
@@ -23,6 +27,8 @@ class CategorySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return SizedBox(
       height: getPercentageHeight(5, context),
       child: ListView.builder(
@@ -60,10 +66,8 @@ class CategorySelector extends StatelessWidget {
                       : category['name'].toLowerCase() == 'balanced'
                           ? 'Balanced'
                           : capitalizeFirstLetter(category['name']),
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack, fontWeight: FontWeight.w600),
                 ),
               ),
             ),

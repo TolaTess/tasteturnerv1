@@ -257,10 +257,9 @@ class _DailyRoutineListHorizontalState
         return Center(
           child: Text(
             'No routines set. Go to settings to add a routine.',
-            style: TextStyle(
-              fontSize: getTextScale(3.5, context),
-              color: isDarkMode ? kWhite.withOpacity(0.5) : Colors.grey,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: isDarkMode ? kWhite.withOpacity(0.5) : Colors.grey,
+                ),
           ),
         );
       }
@@ -318,10 +317,9 @@ class _DailyRoutineListHorizontalState
               children: [
                 Text(
                   capitalizeFirstLetter(item.title),
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode
                         ? isCompleted
                             ? kWhite
                             : kWhite.withOpacity(0.5)
@@ -335,15 +333,14 @@ class _DailyRoutineListHorizontalState
                 SizedBox(height: getPercentageHeight(0.5, context)),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
-                    color: isDarkMode
-                        ? isCompleted
-                            ? kWhite
-                            : kWhite.withOpacity(0.5)
-                        : isCompleted
-                            ? kBlack
-                            : kBlack.withOpacity(0.5),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith( 
+                        color: isDarkMode
+                            ? isCompleted
+                                ? kWhite
+                                : kWhite.withOpacity(0.5)
+                            : isCompleted
+                                ? kBlack
+                                : kBlack.withOpacity(0.5),
                   ),
                 ),
               ],
@@ -418,10 +415,9 @@ class _DailyRoutineListHorizontalState
                       children: [
                         Text(
                           capitalizeFirstLetter(item.title),
-                          style: TextStyle(
-                            fontSize: getTextScale(3.5, context),
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                         if (isCompleted)
                           const Icon(
@@ -433,10 +429,9 @@ class _DailyRoutineListHorizontalState
                     SizedBox(height: getPercentageHeight(1, context)),
                     Text(
                       value,
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ],
                 ),

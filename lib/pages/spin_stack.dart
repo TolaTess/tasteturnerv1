@@ -253,17 +253,16 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode = getThemeProvider(context).isDarkMode;  
+    final textTheme = Theme.of(context).textTheme;
 
     // If no labels available, show a message instead of empty wheel
     if (availableLabels.isEmpty) {
       return Center(
         child: Text(
           'No items available',
-          style: TextStyle(
-            color: isDarkMode ? kWhite : kBlack,
-            fontSize: getTextScale(3, context),
-          ),
+          style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kWhite : kBlack, fontWeight: FontWeight.w600),
         ),
       );
     }
@@ -312,18 +311,15 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           ),
                           title: Text(
                             "Selected Option",
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
+                            style: textTheme.displayMedium?.copyWith(
+                                color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w500),
                           ),
                           content: Text(
                             capitalizeFirstLetter(label),
-                            style: TextStyle(
-                              fontSize: getTextScale(3.5, context),
-                              color: isDarkMode ? kBlue : kAccent,
-                            ),
+                            style: textTheme.bodyMedium?.copyWith(
+                                color: isDarkMode ? kBlue : kAccent,
+                                fontSize: 25),
                           ),
                           actionsAlignment: MainAxisAlignment.spaceBetween,
                           actions: [
@@ -553,6 +549,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return widget.isMealSpin
         ? FutureBuilder<List<Meal>>(
             future: mealManager.fetchAndEnsureMealsExist(widget.acceptedItems),
@@ -565,7 +563,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Text('No meals selected',
-                    style: TextStyle(fontSize: getTextScale(3, context)));
+                    style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack));
               } else {
                 final displayedItems = snapshot.data!;
                 return _buildContent(context, displayedItems, true);
@@ -585,7 +584,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Text(
                   'No ingredients selected',
-                  style: TextStyle(fontSize: getTextScale(3, context)),
+                  style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack),
                 );
               } else {
                 final displayedItems = snapshot.data!;
@@ -598,6 +598,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
   Widget _buildContent(
       BuildContext context, dynamic displayedItems, bool isMealSpin) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isInFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
@@ -628,19 +629,13 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                         children: [
                           Text(
                             '${widget.acceptedItems.length} ',
-                            style: TextStyle(
-                              fontSize: getTextScale(3.5, context),
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
+                            style: textTheme.displaySmall?.copyWith(
+                                color: isDarkMode ? kWhite : kBlack, fontSize: 25),
                           ),
                           Text(
                             'Accepted ${widget.acceptedItems.length == 1 ? 'item' : 'items'}: ',
-                            style: TextStyle(
-                              fontSize: getTextScale(3.5, context),
-                              fontWeight: FontWeight.w400,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
+                            style: textTheme.bodyLarge?.copyWith(
+                                color: isDarkMode ? kWhite : kBlack),
                           ),
                         ],
                       ),
@@ -671,16 +666,13 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                   Text(
                                     capitalizeFirstLetter(
                                         widget.acceptedItems[i]),
-                                    style: TextStyle(
-                                      fontSize: getTextScale(3.5, context),
-                                      fontWeight: FontWeight.normal,
-                                      color: kAccentLight,
-                                    ),
+                                    style: textTheme.bodyMedium?.copyWith(
+                                        color: kAccentLight),
                                   ),
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.close,
-                                    size: getTextScale(4.5, context),
+                                    size: getIconScale(4, context),
                                     color: kAccentLight,
                                   ),
                                 ],
@@ -698,11 +690,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               if (widget.isMealSpin)
                 Text(
                   '${widget.acceptedItems.length} ${widget.acceptedItems.length == 1 ? 'meal' : 'meals'} accepted',
-                  style: TextStyle(
-                    fontSize: getTextScale(4.5, context),
-                    fontWeight: FontWeight.w800,
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
+                  style: textTheme.displaySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack, fontSize: 25),
                 ),
               GestureDetector(
                 onTap: () {
@@ -758,13 +747,9 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                   isInFreeTrial
                               ? 'Generate Meal with ingredients!'
                               : 'Go Premium to generate a meal!',
-                      style: TextStyle(
-                        fontSize: isMealSpin
-                            ? getTextScale(3.5, context)
-                            : getTextScale(3.5, context),
-                        fontWeight: FontWeight.w500,
-                        color: isDarkMode ? kWhite : kBlack,
-                      ),
+                      style: textTheme.labelLarge?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),

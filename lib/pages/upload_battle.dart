@@ -13,6 +13,8 @@ import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
+import '../widgets/category_selector.dart';
+import '../service/helper_controller.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
@@ -34,7 +36,8 @@ class UploadBattleImageScreen extends StatefulWidget {
 class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   bool isUploading = false;
   List<XFile> _selectedImages = [];
-  XFile? _recentImage;
+  String selectedCategoryId = '';
+  String selectedCategory = 'general';
 
   Future<String> _compressAndResizeBattleImage(String imagePath) async {
     // Read the image file
@@ -84,39 +87,12 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   void initState() {
     super.initState();
-    _loadGalleryImages();
-  }
-
-  Future<void> _loadGalleryImages() async {
-    final PermissionState permission =
-        await PhotoManager.requestPermissionExtend();
-
-    if (!permission.hasAccess) {
-      PhotoManager.openSetting();
-      return;
-    }
-
-    final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-      type: RequestType.image,
-      onlyAll: true,
-    );
-
-    final List<AssetEntity> recentImages =
-        await albums.first.getAssetListPaged(page: 0, size: 1);
-
-    if (recentImages.isNotEmpty) {
-      final File? recentFile = await recentImages.first.file;
-      if (recentFile != null) {
-        setState(() {
-          _recentImage = XFile(recentFile.path);
-          _selectedImages = [_recentImage!];
-        });
-      }
-    } else {
-      setState(() {
-        _recentImage = null;
-      });
-    }
+    selectedCategory = HelperController.instance.category.value.isNotEmpty
+        ? HelperController.instance.category.value.first['name'] ?? 'general'
+        : 'general';
+    selectedCategoryId = HelperController.instance.category.value.isNotEmpty
+        ? HelperController.instance.category.value.first['id'] ?? ''
+        : '';
   }
 
   Future<void> _uploadImage() async {
@@ -124,7 +100,18 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
-          '',
+          'Please select an image first.',
+          context,
+        );
+      }
+      return;
+    }
+
+    if (selectedCategoryId.isEmpty) {
+      if (mounted) {
+        showTastySnackbar(
+          'Please try again.',
+          'Please select a category first.',
           context,
         );
       }
@@ -159,7 +146,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         userId: userService.userId ?? '',
         mediaPaths: uploadedImageUrls,
         name: userService.currentUser.value?.displayName ?? '',
-        category: widget.isMainPost ? 'general' : widget.battleCategory,
+        category: selectedCategory,
         isBattle: widget.isMainPost ? false : true,
         battleId: widget.isMainPost ? '' : widget.battleId,
       );
@@ -175,7 +162,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
       if (mounted) {
         if (widget.isMainPost) {
-          Get.to(() => const BottomNavSec(selectedIndex: 1));
+          Get.to(() => const BottomNavSec(selectedIndex: 2));
         } else {
           Get.back();
         }
@@ -197,17 +184,17 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
           title: Text(
               !widget.isMainPost
                   ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
                   : "Upload Image",
-              style: TextStyle(fontSize: getTextScale(4, context))),
+              style: textTheme.titleLarge?.copyWith(color: kAccentLight)),
           leading: InkWell(
             onTap: () => widget.isMainPost
-                ? Get.to(() => const BottomNavSec(selectedIndex: 1))
+                ? Get.to(() => const BottomNavSec(selectedIndex: 2))
                 : Get.back(),
             child: const IconCircleButton(
               isRemoveContainer: true,
@@ -221,24 +208,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: () async {
-                    final XFile? photo = await ImagePicker().pickImage(
-                      source: ImageSource.camera,
-                      imageQuality: 80,
-                    );
-                    if (photo != null) {
-                      final XFile? cropped = await cropImage(photo, context);
-                      if (cropped != null) {
-                        setState(() {
-                          _selectedImages = [cropped];
-                          _recentImage = cropped;
-                        });
-                      }
-                    }
-                  },
-                  icon: Icon(Icons.camera, size: getIconScale(7, context)),
-                ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 IconButton(
                   onPressed: () async {
@@ -255,22 +224,21 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       if (croppedImages.isNotEmpty) {
                         setState(() {
                           _selectedImages = croppedImages;
-                          _recentImage = croppedImages.first;
                         });
                       }
                     }
                   },
-                  icon: Icon(Icons.add, size: getIconScale(7, context)),
+                  icon: Icon(Icons.add, size: getIconScale(10, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
               ],
             ),
             SizedBox(height: getPercentageHeight(1, context)),
-            _recentImage != null
+            _selectedImages.isNotEmpty
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(15),
                     child: Image.file(
-                      File(_recentImage!.path),
+                      File(_selectedImages.first.path),
                       height: MediaQuery.of(context).size.height > 1100
                           ? getPercentageHeight(35, context)
                           : getPercentageHeight(30, context),
@@ -278,17 +246,58 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       fit: BoxFit.cover,
                     ),
                   )
-                : Container(
-                    height: MediaQuery.of(context).size.height > 1100
-                        ? getPercentageHeight(30, context)
-                        : getPercentageHeight(25, context),
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    child: Center(
-                        child: Text("No Image Selected",
-                            style:
-                                TextStyle(fontSize: getTextScale(3, context)))),
+                : GestureDetector(
+                    onTap: () async {
+                      final XFile? photo = await ImagePicker().pickImage(
+                        source: ImageSource.camera,
+                        imageQuality: 80,
+                      );
+                      if (photo != null) {
+                        final XFile? cropped = await cropImage(photo, context);
+                        if (cropped != null) {
+                          setState(() {
+                            _selectedImages = [cropped];
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      height: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageHeight(30, context)
+                          : getPercentageHeight(25, context),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? kDarkGrey : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.add_a_photo,
+                          size: getIconScale(15, context),
+                          color: isDarkMode
+                              ? kWhite.withOpacity(0.7)
+                              : kDarkGrey.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
                   ),
+
+            SizedBox(height: getPercentageHeight(2, context)),
+
+            // Category Selector
+            Obx(() => CategorySelector(
+                  categories: HelperController.instance.category.value,
+                  selectedCategoryId: selectedCategoryId,
+                  onCategorySelected: (id, name) {
+                    setState(() {
+                      selectedCategoryId = id;
+                      selectedCategory = name;
+                    });
+                  },
+                  isDarkMode: isDarkMode,
+                  accentColor: kAccentLight,
+                  darkModeAccentColor: kDarkModeAccent,
+                )),
 
             // Show selected images grid under the recent image
             if (_selectedImages.length > 1)
@@ -328,9 +337,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                   ? const CircularProgressIndicator(
                       color: kAccent,
                     )
-                  : Text("Upload Images",
-                      style: TextStyle(
-                          fontSize: getTextScale(3, context), color: kWhite)),
+                  : Text("Upload", style: textTheme.titleMedium?.copyWith(color: kAccent)),
             ),
           ],
         ),

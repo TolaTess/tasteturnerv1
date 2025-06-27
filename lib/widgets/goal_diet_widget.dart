@@ -1,9 +1,6 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
@@ -118,21 +115,13 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                   SizedBox(width: getPercentageWidth(1, context)),
                   Text(
                     'Your Diet: ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: getTextScale(3, context),
-                      color: kAccent,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge,
                   ),
                   Text(
                     widget.diet.isNotEmpty
                         ? capitalizeFirstLetter(widget.diet)
                         : 'Not set',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: getTextScale(3, context),
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge,
                   ),
                   SizedBox(width: getPercentageWidth(4, context)),
                   if (showCaloriesAndGoal)
@@ -144,11 +133,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                   if (showCaloriesAndGoal)
                     Text(
                       'Goal: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: getTextScale(3, context),
-                        color: kAccentLight,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                   if (showCaloriesAndGoal)
                     Text(
@@ -159,11 +144,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                   ? 'Muscle Gain'
                                   : capitalizeFirstLetter(widget.goal)
                           : 'Not set',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: getTextScale(3, context),
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                   const Spacer(),
                   Icon(_expanded ? Icons.expand_less : Icons.expand_more,
@@ -177,98 +158,20 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                 widget.goal.toLowerCase() == "lose weight"
                     ? 'Featured Ingredients for Weight Loss'
                     : 'Featured Ingredients',
-                style: TextStyle(
-                  fontWeight: FontWeight.w400,
-                  fontSize: getTextScale(3, context),
-                  color: kAccentLight,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
-              SizedBox(height: getPercentageHeight(0.5, context)),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: IngredientListViewRecipe(
-                      demoAcceptedData: widget.topIngredients,
-                      spin: false,
-                      isEdit: false,
-                      onRemoveItem: (int) {},
-                      radius: 23,
-                    ),
-                  ),
-                  SizedBox(width: getPercentageWidth(2, context)),
-                  Expanded(
-                    flex: 1,
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                BottomNavSec(selectedIndex: 3),
-                          ),
-                        );
-                      },
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween<double>(begin: 0, end: 2 * pi),
-                        duration: const Duration(seconds: 3),
-                        builder: (context, value, child) {
-                          return Transform.rotate(
-                            angle: value,
-                            child: AnimatedBuilder(
-                              animation: _expanded
-                                  ? _shakeAnimation
-                                  : AlwaysStoppedAnimation(0.0),
-                              builder: (context, child) {
-                                return Transform.translate(
-                                  offset: Offset(
-                                      _expanded
-                                          ? sin(_shakeAnimation.value) * 5
-                                          : 0,
-                                      0),
-                                  child: child,
-                                );
-                              },
-                              child: Column(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: kAccent.withOpacity(0.3),
-                                    radius: getResponsiveBoxSize(context, 30, 30),
-                                    child: SvgPicture.asset(
-                                      'assets/images/svg/spin.svg',
-                                      color: isDarkMode ? kWhite : kDarkGrey,
-                                      width: getIconScale(7, context),
-                                      height: getIconScale(7, context),
-                                    ),
-                                  ),
-                                  SizedBox(height: getPercentageHeight(1, context)),
-                                  Text(
-                                    'Spin',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: getTextScale(3, context),
-                                      color: isDarkMode ? kWhite : kDarkGrey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+              SizedBox(height: getPercentageHeight(1, context)),
+              IngredientListViewRecipe(
+                demoAcceptedData: widget.topIngredients,
+                spin: false,
+                isEdit: false,
+                onRemoveItem: (int) {},
               ),
               SizedBox(height: getPercentageHeight(1, context)),
               if (widget.featuredMeal != null) ...[
                 Text(
                   'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    fontSize: getTextScale(3, context),
-                    color: kAccentLight,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 SizedBox(height: getPercentageHeight(0.5, context)),
                 GestureDetector(
@@ -303,11 +206,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                             children: [
                               Text(
                                 widget.featuredMeal!.title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: getTextScale(3, context),
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                ),
+                                style: Theme.of(context).textTheme.labelLarge,
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
@@ -320,10 +219,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                             ? widget.featuredMeal!.ingredients
                                                 .entries.first.value
                                             : ''))),
-                                style: TextStyle(
-                                  fontSize: getTextScale(2.5, context),
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                ),
+                                style: Theme.of(context).textTheme.labelMedium,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -333,11 +229,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                       top: getPercentageHeight(0.5, context)),
                                   child: Text(
                                     '${widget.featuredMeal!.calories.toString()} kcal',
-                                    style: TextStyle(
-                                      fontSize: getTextScale(2.5, context),
-                                      color: isDarkMode ? kAccentLight : kWhite,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                    style: Theme.of(context).textTheme.labelMedium,
                                   ),
                                 ),
                             ],

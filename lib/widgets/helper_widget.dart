@@ -149,7 +149,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                   mainAxisSpacing: 1,
                   crossAxisSpacing: 1,
                 ),
-                padding: EdgeInsets.only(   
+                padding: EdgeInsets.only(
                   bottom: getPercentageHeight(1, context),
                 ),
                 itemCount: itemCount,
@@ -330,6 +330,9 @@ class SearchContent extends StatelessWidget {
         ? mediaPaths.first as String
         : extPlaceholderImage;
 
+    final isDietCompatible = dataSrc['category']!.toLowerCase() ==
+        userService.currentUser.value?.settings['dietPreference'].toLowerCase();
+
     return GestureDetector(
       onTap: press,
       child: Stack(
@@ -379,6 +382,17 @@ class SearchContent extends StatelessWidget {
                 size: getPercentageWidth(4, context),
               ),
             ),
+          //add diet image
+          if (isDietCompatible)
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Icon(
+                Icons.check_circle,
+                color: kAccent,
+                size: getPercentageWidth(6, context),
+              ),
+            ),
         ],
       ),
     );
@@ -401,6 +415,8 @@ class SearchContentPost extends StatelessWidget {
     final String mediaPath =
         mediaPaths.isNotEmpty ? mediaPaths.first : extPlaceholderImage;
 
+    final isDietCompatible = dataSrc.category!.toLowerCase() ==
+        userService.currentUser.value?.settings['dietPreference'].toLowerCase();
     return GestureDetector(
       onTap: press,
       child: Stack(
@@ -444,6 +460,17 @@ class SearchContentPost extends StatelessWidget {
                 Icons.content_copy,
                 color: Colors.white,
                 size: getPercentageWidth(4, context),
+              ),
+            ),
+//add diet image
+          if (isDietCompatible)
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Icon(
+                Icons.check_circle,
+                color: kAccent,
+                size: getPercentageWidth(6, context),
               ),
             ),
         ],

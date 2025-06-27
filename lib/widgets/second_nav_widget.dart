@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:tasteturner/helper/utils.dart';
 
+import '../constants.dart';
+
 class SecondNavWidget extends StatelessWidget {
   final String icon;
   final Color color;
   final String label;
   final Widget destinationScreen;
+  final bool isDarkMode;
 
   const SecondNavWidget({
     Key? key,
@@ -14,6 +17,7 @@ class SecondNavWidget extends StatelessWidget {
     required this.color,
     required this.label,
     required this.destinationScreen,
+    required this.isDarkMode,
   }) : super(key: key);
 
   @override
@@ -52,17 +56,14 @@ class SecondNavWidget extends StatelessWidget {
                 height: getIconScale(5, context),
                 width: getIconScale(5, context),
                 colorFilter:
-                    const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ColorFilter.mode(isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn),
               ),
             ),
           ),
           SizedBox(height: getPercentageHeight(1, context)),
           Text(
             label,
-            style: TextStyle(
-              fontSize: getTextScale(3, context),
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(context).textTheme.labelLarge,
           ),
         ],
       ),

@@ -10,7 +10,6 @@ class IngredientListViewRecipe extends StatefulWidget {
   final bool spin;
   final bool isEdit;
   final Function(int) onRemoveItem;
-  final double radius;
 
   const IngredientListViewRecipe({
     super.key,
@@ -18,7 +17,6 @@ class IngredientListViewRecipe extends StatefulWidget {
     required this.spin,
     required this.isEdit,
     required this.onRemoveItem,
-    this.radius = 30,
   });
 
   @override
@@ -32,11 +30,9 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: widget.radius < 30
-          ? getPercentageHeight(10, context)
-          : MediaQuery.of(context).size.height > 1100
-              ? getPercentageHeight(17, context)
-              : getPercentageHeight(14, context),
+      height: MediaQuery.of(context).size.height > 1100
+          ? getPercentageHeight(17, context)
+          : getPercentageHeight(14, context),
       child: widget.demoAcceptedData.isEmpty
           ? noItemTastyWidget(
               'No ingredients available',
@@ -47,18 +43,17 @@ class _IngredientListViewRecipeState extends State<IngredientListViewRecipe> {
             )
           : ListView.builder(
               itemCount: widget.demoAcceptedData.length,
-              padding: EdgeInsets.only(
-                right: getPercentageWidth(2, context),
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context),
               ),
               scrollDirection: Axis.horizontal,
               itemBuilder: (context, index) {
                 return Padding(
                   padding: EdgeInsets.only(
-                      left: getPercentageWidth(2, context),
+                      left: getPercentageWidth(4, context),
                       right: getPercentageWidth(2, context)),
                   child: IngredientItem(
                     dataSrc: widget.demoAcceptedData[index],
-                    radius: widget.radius,
                     press: () {
                       Navigator.push(
                         context,
@@ -85,99 +80,88 @@ class IngredientItem extends StatelessWidget {
     required this.dataSrc,
     required this.press,
     this.isSelected = false,
-    this.radius = 30,
   });
 
   final dynamic dataSrc;
   final VoidCallback press;
   final bool isSelected;
-  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    String imagePath = '';
     String title = '';
     if (dataSrc is Map) {
-      imagePath = dataSrc['mediaPaths']?.first ?? '';
       title = (dataSrc['title'] ?? '').trim();
       if (title.isEmpty) {
         title = 'Unknown';
       }
     } else {
       try {
-        imagePath = dataSrc.mediaPaths.isNotEmpty
-            ? dataSrc.mediaPaths.first
-            : 'placeholder';
         title = (dataSrc.title ?? '').trim();
         if (title.isEmpty) {
           title = 'Unknown';
         }
       } catch (e) {
-        imagePath = '';
         title = 'Unknown';
       }
     }
+
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final firstWord = capitalizeFirstLetter(title);
+
     return GestureDetector(
       onTap: press,
-      child: Column(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
+          // Base circle with gradient
           Stack(
             alignment: Alignment.center,
             children: [
-              CircleAvatar(
-                backgroundImage: imagePath.startsWith('http')
-                    ? NetworkImage(imagePath) as ImageProvider
-                    : AssetImage(getAssetImageForItem(imagePath)),
-                radius: getResponsiveBoxSize(context, radius, radius),
-              ),
-              // Gradient overlay
-              Container(
-                width: getResponsiveBoxSize(context, radius * 2, radius * 2),
-                height: getResponsiveBoxSize(context, radius * 2, radius * 2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: isSelected
-                        ? [
-                            kAccent.withOpacity(0.3),
-                            kAccent.withOpacity(0.7),
-                          ]
-                        : [
-                            const Color(0xff343434).withOpacity(0.1),
-                            const Color(0xff343434).withOpacity(0.3),
-                          ],
-                    stops: isSelected ? [0.2, 0.9] : [0.0, 0.8],
+              ClipOval(
+                child: Container(
+                  width: getResponsiveBoxSize(context, 77, 77),
+                  height: getResponsiveBoxSize(context, 77, 77),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        kAccentLight.withOpacity(0.1),
+                        kAccentLight.withOpacity(0.3),
+                      ],
+                    ),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/placeholder.jpg'),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          SizedBox(
-            height: getPercentageHeight(0.5, context),
-          ),
-          Expanded(
-            child: Text(
-              textAlign: TextAlign.center,
-              capitalizeFirstLetterAndSplitSpace(title),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: radius < 30
-                      ? getTextScale(2.8, context)
-                      : getTextScale(3, context),
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? isDarkMode
-                          ? kWhite
-                          : kAccent
-                      : isDarkMode
-                          ? kWhite
-                          : kDarkGrey),
+          // Text centered in circle
+          Positioned.fill(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                child: Transform.rotate(
+                  angle:
+                      -0.3, // Negative angle for slight counter-clockwise rotation
+                  child: Text(
+                    firstWord,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: isSelected ? kAccent : kWhite,
+                          fontSize: getPercentageWidth(3, context),
+                        ),
+                  ),
+                ),
+              ),
             ),
-          )
+          ),
         ],
       ),
     );

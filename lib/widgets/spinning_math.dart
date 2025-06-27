@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui' as ui;
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:tasteturner/constants.dart';
@@ -168,6 +166,7 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
       height: widget.size,
       width: widget.size,
@@ -256,6 +255,7 @@ class _PieChartState extends State<PieChart> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     // Ensure data array matches labels length
     final List<double> normalizedData = List.generate(
       currentLabels.length,
@@ -305,6 +305,7 @@ class _PieChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final textTheme = Theme.of(context).textTheme;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width, size.height) / 2;
     final paint = Paint()..style = PaintingStyle.fill;
@@ -375,11 +376,8 @@ class _PieChartPainter extends CustomPainter {
       final numberTextSpan = TextSpan(
         //update font type
         text: numberText,
-        style: TextStyle(
-          color: isDarkMode ? kWhite : kBlack,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
+        style: textTheme.displayMedium?.copyWith(
+            color: isDarkMode ? kWhite : kBlack, fontWeight: FontWeight.w600),
       );
       final numberTextPainter = TextPainter(
         text: numberTextSpan,
@@ -418,18 +416,15 @@ class _PieChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
-    final centerRadius = radius * 0.15; // Adjust size as needed
+    final centerRadius = radius * 0.20; // Adjust size as needed
     canvas.drawCircle(center, centerRadius, centerCirclePaint);
     canvas.drawCircle(center, centerRadius, centerBorderPaint);
 
     // Draw text in center
     final textSpan = TextSpan(
       text: isSpinning ? 'Tap' : 'Double\nTap',
-      style: TextStyle(
-        color: kAccent,
-        fontSize: centerRadius * 0.4,
-        fontWeight: FontWeight.bold,
-      ),
+      style: textTheme.titleSmall?.copyWith(
+          color: kAccent, fontWeight: FontWeight.w800),
     );
     final textPainter = TextPainter(
       text: textSpan,

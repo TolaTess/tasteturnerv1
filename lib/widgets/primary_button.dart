@@ -37,6 +37,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     Color btnColor;
     Color txtColor;
     Color borderCol;
@@ -92,12 +93,11 @@ class AppButton extends StatelessWidget {
                     Icon(icon, color: txtColor, size: getIconScale(7, context)),
                     SizedBox(width: getPercentageWidth(2, context)),
                   ],
-                  Text(
-                    text,
-                    style: TextStyle(
-                      color: txtColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: getTextScale(4, context),
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: textTheme.displaySmall?.copyWith(
+                          color: txtColor, fontWeight: FontWeight.w600, fontSize: getPercentageWidth(6.5, context)),
                     ),
                   ),
                 ],

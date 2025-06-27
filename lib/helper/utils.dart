@@ -38,13 +38,14 @@ AnimatedContainer buildDot(int? index) {
 
 String capitalizeFirstLetter(String input) {
   if (input.isEmpty) return '';
-  return input[0].toUpperCase() + input.substring(1).toLowerCase();
-}
-
-String capitalizeFirstLetterAndSplitSpace(String input) {
-  if (input.isEmpty) return '';
-  return input[0].toUpperCase() +
-      input.substring(1).toLowerCase().split(' ').join('\n');
+  List<String> words = input.split(' ');
+  List<String> capitalizedWords = words.map((word) {
+    if (word.isNotEmpty) {
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }
+    return word;
+  }).toList();
+  return capitalizedWords.join(' ');
 }
 
 List<String> extractSlashedItems(String messageContent) {

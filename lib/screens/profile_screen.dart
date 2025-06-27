@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui'; // Add this import for ImageFilter
 import 'package:get/get.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:tasteturner/tabs_screen/food_challenge_screen.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
@@ -173,6 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final settings = userService.currentUser.value!.settings;
     final double startWeight = double.tryParse(
             getNumberBeforeSpace(settings['startingWeight'].toString())) ??
@@ -264,8 +267,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: kPrimaryColor,
                             borderRadius: BorderRadius.circular(20),
                             image: DecorationImage(
-                                image: userService
-                                                .currentUser.value?.profileImage !=
+                                image: userService.currentUser.value
+                                                ?.profileImage !=
                                             null &&
                                         userService.currentUser.value!
                                             .profileImage!.isNotEmpty &&
@@ -285,137 +288,152 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: GestureDetector(
                                   onTap: () =>
                                       Get.to(() => const ProfileEditScreen()),
-                                  child: Container(
-                                    padding: EdgeInsets.all(
-                                        getPercentageWidth(1, context)),
-                                    decoration: BoxDecoration(
-                                      color: isDarkMode ? kDarkGrey : kWhite,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      userService
-                                              .currentUser.value!.displayName ??
-                                          '',
-                                      style: TextStyle(
-                                        fontSize: getTextScale(4.5, context),
-                                        fontWeight: FontWeight.w600,
-                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                          sigmaX: 5.0, sigmaY: 5.0),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical:
+                                              getPercentageHeight(1, context),
+                                          horizontal:
+                                              getPercentageWidth(3, context),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: (isDarkMode
+                                              ? kDarkGrey.withOpacity(0.5)
+                                              : kWhite.withOpacity(0.5)),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          userService.currentUser.value!
+                                                  .displayName ??
+                                              '',
+                                          style: textTheme.displaySmall?.copyWith(
+                                            fontSize: getTextScale(5, context),
+                                            fontWeight: FontWeight.w600,
+                                            color:
+                                                isDarkMode ? kWhite : kBlack,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                               SizedBox(height: getPercentageHeight(2, context)),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  // Points
-                                  GestureDetector(
-                                    onTap: () => Get.to(() => BadgesScreen()),
-                                    child: Container(
-                                      width: getPercentageWidth(14, context),
-                                      padding: EdgeInsets.all(
-                                          getPercentageWidth(1, context)),
-                                      decoration: BoxDecoration(
-                                        color: isDarkMode ? kDarkGrey : kWhite,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            (dailyDataController
-                                                        .pointsAchieved ??
-                                                    0)
-                                                .toString(),
-                                            style: TextStyle(
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                      sigmaX: 5.0, sigmaY: 5.0),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: getPercentageHeight(1, context),
+                                      horizontal:
+                                          getPercentageWidth(3, context),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: (isDarkMode
+                                          ? kDarkGrey.withOpacity(0.5)
+                                          : kWhite.withOpacity(0.5)),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        // Points
+                                        GestureDetector(
+                                          onTap: () =>
+                                              Get.to(() => BadgesScreen()),
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                (dailyDataController
+                                                            .pointsAchieved ??
+                                                        0)
+                                                    .toString(),
+                                                style: textTheme.bodyLarge?.copyWith(
+                                                  color: isDarkMode
+                                                      ? kWhite
+                                                      : kBlack,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              Opacity(
+                                                opacity: 0.7,
+                                                child: Text(
+                                                  'Points',
+                                                  style: textTheme.bodyMedium?.copyWith(
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kBlack,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height:
+                                              getPercentageHeight(3, context),
+                                          child: Opacity(
+                                            opacity: 0.5,
+                                            child: VerticalDivider(
                                               color: isDarkMode
                                                   ? kWhite
                                                   : kDarkGrey,
-                                              fontSize:
-                                                  getTextScale(4.5, context),
-                                              fontWeight: FontWeight.w500,
+                                              thickness: 1,
                                             ),
                                           ),
-                                          Opacity(
-                                            opacity: 0.7,
-                                            child: Text(
-                                              'Points',
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kDarkGrey,
-                                                fontSize:
-                                                    getTextScale(3, context),
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: getPercentageHeight(3, context),
-                                    child: Opacity(
-                                      opacity: 0.5,
-                                      child: VerticalDivider(
-                                        color: isDarkMode ? kDarkGrey : kWhite,
-                                        thickness: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  // Following
-                                  GestureDetector(
-                                    onTap: () => Get.to(() => BadgesScreen()),
-                                    child: Container(
-                                      width: getPercentageWidth(14, context),
-                                      padding: EdgeInsets.all(
-                                          getPercentageWidth(1, context)),
-                                      decoration: BoxDecoration(
-                                        color: isDarkMode ? kDarkGrey : kWhite,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Obx(() {
-                                            myBadge = badgeController
-                                                .badgeAchievements
-                                                .where((badge) => badge.userids
-                                                    .contains(userId))
-                                                .toList();
+                                        ),
+                                        // Badges
+                                        GestureDetector(
+                                          onTap: () =>
+                                              Get.to(() => BadgesScreen()),
+                                          child: Column(
+                                            children: [
+                                              Obx(() {
+                                                myBadge = badgeController
+                                                    .badgeAchievements
+                                                    .where((badge) => badge
+                                                        .userids
+                                                        .contains(userId))
+                                                    .toList();
 
-                                            return Text(
-                                              myBadge.length.toString(),
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kDarkGrey,
-                                                fontSize:
-                                                    getTextScale(4.5, context),
-                                                fontWeight: FontWeight.w500,
+                                                return Text(
+                                                  myBadge.length.toString(),
+                                                  style: textTheme.bodyLarge?.copyWith(
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kBlack,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                );
+                                              }),
+                                              Opacity(
+                                                opacity: 0.5,
+                                                child: Text(
+                                                  badges,
+                                                  style: textTheme.bodyMedium?.copyWith(
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kBlack,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
                                               ),
-                                            );
-                                          }),
-                                          Opacity(
-                                            opacity: 0.5,
-                                            child: Text(
-                                              badges,
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? kWhite
-                                                    : kDarkGrey,
-                                                fontSize:
-                                                    getTextScale(3, context),
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
                               const SizedBox(height: 24),
                             ],
@@ -423,7 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       CircleAvatar(
-                        radius: getResponsiveBoxSize(context, 20, 20),
+                        radius: getResponsiveBoxSize(context, 63, 63),
                         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                         child: CircleAvatar(
                           backgroundImage: userService
@@ -437,7 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   userService.currentUser.value!.profileImage!)
                               : const AssetImage(intPlaceholderImage)
                                   as ImageProvider,
-                          radius: getResponsiveBoxSize(context, 18, 18),
+                          radius: getResponsiveBoxSize(context, 57, 57),
                         ),
                       ),
                     ],
@@ -474,18 +492,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Text(
                             badges,
-                            style: TextStyle(
+                            style: textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.w600,
-                              fontSize: getTextScale(4.5, context),
                             ),
                           ),
                           GestureDetector(
                             onTap: () => Get.to(() => BadgesScreen()),
                             child: Text(
                               seeAll,
-                              style: TextStyle(
+                              style: textTheme.bodyMedium?.copyWith(
                                 color: kAccent,
-                                fontSize: getTextScale(3.5, context),
                               ),
                             ),
                           ),
@@ -544,16 +560,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           : getPercentageWidth(1, context)),
                               child: Text(
                                 goals,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: getTextScale(4.5, context),
+                                style: textTheme.displaySmall?.copyWith(
+                                  fontSize: getTextScale(5, context),
                                 ),
                               ),
                             ),
                             Text(
                               '${userService.currentUser.value?.settings['fitnessGoal']}',
-                              style: TextStyle(
-                                fontSize: getTextScale(3.5, context),
+                              style: textTheme.bodyLarge?.copyWith(
                                 color: kAccent,
                               ),
                             ),
@@ -562,9 +576,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Get.to(() => const NutritionSettingsPage()),
                               child: Text(
                                 'update',
-                                style: TextStyle(
+                                style: textTheme.bodyMedium?.copyWith(
                                   color: kAccent,
-                                  fontSize: getTextScale(3.5, context),
                                 ),
                               ),
                             ),
@@ -591,8 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           startWeight % 1 == 0
                                               ? startWeight.toInt().toString()
                                               : startWeight.toStringAsFixed(1),
-                                          style: TextStyle(
-                                            fontSize: getTextScale(3, context),
+                                          style: textTheme.bodyMedium?.copyWith(
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -619,9 +631,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               : currentWeight
                                                       .toStringAsFixed(1) +
                                                   'kg',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getTextScale(3.5, context),
+                                          style: textTheme.bodyMedium?.copyWith(
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -645,8 +655,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           goalWeight % 1 == 0
                                               ? goalWeight.toInt().toString()
                                               : goalWeight.toStringAsFixed(1),
-                                          style: TextStyle(
-                                            fontSize: getTextScale(3, context),
+                                          style: textTheme.bodyMedium?.copyWith(
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -677,9 +686,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   initiallyExpanded: showBattle,
                   title: Text(
                     'Battles',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: getTextScale(4.5, context),
+                    style: textTheme.displaySmall?.copyWith(
+                      fontSize: getTextScale(5, context),
                     ),
                   ),
                   tilePadding: EdgeInsets.only(
@@ -696,14 +704,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ))
                           : ongoingBattles.isEmpty
                               ? GestureDetector(
-                                  onTap: () => Get.to(() => const BottomNavSec(
-                                        selectedIndex: 1,
-                                      )),
+                                  onTap: () => Get.to(() => const FoodChallengeScreen()),
                                   child: Center(
                                       child: Text(
                                     "No ongoing battles, join a battle now!",
-                                    style: TextStyle(
-                                      fontSize: getTextScale(3.5, context),
+                                    style: textTheme.bodyLarge?.copyWith(
                                       color: isDarkMode ? kLightGrey : kAccent,
                                       decoration: TextDecoration.underline,
                                     ),
@@ -735,12 +740,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 capitalizeFirstLetter(
                                                     battle['category']),
                                                 overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
+                                                style: textTheme.bodyMedium?.copyWith(
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kBlack,
-                                                  fontSize: getTextScale(
-                                                      4.5, context),
                                                 ),
                                               ),
                                               subtitle: Text(
@@ -748,12 +751,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     battle['name']),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 3,
-                                                style: TextStyle(
+                                                style: textTheme.bodyMedium?.copyWith(
                                                   color: isDarkMode
                                                       ? kLightGrey
                                                       : kDarkGrey,
-                                                  fontSize: getTextScale(
-                                                      3.5, context),
                                                 ),
                                               ),
                                               onTap: () {
@@ -805,24 +806,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   : kWhite,
                                                           title: Text(
                                                             'Leave Battle?',
-                                                            style: TextStyle(
+                                                            style: textTheme.bodyMedium?.copyWith(
                                                               color: kAccent,
-                                                              fontSize:
-                                                                  getTextScale(
-                                                                      3.5,
-                                                                      context),
                                                             ),
                                                           ),
                                                           content: Text(
                                                             'Are you sure you want to leave this battle?',
-                                                            style: TextStyle(
+                                                            style: textTheme.bodyMedium?.copyWith(
                                                               color: isDarkMode
                                                                   ? kWhite
                                                                   : kDarkGrey,
-                                                              fontSize:
-                                                                  getTextScale(
-                                                                      3,
-                                                                      context),
                                                             ),
                                                           ),
                                                           actions: [
@@ -834,14 +827,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           false),
                                                               child: Text(
                                                                 'Cancel',
-                                                                style:
-                                                                    TextStyle(
+                                                                style: textTheme.bodyMedium?.copyWith(
                                                                   color:
                                                                       kAccent,
-                                                                  fontSize:
-                                                                      getTextScale(
-                                                                          3.5,
-                                                                          context),
                                                                 ),
                                                               ),
                                                             ),
@@ -853,14 +841,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           true),
                                                               child: Text(
                                                                 'Leave',
-                                                                style:
-                                                                    TextStyle(
+                                                                style: textTheme.bodyMedium?.copyWith(
                                                                   color: Colors
                                                                       .red,
-                                                                  fontSize:
-                                                                      getTextScale(
-                                                                          3.5,
-                                                                          context),
                                                                 ),
                                                               ),
                                                             ),
@@ -919,8 +902,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 EdgeInsets.all(getPercentageWidth(4, context)),
                             child: Text(
                               "No Posts yet.",
-                              style: TextStyle(
-                                fontSize: getTextScale(4, context),
+                                style: textTheme.bodyLarge?.copyWith(
                                 color: Colors.grey,
                               ),
                               textAlign: TextAlign.center,

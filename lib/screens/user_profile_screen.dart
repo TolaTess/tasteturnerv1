@@ -63,11 +63,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _fetchContent(String userId) async {
     try {
-      List<Post> fetchedData;
-      fetchedData = await postController.getUserPosts(widget.userId);
+      // Fetch posts in batches of 30 to comply with Firestore limitations
+      final List<Post> allPosts = [];
+      final List<Post> fetchedPosts = await postController.getUserPosts(userId);
+
+      // Process posts in chunks of 30
+      for (var i = 0; i < fetchedPosts.length; i += 30) {
+        final end =
+            (i + 30 < fetchedPosts.length) ? i + 30 : fetchedPosts.length;
+        final chunk = fetchedPosts.sublist(i, end);
+        allPosts.addAll(chunk);
+      }
+
       if (mounted) {
         setState(() {
-          searchContentDatas = fetchedData;
+          searchContentDatas = allPosts;
         });
       }
     } catch (e) {
@@ -82,9 +92,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Scaffold(
       body: Obx(() {
         final user = friendController.userProfileData.value;
-        if (user != null) {
-        } else {
-          print("User is null or not loaded yet.");
+
+        // Show loading indicator while user data is being fetched
+        if (user == null) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: kAccent,
+            ),
+          );
         }
 
         String newUserid = widget.userId;
@@ -103,7 +118,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               expandedHeight: getPercentageHeight(35, context),
               title: isShrink
                   ? Text(
-                      user?.displayName ?? '',
+                      user.displayName ?? '',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: getTextScale(4.5, context),
@@ -148,7 +163,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          user?.displayName ?? '',
+                          user.displayName ?? '',
                           style: TextStyle(
                               fontSize: getTextScale(4.5, context),
                               fontWeight: FontWeight.w600,
@@ -169,7 +184,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           color: kPrimaryColor,
                           // borderRadius: BorderRadius.circular(20),
                           image: DecorationImage(
-                            image: getImageProvider(user?.profileImage),
+                            image: getImageProvider(user.profileImage),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -224,7 +239,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   friendController.followFriend(
                                       userService.userId ?? '',
                                       newUserid,
-                                      user?.displayName ?? '',
+                                      user.displayName ?? '',
                                       context);
                                 }
 

@@ -36,9 +36,9 @@ class _PremiumSectionState extends State<PremiumSection> {
 
   Future<void> _getBannerId() async {
     if (Platform.isIOS) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS'] ?? '';
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS_TEST'] ?? '';
     } else if (Platform.isAndroid) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID'] ?? '';
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID_TEST'] ?? '';
     }
     _loadBannerAd();
   }
@@ -136,17 +136,11 @@ class _PremiumSectionState extends State<PremiumSection> {
       children: [
         Text(
           widget.titleOne,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: getTextScale(3, context),
-          ),
+          style: Theme.of(context).textTheme.labelLarge,
         ),
         Text(
           widget.titleTwo,
-          style: TextStyle(
-            fontWeight: FontWeight.w400,
-            fontSize: getTextScale(3, context),
-          ),
+          style: Theme.of(context).textTheme.labelLarge,
         ),
       ],
     );
