@@ -21,7 +21,7 @@ class InspirationScreen extends StatelessWidget {
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: Text(
-          "What's on your plate?",
+          "What's on Your Plate?",
           style: textTheme.displayMedium?.copyWith(),
         ),
       ),

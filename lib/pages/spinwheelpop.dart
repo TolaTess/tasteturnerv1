@@ -336,7 +336,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         toolbarHeight:
             getPercentageHeight(10, context), // Control height with percentage
         title: Text(
-          'Don\'t know what to eat?',
+          'Don\'t Know What to Eat?',
           style: textTheme.displayMedium
         ),
       ),

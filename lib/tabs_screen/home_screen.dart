@@ -552,21 +552,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               '${getRelativeDayString(currentDate)},',
-                              style: textTheme.displayMedium?.copyWith(
-                                fontSize: getPercentageWidth(4.5, context),
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: textTheme.displaySmall
+                                  ?.copyWith(color: kAccent),
                             ),
                             SizedBox(width: getPercentageWidth(0.5, context)),
                             if (getRelativeDayString(currentDate) != 'Today' &&
                                 getRelativeDayString(currentDate) !=
                                     'Yesterday')
                               Text(
-                                DateFormat('d MMMM').format(currentDate),
-                                style: textTheme.displayMedium?.copyWith(
-                                  fontSize: getPercentageWidth(4.5, context),
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                ' ${shortMonthName(currentDate.month)} ${currentDate.day}',
+                                style: textTheme.displaySmall
+                                    ?.copyWith(color: kAccent),
                               ),
                           ],
                         ),

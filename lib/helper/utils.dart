@@ -968,7 +968,7 @@ String getMealTypeSubtitle(String type) {
     case 'snack':
       return 'SK';
     default:
-      return 'Meal';
+      return 'BF';
   }
 }
 
