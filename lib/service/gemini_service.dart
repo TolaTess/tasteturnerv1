@@ -364,7 +364,8 @@ Important:
   Future<Map<String, dynamic>> generateCustomProgram(
       Map<String, dynamic> userAnswers,
       String programType,
-      String dietPreference) async {
+      String dietPreference,
+      {String? additionalContext}) async {
     if (_activeModel == null) {
       final initialized = await initializeModel();
       if (!initialized) {
@@ -377,18 +378,16 @@ Important:
       throw Exception('API key not configured');
     }
 
-    final prompt = '''
+    final prompt =
+        '''
 Generate a personalized fitness and nutrition program based on the following information:
 Program Type: $programType
+Program Context: $additionalContext
 Diet Preference: $dietPreference
 User Answers: ${jsonEncode(userAnswers)}
 
 Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
 {
-  "programId": "unique_string",
-  "type": "program type (balanced, fasting, high protein, low carb)",
-  "name": "Program name",
-  "description": "Brief program description",
   "duration": "4 weeks",
   "weeklyPlans": [
     {

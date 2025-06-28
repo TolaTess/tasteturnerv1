@@ -335,10 +335,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         centerTitle: true,
         toolbarHeight:
             getPercentageHeight(10, context), // Control height with percentage
-        title: Text(
-          'Don\'t Know What to Eat?',
-          style: textTheme.displayMedium
-        ),
+        title: Text('Don\'t Know What to Eat?', style: textTheme.displayMedium),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -373,23 +370,32 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          showIngredientSpin = !showIngredientSpin;
-                          if (!showIngredientSpin) {
-                            // Switched to meal spin, update meal list
-                            _updateMealListByType();
-                          }
-                        });
-                      },
-                      child: Text(
-                        key: _addSwitchButtonKey,
-                        showIngredientSpin
-                            ? 'Switch to Meal Spin'
-                            : 'Switch to Ingredient Spin',
-                        style: textTheme.titleMedium?.copyWith(
-                            color: kAccentLight, fontWeight: FontWeight.w600),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            showIngredientSpin = !showIngredientSpin;
+                            if (!showIngredientSpin) {
+                              // Switched to meal spin, update meal list
+                              _updateMealListByType();
+                            }
+                          });
+                        },
+                        child: Text(
+                          key: _addSwitchButtonKey,
+                          showIngredientSpin
+                              ? 'Switch to Meal - Tinder'
+                              : 'Switch to Ingredient Spin',
+                          style: textTheme.titleMedium?.copyWith(
+                              color: kAccentLight, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                     IconButton(

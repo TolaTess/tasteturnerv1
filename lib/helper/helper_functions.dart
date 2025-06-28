@@ -742,3 +742,11 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
           meal.familyMember.isEmpty)
       .toList();
 }
+
+final colors = [
+  kAccent.withOpacity(kMidOpacity),
+  kBlue.withOpacity(kMidOpacity),
+  kAccentLight.withOpacity(kMidOpacity),
+  kPurple.withOpacity(kMidOpacity),
+  kPink.withOpacity(kMidOpacity)
+];

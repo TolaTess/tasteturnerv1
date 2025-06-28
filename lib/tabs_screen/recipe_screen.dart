@@ -9,7 +9,6 @@ import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
-import '../widgets/ingredient_features.dart';
 import '../screens/recipes_list_category_screen.dart';
 
 class RecipeScreen extends StatefulWidget {

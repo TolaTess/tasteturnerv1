@@ -15,19 +15,49 @@ class ProgramService extends GetxController {
     loadUserPrograms();
   }
 
+  // Fetch all available programs
+  Future<List<Program>> getAllPrograms() async {
+    try {
+      final snapshot = await _firestore.collection('programs').get();
+      return snapshot.docs
+          .map((doc) => Program.fromJson({
+                ...doc.data(),
+                'programId': doc.id,
+              }))
+          .toList();
+    } catch (e) {
+      print('Error loading programs: $e');
+      return [];
+    }
+  }
+
+  // Fetch programs a user is enrolled in
   Future<void> loadUserPrograms() async {
     final userId = userService.userId;
     if (userId == null) return;
 
     try {
-      final snapshot = await _firestore
-          .collection('programs')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
+      // Get all programs
+      final programsSnapshot = await _firestore.collection('programs').get();
+      final allPrograms = programsSnapshot.docs
+          .map((doc) => Program.fromJson({
+                ...doc.data(),
+                'programId': doc.id,
+              }))
+          .toList();
+
+      // Get user's program enrollments
+      final userProgramsSnapshot = await _firestore
+          .collection('programUsers')
+          .where('userIds', arrayContains: userId)
           .get();
 
-      userPrograms.value =
-          snapshot.docs.map((doc) => Program.fromJson(doc.data())).toList();
+      // Filter programs to only those the user is enrolled in
+      final enrolledProgramIds =
+          userProgramsSnapshot.docs.map((doc) => doc.id).toSet();
+      userPrograms.value = allPrograms
+          .where((program) => enrolledProgramIds.contains(program.programId))
+          .toList();
 
       // Set current active program
       currentProgram.value =
@@ -37,6 +67,7 @@ class ProgramService extends GetxController {
     }
   }
 
+  // Create a new program
   Future<Program> createProgram(Map<String, dynamic> programData) async {
     final userId = userService.userId;
     if (userId == null) throw Exception('User not authenticated');
@@ -61,19 +92,22 @@ class ProgramService extends GetxController {
     );
 
     try {
-      // Deactivate current active program if exists
-      if (currentProgram.value != null) {
-        await _firestore
-            .collection('programs')
-            .doc(currentProgram.value!.programId)
-            .update({'isActive': false});
-      }
-
-      // Save new program
+      // Save program
       await _firestore
           .collection('programs')
           .doc(programId)
           .set(program.toJson());
+
+      // Initialize program users collection with options
+      final options = programData['options'] as List<String>? ?? [];
+      final programUsersData = Map.fromEntries(
+        options.map((option) => MapEntry(option, <String>[])),
+      );
+
+      await _firestore
+          .collection('programUsers')
+          .doc(programId)
+          .set(programUsersData);
 
       await loadUserPrograms();
       return program;
@@ -83,6 +117,75 @@ class ProgramService extends GetxController {
     }
   }
 
+  // Join a program with a specific option
+  Future<void> joinProgram(String programId, String option) async {
+    final userId = userService.userId;
+    if (userId == null) throw Exception('User not authenticated');
+
+    try {
+      // Add user to the specific option in programUsers
+      await _firestore.collection('programUsers').doc(programId).update({
+        option: FieldValue.arrayUnion([userId])
+      });
+
+      await loadUserPrograms();
+    } catch (e) {
+      print('Error joining program: $e');
+      throw Exception('Failed to join program');
+    }
+  }
+
+  // Leave a program
+  Future<void> leaveProgram(String programId) async {
+    final userId = userService.userId;
+    if (userId == null) throw Exception('User not authenticated');
+
+    try {
+      // Get the program users document
+      final programUsersDoc =
+          await _firestore.collection('programUsers').doc(programId).get();
+
+      if (programUsersDoc.exists) {
+        final data = programUsersDoc.data() as Map<String, dynamic>;
+
+        // Remove user from all options
+        final batch = _firestore.batch();
+        data.forEach((option, users) {
+          if (users is List && users.contains(userId)) {
+            batch.update(_firestore.collection('programUsers').doc(programId), {
+              option: FieldValue.arrayRemove([userId])
+            });
+          }
+        });
+
+        await batch.commit();
+      }
+
+      await loadUserPrograms();
+    } catch (e) {
+      print('Error leaving program: $e');
+      throw Exception('Failed to leave program');
+    }
+  }
+
+  // Get users in a program by option
+  Future<Map<String, List<String>>> getProgramUsers(String programId) async {
+    try {
+      final doc =
+          await _firestore.collection('programUsers').doc(programId).get();
+
+      if (!doc.exists) return {};
+
+      final data = doc.data() as Map<String, dynamic>;
+      return data
+          .map((key, value) => MapEntry(key, (value as List).cast<String>()));
+    } catch (e) {
+      print('Error getting program users: $e');
+      return {};
+    }
+  }
+
+  // Deactivate a program
   Future<void> deactivateProgram(String programId) async {
     try {
       await _firestore

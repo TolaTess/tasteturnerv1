@@ -47,13 +47,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
-  final colors = [
-    kAccent.withOpacity(kMidOpacity),
-    kBlue.withOpacity(kMidOpacity),
-    kAccentLight.withOpacity(kMidOpacity),
-    kPurple.withOpacity(kMidOpacity),
-    kPink.withOpacity(kMidOpacity)
-  ];
+
 
   @override
   void initState() {

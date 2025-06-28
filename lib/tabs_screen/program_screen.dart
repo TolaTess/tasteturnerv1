@@ -6,13 +6,14 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/program_service.dart';
 import '../widgets/goal_diet_widget.dart';
 import '../widgets/program_card.dart';
-import '../widgets/bottom_nav.dart';
+import '../widgets/card_overlap.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -35,30 +36,8 @@ class _ProgramScreenState extends State<ProgramScreen>
   List<MacroData> _recommendedIngredients = [];
   Meal? _featuredMeal;
   DateTime? _lastPickDate;
+  RxList<Map<String, dynamic>> programTypes = <Map<String, dynamic>>[].obs;
 
-  // Program types
-  final List<Map<String, dynamic>> programTypes = [
-    {
-      'type': 'vitality',
-      'name': 'Vitality',
-      'subtitle': 'Eat like the world\'s\nlongest-living people',
-      'isNew': true,
-      'gradient': [kAccent.withOpacity(0.5), kAccent],
-      'image': 'assets/images/fruit.jpg',
-      'enrolled': true,
-    },
-    {
-      'type': 'weight-loss',
-      'name': '3 Week Weight Loss',
-      'subtitle': '21-day Meal Plan',
-      'isPopular': true,
-      'gradient': [kAccentLight.withOpacity(0.5), kAccentLight],
-      'image': 'assets/images/salad.jpg',
-      'enrolled': false,
-    },
-  ];
-
-  // Add repeating animation controller
   late final AnimationController _rotationController;
 
   @override
@@ -69,18 +48,57 @@ class _ProgramScreenState extends State<ProgramScreen>
       vsync: this,
     );
 
-    // Start the animation and stop after one rotation
     _rotationController.forward().then((_) {
       _rotationController.reset();
     });
 
     _pickDietGoalRecommendationsIfNeeded();
+    _loadProgramTypes();
   }
 
   @override
   void dispose() {
     _rotationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProgramTypes() async {
+    try {
+      final snapshot = await firestore.collection('programs').get();
+      print('snapshot: $snapshot');
+      final types = snapshot.docs.map((doc) {
+        print('doc: $doc');
+        final data = doc.data();
+        return {
+          'type': doc.id,
+          'image': data['image'] ?? '',
+          'name': data['name'] ?? '',
+          'description': data['description'] ?? '',
+          'options': List<String>.from(data['options'] ?? []),
+        };
+      }).toList();
+
+      programTypes.value = types;
+    } catch (e) {
+      print('Error loading program types: $e');
+      // Fallback to default programs if loading fails
+      programTypes.value = [
+        {
+          'type': 'vitality',
+          'name': 'Vitality',
+          'image': 'salad',
+          'description': 'A program focused on longevity and healthy eating',
+          'options': ['beginner', 'intermediate', 'advanced'],
+        },
+        {
+          'type': 'Days Challenge',
+          'name': '7 Days Challenge',
+          'image': 'herbs',
+          'description': 'A program focused on longevity and healthy eating',
+          'options': ['beginner', 'intermediate', 'advanced'],
+        },
+      ];
+    }
   }
 
   void _pickDietGoalRecommendationsIfNeeded({bool force = false}) {
@@ -213,6 +231,11 @@ class _ProgramScreenState extends State<ProgramScreen>
   }
 
   Future<void> _showProgramQuestionnaire(String programType) async {
+    final programData = programTypes.firstWhere(
+      (program) => program['type'] == programType,
+      orElse: () => throw Exception('Program type not found'),
+    );
+
     final questions = [
       'What is your current weight (in kg)?',
       'What is your target weight (in kg)?',
@@ -229,13 +252,18 @@ class _ProgramScreenState extends State<ProgramScreen>
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(
-          'Customize Your $programType Program',
+          'Customize Your ${programData['name']} Program',
           style: textTheme.titleLarge?.copyWith(color: kAccent),
         ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                programData['description'],
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
               for (var question in questions)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -280,12 +308,48 @@ class _ProgramScreenState extends State<ProgramScreen>
     if (answers.length == questions.length) {
       setState(() => isLoading = true);
       try {
-        final programData = await geminiService.generateCustomProgram(
+        // Create a detailed prompt for Gemini
+        final prompt = '''
+Create a personalized fitness and nutrition program with the following details:
+
+Program Type: ${programData['name']}
+Description: ${programData['description']}}
+
+User Profile:
+- Diet Preference: $selectedDiet
+- Fitness Goal: $selectedGoal
+- Current Weight: ${answers['What is your current weight (in kg)?']} kg
+- Target Weight: ${answers['What is your target weight (in kg)?']} kg
+- Preferred Meals/Day: ${answers['How many meals do you prefer per day?']}
+- Food Allergies: ${answers['Do you have any food allergies?']}
+- Exercise Days/Week: ${answers['How many days per week can you exercise?']}
+
+Requirements:
+${programData['requirements'].map((req) => '- $req').join('\n')}
+
+Please provide a structured program including:
+1. Weekly meal plans
+2. Exercise recommendations
+3. Progress tracking metrics
+4. Nutrition guidelines
+5. Weekly goals and milestones
+''';
+
+        final programResponse = await geminiService.generateCustomProgram(
           answers,
           programType,
           selectedDiet,
+          additionalContext: prompt,
         );
-        await _programService.createProgram(programData);
+
+        // Add program type specific data
+        programResponse['type'] = programType;
+        programResponse['name'] = programData['name'];
+        programResponse['description'] = programData['description'];
+        programResponse['duration'] = programData['duration'];
+        programResponse['options'] = programData['options'];
+
+        await _programService.createProgram(programResponse);
         setState(() => isLoading = false);
         Get.snackbar(
           'Success',
@@ -496,7 +560,6 @@ class _ProgramScreenState extends State<ProgramScreen>
                 ),
               ],
               SizedBox(height: getPercentageHeight(2, context)),
-              // Program Cards
               Text(
                 'Customize Your Program',
                 style: textTheme.headlineMedium?.copyWith(
@@ -504,29 +567,109 @@ class _ProgramScreenState extends State<ProgramScreen>
                 ),
               ),
               SizedBox(height: getPercentageHeight(2, context)),
-              SizedBox(
-                height: getPercentageHeight(20, context),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(4, context)),
-                  separatorBuilder: (context, index) =>
-                      SizedBox(width: getPercentageWidth(4, context)),
-                  itemCount: programTypes.length,
-                  itemBuilder: (context, i) {
-                    final program = programTypes[i];
-                    return SizedBox(
-                      width: getPercentageWidth(40, context),
-                      child: ProgramCard(
-                        program: program,
-                        onTap: () => _showProgramQuestionnaire(program['type']),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              Obx(() => SizedBox(
+                    height: getPercentageHeight(25, context),
+                    child: programTypes.isEmpty
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: accent,
+                            ),
+                          )
+                        : OverlappingCardsView(
+                            cardWidth: getPercentageWidth(70, context),
+                            cardHeight: getPercentageHeight(25, context),
+                            overlap: 60,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(4, context),
+                            ),
+                            children: List.generate(
+                              programTypes.length,
+                              (index) => OverlappingCard(
+                                title: programTypes[index]['name'] ?? '',
+                                subtitle:
+                                    programTypes[index]['description'] ?? '',
+                                color: colors[index % colors.length],
+                                imageUrl: programTypes[index]['image'] != null
+                                    ? 'assets/images/${programTypes[index]['image']}.jpg'
+                                    : null,
+                                width: getPercentageWidth(70, context),
+                                height: getPercentageHeight(25, context),
+                                index: index,
+                                onTap: () => _showProgramQuestionnaire(
+                                  programTypes[index]['type'],
+                                ),
+                              ),
+                            ),
+                          ),
+                  )),
               SizedBox(height: getPercentageHeight(3, context)),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgramCard(BuildContext context, String title, String subtitle,
+      String imageName, Color cardColor, int index) {
+    return OverlappingCard(
+      title: title,
+      subtitle: subtitle,
+      color: cardColor,
+      imageUrl: 'assets/images/$imageName.jpg',
+      width: MediaQuery.of(context).size.width * 0.7,
+      height: 180,
+      index: index,
+      onTap: () => _showProgramQuestionnaire(title.toLowerCase()),
+    );
+  }
+
+  Widget _buildProgramList(BuildContext context) {
+    final colors = [
+      kAccent.withOpacity(0.8),
+      kBlue.withOpacity(0.8),
+      kAccentLight.withOpacity(0.8),
+      kPurple.withOpacity(0.8),
+    ];
+
+    final programs = [
+      {
+        'title': 'Vitality',
+        'subtitle': 'Eat like the world\'s longest-living people',
+        'image': 'salad',
+      },
+      {
+        'title': 'Strength',
+        'subtitle': 'Build muscle and strength with proper nutrition',
+        'image': 'meat',
+      },
+      {
+        'title': 'Weight Loss',
+        'subtitle': 'Achieve your ideal weight with balanced meals',
+        'image': 'vegetable',
+      },
+      {
+        'title': 'Energy',
+        'subtitle': 'Boost your daily energy with the right foods',
+        'image': 'fruit',
+      },
+    ];
+
+    return SizedBox(
+      height: 180,
+      child: OverlappingCardsView(
+        overlap: 60,
+        cardWidth: MediaQuery.of(context).size.width * 0.7,
+        cardHeight: 180,
+        children: List.generate(
+          programs.length,
+          (index) => _buildProgramCard(
+            context,
+            programs[index]['title']!,
+            programs[index]['subtitle']!,
+            programs[index]['image']!,
+            colors[index % colors.length],
+            index,
           ),
         ),
       ),

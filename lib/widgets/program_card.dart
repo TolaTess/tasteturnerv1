@@ -23,7 +23,10 @@ class ProgramCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: List<Color>.from(program['gradient']),
+            colors: [
+              kAccentLight.withOpacity(0.8),
+              kAccentLight.withOpacity(0.4),
+            ],
           ),
         ),
         child: ClipRRect(
@@ -38,14 +41,17 @@ class ProgramCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: List<Color>.from(program['gradient']),
+                    colors: [
+                      kAccentLight.withOpacity(0.8),
+                      kAccentLight.withOpacity(0.4),
+                    ],
                   ),
                 ),
               ),
               // Image with opacity overlay
               Positioned.fill(
                 child: Image.asset(
-                  program['image'],
+                  getAssetImageForItem(program['image']),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -76,7 +82,7 @@ class ProgramCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        program['subtitle'],
+                        program['description'],
                         style: textTheme.titleSmall?.copyWith(
                           color: kWhite,
                         ),
