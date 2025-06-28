@@ -544,8 +544,7 @@ class UserDetailsSection extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
-                children: [
+              Stack(children: [
                   Container(
                     height: getProportionalHeight(18, context),
                     decoration: BoxDecoration(

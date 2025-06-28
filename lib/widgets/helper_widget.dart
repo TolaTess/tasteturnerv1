@@ -149,8 +149,7 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                   mainAxisSpacing: 1,
                   crossAxisSpacing: 1,
                 ),
-                padding: EdgeInsets.only(
-                  top: getPercentageHeight(1, context),
+                padding: EdgeInsets.only(   
                   bottom: getPercentageHeight(1, context),
                 ),
                 itemCount: itemCount,

@@ -32,7 +32,7 @@ class SearchButton2 extends StatelessWidget {
             fontSize: getTextScale(3, context)),
         prefixIcon: Icon(Icons.search,
             color: isDarkMode ? kBlack : kWhite,
-            size: getPercentageWidth(3, context)),
+            size: getIconScale(6, context)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

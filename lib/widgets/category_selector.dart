@@ -57,7 +57,9 @@ class CategorySelector extends StatelessWidget {
                 child: Text(
                   category['name'].toLowerCase() == 'all'
                       ? 'General'
-                      : capitalizeFirstLetter(category['name']),
+                      : category['name'].toLowerCase() == 'balanced'
+                          ? 'Balanced'
+                          : capitalizeFirstLetter(category['name']),
                   style: TextStyle(
                     fontSize: getTextScale(3, context),
                     fontWeight: FontWeight.w500,

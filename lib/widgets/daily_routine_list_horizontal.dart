@@ -284,6 +284,22 @@ class _DailyRoutineListHorizontalState
         final item = routineData['item'] as RoutineItem;
         final isCompleted = routineData['isCompleted'] as bool;
 
+        String value = item.value;
+
+        if (item.title.toLowerCase().contains('nutrition') ||
+            item.title.toLowerCase().contains('food')) {
+          value =
+              '${userService.currentUser.value?.settings['foodGoal'] ?? '0'} kcal';
+        }
+        if (item.title.toLowerCase().contains('water')) {
+          value =
+              '${userService.currentUser.value?.settings['waterIntake'] ?? '0'} ml';
+        }
+        if (item.title.toLowerCase().contains('steps')) {
+          value =
+              '${userService.currentUser.value?.settings['targetSteps'] ?? '0'} steps';
+        }
+
         if (!item.isEnabled) return const SizedBox.shrink();
         return GestureDetector(
           onTap: () => controller.toggleCompletion(item.title, isCompleted),
@@ -301,21 +317,33 @@ class _DailyRoutineListHorizontalState
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  item.title,
+                  capitalizeFirstLetter(item.title),
                   style: TextStyle(
                     fontSize: getTextScale(3, context),
                     fontWeight: FontWeight.bold,
-                    color: isDarkMode ? kWhite : kBlack,
+                    color: isDarkMode
+                        ? isCompleted
+                            ? kWhite
+                            : kWhite.withOpacity(0.5)
+                        : isCompleted
+                            ? kBlack
+                            : kBlack.withOpacity(0.5),
                   ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: getPercentageHeight(0.5, context)),
                 Text(
-                  item.value,
+                  value,
                   style: TextStyle(
                     fontSize: getTextScale(3, context),
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    color: isDarkMode
+                        ? isCompleted
+                            ? kWhite
+                            : kWhite.withOpacity(0.5)
+                        : isCompleted
+                            ? kBlack
+                            : kBlack.withOpacity(0.5),
                   ),
                 ),
               ],
@@ -337,6 +365,22 @@ class _DailyRoutineListHorizontalState
           final routineData = routines[index];
           final item = routineData['item'] as RoutineItem;
           final isCompleted = routineData['isCompleted'] as bool;
+
+          String value = item.value;
+
+          if (item.title.toLowerCase().contains('nutrition') ||
+              item.title.toLowerCase().contains('food')) {
+            value =
+                '${userService.currentUser.value?.settings['foodGoal'] ?? '0'} kcal';
+          }
+          if (item.title.toLowerCase().contains('water')) {
+            value =
+                '${userService.currentUser.value?.settings['waterIntake'] ?? '0'} ml';
+          }
+          if (item.title.toLowerCase().contains('steps')) {
+            value =
+                '${userService.currentUser.value?.settings['targetSteps'] ?? '0'} steps';
+          }
 
           if (!item.isEnabled) return const SizedBox.shrink();
           return Padding(
@@ -373,7 +417,7 @@ class _DailyRoutineListHorizontalState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          item.title,
+                          capitalizeFirstLetter(item.title),
                           style: TextStyle(
                             fontSize: getTextScale(3.5, context),
                             fontWeight: FontWeight.w600,
@@ -388,7 +432,7 @@ class _DailyRoutineListHorizontalState
                     ),
                     SizedBox(height: getPercentageHeight(1, context)),
                     Text(
-                      item.value,
+                      value,
                       style: TextStyle(
                         fontSize: getTextScale(4.5, context),
                         fontWeight: FontWeight.bold,

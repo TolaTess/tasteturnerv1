@@ -6,6 +6,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/screens/buddy_screen.dart';
+import 'package:tasteturner/tabs_screen/recipe_screen.dart';
 import 'package:tasteturner/tabs_screen/shopping_tab.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -493,6 +495,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Get.to(
+              () => const TastyScreen(screen: 'message'),
+            );
+          },
+          backgroundColor: kAccentLight,
+          child: CircleAvatar(
+            backgroundColor: kAccentLight,
+            child: Image.asset(
+              'assets/images/tasty/tasty.png',
+              width: getIconScale(5, context),
+              height: getIconScale(5, context),
+            ),
+          ),
+        ),
         body: RefreshIndicator(
           onRefresh: () async {
             await _onRefresh();
@@ -692,12 +710,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         //spin
                         SecondNavWidget(
-                          label: 'Spin',
-                          icon: 'assets/images/svg/spin-outline.svg',
+                          label: 'Recipes',
+                          icon: 'assets/images/svg/book-outline.svg',
                           color: kPurple,
-                          destinationScreen: const BottomNavSec(
-                            selectedIndex: 3,
-                          ),
+                          destinationScreen: RecipeScreen(),
                         ),
                       ],
                     ),
@@ -887,9 +903,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       );
                     },
                   ),
-
-                  // Weekly Ingredients Battle Widget
-                  const WeeklyIngredientBattle(),
 
                   SizedBox(
                     height: getPercentageHeight(6, context),

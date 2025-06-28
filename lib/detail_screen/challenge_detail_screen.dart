@@ -230,7 +230,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => const BottomNavSec(
-                  selectedIndex: 1,
+                  selectedIndex: 2,
                 ),
               ),
             );
@@ -241,9 +241,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
             ),
-            child: const IconCircleButton(
-              isRemoveContainer: true,
-            ),
+            child: const IconCircleButton(),
           ),
         ),
         title: Text(
@@ -288,16 +286,47 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 itemCount: imageUrls.length,
                 itemBuilder: (context, imageIndex) {
                   final imageUrl = imageUrls[imageIndex];
-                  return Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    height: double.infinity,
-                    width: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                      intPlaceholderImage,
-                      fit: BoxFit.cover,
-                      height: double.infinity,
-                      width: double.infinity,
+                  return GestureDetector(
+                    onDoubleTap: () {
+                      toggleLikePost();
+                      // Show heart animation
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.favorite, color: kWhite),
+                              SizedBox(width: 8),
+                              Text(isLiked
+                                  ? 'Added to favorites'
+                                  : 'Removed from favorites'),
+                            ],
+                          ),
+                          backgroundColor: kAccent,
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    },
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        height: double.infinity,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Image.asset(
+                          intPlaceholderImage,
+                          fit: BoxFit.cover,
+                          height: double.infinity,
+                          width: double.infinity,
+                        ),
+                      ),
                     ),
                   );
                 },

@@ -285,78 +285,143 @@ exports.processBattleEnd = functions.pubsub
  * - Listens for writes on 'userMeals/{userId}/meals/{date}'.
  * - Fetches all meals for that specific day.
  * - Sums up the nutritional values (calories, protein, carbs, fat).
- * - Writes the aggregated data to 'userDailyNutrition/{userId}/days/{date}'.
+ * - Writes the aggregated data to 'users/{userId}/daily_summary/{date}'.
  */
 exports.calculateDailyNutrition = functions.firestore
   .document("userMeals/{userId}/meals/{date}")
   .onWrite(async (change, context) => {
     const { userId, date } = context.params;
-    console.log(`Calculating nutrition for user: ${userId} on date: ${date}`);
+    console.log(
+      `--- Function calculateDailyNutrition triggered for user: ${userId} on date: ${date} ---`
+    );
+
+    // If the document is deleted, remove the summary
+    if (!change.after.exists) {
+      const summaryDocRef = firestore
+        .collection("users")
+        .doc(userId)
+        .collection("daily_summary")
+        .doc(date);
+      await summaryDocRef.delete();
+      console.log(
+        `Document at userMeals/.../${date} deleted. Removed summary at: ${summaryDocRef.path}`
+      );
+      return null;
+    }
+
+    const data = change.after.data();
+    // The 'meals' field is a map, not an array. We need to extract the items.
+    const mealsMap = data.meals || {};
+    let allMealItems = [];
+
+    // Check if mealsMap is an object and not empty
+    if (typeof mealsMap === "object" && Object.keys(mealsMap).length > 0) {
+      // It's a map of maps, e.g., { "Add Food": { "0": { meal_data } } }
+      // We iterate over the values of the outer map
+      Object.values(mealsMap).forEach((innerMap) => {
+        // Then iterate over the values of the inner map to get the meal items
+        if (typeof innerMap === "object") {
+          allMealItems.push(...Object.values(innerMap));
+        }
+      });
+    }
+
+    console.log(`Found ${allMealItems.length} total meal items to process.`);
+
+    if (allMealItems.length === 0) {
+      const summaryDocRef = firestore
+        .collection("users")
+        .doc(userId)
+        .collection("daily_summary")
+        .doc(date);
+      await summaryDocRef.delete();
+      console.log(
+        `Meals data is empty or invalid. Deleted daily summary at: ${summaryDocRef.path}`
+      );
+      return null;
+    }
 
     try {
-      const dayMealsRef = firestore
-        .collection("userMeals")
-        .doc(userId)
-        .collection("meals")
-        .doc(date)
-        .collection("items");
-
-      const snapshot = await dayMealsRef.get();
-
-      // If no meals are left for the day, delete the nutrition doc
-      if (snapshot.empty) {
-        await firestore
-          .collection("userDailyNutrition")
-          .doc(userId)
-          .collection("days")
-          .doc(date)
-          .delete();
-        console.log(
-          `No meals for ${date}, deleted daily nutrition document for user ${userId}.`
-        );
-        return null;
-      }
-
-      // Aggregate nutrition data from all meal items for the day
       let totalCalories = 0;
       let totalProtein = 0;
       let totalCarbs = 0;
       let totalFat = 0;
+      const mealTotals = {
+        Breakfast: 0,
+        Lunch: 0,
+        Dinner: 0,
+        Snacks: 0,
+      };
 
-      snapshot.forEach((doc) => {
-        const meal = doc.data();
-        totalCalories += meal.calories || 0;
-        totalProtein += meal.protein || 0;
-        totalCarbs += meal.carbs || 0;
-        totalFat += meal.fat || 0;
-      });
+      // Loop over meal types ("Breakfast", "Add Food", etc.)
+      for (const mealTypeKey in mealsMap) {
+        if (Object.prototype.hasOwnProperty.call(mealsMap, mealTypeKey)) {
+          const innerMap = mealsMap[mealTypeKey];
 
-      // Prepare the data for the daily nutrition document
-      const dailyNutritionData = {
-        totalCalories,
-        totalProtein,
-        totalCarbs,
-        totalFat,
+          if (typeof innerMap === "object" && innerMap !== null) {
+            // Loop over individual food items (e.g., "0", "1")
+            for (const itemKey in innerMap) {
+              if (Object.prototype.hasOwnProperty.call(innerMap, itemKey)) {
+                const item = innerMap[itemKey];
+
+                if (item && typeof item === "object") {
+                  const calories =
+                    typeof item.calories === "number" ? item.calories : 0;
+
+                  // Add to grand totals
+                  totalCalories += calories;
+                  totalProtein +=
+                    typeof item.protein === "number" ? item.protein : 0;
+                  totalCarbs +=
+                    typeof item.carbs === "number" ? item.carbs : 0;
+                  totalFat += typeof item.fat === "number" ? item.fat : 0;
+
+                  // Add to meal-specific totals
+                  if (mealTotals.hasOwnProperty(mealTypeKey)) {
+                    mealTotals[mealTypeKey] += calories;
+                  } else {
+                    // Any non-standard meal type goes into 'Add Food'
+                    if (!mealTotals["Add Food"]) {
+                      mealTotals["Add Food"] = 0;
+                    }
+                    mealTotals["Add Food"] += calories;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const dailySummaryData = {
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fat: totalFat,
+        mealTotals,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       };
 
-      // Write the aggregated data to the user's daily nutrition collection
-      await firestore
-        .collection("userDailyNutrition")
+      const summaryDocRef = firestore
+        .collection("users")
         .doc(userId)
-        .collection("days")
-        .doc(date)
-        .set(dailyNutritionData, { merge: true });
+        .collection("daily_summary")
+        .doc(date);
+
+      await summaryDocRef.set(dailySummaryData, { merge: true });
 
       console.log(
-        `Successfully updated daily nutrition for user ${userId} on ${date}.`
+        `Successfully updated daily summary for user ${userId} on ${date}.`
       );
+      console.log("Updated data:", dailySummaryData);
+      console.log("--- Function calculateDailyNutrition finished ---");
       return null;
     } catch (error) {
       console.error(
         `Error calculating daily nutrition for user ${userId} on ${date}:`,
         error
       );
+      console.error("--- Function calculateDailyNutrition ERRORED ---");
       return null;
     }
   });

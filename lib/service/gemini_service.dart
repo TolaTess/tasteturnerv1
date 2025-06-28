@@ -349,4 +349,99 @@ Important:
       throw Exception('Failed to generate meal: $e');
     }
   }
+
+  Future<Map<String, dynamic>> generateCustomProgram(
+      Map<String, dynamic> userAnswers,
+      String programType,
+      String dietPreference) async {
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        throw Exception('No suitable AI model available');
+      }
+    }
+
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('API key not configured');
+    }
+
+    final prompt = '''
+Generate a personalized fitness and nutrition program based on the following information:
+Program Type: $programType
+Diet Preference: $dietPreference
+User Answers: ${jsonEncode(userAnswers)}
+
+Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+{
+  "programId": "unique_string",
+  "type": "program type (balanced, fasting, high protein, low carb)",
+  "name": "Program name",
+  "description": "Brief program description",
+  "duration": "4 weeks",
+  "weeklyPlans": [
+    {
+      "week": 1,
+      "goals": ["goal1", "goal2"],
+      "mealPlan": {
+        "breakfast": ["meal suggestion 1", "meal suggestion 2"],
+        "lunch": ["meal suggestion 1", "meal suggestion 2"],
+        "dinner": ["meal suggestion 1", "meal suggestion 2"],
+        "snacks": ["snack 1", "snack 2"]
+      },
+      "nutritionGuidelines": {
+        "calories": "target range",
+        "protein": "target range",
+        "carbs": "target range",
+        "fats": "target range"
+      },
+      "tips": ["tip1", "tip2"]
+    }
+  ],
+  "requirements": ["requirement1", "requirement2"],
+  "recommendations": ["recommendation1", "recommendation2"]
+}
+''';
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt}
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 2048,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
+        try {
+          return _extractJsonObject(text);
+        } catch (e) {
+          print('Raw response text: $text');
+          throw Exception('Failed to parse program JSON: $e');
+        }
+      } else {
+        print('AI API Error: ${response.body}');
+        _activeModel = null;
+        throw Exception('Failed to generate program: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('AI API Exception: $e');
+      _activeModel = null;
+      throw Exception('Failed to generate program: $e');
+    }
+  }
 }

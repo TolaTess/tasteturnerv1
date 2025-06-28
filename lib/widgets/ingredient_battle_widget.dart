@@ -330,7 +330,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                   'Log more meals to see your top ingredients!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: getTextScale(3, context),
+                    fontSize: getTextScale(3.5, context),
                     fontStyle: FontStyle.italic,
                     color: kLightGrey,
                   ),

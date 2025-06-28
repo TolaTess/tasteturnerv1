@@ -120,7 +120,11 @@ class _ShoppingTabState extends State<ShoppingTab> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shopping List'),
+        centerTitle: true,
+        title: Text(
+          'Shopping List',
+          style: TextStyle(fontSize: getTextScale(4, context)),
+        ),
       ),
       body: Obx(() {
         final generatedItems = _macroManager.generatedShoppingList;
@@ -454,10 +458,10 @@ class ShoppingListItem extends StatelessWidget {
             padding: EdgeInsets.all(getPercentageWidth(2, context)),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: getPercentageWidth(5, context),
-                  backgroundImage: backgroundImage,
-                ),
+                // CircleAvatar(
+                //   radius: getPercentageWidth(5, context),
+                //   backgroundImage: backgroundImage,
+                // ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 Expanded(
                   child: Column(

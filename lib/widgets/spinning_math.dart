@@ -235,112 +235,27 @@ class PieChart extends StatefulWidget {
 }
 
 class _PieChartState extends State<PieChart> {
-  Map<String, ui.Image> loadedImages = {};
-  bool isLoading = true;
+  bool isLoading = false;
   List<String> currentLabels = [];
 
   @override
   void initState() {
     super.initState();
     currentLabels = widget.labels;
-    _loadImages();
   }
 
   @override
   void didUpdateWidget(PieChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if we need to load any missing images
-    bool needsUpdate = false;
-    for (String label in widget.labels) {
-      if (!loadedImages.containsKey(label)) {
-        needsUpdate = true;
-        break;
-      }
-    }
-
-    if (needsUpdate) {
+    if (widget.labels != currentLabels) {
       currentLabels = widget.labels;
-      _loadImages();
-    } else {
-      widget.onImagesLoaded();
+      setState(() {});
     }
-  }
-
-  Future<void> _loadImages() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      // First, identify which labels need images
-      final List<String> labelsNeedingImages = currentLabels
-          .where((label) => !loadedImages.containsKey(label))
-          .toList();
-
-      if (labelsNeedingImages.isEmpty) {
-        setState(() {
-          isLoading = false;
-        });
-        widget.onImagesLoaded();
-        return;
-      }
-
-      // Create a map of label to image path using the utility function
-      final Map<String, String> labelToImagePath = {};
-      for (String label in labelsNeedingImages) {
-        String imagePath = getRandomAssetImage();
-        labelToImagePath[label] = imagePath;
-      }
-
-      // Load images for each label
-      bool allImagesLoaded = true;
-      for (String label in labelsNeedingImages) {
-        try {
-          String imagePath = labelToImagePath[label]!;
-
-          final ByteData data = await rootBundle.load(imagePath);
-          final Uint8List bytes = data.buffer.asUint8List();
-          final ui.Codec codec = await ui.instantiateImageCodec(bytes);
-          final ui.FrameInfo fi = await codec.getNextFrame();
-          loadedImages[label] = fi.image;
-        } catch (e) {
-          print('Error loading image for label $label: $e');
-          allImagesLoaded = false;
-          continue;
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-        if (allImagesLoaded) {
-          widget.onImagesLoaded();
-        }
-      }
-    } catch (e, stackTrace) {
-      print('Error in _loadImages: $e');
-      print('Stack trace: $stackTrace');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
+    widget.onImagesLoaded();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return noItemTastyWidget(
-        'Loading Spinning Wheel',
-        '',
-        context,
-        false,
-        '',
-      );
-    }
-
     // Ensure data array matches labels length
     final List<double> normalizedData = List.generate(
       currentLabels.length,
@@ -360,7 +275,6 @@ class _PieChartState extends State<PieChart> {
         startAngle,
         widget.textStyle,
         widget.isDarkMode,
-        loadedImages,
         widget.isSpinning,
       ),
       size: Size.fromRadius(widget.radius),
@@ -376,7 +290,6 @@ class _PieChartPainter extends CustomPainter {
   final double startAngle;
   final TextStyle textStyle;
   final bool isDarkMode;
-  final Map<String, ui.Image> loadedImages;
   final bool isSpinning;
 
   _PieChartPainter(
@@ -387,7 +300,6 @@ class _PieChartPainter extends CustomPainter {
     this.startAngle,
     this.textStyle,
     this.isDarkMode,
-    this.loadedImages,
     this.isSpinning,
   );
 
@@ -457,33 +369,28 @@ class _PieChartPainter extends CustomPainter {
         iconBorderPaint,
       );
 
-      // Draw icon if available
+      // Draw number icon instead of image
       final label = labels[i];
-      if (loadedImages.containsKey(label)) {
-        final iconImage = loadedImages[label]!;
-        final iconSize = getPercentageWidth(10, context);
-        final iconRect = Rect.fromCenter(
-          center: Offset(iconX, iconY),
-          width: iconSize,
-          height: iconSize,
-        );
+      final numberText = (i + 1).toString();
+      final numberTextSpan = TextSpan(
+        //update font type
+        text: numberText,
+        style: TextStyle(
+          color: isDarkMode ? kWhite : kBlack,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      final numberTextPainter = TextPainter(
+        text: numberTextSpan,
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      );
+      numberTextPainter.layout();
 
-        // Draw the icon with circular clip
-        canvas.save();
-        canvas.clipPath(Path()
-          ..addOval(Rect.fromCircle(
-            center: Offset(iconX, iconY),
-            radius: iconSize / 2,
-          )));
-        canvas.drawImageRect(
-          iconImage,
-          Rect.fromLTWH(
-              0, 0, iconImage.width.toDouble(), iconImage.height.toDouble()),
-          iconRect,
-          Paint(),
-        );
-        canvas.restore();
-      }
+      final numberTextX = iconX - (numberTextPainter.width / 2);
+      final numberTextY = iconY - (numberTextPainter.height / 2);
+      numberTextPainter.paint(canvas, Offset(numberTextX, numberTextY));
 
       sweepAngle += sweepRad;
     }
@@ -540,6 +447,5 @@ class _PieChartPainter extends CustomPainter {
   bool shouldRepaint(_PieChartPainter old) =>
       old.startAngle != startAngle ||
       old.labels != labels ||
-      old.data != data ||
-      old.loadedImages != loadedImages;
+      old.data != data;
 }

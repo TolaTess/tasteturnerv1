@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/daily_routine_list.dart';
 import '../widgets/icon_widget.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
   final bool isRoutineExpand;
-  const NutritionSettingsPage({super.key, this.isRoutineExpand = false});
+  final bool isHealthExpand;
+  const NutritionSettingsPage({super.key, this.isRoutineExpand = false, this.isHealthExpand = false});
 
   @override
   _NutritionSettingsPageState createState() => _NutritionSettingsPageState();
-}
+} 
 
 class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final _formKey = GlobalKey<FormState>();
@@ -26,10 +28,22 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final TextEditingController dietPerfController = TextEditingController();
   final TextEditingController targetStepsController = TextEditingController();
   final TextEditingController heightController = TextEditingController();
+  List<Map<String, dynamic>> _categoryDatasIngredient = [];
+  String selectedCategory = 'balanced';
+  String selectedCategoryId = '';
+  String selectedDietCategoryId = '';
+  String selectedDietCategoryName = '';
 
   @override
   void initState() {
-    super.initState();
+    super.initState();  
+
+    _categoryDatasIngredient = [...helperController.category];
+
+    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
+      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
+    }
 
     final user = userService.currentUser.value;
     if (user != null) {
@@ -45,6 +59,18 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       dietPerfController.text = settings['dietPreference']?.toString() ?? '';
       targetStepsController.text = settings['targetSteps']?.toString() ?? '';
       heightController.text = settings['height']?.toString() ?? '';
+
+      // Initialize selectedDietCategoryId and Name from user settings if possible
+      final dietPref = settings['dietPreference']?.toString() ?? '';
+      final foundDiet = _categoryDatasIngredient.firstWhere(
+        (cat) => cat['name'].toString().toLowerCase() == dietPref.toLowerCase(),
+        orElse: () => _categoryDatasIngredient.isNotEmpty
+            ? _categoryDatasIngredient[0]
+            : {'id': '', 'name': ''},
+      );
+      selectedDietCategoryId = foundDiet['id'] ?? '';
+      selectedDietCategoryName = foundDiet['name'] ?? '';
+      dietPerfController.text = selectedDietCategoryName;
     }
   }
 
@@ -60,6 +86,14 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     targetStepsController.dispose();
     heightController.dispose();
     super.dispose();
+  }
+
+  void _updateCategoryData(String categoryId, String category) {
+    if (!mounted) return;
+    setState(() {
+      selectedCategoryId = categoryId;
+      selectedCategory = category;
+    });
   }
 
   void _saveSettings() {
@@ -185,6 +219,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               SizedBox(height: getPercentageHeight(1, context)),
               if (!widget.isRoutineExpand)
                 ExpansionTile(
+                  initiallyExpanded: widget.isHealthExpand,
                   title: Text("Health & Fitness",
                       style: TextStyle(fontSize: getTextScale(3.5, context))),
                   collapsedIconColor: kAccent,
@@ -193,29 +228,21 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                   children: [
                     SizedBox(height: getPercentageHeight(1, context)),
-                    SafeTextFormField(
-                      controller: dietPerfController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
-                      keyboardType: TextInputType.text,
-                      decoration: InputDecoration(
-                        labelText: "Diet Preference",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
-                        enabledBorder: outlineInputBorder(20),
-                        focusedBorder: outlineInputBorder(20),
-                        border: outlineInputBorder(20),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return "Please enter your starting weight.";
-                        }
-                        return null;
+                    CategorySelector(
+                      categories: _categoryDatasIngredient,
+                      selectedCategoryId: selectedDietCategoryId,
+                      onCategorySelected: (id, name) {
+                        setState(() {
+                          selectedDietCategoryId = id;
+                          selectedDietCategoryName = name;
+                          dietPerfController.text = name;
+                        });
                       },
+                      isDarkMode: isDarkMode,
+                      accentColor: kAccentLight,
+                      darkModeAccentColor: kDarkModeAccent,
                     ),
-                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: targetStepsController,
                       style: TextStyle(
@@ -238,7 +265,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                         return null;
                       },
                     ),
-                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: fitnessGoalController,
                       style: TextStyle(
@@ -375,9 +402,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               SizedBox(height: getPercentageHeight(1, context)),
 
               DailyRoutineList(
-                  userId: userService.userId ??
-                      userService.userId ??
-                      '',
+                  userId: userService.userId ?? userService.userId ?? '',
                   isRoutineEdit: widget.isRoutineExpand),
 
               if (!widget.isRoutineExpand)

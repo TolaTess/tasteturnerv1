@@ -1,4 +1,3 @@
-import '../helper/helper_functions.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/search_button.dart';
 import 'package:flutter/material.dart';

@@ -15,6 +15,7 @@ import '../service/meal_api_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
 
@@ -719,6 +720,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        centerTitle: true,
         title: Text(
           widget.title,
           style: TextStyle(
@@ -729,158 +731,236 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: getPercentageHeight(2, context)),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: getPercentageHeight(2, context)),
 
-              // Daily Routine Section
-              if (!allDisabled) _buildDailyRoutineCard(context),
+                // Daily Routine Section
+                if (!allDisabled)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Update',
+                        style: TextStyle(
+                          fontSize: getTextScale(4.5, context),
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? kWhite : kBlack,
+                        ),
+                      ),
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NutritionSettingsPage(
+                                isRoutineExpand: true,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Icon(Icons.edit,
+                            color: kAccent, size: getIconScale(4.5, context)),
+                      ),
+                    ],
+                  ),
+                if (!allDisabled)
+                  SizedBox(height: getPercentageHeight(2, context)),
+                if (!allDisabled) _buildDailyRoutineCard(context),
 
-              SizedBox(height: getPercentageHeight(4, context)),
-
-              // Water and Steps Trackers
-              Padding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(3, context)),
-                child: Row(
+                SizedBox(height: getPercentageHeight(2, context)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Expanded(
-                      child: Obx(() {
-                        final settings =
-                            userService.currentUser.value!.settings;
-                        final double waterTotal = double.tryParse(
-                                settings['waterIntake']?.toString() ?? '0') ??
-                            0.0;
-                        final double currentWater =
-                            dailyDataController.currentWater.value;
-                        return _buildGoalTracker(
-                          context: context,
-                          title: 'Water',
-                          currentValue: currentWater,
-                          totalValue: waterTotal,
-                          unit: 'ml',
-                          onAdd: () {
-                            dailyDataController.updateCurrentWater(
-                                userService.userId!, currentWater + 250);
-                          },
-                          onRemove: () {
-                            dailyDataController.updateCurrentWater(
-                                userService.userId!, currentWater - 250);
-                          },
-                          iconColor: kBlue,
-                        );
-                      }),
+                    Text(
+                      'Water',
+                      style: TextStyle(
+                        fontSize: getTextScale(4, context),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    Expanded(
-                      child: Obx(() {
-                        final settings =
-                            userService.currentUser.value!.settings;
-                        final double stepsTotal = double.tryParse(
-                                settings['targetSteps']?.toString() ?? '0') ??
-                            0.0;
-                        final double currentSteps =
-                            dailyDataController.currentSteps.value;
-                        return _buildGoalTracker(
-                          context: context,
-                          title: 'Steps',
-                          currentValue: currentSteps,
-                          totalValue: stepsTotal,
-                          unit: 'steps',
-                          onAdd: () {
-                            dailyDataController.updateCurrentSteps(
-                                userService.userId!, currentSteps + 1000);
-                          },
-                          onRemove: () {
-                            dailyDataController.updateCurrentSteps(
-                                userService.userId!, currentSteps - 1000);
-                          },
-                          iconColor: kPurple,
-                        );
-                      }),
+                    Text(
+                      'Steps',
+                      style: TextStyle(
+                        fontSize: getTextScale(3.5, context),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              SizedBox(height: getPercentageHeight(2, context)),
 
-              // Selected Items List
-              SizedBox(
-                height: MediaQuery.of(context).size.height -
-                    getPercentageHeight(
-                        30, context), // Fixed height for the list area
-                child: Obx(
-                  () => Column(
+                SizedBox(height: getPercentageHeight(3.5, context)),
+
+                // Water and Steps Trackers
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3, context)),
+                  child: Row(
                     children: [
-                      _buildMealCard(
-                        context: context,
-                        mealType: 'Breakfast',
-                        recommendedCalories:
-                            _getRecommendedCalories('Breakfast'),
-                        currentCalories:
-                            dailyDataController.breakfastCalories.value,
-                        meals:
-                            dailyDataController.userMealList['Breakfast'] ?? [],
-                        icon: Icons.emoji_food_beverage_outlined,
-                        onAdd: () {
-                          setState(() {
-                            foodType = 'Breakfast';
-                          });
-                          _showSearchResults(context, 'Breakfast');
-                        },
+                      Expanded(
+                        child: Obx(() {
+                          final settings =
+                              userService.currentUser.value!.settings;
+                          final double waterTotal = double.tryParse(
+                                  settings['waterIntake']?.toString() ?? '0') ??
+                              0.0;
+                          final double currentWater =
+                              dailyDataController.currentWater.value;
+                          return _buildGoalTracker(
+                            context: context,
+                            title: 'Water',
+                            currentValue: currentWater,
+                            totalValue: waterTotal,
+                            unit: 'ml',
+                            onAdd: () {
+                              dailyDataController.updateCurrentWater(
+                                  userService.userId!, currentWater + 250);
+                            },
+                            onRemove: () {
+                              dailyDataController.updateCurrentWater(
+                                  userService.userId!, currentWater - 250);
+                            },
+                            iconColor: kBlue,
+                          );
+                        }),
                       ),
-                      _buildMealCard(
-                        context: context,
-                        mealType: 'Lunch',
-                        recommendedCalories: _getRecommendedCalories('Lunch'),
-                        currentCalories:
-                            dailyDataController.lunchCalories.value,
-                        meals: dailyDataController.userMealList['Lunch'] ?? [],
-                        icon: Icons.lunch_dining_outlined,
-                        onAdd: () {
-                          setState(() {
-                            foodType = 'Lunch';
-                          });
-                          _showSearchResults(context, 'Lunch');
-                        },
-                      ),
-                      _buildMealCard(
-                        context: context,
-                        mealType: 'Dinner',
-                        recommendedCalories: _getRecommendedCalories('Dinner'),
-                        currentCalories:
-                            dailyDataController.dinnerCalories.value,
-                        meals: dailyDataController.userMealList['Dinner'] ?? [],
-                        icon: Icons.dinner_dining_outlined,
-                        onAdd: () {
-                          setState(() {
-                            foodType = 'Dinner';
-                          });
-                          _showSearchResults(context, 'Dinner');
-                        },
-                      ),
-                      _buildMealCard(
-                        context: context,
-                        mealType: 'Snacks',
-                        recommendedCalories: _getRecommendedCalories('Snacks'),
-                        currentCalories:
-                            dailyDataController.snacksCalories.value,
-                        meals: dailyDataController.userMealList['Snacks'] ?? [],
-                        icon: Icons.fastfood_outlined,
-                        onAdd: () {
-                          setState(() {
-                            foodType = 'Snacks';
-                          });
-                          _showSearchResults(context, 'Snacks');
-                        },
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Expanded(
+                        child: Obx(() {
+                          final settings =
+                              userService.currentUser.value!.settings;
+                          final double stepsTotal = double.tryParse(
+                                  settings['targetSteps']?.toString() ?? '0') ??
+                              0.0;
+                          final double currentSteps =
+                              dailyDataController.currentSteps.value;
+                          return _buildGoalTracker(
+                            context: context,
+                            title: 'Steps',
+                            currentValue: currentSteps,
+                            totalValue: stepsTotal,
+                            unit: 'steps',
+                            onAdd: () {
+                              dailyDataController.updateCurrentSteps(
+                                  userService.userId!, currentSteps + 1000);
+                            },
+                            onRemove: () {
+                              dailyDataController.updateCurrentSteps(
+                                  userService.userId!, currentSteps - 1000);
+                            },
+                            iconColor: kPurple,
+                          );
+                        }),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
+                SizedBox(height: getPercentageHeight(2, context)),
+
+                // Weekly Ingredients Battle Widget
+                const WeeklyIngredientBattle(),
+
+                SizedBox(height: getPercentageHeight(2, context)),
+
+                Text(
+                  'Track Your Meals',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                SizedBox(height: getPercentageHeight(1, context)),
+
+                // Selected Items List
+                SizedBox(
+                  height: MediaQuery.of(context).size.height -
+                      getPercentageHeight(
+                          30, context), // Fixed height for the list area
+                  child: Obx(
+                    () => Column(
+                      children: [
+                        _buildMealCard(
+                          context: context,
+                          mealType: 'Breakfast',
+                          recommendedCalories:
+                              _getRecommendedCalories('Breakfast'),
+                          currentCalories:
+                              dailyDataController.breakfastCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Breakfast'] ??
+                                  [],
+                          icon: Icons.emoji_food_beverage_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Breakfast';
+                            });
+                            _showSearchResults(context, 'Breakfast');
+                          },
+                        ),
+                        _buildMealCard(
+                          context: context,
+                          mealType: 'Lunch',
+                          recommendedCalories: _getRecommendedCalories('Lunch'),
+                          currentCalories:
+                              dailyDataController.lunchCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Lunch'] ?? [],
+                          icon: Icons.lunch_dining_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Lunch';
+                            });
+                            _showSearchResults(context, 'Lunch');
+                          },
+                        ),
+                        _buildMealCard(
+                          context: context,
+                          mealType: 'Dinner',
+                          recommendedCalories:
+                              _getRecommendedCalories('Dinner'),
+                          currentCalories:
+                              dailyDataController.dinnerCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Dinner'] ?? [],
+                          icon: Icons.dinner_dining_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Dinner';
+                            });
+                            _showSearchResults(context, 'Dinner');
+                          },
+                        ),
+                        _buildMealCard(
+                          context: context,
+                          mealType: 'Snacks',
+                          recommendedCalories:
+                              _getRecommendedCalories('Snacks'),
+                          currentCalories:
+                              dailyDataController.snacksCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                          icon: Icons.fastfood_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Snacks';
+                            });
+                            _showSearchResults(context, 'Snacks');
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -892,7 +972,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     final settings = userService.currentUser.value!.settings;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: isDarkMode ? kDarkGrey : kWhite,
       elevation: 2,
@@ -901,34 +981,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text(
-                  'Quick Update',
-                  style: TextStyle(
-                    fontSize: getTextScale(4.5, context),
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
-                ),
-                SizedBox(width: getPercentageWidth(2, context)),
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NutritionSettingsPage(
-                          isRoutineExpand: true,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Icon(Icons.edit,
-                      color: kAccent, size: getIconScale(4.5, context)),
-                ),
-              ],
-            ),
             SizedBox(height: getPercentageHeight(1, context)),
             SizedBox(
               height: getPercentageHeight(7, context),
@@ -1032,7 +1084,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       color: Colors.white, size: getIconScale(7, context)),
                 ),
               ),
-              SizedBox(width: getPercentageWidth(2, context)),
+              SizedBox(width: getPercentageWidth(5, context)),
               GestureDetector(
                 onTap: onRemove,
                 child: Container(
@@ -1087,16 +1139,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   }) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(2.5, context),
+          vertical: getPercentageHeight(1, context)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: isDarkMode ? kDarkGrey : kWhite,
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(getPercentageWidth(2, context)),
         child: Row(
           children: [
-            Icon(icon, size: 40, color: kAccent),
-            const SizedBox(width: 16),
+            Icon(icon, size: getIconScale(10, context), color: kAccent),
+            SizedBox(width: getPercentageWidth(2, context)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1104,12 +1158,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   Text(
                     mealType,
                     style: TextStyle(
-                      fontSize: getTextScale(4.5, context),
+                      fontSize: getTextScale(4, context),
                       fontWeight: FontWeight.bold,
                       color: isDarkMode ? kWhite : kBlack,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: getPercentageHeight(0.5, context)),
                   Text(
                     recommendedCalories,
                     style: TextStyle(
@@ -1117,7 +1171,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
-                  if (currentCalories > 0) const SizedBox(height: 4),
+                  if (currentCalories > 0)
+                    SizedBox(height: getPercentageHeight(1, context)),
                   if (currentCalories > 0)
                     Text(
                       'Added: $currentCalories kcal',
@@ -1129,7 +1184,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     ),
                   if (meals.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
+                      padding:
+                          EdgeInsets.only(top: getPercentageHeight(1, context)),
                       child: Text(
                         meals.map((e) => e.name).join(', '),
                         maxLines: 2,
@@ -1147,12 +1203,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             GestureDetector(
               onTap: onAdd,
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.add, color: Colors.grey.shade800, size: 20),
+                child: Icon(Icons.add,
+                    color: Colors.grey.shade800,
+                    size: getIconScale(4, context)),
               ),
             )
           ],

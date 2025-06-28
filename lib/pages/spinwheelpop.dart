@@ -3,12 +3,14 @@ import 'package:audioplayers/audioplayers.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import '../screens/buddy_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/premium_widget.dart';
@@ -327,8 +329,30 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spin Wheel'),
-        leading: const SizedBox.shrink(),
+        backgroundColor: kAccent,
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        toolbarHeight: getPercentageHeight(10, context), // Control height with percentage
+        title: Text(
+          'Don\'t know what to eat?',
+          style: TextStyle(fontSize: getTextScale(6, context)),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Get.to(
+            () => const TastyScreen(screen: 'message'),
+          );
+        },
+        backgroundColor: kAccentLight,
+        child: CircleAvatar(
+          backgroundColor: kAccentLight,
+          child: Image.asset(
+            'assets/images/tasty/tasty.png',
+            width: getIconScale(5, context),
+            height: getIconScale(5, context),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: ConstrainedBox(
@@ -338,6 +362,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           child: IntrinsicHeight(
             child: Column(
               children: [
+                SizedBox(height: getPercentageHeight(2, context)),
+                Text(
+                  'Spin the Wheel',
+                  style: TextStyle(
+                      fontSize: getTextScale(4, context),
+                      fontWeight: FontWeight.w600,
+                      color: kAccent),
+                ),
                 SizedBox(height: getPercentageHeight(1.5, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -359,7 +391,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                             : 'Switch to Ingredient Spin',
                         style: TextStyle(
                           fontSize: getTextScale(4, context),
-                          color: kAccent,
+                          color: kAccentLight,
                         ),
                       ),
                     ),
@@ -474,7 +506,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   onPressed: () {
                     setState(() {
                       showDietCategories = !showDietCategories;
-                      print('Diet categories: $categoryDatatDiet');
                     });
                   },
                 ),

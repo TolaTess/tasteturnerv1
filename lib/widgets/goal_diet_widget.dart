@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
@@ -228,18 +229,28 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                                   child: child,
                                 );
                               },
-                              child: CircleAvatar(
-                                backgroundColor: kAccent.withOpacity(0.3),
-                                radius: getResponsiveBoxSize(context, 30, 30),
-                                child: Text(
-                                  'Spin',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: getTextScale(3, context),
-                                    color: kAccent,
+                              child: Column(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: kAccent.withOpacity(0.3),
+                                    radius: getResponsiveBoxSize(context, 30, 30),
+                                    child: SvgPicture.asset(
+                                      'assets/images/svg/spin.svg',
+                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                      width: getIconScale(7, context),
+                                      height: getIconScale(7, context),
+                                    ),
                                   ),
-                                ),
+                                  SizedBox(height: getPercentageHeight(1, context)),
+                                  Text(
+                                    'Spin',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: getTextScale(3, context),
+                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -249,6 +260,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                   ),
                 ],
               ),
+              SizedBox(height: getPercentageHeight(1, context)),
               if (widget.featuredMeal != null) ...[
                 Text(
                   'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',

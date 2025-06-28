@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../screens/buddy_screen.dart';
@@ -128,68 +129,6 @@ class _BuddyTabState extends State<BuddyTab> {
     }
   }
 
-  Future<void> _checkAndNavigateToGenerate(BuildContext context) async {
-    try {
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-
-      final generations = await firestore
-          .collection('mealPlans')
-          .doc(userService.userId)
-          .collection('buddy')
-          .where('timestamp', isGreaterThanOrEqualTo: startOfMonth)
-          .get();
-
-      if (generations.docs.length >= 5) {
-        if (!mounted) return;
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            backgroundColor:
-                getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-            title: const Text('Generation Limit Reached'),
-            content: const Text(
-              'You have reached your limit of 5 meal plan generations per month. Try again next week!',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ChooseDietScreen(isOnboarding: false),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error checking generation limit: $e');
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('$appNameBuddy tips'),
-          content: const Text('Something went wrong. Please try again later.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
   Widget _buildDefaultView(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -304,7 +243,16 @@ class _BuddyTabState extends State<BuddyTab> {
               if (isPremium || isInFreeTrial)
                 AppButton(
                     text: 'Get Meal Plan',
-                    onPressed: () => _checkAndNavigateToGenerate(context),
+                    onPressed: () async {
+                      final canGenerate =
+                          await checkMealPlanGenerationLimit(context);
+                      if (canGenerate) {
+                        navigateToChooseDiet(context);
+                      } else {
+                        showGenerationLimitDialog(context,
+                            isDarkMode: isDarkMode);
+                      }
+                    },
                     type: AppButtonType.secondary,
                     width: 50)
               else
@@ -385,8 +333,6 @@ class _BuddyTabState extends State<BuddyTab> {
 
             final meals = mealsSnapshot.data ?? [];
 
-            final mostCommonCategory = getMostCommonCategory(meals);
-
             if (meals.isEmpty) {
               return noItemTastyWidget(
                 'No meals available for this generation.',
@@ -402,6 +348,22 @@ class _BuddyTabState extends State<BuddyTab> {
                 children: [
                   SizedBox(height: getPercentageHeight(2, context)),
                   ListTile(
+                    leading: GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                const TastyScreen(screen: 'message')),
+                      ),
+                      child: CircleAvatar(
+                        backgroundColor: kAccentLight.withOpacity(kMidOpacity),
+                        child: Image.asset(
+                          'assets/images/tasty/tasty.png',
+                          width: getIconScale(5, context),
+                          height: getIconScale(5, context),
+                        ),
+                      ),
+                    ),
                     title: GestureDetector(
                       onTap: () => Navigator.push(
                         context,
@@ -412,9 +374,9 @@ class _BuddyTabState extends State<BuddyTab> {
                       child: Text(
                         'Chef $appNameBuddy 👋',
                         style: TextStyle(
-                          color: getDayTypeColor('chef tasty', isDarkMode),
+                          color: kAccentLight,
                           fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(4.8, context),
+                          fontSize: getTextScale(3.5, context),
                         ),
                       ),
                     ),
@@ -425,9 +387,18 @@ class _BuddyTabState extends State<BuddyTab> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () => _checkAndNavigateToGenerate(context),
+                      onPressed: () async {
+                        final canGenerate =
+                            await checkMealPlanGenerationLimit(context);
+                        if (canGenerate) {
+                          navigateToChooseDiet(context);
+                        } else {
+                          showGenerationLimitDialog(context,
+                              isDarkMode: isDarkMode);
+                        }
+                      },
                       child: Text(
-                        'Generate New Plan',
+                        'Generate New Meals',
                         style: TextStyle(
                           color: isDarkMode ? kWhite : kBlack,
                           fontSize: getTextScale(3.5, context),
@@ -438,8 +409,10 @@ class _BuddyTabState extends State<BuddyTab> {
                   SizedBox(height: getPercentageHeight(1, context)),
                   Builder(
                     builder: (context) {
-                      String bio =
-                          getRandomMealTypeBio(mostCommonCategory, diet);
+                      final goal = userService
+                              .currentUser.value?.settings['fitnessGoal'] ??
+                          'Healthy Eating';
+                      String bio = getRandomMealTypeBio(goal, diet);
                       List<String> parts = bio.split(': ');
                       return Column(
                         children: [
@@ -464,84 +437,93 @@ class _BuddyTabState extends State<BuddyTab> {
                     },
                   ),
                   SizedBox(height: getPercentageHeight(2, context)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Column(
-                        children: [
-                          Text(
-                            '${selectedGeneration['nutritionalSummary']['totalCalories']}',
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.bold,
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(4, context),
+                        vertical: getPercentageHeight(1, context)),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: kAccent),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              '${selectedGeneration['nutritionalSummary']['totalCalories']}',
+                              style: TextStyle(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Calories',
-                            style: TextStyle(
-                              fontSize: getTextScale(3, context),
-                              color: Colors.grey,
+                            Text(
+                              'Calories',
+                              style: TextStyle(
+                                fontSize: getTextScale(3, context),
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        children: [
-                          Text(
-                            '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.bold,
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
+                              style: TextStyle(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Protein',
-                            style: TextStyle(
-                              fontSize: getTextScale(3, context),
-                              color: Colors.grey,
+                            Text(
+                              'Protein',
+                              style: TextStyle(
+                                fontSize: getTextScale(3, context),
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        children: [
-                          Text(
-                            '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.bold,
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
+                              style: TextStyle(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Carbs',
-                            style: TextStyle(
-                              fontSize: getTextScale(3, context),
-                              color: Colors.grey,
+                            Text(
+                              'Carbs',
+                              style: TextStyle(
+                                fontSize: getTextScale(3, context),
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        children: [
-                          Text(
-                            '${selectedGeneration['nutritionalSummary']['totalFat']}g',
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.bold,
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${selectedGeneration['nutritionalSummary']['totalFat']}g',
+                              style: TextStyle(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Fat',
-                            style: TextStyle(
-                              fontSize: getTextScale(3, context),
-                              color: Colors.grey,
+                            Text(
+                              'Fat',
+                              style: TextStyle(
+                                fontSize: getTextScale(3, context),
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
+                  SizedBox(height: getPercentageHeight(2, context)),
                   GestureDetector(
                     onTap: () async {
                       final now = DateTime.now();

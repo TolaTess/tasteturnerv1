@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/inspiration_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
+import '../tabs_screen/program_screen.dart';
 import '../themes/theme_provider.dart';
 
 class BottomNavSec extends StatefulWidget {
@@ -38,8 +39,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
 
     final List<Widget> pages = [
       const HomeScreen(),
+      const ProgramScreen(),
       const InspirationScreen(),
-      const RecipeScreen(),
       SpinScreen(),
       MealDesignScreen(initialTabIndex: _currentTabIndex),
     ];
@@ -80,6 +81,23 @@ class _BottomNavSecState extends State<BottomNavSec> {
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
+              'assets/images/svg/book-outline.svg',
+              width: getPercentageWidth(3, context),
+              height: getPercentageHeight(3, context),
+              colorFilter: ColorFilter.mode(
+                  themeProvider.isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kBlack.withOpacity(0.7),
+                  BlendMode.srcIn),
+            ),
+            activeIcon: SvgPicture.asset('assets/images/svg/book.svg',
+                width: getPercentageWidth(3, context),
+                height: getPercentageHeight(3, context),
+                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
+            label: 'Progress',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
               'assets/images/svg/explore-outline.svg',
               width: getPercentageWidth(3, context),
               height: getPercentageHeight(3, context),
@@ -94,23 +112,6 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 height: getPercentageHeight(3, context),
                 colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
             label: 'Explore',
-          ),
-          BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/images/svg/book-outline.svg',
-              width: getPercentageWidth(3, context),
-              height: getPercentageHeight(3, context),
-              colorFilter: ColorFilter.mode(
-                  themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
-                  BlendMode.srcIn),
-            ),
-            activeIcon: SvgPicture.asset('assets/images/svg/book.svg',
-                width: getPercentageWidth(3, context),
-                height: getPercentageHeight(3, context),
-                colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
-            label: 'Recipes',
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(

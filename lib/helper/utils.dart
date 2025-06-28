@@ -242,22 +242,30 @@ String getRandomBio(List<String> type) {
 String getRandomMealTypeBio(String mealType, String diet) {
   if (diet == mealType) {
     final List<String> mealTypeBios = [
-      "Feast Mode: Your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Bite the Day: A ${capitalizeFirstLetter(mealType)} Meal Plan Adventure",
-      "Dish It Up: Your ${capitalizeFirstLetter(mealType)} Meal Plan Masterpiece",
-      "Chow Down Champion: A ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Savor the Win: Your ${capitalizeFirstLetter(mealType)} Meal Plan"
+      "Feast Mode: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Bite the Day: Meals generated for your ${capitalizeFirstLetter(mealType)} Masterpiece",
+      "Dish It Up: Meals generated for your ${capitalizeFirstLetter(mealType)} Adventure",
+      "Chow Down Champion: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Savor the Win: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan"
     ];
     final random = Random();
     return mealTypeBios[random.nextInt(mealTypeBios.length)];
   }
 
+  if (mealType.toLowerCase() == 'lose weight') {
+    mealType = 'weight loss';
+  } else if (mealType.toLowerCase() == 'gain muscle') {
+    mealType = 'muscle gain';
+  } else if (mealType.toLowerCase() == 'healthy eating') {
+    mealType = 'healthy eating';
+  }
+
   final List<String> mealTypeBios = [
-    "Feast Mode: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Meal Plan",
-    "Bite the Day: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Adventure",
-    "Dish It Up: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Masterpiece",
-    "Chow Down Champion: A ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan",
-    "Savor the Win: Your ${capitalizeFirstLetter(diet)} ${capitalizeFirstLetter(mealType)} Plan"
+    "Feast Mode: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Meal Plan",
+    "Bite the Day: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Adventure",
+    "Dish It Up: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Masterpiece",
+    "Calorie Champion: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Plan",
+    "Savor the Win: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Plan"
   ];
   final random = Random();
   return mealTypeBios[random.nextInt(mealTypeBios.length)];
@@ -904,7 +912,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'regular day':
       return Colors.grey.withOpacity(0.7);
     default:
-      return isDarkMode ? kWhite : kBlack;
+      return kLightGrey;
   }
 }
 

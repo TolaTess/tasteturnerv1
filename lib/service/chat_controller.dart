@@ -203,6 +203,35 @@ class ChatController extends GetxController {
     }
   }
 
+  /// Save a message to Firestore for any chatId (for use in buddy_screen, program_screen, etc)
+  static Future<void> saveMessageToFirestore({
+    required String chatId,
+    required String content,
+    required String senderId,
+    List<String>? imageUrls,
+  }) async {
+    final messageRef =
+        firestore.collection('chats').doc(chatId).collection('messages').doc();
+    final timestamp = FieldValue.serverTimestamp();
+    await firestore.runTransaction((transaction) async {
+      transaction.set(messageRef, {
+        'messageContent': content,
+        'senderId': senderId,
+        'timestamp': timestamp,
+        'imageUrls': imageUrls ?? [],
+      });
+      // Update chat summary (last message and time)
+      transaction.update(
+        firestore.collection('chats').doc(chatId),
+        {
+          'lastMessage': content,
+          'lastMessageTime': timestamp,
+          'lastMessageSender': senderId,
+        },
+      );
+    });
+  }
+
   // Accept calendar share request
   Future<void> acceptCalendarShare(String messageId) async {
     try {

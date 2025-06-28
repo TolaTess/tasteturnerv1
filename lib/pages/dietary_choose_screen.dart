@@ -16,11 +16,13 @@ class ChooseDietScreen extends StatefulWidget {
     super.key,
     this.isOnboarding = false,
     this.onPreferencesSelected,
+    this.isDontShowPicker = false,
   });
 
   final bool isOnboarding;
   final Function(String diet, Set<String> allergies, String cuisineType)?
       onPreferencesSelected;
+  final bool isDontShowPicker;
 
   @override
   State<ChooseDietScreen> createState() => _ChooseDietScreenState();
@@ -29,6 +31,7 @@ class ChooseDietScreen extends StatefulWidget {
 class _ChooseDietScreenState extends State<ChooseDietScreen> {
   String selectedDiet = 'None';
   Set<String> selectedAllergies = {};
+  String goal = 'Healthy Eating';
   int proteinDishes = 2;
   int grainDishes = 2;
   int vegDishes = 3;
@@ -40,6 +43,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   @override
   void initState() {
     super.initState();
+    goal = userService.currentUser.value?.settings['fitnessGoal'] ??
+        'Healthy Eating';
     cuisineTypes = helperController.headers;
     dietTypes = helperController.category;
     if (!widget.isOnboarding) {
@@ -107,6 +112,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
                 ),
               ),
+              Text(
+                'Fitness Goal: $goal',
+                style: TextStyle(
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                ),
+              ),
             ],
           ),
           actions: [
@@ -128,7 +140,11 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
               ),
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                _showMealPlanOptionsDialog(); // Show meal plan options directly
+                if (widget.isDontShowPicker) {
+                  _generateMealPlan();
+                } else {
+                  _showMealPlanOptionsDialog(); // Show meal plan options directly
+                }
               },
               child: const Text(
                 'Generate Plan',
@@ -535,6 +551,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   }
 
   Future<bool> _fetchUserPreferences(String userId) async {
+    final mainDiet =
+        userService.currentUser.value?.settings['dietPreference'] ?? '';
     final docRef = firestore.collection('users').doc(userId);
     final doc = await docRef.get();
 
@@ -544,7 +562,11 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
       if (preferences != null) {
         setState(() {
-          selectedDiet = preferences['diet'] as String? ?? '';
+          if (mainDiet != '') {
+            selectedDiet = mainDiet;
+          } else {
+            selectedDiet = preferences['diet'] as String? ?? '';
+          }
           // Convert List<dynamic> to Set<String>
           final allergiesList =
               preferences['allergies'] as List<dynamic>? ?? [];
@@ -560,10 +582,25 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return false; // Return false if no preferences found
   }
 
+  String calculateRecommendedGoals(String goal) {
+    final userCalories =
+        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
+
+    if (goal == 'Healthy Eating') {
+      return userCalories.toString();
+    } else if (goal == 'Lose Weight') {
+      return 1500 > userCalories ? '1500' : userCalories.toString();
+    } else if (goal == 'Gain Muscle') {
+      return 2500 < userCalories ? '2500' : userCalories.toString();
+    } else {
+      return userCalories.toString(); // Default to user's calories
+    }
+  }
+
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;
-    final dailyCalorieGoal =
-        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
+    final fitnessGoal = goal;
+    final dailyCalorieGoal = calculateRecommendedGoals(fitnessGoal);
     final allergies = selectedAllergies.isEmpty
         ? ['No allergies']
         : selectedAllergies.toList();
@@ -573,6 +610,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 Generate a ${selectedCuisine} cuisine meal plan considering:
 Daily calorie goal: $dailyCalorieGoal
 Dietary preference: $dietPreference
+Fitness goal: $fitnessGoal
 Allergies to avoid: ${allergies.join(', ')}
 Include:
 - $proteinDishes protein dishes

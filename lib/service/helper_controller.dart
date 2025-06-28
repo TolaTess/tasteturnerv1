@@ -59,7 +59,7 @@ class HelperController extends GetxController {
     }
   }
 
-   Future<void> fetchKidsCategory() async {
+  Future<void> fetchKidsCategory() async {
     try {
       final snapshot = await firestore.collection('kidsfilter').get();
       if (snapshot.docs.isEmpty) {
@@ -86,7 +86,7 @@ class HelperController extends GetxController {
       print('Error fetching kids category: $e');
       kidsCategory.value = [];
     }
-  } 
+  }
 
   Future<void> fetchHeaders() async {
     try {
@@ -121,6 +121,7 @@ class HelperController extends GetxController {
     try {
       final snapshot = await firestore.collection('macros').get();
       if (snapshot.docs.isEmpty) {
+        print('No macros documents found');
         macros.value = [];
         return;
       }
@@ -129,10 +130,28 @@ class HelperController extends GetxController {
           .map((doc) {
             try {
               final data = doc.data();
-              return {
+
+              final categories = data['categories'];
+              List<dynamic> categoriesList = [];
+
+              if (categories != null) {
+                if (categories is List) {
+                  categoriesList = categories;
+                } else if (categories is String) {
+                  categoriesList = [categories];
+                }
+              }
+
+              final result = {
                 'id': doc.id,
                 'name': data['name'] as String? ?? '',
+                'category': data['category'] as String? ?? '',
+                'categories': categoriesList,
+                'description': data['description'] as String? ?? '',
+                'createdAt': data['createdAt'],
+                'updatedAt': data['updatedAt'],
               };
+              return result;
             } catch (e) {
               print('Error parsing macro data: $e');
               return null;

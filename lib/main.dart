@@ -25,6 +25,7 @@ import 'service/battle_service.dart';
 import 'service/user_service.dart';
 import 'data_models/message_screen_data.dart';
 import 'data_models/profilescreen_data.dart';
+import 'service/macro_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +61,7 @@ void main() async {
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => BadgeController());
   Get.lazyPut(() => FriendController());
+  Get.lazyPut(() => MacroManager());
   Get.put(UserService(), permanent: true);
 
   // Any other non-UI async setup

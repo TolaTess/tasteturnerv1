@@ -131,7 +131,6 @@ class _TastyScreenState extends State<TastyScreen> {
         'lastMessageSender': messages.last.senderId,
       });
 
-      print("Chat summary saved.");
     } catch (e) {
       print("Failed to save chat summary: $e");
     }
@@ -693,7 +692,6 @@ Greet the user warmly and offer guidance based on:
     if (!(isPremium || isInFreeTrial)) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
-      print('chatId: $chatId');
       // Existing chat - just listen to messages and mark as read
       chatController.chatId = chatId!;
       chatController.listenToMessages();

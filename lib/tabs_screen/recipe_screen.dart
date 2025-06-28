@@ -1,21 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:tasteturner/detail_screen/recipe_detail.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
-import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
-import '../widgets/category_selector.dart';
-import '../widgets/circle_image.dart';
-import '../widgets/ingredient_features.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
+import '../widgets/ingredient_features.dart';
 import '../screens/recipes_list_category_screen.dart';
-import '../widgets/goal_diet_widget.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
@@ -35,16 +30,17 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
-  bool _isLoadingDietGoal = false;
-  List<MacroData> _recommendedIngredients = [];
-  Meal? _featuredMeal;
-  DateTime? _lastPickDate;
 
   @override
   void initState() {
     super.initState();
 
     _categoryDatasIngredient = [...helperController.macros];
+    print(
+        'Total items in _categoryDatasIngredient: ${_categoryDatasIngredient.length}');
+    print(
+        'Techniques found: ${_categoryDatasIngredient.where((item) => item['category'] == 'technique').length}');
+
     final generalCategory = {
       'id': 'general',
       'name': 'General',
@@ -64,7 +60,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
         mealList.where((meal) => meal.userId == userService.userId).toList();
 
     _fetchFavouriteMeals();
-    _pickDietGoalRecommendationsIfNeeded();
   }
 
   @override
@@ -99,135 +94,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
     });
   }
 
-  void _pickDietGoalRecommendationsIfNeeded({bool force = false}) {
-    final now = DateTime.now();
-    if (!force && _recommendedIngredients.isNotEmpty && _lastPickDate != null) {
-      final daysSince = now.difference(_lastPickDate!).inDays;
-      if (daysSince < 7) return;
-    }
-    _pickDietGoalRecommendations();
-  }
-
-  void _pickDietGoalRecommendations() {
-    setState(() {
-      _isLoadingDietGoal = true;
-    });
-    Future.delayed(Duration.zero, () {
-      final user = userService.currentUser.value;
-      final String userDiet =
-          user?.settings['dietPreference']?.toString() ?? 'Balanced';
-      final String userGoal =
-          user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
-      final allIngredients = macroManager.ingredient;
-      final allMeals = mealManager.meals;
-      List<MacroData> filteredIngredients = [];
-      List<Meal> filteredMeals = [];
-
-      // Logic for filtering based on user diet and goal
-      // 1. Filter for items that match the user's diet (category match is required)
-      final dietCategory = userDiet.toLowerCase();
-      List<MacroData> dietIngredients = allIngredients
-          .where((i) =>
-              i.categories.any((c) => c.toLowerCase().contains(dietCategory)))
-          .toList();
-      List<Meal> dietMeals = allMeals
-          .where((m) =>
-              m.categories.any((c) => c.toLowerCase().contains(dietCategory)))
-          .toList();
-
-      // 2. Among those, prefer items that also match the user's goal
-      List<MacroData> preferredIngredients = [];
-      List<Meal> preferredMeals = [];
-      if (userGoal.toLowerCase().contains('weightloss') ||
-          userGoal.toLowerCase().contains('lose weight') ||
-          userGoal.toLowerCase().contains('weight loss')) {
-        preferredIngredients = dietIngredients.where((i) {
-          final matchesGoal = i.categories.any((c) =>
-              c.toLowerCase().contains('weightloss') ||
-              c.toLowerCase().contains('weight loss') ||
-              c.toLowerCase().contains('low calorie') ||
-              c.toLowerCase().contains('lowcalorie') ||
-              c.toLowerCase().contains('diet') ||
-              c.toLowerCase().contains('slimming'));
-          final carbsStr = i.macros['carbs']?.toString() ?? '';
-          final carbs = double.tryParse(carbsStr);
-          final isLowCarb = carbs != null ? carbs < 10 : false;
-          return matchesGoal && isLowCarb;
-        }).toList();
-        preferredMeals = dietMeals
-            .where((m) => m.categories.any((c) =>
-                c.toLowerCase().contains('weightloss') ||
-                c.toLowerCase().contains('weight loss') ||
-                c.toLowerCase().contains('low calorie') ||
-                c.toLowerCase().contains('lowcalorie') ||
-                c.toLowerCase().contains('diet') ||
-                c.toLowerCase().contains('slimming')))
-            .toList();
-      } else if (userGoal.toLowerCase().contains('weightgain') ||
-          userGoal.toLowerCase().contains('muscle gain') ||
-          userGoal.contains('weight gain')) {
-        preferredIngredients = dietIngredients.where((i) {
-          final matchesGoal = i.categories.any((c) =>
-              c.toLowerCase().contains('weightgain') ||
-              c.toLowerCase().contains('weight gain') ||
-              c.toLowerCase().contains('high calorie') ||
-              c.toLowerCase().contains('muscle gain') ||
-              c.toLowerCase().contains('bulking') ||
-              c.toLowerCase().contains('mass gain'));
-          final proteinStr = i.macros['protein']?.toString() ?? '';
-          final protein = double.tryParse(proteinStr);
-          final isHighProtein = protein != null ? protein > 10 : false;
-          return matchesGoal && isHighProtein;
-        }).toList();
-        preferredMeals = dietMeals
-            .where((m) => m.categories.any((c) =>
-                c.toLowerCase().contains('weightgain') ||
-                c.toLowerCase().contains('weight gain') ||
-                c.toLowerCase().contains('high calorie') ||
-                c.toLowerCase().contains('muscle gain') ||
-                c.toLowerCase().contains('bulking') ||
-                c.toLowerCase().contains('mass gain')))
-            .toList();
-      } else {
-        preferredIngredients = dietIngredients;
-        preferredMeals = dietMeals;
-      }
-
-      // 3. If not enough preferred, fill from diet-matching only
-      filteredIngredients = [...preferredIngredients];
-      if (filteredIngredients.length < 3) {
-        final extra = dietIngredients
-            .where((i) => !filteredIngredients.contains(i))
-            .toList();
-        filteredIngredients.addAll(extra);
-      }
-      filteredMeals = [...preferredMeals];
-      if (filteredMeals.isEmpty) {
-        final extra =
-            dietMeals.where((m) => !filteredMeals.contains(m)).toList();
-        filteredMeals.addAll(extra);
-      }
-
-      // 4. Fallbacks if still not enough
-      if (filteredIngredients.length < 3) {
-        filteredIngredients = allIngredients;
-      }
-      if (filteredMeals.isEmpty) {
-        filteredMeals = allMeals;
-      }
-
-      filteredIngredients.shuffle();
-      filteredMeals.shuffle();
-
-      setState(() {
-        _recommendedIngredients = filteredIngredients.take(3).toList();
-        _featuredMeal = filteredMeals.isNotEmpty ? filteredMeals.first : null;
-        _lastPickDate = DateTime.now();
-        _isLoadingDietGoal = false;
-      });
-    });
-  }
-
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
@@ -237,16 +103,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final user = userService.currentUser.value;
-    final String userDiet =
-        user?.settings['dietPreference']?.toString() ?? 'Balanced';
-    final String userGoal =
-        user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recipes'),
-        leading: const SizedBox.shrink(),
+        centerTitle: true,
+        title: Text(
+          'Recipes',
+          style: TextStyle(fontSize: getTextScale(4, context)),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -254,46 +118,154 @@ class _RecipeScreenState extends State<RecipeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: getPercentageHeight(1, context)),
-              _isLoadingDietGoal
-                  ? Center(
-                      child: Padding(
-                      padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                      child: const CircularProgressIndicator(
-                        color: kAccent,
-                      ),
-                    ))
-                  : GoalDietWidget(
-                      diet: userDiet,
-                      goal: userGoal,
-                      topIngredients: _recommendedIngredients,
-                      featuredMeal: _featuredMeal,
-                      onIngredientTap: (ingredient) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => IngredientDetailsScreen(
-                              item: ingredient,
-                              ingredientItems: fullLabelsList,
-                            ),
+
+              // Cooking Techniques Section
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(5, context),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${userService.currentUser.value?.settings['dietPreference']} Cooking Techniques',
+                          style: TextStyle(
+                            fontSize: getTextScale(3.5, context),
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? kWhite : kDarkGrey,
                           ),
-                        );
-                      },
-                      onMealTap: (meal) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RecipeDetailScreen(
-                              mealData: meal,
-                              screen: 'recipe',
-                            ),
-                          ),
-                        );
-                      },
-                      onRefresh: _isLoadingDietGoal
-                          ? null
-                          : () =>
-                              _pickDietGoalRecommendationsIfNeeded(force: true),
+                        ),
+                      ],
                     ),
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.0,
+                        crossAxisSpacing: getPercentageWidth(3, context),
+                        mainAxisSpacing: getPercentageHeight(2, context),
+                      ),
+                      itemCount: _categoryDatasIngredient
+                          .where((item) {
+                            final categories =
+                                item['categories'] as List<dynamic>? ?? [];
+                            final userDietPreference = userService.currentUser
+                                    .value?.settings['dietPreference']
+                                    ?.toString()
+                                    .toLowerCase() ??
+                                '';
+                            return userDietPreference.isEmpty ||
+                                categories.any((cat) =>
+                                    cat.toString().toLowerCase() ==
+                                    userDietPreference);
+                          })
+                          .take(4)
+                          .length,
+                      itemBuilder: (context, index) {
+                        final filteredItems = _categoryDatasIngredient
+                            .where((item) {
+                              final categories =
+                                  item['categories'] as List<dynamic>? ?? [];
+                              final userDietPreference = userService.currentUser
+                                      .value?.settings['dietPreference']
+                                      ?.toString()
+                                      .toLowerCase() ??
+                                  '';
+                              return userDietPreference.isEmpty ||
+                                  categories.any((cat) =>
+                                      cat.toString().toLowerCase() ==
+                                      userDietPreference);
+                            })
+                            .take(4)
+                            .toList();
+                        final technique = filteredItems[index];
+
+                        return Card(
+                          elevation: 2,
+                          color: isDarkMode ? kDarkGrey : kWhite,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text(technique['name'] ?? ''),
+                                  content: Text(technique['description'] ??
+                                      'No description available'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Circular background for illustration
+                                  Container(
+                                    width: getPercentageWidth(20, context),
+                                    height: getPercentageWidth(20, context),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: kAccentLight.withOpacity(0.2),
+                                    ),
+                                    child: Icon(
+                                      _getTechniqueIcon(
+                                          technique['name'] ?? ''),
+                                      color: kAccent,
+                                      size: getPercentageWidth(10, context),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      height: getPercentageHeight(1, context)),
+                                  // Technique name
+                                  Text(
+                                    (technique['name'] ?? '').toUpperCase(),
+                                    style: TextStyle(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: getTextScale(2.2, context),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
+                                  // Description
+                                  Text(
+                                    technique['description'] ??
+                                        'No description available',
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: getTextScale(1.8, context),
+                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
               SizedBox(height: getPercentageHeight(2, context)),
 
               // ------------------------------------Premium / Ads------------------------------------
@@ -367,6 +339,25 @@ class _RecipeScreenState extends State<RecipeScreen> {
         ),
       ),
     );
+  }
+
+  IconData _getTechniqueIcon(String technique) {
+    switch (technique.toLowerCase()) {
+      case 'grilling':
+        return Icons.outdoor_grill;
+      case 'steaming':
+        return Icons.whatshot;
+      case 'baking':
+        return Icons.cake;
+      case 'frying':
+        return Icons.restaurant;
+      case 'boiling':
+        return Icons.water;
+      case 'roasting':
+        return Icons.local_fire_department;
+      default:
+        return Icons.restaurant_menu;
+    }
   }
 }
 

@@ -164,7 +164,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Challenge'),
+        centerTitle: true,
+        title: Text(
+          'Challenge',
+          style: TextStyle(fontSize: getTextScale(4, context)),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
@@ -583,22 +587,6 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
-                if (_isLoadingParticipants)
-                  const Center(child: CircularProgressIndicator(color: kAccent))
-                else if (participants.isNotEmpty)
-                  _buildChallengersSection(context, isDarkMode)
-                else
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: noItemTastyWidget(
-                      "No Challengers Yet",
-                      "Be the first to join the battle!",
-                      context,
-                      false,
-                      '',
-                    ),
-                  ),
-
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
@@ -626,6 +614,24 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                     : SizedBox(
                         height: getPercentageHeight(1.5, context),
                       ),
+
+                SizedBox(
+                  height: getPercentageHeight(1, context),
+                ),
+
+                if (participants.isNotEmpty)
+                  _buildChallengersSection(context, isDarkMode)
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: noItemTastyWidget(
+                      "No Challengers Yet",
+                      "Be the first to join the battle!",
+                      context,
+                      false,
+                      '',
+                    ),
+                  ),
 
                 SizedBox(
                   height: getPercentageHeight(7, context),

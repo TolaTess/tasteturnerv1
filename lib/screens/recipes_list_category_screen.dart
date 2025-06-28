@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tasteturner/pages/edit_goal.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
@@ -9,6 +10,9 @@ import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
 import 'search_results_screen.dart';
+import '../data_models/meal_model.dart';
+import '../pages/recipe_card_flex.dart';
+import '../detail_screen/recipe_detail.dart';
 
 class RecipeListCategory extends StatefulWidget {
   final String searchIngredient;
@@ -50,25 +54,14 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = '';
   List<String> selectedMealIds = [];
-  List<Map<String, dynamic>> _categoryDatasIngredient = [];
   String selectedCategory = 'general';
   String selectedCategoryId = '';
-
+  String selectedDietFilter = '';
   @override
   void initState() {
     super.initState();
     _onRefresh();
     _searchController.text = widget.searchIngredient;
-    if (userService.currentUser.value?.familyMode ?? false) {
-      _categoryDatasIngredient = [...helperController.kidsCategory];
-    } else {
-      _categoryDatasIngredient = [...helperController.category];
-    }
-
-    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
-    }
   }
 
   Future<void> _onRefresh() async {
@@ -88,14 +81,6 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       } else {
         selectedMealIds.add(mealId);
       }
-    });
-  }
-
-  void _updateCategoryData(String categoryId, String category) {
-    if (!mounted) return;
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedCategory = category;
     });
   }
 
@@ -175,6 +160,31 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(
+          'Meals',
+          style: TextStyle(fontSize: getTextScale(4, context)),
+        ),
+        actions: [
+          // Add new recipe button
+          InkWell(
+            onTap: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateRecipeScreen(
+                  screenType: 'list',
+                ),
+              ),
+            ),
+            child: const IconCircleButton(
+              icon: Icons.add,
+              isRemoveContainer: false,
+            ),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+        ],
+      ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -188,57 +198,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   children: [
                     SizedBox(height: getPercentageHeight(2, context)),
 
-                    // Home app bar
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(0.5, context)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Back arrow
-                          InkWell(
-                            onTap: () {
-                              if (widget.isBack ||
-                                  widget.isBackToMealPlan == true) {
-                                Get.back();
-                              } else {
-                                Get.to(() => const BottomNavSec(
-                                      selectedIndex: 1,
-                                      foodScreenTabIndex: 1,
-                                    ));
-                              }
-                            },
-                            child: IconCircleButton(),
-                          ),
-
-                          Text(
-                            'Meals',
-                            style: TextStyle(
-                                fontSize: getTextScale(4, context),
-                                fontWeight: FontWeight.w700),
-                          ),
-                          // Add new recipe button
-                          InkWell(
-                            onTap: () => Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const CreateRecipeScreen(
-                                  screenType: 'list',
-                                ),
-                              ),
-                            ),
-                            child: const IconCircleButton(
-                              icon: Icons.add,
-                              isRemoveContainer: false,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     widget.isFilter
                         ? const SizedBox.shrink()
                         : SizedBox(height: getPercentageHeight(2, context)),
-
                     // Search bar
                     widget.isFilter
                         ? const SizedBox.shrink()
@@ -255,25 +217,147 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                         ? const SizedBox.shrink()
                         : SizedBox(height: getPercentageHeight(2, context)),
 
-                    // Category selector
-                    widget.isFilter
-                        ? const SizedBox.shrink()
-                        : CategorySelector(
-                            categories: _categoryDatasIngredient,
-                            selectedCategoryId: selectedCategoryId,
-                            onCategorySelected: _updateCategoryData,
-                            isDarkMode: isDarkMode,
-                            accentColor: kAccentLight,
-                            darkModeAccentColor: kDarkModeAccent,
+                    // Curated dietPreference meals section
+                    Obx(() {
+                      final dietPreference =
+                          userService.currentUser.value?.settings['dietPreference'];
+                    if (dietPreference != null && !widget.isFilter) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Curated $dietPreference Meals',
+                                style: TextStyle(
+                                    fontSize: getTextScale(4, context),
+                                    fontWeight: FontWeight.w600,
+                                    color: kAccent),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const NutritionSettingsPage(
+                                              isHealthExpand: true),
+                                    ),
+                                  );
+                                },
+                                icon: Icon(
+                                  Icons.edit,
+                                  size: getIconScale(5, context),
+                                  color: kAccent,
+                                ),
+                              ),
+                            ],
                           ),
-                    SizedBox(height: getPercentageHeight(2, context)),
+                          SizedBox(height: getPercentageHeight(2, context)),
+                          FutureBuilder<List<Meal>>(
+                            future: mealManager.fetchMealsByCategory(
+                              dietPreference.toString().toLowerCase(),
+                            ),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox(
+                                  height: getPercentageHeight(18, context),
+                                  child: Center(
+                                      child: CircularProgressIndicator()),
+                                );
+                              }
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return SizedBox(
+                                  height: getPercentageHeight(6, context),
+                                  child: Center(
+                                      child: Text(
+                                          'No meals found for your diet preference.')),
+                                );
+                              }
+                              final meals = snapshot.data!;
+                              return SizedBox(
+                                height: getPercentageHeight(18, context),
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: meals.length,
+                                  separatorBuilder: (context, idx) => SizedBox(
+                                      width: getPercentageWidth(2, context)),
+                                  itemBuilder: (context, idx) {
+                                    final meal = meals[idx];
+                                    return SizedBox(
+                                      width: getPercentageWidth(45, context),
+                                      child: RecipeCardFlex(
+                                        recipe: meal,
+                                        press: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  RecipeDetailScreen(
+                                                mealData: meal,
+                                                screen: 'recipe',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        height:
+                                            getPercentageHeight(16, context),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                          SizedBox(height: getPercentageHeight(2, context)),
+                        ],
+                      );
+                    }
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const NutritionSettingsPage(isHealthExpand: true)),
+                          );
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                          decoration: BoxDecoration(
+                            color: kAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(getPercentageWidth(2, context)),
+                          ),
+                          child: Text('No diet preference found',
+                          style: TextStyle(
+                            fontSize: getTextScale(3, context),
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? kWhite : kDarkGrey,
+                          ),),
+                        ),
+                      );
+                    }),
+
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Center(
+                          child: Text(
+                            'All Meals',
+                            style: TextStyle(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.w600,
+                                color: kAccent),
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(1.5, context)),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
 
             // Recipes list per category
-
             SearchResultGrid(
               search: searchQuery.isEmpty && widget.searchIngredient.isEmpty
                   ? selectedCategory
