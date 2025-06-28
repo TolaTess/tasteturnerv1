@@ -391,7 +391,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         child: Text(
                           key: _addSwitchButtonKey,
                           showIngredientSpin
-                              ? 'Switch to Meal - Tinder'
+                              ? 'Switch to Meal Spin'
                               : 'Switch to Ingredient Spin',
                           style: textTheme.titleMedium?.copyWith(
                               color: kAccentLight, fontWeight: FontWeight.w600),

@@ -12,7 +12,6 @@ import '../pages/dietary_choose_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/program_service.dart';
 import '../widgets/goal_diet_widget.dart';
-import '../widgets/program_card.dart';
 import '../widgets/card_overlap.dart';
 
 class ProgramScreen extends StatefulWidget {
@@ -65,9 +64,7 @@ class _ProgramScreenState extends State<ProgramScreen>
   Future<void> _loadProgramTypes() async {
     try {
       final snapshot = await firestore.collection('programs').get();
-      print('snapshot: $snapshot');
       final types = snapshot.docs.map((doc) {
-        print('doc: $doc');
         final data = doc.data();
         return {
           'type': doc.id,
@@ -566,7 +563,7 @@ Please provide a structured program including:
                   color: accent,
                 ),
               ),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(3, context)),
               Obx(() => SizedBox(
                     height: getPercentageHeight(25, context),
                     child: programTypes.isEmpty
@@ -604,72 +601,6 @@ Please provide a structured program including:
                   )),
               SizedBox(height: getPercentageHeight(3, context)),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgramCard(BuildContext context, String title, String subtitle,
-      String imageName, Color cardColor, int index) {
-    return OverlappingCard(
-      title: title,
-      subtitle: subtitle,
-      color: cardColor,
-      imageUrl: 'assets/images/$imageName.jpg',
-      width: MediaQuery.of(context).size.width * 0.7,
-      height: 180,
-      index: index,
-      onTap: () => _showProgramQuestionnaire(title.toLowerCase()),
-    );
-  }
-
-  Widget _buildProgramList(BuildContext context) {
-    final colors = [
-      kAccent.withOpacity(0.8),
-      kBlue.withOpacity(0.8),
-      kAccentLight.withOpacity(0.8),
-      kPurple.withOpacity(0.8),
-    ];
-
-    final programs = [
-      {
-        'title': 'Vitality',
-        'subtitle': 'Eat like the world\'s longest-living people',
-        'image': 'salad',
-      },
-      {
-        'title': 'Strength',
-        'subtitle': 'Build muscle and strength with proper nutrition',
-        'image': 'meat',
-      },
-      {
-        'title': 'Weight Loss',
-        'subtitle': 'Achieve your ideal weight with balanced meals',
-        'image': 'vegetable',
-      },
-      {
-        'title': 'Energy',
-        'subtitle': 'Boost your daily energy with the right foods',
-        'image': 'fruit',
-      },
-    ];
-
-    return SizedBox(
-      height: 180,
-      child: OverlappingCardsView(
-        overlap: 60,
-        cardWidth: MediaQuery.of(context).size.width * 0.7,
-        cardHeight: 180,
-        children: List.generate(
-          programs.length,
-          (index) => _buildProgramCard(
-            context,
-            programs[index]['title']!,
-            programs[index]['subtitle']!,
-            programs[index]['image']!,
-            colors[index % colors.length],
-            index,
           ),
         ),
       ),

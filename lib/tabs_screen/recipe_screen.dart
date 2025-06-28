@@ -5,11 +5,13 @@ import '../constants.dart';
 import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
+import '../widgets/card_overlap.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
@@ -35,20 +37,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
     super.initState();
 
     _categoryDatasIngredient = [...helperController.macros];
-    print(
-        'Total items in _categoryDatasIngredient: ${_categoryDatasIngredient.length}');
-    print(
-        'Techniques found: ${_categoryDatasIngredient.where((item) => item['category'] == 'technique').length}');
-
-    final generalCategory = {
-      'id': 'general',
-      'name': 'General',
-      'category': 'General'
-    };
-    if (_categoryDatasIngredient.isEmpty ||
-        _categoryDatasIngredient.first['id'] != 'general') {
-      _categoryDatasIngredient.insert(0, generalCategory);
-    }
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
       selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
@@ -85,14 +73,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
   }
 
-  void _updateCategoryData(String categoryId, String category) {
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedCategory = category;
-      _updateIngredientList(category);
-    });
-  }
-
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
@@ -102,6 +82,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    final dietPreference =
+        userService.currentUser.value?.settings['dietPreference'];
+
+    // Filter techniques based on user's diet preference
+    final filteredTechniques = _categoryDatasIngredient..shuffle();
+    final limitedTechniques = filteredTechniques.take(5).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -126,146 +113,69 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (dietPreference != 'balanced')
+                          Text(
+                            dietPreference ?? '',
+                            style: textTheme.displayMedium?.copyWith(),
+                          ),
+                        if (dietPreference != 'balanced')
+                          SizedBox(height: getPercentageHeight(0.5, context)),
                         Text(
-                          '${userService.currentUser.value?.settings['dietPreference']} Cooking Techniques',
-                          style: TextStyle(
-                            fontSize: getTextScale(3.5, context),
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? kWhite : kDarkGrey,
+                          '        Cooking Techniques',
+                          style: textTheme.displaySmall?.copyWith(
+                            color: kAccent,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.0,
-                        crossAxisSpacing: getPercentageWidth(3, context),
-                        mainAxisSpacing: getPercentageHeight(2, context),
+                    SizedBox(height: getPercentageHeight(2.5, context)),
+                    SizedBox(
+                      height: getPercentageHeight(
+                          25, context), // Adjust height as needed
+                      child: OverlappingCardsView(
+                        cardWidth: getPercentageWidth(50, context),
+                        cardHeight: getPercentageHeight(20, context),
+                        overlap: 50,
+                        isRecipe: true,
+                        children: List.generate(
+                          limitedTechniques.length,
+                          (index) {
+                            final technique = limitedTechniques[index];
+                            return OverlappingCard(
+                              title: technique['name'] ?? '',
+                              subtitle: technique['description'] ??
+                                  'No description available',
+                              color: colors[index % colors.length],
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(technique['name'] ?? ''),
+                                    content: Text(technique['description'] ??
+                                        'No description available'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              index: index,
+                              isSelected: false,
+                              isRecipe: true,
+                            );
+                          },
+                        ),
                       ),
-                      itemCount: _categoryDatasIngredient
-                          .where((item) {
-                            final categories =
-                                item['categories'] as List<dynamic>? ?? [];
-                            final userDietPreference = userService.currentUser
-                                    .value?.settings['dietPreference']
-                                    ?.toString()
-                                    .toLowerCase() ??
-                                '';
-                            return userDietPreference.isEmpty ||
-                                categories.any((cat) =>
-                                    cat.toString().toLowerCase() ==
-                                    userDietPreference);
-                          })
-                          .take(4)
-                          .length,
-                      itemBuilder: (context, index) {
-                        final filteredItems = _categoryDatasIngredient
-                            .where((item) {
-                              final categories =
-                                  item['categories'] as List<dynamic>? ?? [];
-                              final userDietPreference = userService.currentUser
-                                      .value?.settings['dietPreference']
-                                      ?.toString()
-                                      .toLowerCase() ??
-                                  '';
-                              return userDietPreference.isEmpty ||
-                                  categories.any((cat) =>
-                                      cat.toString().toLowerCase() ==
-                                      userDietPreference);
-                            })
-                            .take(4)
-                            .toList();
-                        final technique = filteredItems[index];
-
-                        return Card(
-                          elevation: 2,
-                          color: isDarkMode ? kDarkGrey : kWhite,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text(technique['name'] ?? ''),
-                                  content: Text(technique['description'] ??
-                                      'No description available'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Close'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Circular background for illustration
-                                  Container(
-                                    width: getPercentageWidth(20, context),
-                                    height: getPercentageWidth(20, context),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: kAccentLight.withOpacity(0.2),
-                                    ),
-                                    child: Icon(
-                                      _getTechniqueIcon(
-                                          technique['name'] ?? ''),
-                                      color: kAccent,
-                                      size: getPercentageWidth(10, context),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height: getPercentageHeight(1, context)),
-                                  // Technique name
-                                  Text(
-                                    (technique['name'] ?? '').toUpperCase(),
-                                    style: TextStyle(
-                                      color: kAccent,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: getTextScale(2.2, context),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  SizedBox(
-                                      height:
-                                          getPercentageHeight(0.5, context)),
-                                  // Description
-                                  Text(
-                                    technique['description'] ??
-                                        'No description available',
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: getTextScale(1.8, context),
-                                      color: isDarkMode ? kWhite : kDarkGrey,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
                     ),
                   ],
                 ),
               ),
-
-              SizedBox(height: getPercentageHeight(2, context)),
 
               // ------------------------------------Premium / Ads------------------------------------
 
@@ -339,25 +249,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
       ),
     );
   }
-
-  IconData _getTechniqueIcon(String technique) {
-    switch (technique.toLowerCase()) {
-      case 'grilling':
-        return Icons.outdoor_grill;
-      case 'steaming':
-        return Icons.whatshot;
-      case 'baking':
-        return Icons.cake;
-      case 'frying':
-        return Icons.restaurant;
-      case 'boiling':
-        return Icons.water;
-      case 'roasting':
-        return Icons.local_fire_department;
-      default:
-        return Icons.restaurant_menu;
-    }
-  }
 }
 
 //Meals Card Widget
@@ -372,9 +263,12 @@ class MealsCard extends StatelessWidget {
   final MealsData dataSrc;
   final bool isMyMeal;
   final bool isFavourite;
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
     return GestureDetector(
       onTap: () {
         if (isFavourite && dataSrc.title == "Lunch") {
@@ -401,93 +295,84 @@ class MealsCard extends StatelessWidget {
         }
       },
       child: Container(
-        padding:
-            EdgeInsets.symmetric(horizontal: getPercentageWidth(1, context)),
-        // Image + Shade
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          image: DecorationImage(
-            opacity: isDarkMode ? 0.3 : 1,
-            image: AssetImage(dataSrc.image),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              isDarkMode ? kBlack.withOpacity(0.15) : kBlack.withOpacity(0.3),
-              BlendMode.darken,
+          color: colors[dataSrc.title.hashCode % colors.length],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-          ),
+          ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            // Title
-            GestureDetector(
-              onTap: () {
-                if (isFavourite && dataSrc.title == "Lunch") {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FavoriteScreen(),
-                    ),
-                  );
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RecipeListCategory(
-                        index: 1,
-                        searchIngredient:
-                            isMyMeal && dataSrc.title == "Breakfast"
-                                ? "myMeals"
-                                : dataSrc.title,
-                        isFilter: true,
-                        screen: 'categories',
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                isMyMeal && dataSrc.title == "Breakfast"
-                    ? "My Meals"
-                    : isFavourite && dataSrc.title == "Lunch"
-                        ? "Favourites"
-                        : dataSrc.title,
-                style: TextStyle(
-                  color: kWhite,
-                  fontWeight: FontWeight.w600,
-                  fontSize: getTextScale(4, context),
-                  shadows: [
-                    Shadow(
-                      blurRadius: getPercentageWidth(1.5, context),
-                      color: kBlack,
-                      offset: Offset(getPercentageWidth(0.3, context),
-                          getPercentageWidth(0.3, context)),
-                    ),
+            if (dataSrc.image.isNotEmpty)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    dataSrc.image,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    colors[dataSrc.title.hashCode % colors.length]
+                        .withOpacity(0.8),
+                    colors[dataSrc.title.hashCode % colors.length]
+                        .withOpacity(0.5),
                   ],
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
-            // Subtitle
-            Text(
-              isMyMeal && dataSrc.title == "Breakfast"
-                  ? "View your meals"
-                  : isFavourite && dataSrc.title == "Lunch"
-                      ? "View your favourites"
-                      : dataSrc.subtitle,
-              style: TextStyle(
-                color: kWhite,
-                fontSize: getTextScale(3, context),
-                shadows: [
-                  Shadow(
-                    blurRadius: getPercentageWidth(1.5, context),
-                    color: kBlack,
-                    offset: Offset(getPercentageWidth(0.3, context),
-                        getPercentageWidth(0.3, context)),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(4, context),
+                vertical: getPercentageHeight(2, context),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isMyMeal && dataSrc.title == "Breakfast"
+                        ? "My Meals"
+                        : isFavourite && dataSrc.title == "Lunch"
+                            ? "Favourites"
+                            : dataSrc.title,
+                    style: textTheme.displayMedium?.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w400,
+                      color: isDarkMode ? kWhite : kDarkGrey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      isMyMeal && dataSrc.title == "Breakfast"
+                          ? "View your meals"
+                          : isFavourite && dataSrc.title == "Lunch"
+                              ? "View your favourites"
+                              : dataSrc.subtitle,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kWhite.withOpacity(0.7) : kDarkGrey,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

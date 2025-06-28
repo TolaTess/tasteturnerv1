@@ -61,7 +61,7 @@ void main() async {
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => BadgeController());
   Get.lazyPut(() => FriendController());
-  Get.lazyPut(() => MacroManager());
+  Get.put(MacroManager(), permanent: true);
   Get.put(UserService(), permanent: true);
 
   // Any other non-UI async setup

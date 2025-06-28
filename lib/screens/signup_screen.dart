@@ -44,6 +44,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Container(
@@ -119,10 +120,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             child: Text(
                               words[_index],
                               key: ValueKey<String>(words[_index]),
-                              style: TextStyle(
-                                fontSize: getTextScale(5, context),
-                                fontWeight: FontWeight.w600,
-                                color: kDarkGrey,
+                              style: textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
@@ -130,10 +129,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         const SizedBox(width: 8), // ✅ Adjust spacing
                         Text(
                           "with Confidence",
-                          style: TextStyle(
-                            fontSize: getTextScale(5, context),
-                            fontWeight: FontWeight.w600,
+                          style: textTheme.displayMedium?.copyWith(
                             color: kWhite,
+                            fontWeight: FontWeight.w100,
                           ),
                         ),
                       ],
@@ -221,10 +219,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     children: [
                       Text(
                         "Already have an account? ",
-                        style: TextStyle(
-                          fontSize: getTextScale(3.5, context),
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                        style: textTheme.titleMedium?.copyWith(
+                          color: kWhite,
+                          fontWeight: FontWeight.w100,
                         ),
                       ),
 
@@ -240,10 +237,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         child: Text(
                           "Log in",
-                          style: TextStyle(
-                            fontSize: getTextScale(3.5, context),
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                          style: textTheme.titleMedium?.copyWith(
+                            color: kWhite,
+                            fontWeight: FontWeight.w100,
                             decoration: TextDecoration.underline,
                           ),
                         ),

@@ -179,14 +179,12 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                   ),
                 ),
                 if (_expanded) ...[
-                  SizedBox(height: getPercentageHeight(1, context)),
                   IngredientListViewRecipe(
                     demoAcceptedData: widget.topIngredients,
                     spin: false,
                     isEdit: false,
                     onRemoveItem: (int) {},
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
                   if (widget.featuredMeal != null) ...[
                     Text(
                       'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',

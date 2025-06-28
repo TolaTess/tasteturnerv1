@@ -107,24 +107,34 @@ OutlineInputBorder outlineInputBorder(
 String getAssetImageForItem(String itemType) {
   switch (itemType.toLowerCase()) {
     case 'fruit':
+    case 'raw':
       return 'assets/images/fruit.jpg';
     case 'honey':
+    case 'grilling':
       return 'assets/images/honey.jpg';
     case 'milk':
+    case 'steaming':
       return 'assets/images/milk.jpg';
     case 'vegetables':
+    case 'soup':
       return 'assets/images/vegetable.jpg';
     case 'vegetable':
+    case 'sautéing':
       return 'assets/images/vegetable.jpg';
     case 'meat':
+    case 'roasting':
       return 'assets/images/meat.jpg';
     case 'grain':
+    case 'baking':
       return 'assets/images/grain.jpg';
     case 'fish':
+    case 'poaching':
       return 'assets/images/fish.jpg';
     case 'egg':
+    case 'boiling':
       return 'assets/images/egg.jpg';
     case 'nut':
+    case 'mashing':
       return 'assets/images/nut.jpg';
     case 'herb':
       return 'assets/images/herb.jpg';

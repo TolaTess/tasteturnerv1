@@ -9,6 +9,7 @@ class OverlappingCardsView extends StatefulWidget {
   final double cardHeight;
   final EdgeInsets padding;
   final ScrollController? controller;
+  final bool isRecipe;
 
   const OverlappingCardsView({
     Key? key,
@@ -18,6 +19,7 @@ class OverlappingCardsView extends StatefulWidget {
     this.cardHeight = 100,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.controller,
+    this.isRecipe = false,
   }) : super(key: key);
 
   @override
@@ -37,21 +39,32 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
   Widget build(BuildContext context) {
     if (widget.children.isEmpty) return const SizedBox();
 
+    // Create a list of indices sorted by selection status
+    final sortedIndices = List.generate(widget.children.length, (i) => i);
+    if (selectedIndex != null) {
+      sortedIndices.remove(selectedIndex);
+      sortedIndices.add(selectedIndex!);
+    }
+
     return SizedBox(
       height: widget.cardHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final sortedIndices = List.generate(widget.children.length, (i) => i);
-          if (selectedIndex != null) {
-            sortedIndices.remove(selectedIndex);
-            sortedIndices.add(selectedIndex!);
-          }
-
           return Stack(
             clipBehavior: Clip.none,
             children: sortedIndices.map((index) {
               final child = widget.children[index];
               final isSelected = selectedIndex == index;
+              final isTopCard = index == sortedIndices.last;
+
+              // If this is the top card and no card is selected, auto-select it
+              if (isTopCard && selectedIndex == null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && selectedIndex == null) {
+                    selectCard(index);
+                  }
+                });
+              }
 
               // Calculate position based on selection state
               double leftPosition =
@@ -61,12 +74,12 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
               if (selectedIndex != null) {
                 if (index == selectedIndex) {
                   // Selected card stays at its position
-                  leftPosition = selectedIndex! * (widget.cardWidth * 0.1);
+                  leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
                 } else if (index > selectedIndex!) {
                   // Cards after the selected one should be more visible
-                  leftPosition = (selectedIndex! * (widget.cardWidth * 0.1)) +
+                  leftPosition = (selectedIndex! * (widget.cardWidth * 0.2)) +
                       (widget.cardWidth * 0.8) + // Show 20% of next card
-                      ((index - selectedIndex! - 1) * (widget.cardWidth * 0.1));
+                      ((index - selectedIndex! - 1) * (widget.cardWidth * 0.2));
                 }
               }
 
@@ -91,7 +104,8 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                             : widget.cardWidth,
                         height: widget.cardHeight,
                         index: index,
-                        isSelected: isSelected,
+                        isSelected: isSelected || isTopCard,
+                        isRecipe: widget.isRecipe,
                         onTap: child.onTap,
                       ),
                     ),
@@ -125,6 +139,7 @@ class OverlappingCard extends StatefulWidget {
   final double height;
   final int index;
   final bool isSelected;
+  final bool isRecipe;
 
   const OverlappingCard({
     Key? key,
@@ -137,6 +152,7 @@ class OverlappingCard extends StatefulWidget {
     this.height = 100,
     required this.index,
     this.isSelected = false,
+    this.isRecipe = false,
   }) : super(key: key);
 
   @override
@@ -184,6 +200,8 @@ class _OverlappingCardState extends State<OverlappingCard>
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+    final imageUrl =
+        widget.imageUrl ?? getAssetImageForItem(widget.title.toLowerCase());
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -210,12 +228,12 @@ class _OverlappingCardState extends State<OverlappingCard>
         ),
         child: Stack(
           children: [
-            if (widget.imageUrl != null)
+            if (imageUrl.isNotEmpty)
               Positioned.fill(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Image.asset(
-                    widget.imageUrl!,
+                    imageUrl,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -234,83 +252,107 @@ class _OverlappingCardState extends State<OverlappingCard>
               ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal:
-                    getPercentageWidth(!widget.isSelected ? 0 : 4, context),
-                vertical:
-                    getPercentageHeight(!widget.isSelected ? 10 : 2, context),
+              padding: EdgeInsets.only(
+                left: getPercentageWidth(!widget.isSelected ? 0 : 4, context),
+                right: getPercentageWidth(!widget.isSelected ? 0 : 4, context),
+                top: getPercentageHeight(!widget.isSelected ? 0 : 2, context),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
                   if (!widget.isSelected)
-                    Flexible(
+                    Positioned(
+                      left: getPercentageWidth(1, context),
+                      bottom: getPercentageHeight(5, context),
                       child: Transform.rotate(
-                        angle: -1.5708,
-                        child: Text(
-                          capitalizeFirstLetter(widget.title),
-                          style: textTheme.displayMedium?.copyWith(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w400,
-                            color: isDarkMode ? kWhite : kDarkGrey,
+                        angle: -1.5708, // -90 degrees in radians
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: widget.height * 0.8,
+                          child: Text(
+                            capitalizeFirstLetter(widget.title),
+                            style: textTheme.displayMedium?.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w400,
+                              color: isDarkMode ? kWhite : kDarkGrey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
                     ),
-                  if (widget.isSelected) ...[
-                    Text(
-                      capitalizeFirstLetter(widget.title),
-                      style: textTheme.displayMedium?.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w400,
-                        color: isDarkMode ? kWhite : kDarkGrey,
+                  if (widget.isSelected)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(4, context),
+                        vertical: getPercentageHeight(2, context),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            capitalizeFirstLetter(widget.title),
+                            style: textTheme.displayMedium?.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w400,
+                              color: isDarkMode ? kWhite : kDarkGrey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (widget.subtitle != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                widget.subtitle!,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode
+                                      ? kWhite.withOpacity(0.7)
+                                      : kDarkGrey,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          const Spacer(),
+                          SizedBox(
+                            width: double.infinity,
+                            child: AnimatedBuilder(
+                              animation: _buttonOpacityAnimation,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _buttonOpacityAnimation.value,
+                                  child: child,
+                                );
+                              },
+                              child: ElevatedButton(
+                                onPressed: widget.onTap,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      isDarkMode ? kWhite : kAccent,
+                                  foregroundColor:
+                                      isDarkMode ? kDarkGrey : kWhite,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(2, context),
+                                    vertical: getPercentageHeight(1, context),
+                                  ),
+                                ),
+                                child: Text(
+                                  widget.isRecipe ? 'View Recipes' : 'Join Program',
+                                  style: textTheme.labelLarge?.copyWith(
+                                    color: isDarkMode ? kDarkGrey : kWhite,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (widget.subtitle != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          widget.subtitle!,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: isDarkMode
-                                ? kWhite.withOpacity(0.7)
-                                : kDarkGrey,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    const Spacer(),
-                    AnimatedBuilder(
-                      animation: _buttonOpacityAnimation,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _buttonOpacityAnimation.value,
-                          child: child,
-                        );
-                      },
-                      child: ElevatedButton(
-                        onPressed: widget.onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDarkMode ? kWhite : kAccent,
-                          foregroundColor: isDarkMode ? kDarkGrey : kWhite,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(4, context),
-                            vertical: getPercentageHeight(1, context),
-                          ),
-                        ),
-                        child: Text(
-                          'Join Program',
-                          style: textTheme.labelLarge?.copyWith(
-                            color: isDarkMode ? kDarkGrey : kWhite,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

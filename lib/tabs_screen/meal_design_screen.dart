@@ -410,7 +410,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           fontSize: getPercentageWidth(4.5, context)),
                     ),
                     Text(
-                      DateFormat('d MMMM').format(DateTime.now()),
+                      ' ${shortMonthName(DateTime.now().month)} ${DateTime.now().day}',                 
                       style: textTheme.displayMedium?.copyWith(
                           color: kAccentLight,
                           fontWeight: FontWeight.w500,
@@ -583,7 +583,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     if (!showSharedCalendars) Spacer(),
                     if (!showSharedCalendars)
                       Text(
-                        DateFormat('d MMMM').format(selectedDate),
+                        ' ${shortMonthName(selectedDate.month)} ${selectedDate.day}',
                         style: textTheme.titleMedium?.copyWith(
                             color: kAccent, fontWeight: FontWeight.w500),
                       ),
