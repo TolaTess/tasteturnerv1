@@ -301,6 +301,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        centerTitle: true,
         leading: InkWell(
           onTap: () {
             if (widget.screen == 'myPost' ||

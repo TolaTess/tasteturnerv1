@@ -647,7 +647,7 @@ class MealPlanSection extends StatelessWidget {
               Get.to(() => const BottomNavSec(selectedIndex: 4));
             },
             child: SizedBox(
-              height: getProportionalHeight(110, context),
+              height: getProportionalHeight(125, context),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: meals.length,
@@ -725,7 +725,7 @@ class MealPlanSection extends StatelessWidget {
                         ),
                         // Meal type icon as a top-level overlay
                         Positioned(
-                          top: getPercentageWidth(-2, context),
+                          top: getPercentageWidth(-4.5, context),
                           left: getPercentageWidth(-1, context),
                           child: Container(
                             decoration: BoxDecoration(

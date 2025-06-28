@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tasteturner/pages/edit_goal.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
@@ -76,6 +78,10 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+    double fontSize = widget.diet.length > 8 && widget.goal.length > 8
+        ? getTextScale(5, context)
+        : getTextScale(6, context);
+
     return Column(
       children: [
         Row(
@@ -83,11 +89,18 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
           children: [
             Icon(Icons.emoji_food_beverage,
                 color: kAccent, size: getPercentageWidth(4.5, context)),
-            Text(
-              'Your Diet: ',
-              style: textTheme.displaySmall?.copyWith(
-                color: kAccent,
-                fontSize: getTextScale(6, context),
+            GestureDetector(
+              onTap: () {
+                Get.to(() => const NutritionSettingsPage(
+                      isHealthExpand: true,
+                    ));
+              },
+              child: Text(
+                'Your Diet: ',
+                style: textTheme.displaySmall?.copyWith(
+                  color: kAccent,
+                  fontSize: fontSize,
+                ),
               ),
             ),
             Text(
@@ -95,7 +108,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                   ? capitalizeFirstLetter(widget.diet)
                   : 'Not set',
               style: textTheme.displaySmall?.copyWith(
-                fontSize: getTextScale(6, context),
+                fontSize: fontSize,
                 fontWeight: FontWeight.w200,
               ),
             ),
@@ -106,11 +119,18 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
             if (showCaloriesAndGoal)
               SizedBox(width: getPercentageWidth(1, context)),
             if (showCaloriesAndGoal)
-              Text(
-                'Goal: ',
-                style: textTheme.displaySmall?.copyWith(
+              GestureDetector(
+                onTap: () {
+                  Get.to(() => const NutritionSettingsPage(
+                        isHealthExpand: true,
+                      ));
+                },
+                child: Text(
+                  'Goal: ',
+                  style: textTheme.displaySmall?.copyWith(
                   color: kAccent,
-                  fontSize: getTextScale(6, context),
+                  fontSize: fontSize,
+                ),
                 ),
               ),
             if (showCaloriesAndGoal)
@@ -123,7 +143,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                             : capitalizeFirstLetter(widget.goal)
                     : 'Not set',
                 style: textTheme.displaySmall?.copyWith(
-                  fontSize: getTextScale(6, context),
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w200,
                 ),
               ),

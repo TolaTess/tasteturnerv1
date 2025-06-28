@@ -403,12 +403,15 @@ class _BuddyTabState extends State<BuddyTab> {
                           children: [
                             Text(
                               parts[0] + ':',
+                              textAlign: TextAlign.center,
                               style: textTheme.displaySmall?.copyWith(
                                 color: kAccent,
                               ),
                             ),
                             SizedBox(height: getPercentageHeight(0.5, context)),
                             Text(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               parts.length > 1 ? parts[1] : '',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kLightGrey,

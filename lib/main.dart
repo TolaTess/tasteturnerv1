@@ -10,6 +10,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'constants.dart';
 import 'themes/theme_provider.dart';
+import 'themes/dark_mode.dart';
+import 'themes/light_mode.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
 import 'service/calendar_sharing_service.dart';
@@ -111,11 +113,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: appName,
-      home: const SplashScreen(),
-      theme: Provider.of<ThemeProvider>(context).themeData,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return GetMaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: appName,
+          home: const SplashScreen(),
+          theme: themeProvider.isDarkMode
+              ? ThemeDarkManager().mainTheme(context)
+              : ThemeManager().mainTheme(context),
+        );
+      },
     );
   }
 }
