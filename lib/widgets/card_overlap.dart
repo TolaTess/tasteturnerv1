@@ -41,18 +41,40 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
       height: widget.cardHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return ListView.builder(
-            controller: widget.controller,
-            scrollDirection: Axis.horizontal,
-            padding: widget.padding,
-            itemCount: widget.children.length,
-            itemBuilder: (context, index) {
+          final sortedIndices = List.generate(widget.children.length, (i) => i);
+          if (selectedIndex != null) {
+            sortedIndices.remove(selectedIndex);
+            sortedIndices.add(selectedIndex!);
+          }
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: sortedIndices.map((index) {
               final child = widget.children[index];
               final isSelected = selectedIndex == index;
 
+              // Calculate position based on selection state
+              double leftPosition =
+                  index * (widget.cardWidth * 0.2); // Default 80% overlap
+
+              // If there's a selected card, adjust positions
+              if (selectedIndex != null) {
+                if (index == selectedIndex) {
+                  // Selected card stays at its position
+                  leftPosition = selectedIndex! * (widget.cardWidth * 0.1);
+                } else if (index > selectedIndex!) {
+                  // Cards after the selected one should be more visible
+                  leftPosition = (selectedIndex! * (widget.cardWidth * 0.1)) +
+                      (widget.cardWidth * 0.8) + // Show 20% of next card
+                      ((index - selectedIndex! - 1) * (widget.cardWidth * 0.1));
+                }
+              }
+
               if (child is OverlappingCard) {
-                return Transform.translate(
-                  offset: Offset(-widget.cardWidth * 0.9 * index, 0),
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  left: leftPosition,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     width:
@@ -76,14 +98,16 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                   ),
                 );
               }
-              return Transform.translate(
-                offset: Offset(-widget.cardWidth * 0.9 * index, 0),
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                left: leftPosition,
                 child: SizedBox(
                   width: widget.cardWidth,
                   child: child,
                 ),
               );
-            },
+            }).toList(),
           );
         },
       ),
@@ -122,9 +146,7 @@ class OverlappingCard extends StatefulWidget {
 class _OverlappingCardState extends State<OverlappingCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _rotationAnimation;
   late Animation<double> _buttonOpacityAnimation;
-  bool _isExpanded = false;
 
   @override
   void initState() {
@@ -133,13 +155,6 @@ class _OverlappingCardState extends State<OverlappingCard>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
     _buttonOpacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -152,11 +167,9 @@ class _OverlappingCardState extends State<OverlappingCard>
   @override
   void didUpdateWidget(OverlappingCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isSelected && !_isExpanded) {
-      _isExpanded = true;
+    if (widget.isSelected) {
       _controller.forward();
-    } else if (!widget.isSelected && _isExpanded) {
-      _isExpanded = false;
+    } else {
       _controller.reverse();
     }
   }
@@ -165,18 +178,6 @@ class _OverlappingCardState extends State<OverlappingCard>
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  void _toggleExpanded() {
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    });
-    widget.onTap?.call();
   }
 
   @override
@@ -234,33 +235,52 @@ class _OverlappingCardState extends State<OverlappingCard>
             ),
             Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(4, context),
-                vertical: getPercentageHeight(2, context),
+                horizontal:
+                    getPercentageWidth(!widget.isSelected ? 0 : 4, context),
+                vertical:
+                    getPercentageHeight(!widget.isSelected ? 10 : 2, context),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.title,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                    ),
-                  ),
-                  if (widget.isSelected && widget.subtitle != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        widget.subtitle!,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color:
-                              isDarkMode ? kWhite.withOpacity(0.7) : kDarkGrey,
+                  if (!widget.isSelected)
+                    Flexible(
+                      child: Transform.rotate(
+                        angle: -1.5708,
+                        child: Text(
+                          capitalizeFirstLetter(widget.title),
+                          style: textTheme.displayMedium?.copyWith(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w400,
+                            color: isDarkMode ? kWhite : kDarkGrey,
+                          ),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  const Spacer(),
-                  if (widget.isSelected)
+                  if (widget.isSelected) ...[
+                    Text(
+                      capitalizeFirstLetter(widget.title),
+                      style: textTheme.displayMedium?.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
+                    if (widget.subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          widget.subtitle!,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isDarkMode
+                                ? kWhite.withOpacity(0.7)
+                                : kDarkGrey,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    const Spacer(),
                     AnimatedBuilder(
                       animation: _buttonOpacityAnimation,
                       builder: (context, child) {
@@ -290,6 +310,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
