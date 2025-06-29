@@ -6,22 +6,24 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:tasteturner/screens/buddy_screen.dart';
-import 'package:tasteturner/tabs_screen/recipe_screen.dart';
-import 'package:tasteturner/tabs_screen/shopping_tab.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
+import '../screens/buddy_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
+import '../widgets/milestone_tracker.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/second_nav_widget.dart';
 import 'food_challenge_screen.dart';
+import 'recipe_screen.dart';
+import 'shopping_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -47,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
-
 
   @override
   void initState() {
@@ -393,6 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               Text(
                                 inspiration,
                                 style: textTheme.bodyMedium?.copyWith(
+                                  fontSize: getTextScale(3, context),
                                   color: kLightGrey.withOpacity(0.7),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -618,17 +620,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Icon(Icons.shopping_cart,
                               color: kAccentLight,
                               size: getIconScale(8, context)),
-                          SizedBox(width: getPercentageWidth(1, context)),
+                          SizedBox(width: getPercentageWidth(2, context)),
                           Expanded(
                             child: Text(
                               familyMode
-                                  ? "Time to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
-                                  : "Ready to shop smart? Your grocery list is loaded with healthy picks for your goals!",
+                                  ? "Shopping Day: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                                  : "Shopping Day: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kAccentLight,
                               ),
                             ),
                           ),
+                          SizedBox(width: getPercentageWidth(0.2, context)),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               minimumSize: Size(getPercentageWidth(10, context),
@@ -689,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           color: isDarkMode
                               ? kAccentLight
                               : kAccentLight.withOpacity(0.5),
-                          destinationScreen: ShoppingTab(),
+                          destinationScreen: const ShoppingTab(),
                           isDarkMode: isDarkMode,
                         ),
                         //spin
@@ -698,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           icon: 'assets/images/svg/book-outline.svg',
                           color:
                               isDarkMode ? kPurple : kPurple.withOpacity(0.5),
-                          destinationScreen: RecipeScreen(),
+                          destinationScreen: const RecipeScreen(),
                           isDarkMode: isDarkMode,
                         ),
                       ],
@@ -747,9 +750,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       : Divider(color: isDarkMode ? kWhite : kDarkGrey),
 
                   // ------------------------------------Premium / Ads-------------------------------------
-                  currentUser.isPremium ?? false
-                      ? const SizedBox.shrink()
-                      : SizedBox(height: getPercentageHeight(1, context)),
+
+                  // Milestones tracker
+                  GestureDetector(
+                    onTap: () {
+                      Get.to(
+                        () => const ProgramProgressScreen(
+                        ),
+                      );
+                    },
+                    child: const MilestonesTracker(
+                      milestones: [true, true, true, false, false],
+                      title: 'Milestones',
+                      subtitle: 'Your Program progress!',
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                   // Nutrition Overview
                   LayoutBuilder(
@@ -881,6 +897,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       isDarkMode: isDarkMode,
                                       showCaloriesAndGoal: showCaloriesAndGoal,
                                       user: user,
+                                      color: colors[
+                                          selectedUserIndex % colors.length],
                                     ),
                                   ),
                                 );
@@ -892,7 +910,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       );
                     },
                   ),
-
                   SizedBox(
                     height: getPercentageHeight(6, context),
                   ),

@@ -126,7 +126,7 @@ class MealApiService {
         title: apiMeal['strMeal']?.toString() ?? 'Unknown',
         mediaPaths: [apiMeal['strMealThumb']?.toString() ?? ''],
         ingredients: ingredients,
-        steps: steps,
+        instructions: steps,
         categories: [apiMeal['strTags']?.toString() ?? ''],
         mediaType: apiMeal['strYoutube']?.toString() ?? '',
         serveQty: 2,

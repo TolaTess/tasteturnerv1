@@ -55,15 +55,16 @@ class SecondNavWidget extends StatelessWidget {
                 icon,
                 height: getIconScale(5, context),
                 width: getIconScale(5, context),
-                colorFilter:
-                    ColorFilter.mode(isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn),
+                colorFilter: ColorFilter.mode(
+                    isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn),
               ),
             ),
           ),
           SizedBox(height: getPercentageHeight(1, context)),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelLarge,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

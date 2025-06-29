@@ -19,6 +19,7 @@ import '../widgets/helper_widget.dart';
 import 'badges_screen.dart';
 import '../pages/settings_screen.dart';
 import '../service/battle_service.dart';
+import '../widgets/milestone_tracker.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -311,11 +312,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           userService.currentUser.value!
                                                   .displayName ??
                                               '',
-                                          style: textTheme.displaySmall?.copyWith(
+                                          style:
+                                              textTheme.displaySmall?.copyWith(
                                             fontSize: getTextScale(5, context),
                                             fontWeight: FontWeight.w600,
-                                            color:
-                                                isDarkMode ? kWhite : kBlack,
+                                            color: isDarkMode ? kWhite : kBlack,
                                           ),
                                         ),
                                       ),
@@ -356,7 +357,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                             .pointsAchieved ??
                                                         0)
                                                     .toString(),
-                                                style: textTheme.bodyLarge?.copyWith(
+                                                style: textTheme.bodyLarge
+                                                    ?.copyWith(
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kBlack,
@@ -367,7 +369,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 opacity: 0.7,
                                                 child: Text(
                                                   'Points',
-                                                  style: textTheme.bodyMedium?.copyWith(
+                                                  style: textTheme.bodyMedium
+                                                      ?.copyWith(
                                                     color: isDarkMode
                                                         ? kWhite
                                                         : kBlack,
@@ -407,7 +410,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                                 return Text(
                                                   myBadge.length.toString(),
-                                                  style: textTheme.bodyLarge?.copyWith(
+                                                  style: textTheme.bodyLarge
+                                                      ?.copyWith(
                                                     color: isDarkMode
                                                         ? kWhite
                                                         : kBlack,
@@ -419,7 +423,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 opacity: 0.5,
                                                 child: Text(
                                                   badges,
-                                                  style: textTheme.bodyMedium?.copyWith(
+                                                  style: textTheme.bodyMedium
+                                                      ?.copyWith(
                                                     color: isDarkMode
                                                         ? kWhite
                                                         : kBlack,
@@ -704,7 +709,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ))
                           : ongoingBattles.isEmpty
                               ? GestureDetector(
-                                  onTap: () => Get.to(() => const FoodChallengeScreen()),
+                                  onTap: () =>
+                                      Get.to(() => const FoodChallengeScreen()),
                                   child: Center(
                                       child: Text(
                                     "No ongoing battles, join a battle now!",
@@ -740,7 +746,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 capitalizeFirstLetter(
                                                     battle['category']),
                                                 overflow: TextOverflow.ellipsis,
-                                                style: textTheme.bodyMedium?.copyWith(
+                                                style: textTheme.bodyMedium
+                                                    ?.copyWith(
                                                   color: isDarkMode
                                                       ? kWhite
                                                       : kBlack,
@@ -751,7 +758,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     battle['name']),
                                                 overflow: TextOverflow.ellipsis,
                                                 maxLines: 3,
-                                                style: textTheme.bodyMedium?.copyWith(
+                                                style: textTheme.bodyMedium
+                                                    ?.copyWith(
                                                   color: isDarkMode
                                                       ? kLightGrey
                                                       : kDarkGrey,
@@ -806,13 +814,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                   : kWhite,
                                                           title: Text(
                                                             'Leave Battle?',
-                                                            style: textTheme.bodyMedium?.copyWith(
+                                                            style: textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
                                                               color: kAccent,
                                                             ),
                                                           ),
                                                           content: Text(
                                                             'Are you sure you want to leave this battle?',
-                                                            style: textTheme.bodyMedium?.copyWith(
+                                                            style: textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
                                                               color: isDarkMode
                                                                   ? kWhite
                                                                   : kDarkGrey,
@@ -827,7 +839,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           false),
                                                               child: Text(
                                                                 'Cancel',
-                                                                style: textTheme.bodyMedium?.copyWith(
+                                                                style: textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
                                                                   color:
                                                                       kAccent,
                                                                 ),
@@ -841,7 +855,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                                           true),
                                                               child: Text(
                                                                 'Leave',
-                                                                style: textTheme.bodyMedium?.copyWith(
+                                                                style: textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
                                                                   color: Colors
                                                                       .red,
                                                                 ),
@@ -902,7 +918,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 EdgeInsets.all(getPercentageWidth(4, context)),
                             child: Text(
                               "No Posts yet.",
-                                style: textTheme.bodyLarge?.copyWith(
+                              style: textTheme.bodyLarge?.copyWith(
                                 color: Colors.grey,
                               ),
                               textAlign: TextAlign.center,

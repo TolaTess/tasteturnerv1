@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tasteturner/detail_screen/recipe_detail.dart';
+import 'package:tasteturner/widgets/video_player_widget.dart';
 
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -239,7 +240,19 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     }
   }
 
-  Widget _buildImage(String imageUrl) {
+  Widget _buildMediaContent(String url) {
+    final isVideo = url.toLowerCase().contains('.mp4') ||
+        url.toLowerCase().contains('.mov') ||
+        url.toLowerCase().contains('.avi') ||
+        url.toLowerCase().contains('.webm');
+
+    if (isVideo) {
+      return VideoPlayerWidget(
+        videoUrl: url,
+        autoPlay: false,
+      );
+    }
+
     return Stack(
       children: [
         // Blurred background
@@ -247,7 +260,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           child: ImageFiltered(
             imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
             child: Image.network(
-              imageUrl,
+              url,
               fit: BoxFit.cover,
               opacity: const AlwaysStoppedAnimation(0.3),
               errorBuilder: (context, error, stackTrace) => Image.asset(
@@ -265,12 +278,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
               maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(10),
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: Image.network(
-                  imageUrl,
+                  url,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => Image.asset(
                     intPlaceholderImage,
@@ -368,7 +381,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
               return PageView.builder(
                 itemCount: imageUrls.length,
                 itemBuilder: (context, imageIndex) {
-                  final imageUrl = imageUrls[imageIndex];
+                  final mediaUrl = imageUrls[imageIndex];
                   return GestureDetector(
                     onDoubleTap: () {
                       toggleLikePost();
@@ -393,7 +406,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                         ),
                       );
                     },
-                    child: _buildImage(imageUrl),
+                    child: _buildMediaContent(mediaUrl),
                   );
                 },
               );

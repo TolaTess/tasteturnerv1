@@ -10,8 +10,11 @@ import '../data_models/post_model.dart';
 class BattleService extends GetxController {
   static final BattleService instance = Get.put(BattleService());
 
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
   // Collection reference
-  CollectionReference get battlesRef => firestore.collection('battles');
+  CollectionReference get battlesRef => _firestore.collection('battles');
 
   // Get current battle date data
   Map<String, dynamic>? _getCurrentBattleData(DocumentSnapshot battleDoc) {
@@ -56,7 +59,7 @@ class BattleService extends GetxController {
       });
 
       // Update user's battles
-      await firestore.collection('userBattles').doc(userId).set({
+      await _firestore.collection('userBattles').doc(userId).set({
         'dates': {
           firstDateKey: {
             'ongoing': FieldValue.arrayUnion([battleId])
@@ -90,7 +93,7 @@ class BattleService extends GetxController {
       });
 
       // Check if userBattles document exists
-      final userBattlesRef = firestore.collection('userBattles').doc(voterId);
+      final userBattlesRef = _firestore.collection('userBattles').doc(voterId);
       final userBattleDoc = await userBattlesRef.get();
 
       if (!userBattleDoc.exists) {
@@ -256,7 +259,7 @@ class BattleService extends GetxController {
       String userId) async {
     try {
       final userDoc =
-          await firestore.collection('userBattles').doc(userId).get();
+          await _firestore.collection('userBattles').doc(userId).get();
       if (!userDoc.exists) return [];
 
       final userData = userDoc.data() as Map<String, dynamic>;
@@ -314,7 +317,7 @@ class BattleService extends GetxController {
           {'dates.$firstDateKey.participants.$userId': FieldValue.delete()});
 
       // Remove battle from user's ongoing battles
-      await firestore.collection('userBattles').doc(userId).update({
+      await _firestore.collection('userBattles').doc(userId).update({
         'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
       });
     } catch (e) {
@@ -343,7 +346,7 @@ class BattleService extends GetxController {
       });
 
       // Move battle from ongoing to voted for the user
-      await firestore.collection('userBattles').doc(post.userId).update({
+      await _firestore.collection('userBattles').doc(post.userId).update({
         'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([post.id]),
         'dates.$firstDateKey.uploaded': FieldValue.arrayUnion([post.id])
       });
@@ -365,7 +368,7 @@ class BattleService extends GetxController {
     try {
       final String filePath =
           'battles/$battleId/${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = FirebaseStorage.instance.ref(filePath);
+      final ref = _storage.ref(filePath);
       final uploadTask = await ref.putFile(imageFile);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
@@ -457,7 +460,7 @@ class BattleService extends GetxController {
       });
 
       // Move battle from uploaded to ongoing for the user
-      await firestore.collection('userBattles').doc(userId).update({
+      await _firestore.collection('userBattles').doc(userId).update({
         'dates.$firstDateKey.uploaded': FieldValue.arrayRemove([battleId]),
         'dates.$firstDateKey.ongoing': FieldValue.arrayUnion([battleId]),
       });
@@ -468,10 +471,10 @@ class BattleService extends GetxController {
   }
 
   Future<void> updateUserPoints(String userId, int points) async {
-    final userPointsRef = firestore.collection('points').doc(userId);
+    final userPointsRef = _firestore.collection('points').doc(userId);
 
     try {
-      await firestore.runTransaction((transaction) async {
+      await _firestore.runTransaction((transaction) async {
         final userPointsDoc = await transaction.get(userPointsRef);
 
         if (userPointsDoc.exists) {
@@ -539,6 +542,35 @@ class BattleService extends GetxController {
     } catch (e) {
       print('Error getting battle winners: $e');
       return [];
+    }
+  }
+
+  Future<String> uploadBattleVideo({
+    required String battleId,
+    required String userId,
+    required File videoFile,
+  }) async {
+    try {
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${userId}_video.mp4';
+      final Reference storageRef = _storage
+          .ref()
+          .child('battles')
+          .child(battleId)
+          .child(userId)
+          .child(fileName);
+
+      final UploadTask uploadTask = storageRef.putFile(
+        videoFile,
+        SettableMetadata(contentType: 'video/mp4'),
+      );
+
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading battle video: $e');
+      rethrow;
     }
   }
 }

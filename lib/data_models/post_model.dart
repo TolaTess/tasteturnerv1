@@ -13,6 +13,7 @@ class Post {
   final DateTime? createdAt;
   final bool? isBattle;
   final String? battleId;
+  final bool isVideo;
 
   Post({
     required this.id,
@@ -27,6 +28,7 @@ class Post {
     this.createdAt,
     this.isBattle,
     this.battleId,
+    this.isVideo = false,
   });
 
   // Factory method to create Post instance from Firestore document
@@ -46,6 +48,7 @@ class Post {
               : null,
       isBattle: data['isBattle'] ?? false,
       battleId: data['battleId'] ?? '',
+      isVideo: data['isVideo'] ?? false,
     );
   }
 
@@ -62,6 +65,7 @@ class Post {
           data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
       isBattle: data['isBattle'] ?? false,
       battleId: data['battleId'] ?? '',
+      isVideo: data['isVideo'] ?? false,
     );
   }
 
@@ -77,6 +81,7 @@ class Post {
       'createdAt': createdAt?.toIso8601String(),
       'isBattle': isBattle,
       'battleId': battleId,
+      'isVideo': isVideo,
     };
   }
 
@@ -90,6 +95,7 @@ class Post {
     DateTime? createdAt,
     bool? isBattle,
     String? battleId,
+    bool? isVideo,
   }) {
     return Post(
       id: id ?? this.id,
@@ -101,6 +107,7 @@ class Post {
       createdAt: createdAt ?? this.createdAt,
       isBattle: isBattle ?? this.isBattle,
       battleId: battleId ?? this.battleId,
+      isVideo: isVideo ?? this.isVideo,
     );
   }
 }

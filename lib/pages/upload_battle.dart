@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../helper/helper_functions.dart';
@@ -15,6 +15,7 @@ import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
 import '../widgets/category_selector.dart';
 import '../service/helper_controller.dart';
+import '../widgets/video_player_widget.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
@@ -35,9 +36,10 @@ class UploadBattleImageScreen extends StatefulWidget {
 
 class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   bool isUploading = false;
-  List<XFile> _selectedImages = [];
+  List<XFile> _selectedMedia = [];
   String selectedCategoryId = '';
   String selectedCategory = 'general';
+  bool _isVideo = false;
 
   Future<String> _compressAndResizeBattleImage(String imagePath) async {
     // Read the image file
@@ -95,12 +97,131 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         : '';
   }
 
-  Future<void> _uploadImage() async {
-    if (_selectedImages.isEmpty) {
+  Future<String?> _showMediaSelectionDialog({required bool isCamera}) async {
+    return await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        final isDarkMode = getThemeProvider(context).isDarkMode;
+        final textTheme = Theme.of(context).textTheme;
+
+        final title = isCamera ? 'Choose capture mode' : 'Choose media type';
+        final options = isCamera
+            ? [
+                {
+                  'icon': Icons.photo_camera,
+                  'title': 'Take Photo',
+                  'value': 'photo'
+                },
+                {
+                  'icon': Icons.videocam,
+                  'title': 'Record Video',
+                  'value': 'video'
+                },
+              ]
+            : [
+                {'icon': Icons.photo, 'title': 'Photos', 'value': 'photos'},
+                {
+                  'icon': Icons.video_library,
+                  'title': 'Video',
+                  'value': 'video'
+                },
+              ];
+
+        return AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            title,
+            style: textTheme.titleLarge?.copyWith(color: kAccentLight),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: options
+                .map((option) => ListTile(
+                      leading: Icon(
+                        option['icon'] as IconData,
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                      title: Text(
+                        option['title'] as String,
+                        style: textTheme.titleMedium?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                        ),
+                      ),
+                      onTap: () =>
+                          Navigator.pop(context, option['value'] as String),
+                    ))
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickMedia({bool fromCamera = false}) async {
+    final ImagePicker picker = ImagePicker();
+
+    final choice = await _showMediaSelectionDialog(isCamera: fromCamera);
+    if (choice == null) return;
+
+    if (fromCamera) {
+      final XFile? media = choice == 'photo'
+          ? await picker.pickImage(source: ImageSource.camera, imageQuality: 80)
+          : await picker.pickVideo(source: ImageSource.camera);
+
+      if (media != null) {
+        if (choice == 'photo') {
+          final XFile? cropped = await cropImage(media, context);
+          if (cropped != null) {
+            setState(() {
+              _selectedMedia = [cropped];
+              _isVideo = false;
+            });
+          }
+        } else {
+          setState(() {
+            _selectedMedia = [media];
+            _isVideo = true;
+          });
+        }
+      }
+    } else {
+      if (choice == 'photos') {
+        List<XFile> pickedImages =
+            await openMultiImagePickerModal(context: context);
+        if (pickedImages.isNotEmpty) {
+          List<XFile> croppedImages = [];
+          for (final img in pickedImages) {
+            final XFile? cropped = await cropImage(img, context);
+            if (cropped != null) {
+              croppedImages.add(cropped);
+            }
+          }
+          if (croppedImages.isNotEmpty) {
+            setState(() {
+              _selectedMedia = croppedImages;
+              _isVideo = false;
+            });
+          }
+        }
+      } else {
+        final XFile? video =
+            await picker.pickVideo(source: ImageSource.gallery);
+        if (video != null) {
+          setState(() {
+            _selectedMedia = [video];
+            _isVideo = true;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _uploadMedia() async {
+    if (_selectedMedia.isEmpty) {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
-          'Please select an image first.',
+          'Please select media first.',
           context,
         );
       }
@@ -121,42 +242,48 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     setState(() => isUploading = true);
 
     try {
-      final List<String> uploadedImageUrls = [];
+      final List<String> uploadedUrls = [];
 
-      for (final image in _selectedImages) {
-        // Compress and resize battle image before upload
-        final String compressedPath =
-            await _compressAndResizeBattleImage(image.path);
+      for (final media in _selectedMedia) {
+        String downloadUrl;
+        if (_isVideo) {
+          // Upload video directly
+          downloadUrl = await BattleService.instance.uploadBattleVideo(
+            battleId: widget.battleId,
+            userId: userService.userId ?? '',
+            videoFile: File(media.path),
+          );
+        } else {
+          // Compress and resize battle image before upload
+          final String compressedPath =
+              await _compressAndResizeBattleImage(media.path);
+          downloadUrl = await BattleService.instance.uploadBattleImage(
+            battleId: widget.battleId,
+            userId: userService.userId ?? '',
+            imageFile: File(compressedPath),
+          );
+          // Clean up temporary file
+          await File(compressedPath).delete();
+        }
 
-        // Upload image using battle service
-        String downloadUrl = await BattleService.instance.uploadBattleImage(
-          battleId: widget.battleId,
-          userId: userService.userId ?? '',
-          imageFile: File(compressedPath),
-        );
-
-        uploadedImageUrls.add(downloadUrl);
-
-        // Clean up temporary file
-        await File(compressedPath).delete();
+        uploadedUrls.add(downloadUrl);
       }
 
       final post = Post(
         id: widget.isMainPost ? '' : widget.battleId,
         userId: userService.userId ?? '',
-        mediaPaths: uploadedImageUrls,
+        mediaPaths: uploadedUrls,
         name: userService.currentUser.value?.displayName ?? '',
         category: selectedCategory,
         isBattle: widget.isMainPost ? false : true,
         battleId: widget.isMainPost ? '' : widget.battleId,
+        isVideo: _isVideo,
       );
 
       if (widget.isMainPost) {
-        // Move battle from ongoing to voted for the user
         await postController.uploadPost(
-            post, userService.userId ?? '', uploadedImageUrls);
+            post, userService.userId ?? '', uploadedUrls);
       } else {
-        // Update battle with uploaded images
         await BattleService.instance.uploadBattleImages(post: post);
       }
 
@@ -168,10 +295,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         }
       }
     } catch (e) {
-      print('Error uploading battle image: $e');
+      print('Error uploading battle media: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
+          SnackBar(content: Text('Error uploading media: $e')),
         );
       }
     } finally {
@@ -181,25 +308,78 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     }
   }
 
+  Widget _buildMediaPreview() {
+    if (_selectedMedia.isEmpty) {
+      return GestureDetector(
+        onTap: () => _pickMedia(fromCamera: true),
+        child: Container(
+          height: MediaQuery.of(context).size.height > 1100
+              ? getPercentageHeight(30, context)
+              : getPercentageHeight(25, context),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: getThemeProvider(context).isDarkMode
+                ? kDarkGrey
+                : Colors.grey[300],
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Center(
+            child: Icon(
+              Icons.add_a_photo,
+              size: getIconScale(15, context),
+              color: getThemeProvider(context).isDarkMode
+                  ? kWhite.withOpacity(0.7)
+                  : kDarkGrey.withOpacity(0.7),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_isVideo) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: VideoPlayerWidget(
+          videoUrl: _selectedMedia.first.path,
+          autoPlay: false,
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15),
+      child: Image.file(
+        File(_selectedMedia.first.path),
+        height: MediaQuery.of(context).size.height > 1100
+            ? getPercentageHeight(35, context)
+            : getPercentageHeight(30, context),
+        width: double.infinity,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-          title: Text(
-              !widget.isMainPost
-                  ? "Upload Battle Image - ${capitalizeFirstLetter(widget.battleCategory)}"
-                  : "Upload Image",
-              style: textTheme.titleLarge?.copyWith(color: kAccentLight)),
-          leading: InkWell(
-            onTap: () => widget.isMainPost
-                ? Get.to(() => const BottomNavSec(selectedIndex: 2))
-                : Get.back(),
-            child: const IconCircleButton(
-              isRemoveContainer: true,
-            ),
-          )),
+        title: Text(
+          !widget.isMainPost
+              ? "Upload Battle Media - ${capitalizeFirstLetter(widget.battleCategory)}"
+              : "Upload Media",
+          style: textTheme.titleLarge?.copyWith(color: kAccentLight),
+        ),
+        leading: InkWell(
+          onTap: () => widget.isMainPost
+              ? Get.to(() => const BottomNavSec(selectedIndex: 2))
+              : Get.back(),
+          child: const IconCircleButton(
+            isRemoveContainer: true,
+          ),
+        ),
+      ),
       body: Padding(
         padding:
             EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
@@ -210,78 +390,14 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               children: [
                 SizedBox(width: getPercentageWidth(2, context)),
                 IconButton(
-                  onPressed: () async {
-                    List<XFile> pickedImages =
-                        await openMultiImagePickerModal(context: context);
-                    if (pickedImages.isNotEmpty) {
-                      List<XFile> croppedImages = [];
-                      for (final img in pickedImages) {
-                        final XFile? cropped = await cropImage(img, context);
-                        if (cropped != null) {
-                          croppedImages.add(cropped);
-                        }
-                      }
-                      if (croppedImages.isNotEmpty) {
-                        setState(() {
-                          _selectedImages = croppedImages;
-                        });
-                      }
-                    }
-                  },
+                  onPressed: () => _pickMedia(),
                   icon: Icon(Icons.add, size: getIconScale(10, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
               ],
             ),
             SizedBox(height: getPercentageHeight(1, context)),
-            _selectedImages.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Image.file(
-                      File(_selectedImages.first.path),
-                      height: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageHeight(35, context)
-                          : getPercentageHeight(30, context),
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : GestureDetector(
-                    onTap: () async {
-                      final XFile? photo = await ImagePicker().pickImage(
-                        source: ImageSource.camera,
-                        imageQuality: 80,
-                      );
-                      if (photo != null) {
-                        final XFile? cropped = await cropImage(photo, context);
-                        if (cropped != null) {
-                          setState(() {
-                            _selectedImages = [cropped];
-                          });
-                        }
-                      }
-                    },
-                    child: Container(
-                      height: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageHeight(30, context)
-                          : getPercentageHeight(25, context),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? kDarkGrey : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.add_a_photo,
-                          size: getIconScale(15, context),
-                          color: isDarkMode
-                              ? kWhite.withOpacity(0.7)
-                              : kDarkGrey.withOpacity(0.7),
-                        ),
-                      ),
-                    ),
-                  ),
-
+            _buildMediaPreview(),
             SizedBox(height: getPercentageHeight(2, context)),
 
             // Category Selector
@@ -300,15 +416,15 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 )),
 
             // Show selected images grid under the recent image
-            if (_selectedImages.length > 1)
+            if (!_isVideo && _selectedMedia.length > 1)
               Container(
                 margin: EdgeInsets.only(top: getPercentageHeight(1, context)),
                 height: getPercentageHeight(10, context),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _selectedImages.length,
+                  itemCount: _selectedMedia.length,
                   itemBuilder: (context, index) {
-                    final image = _selectedImages[index];
+                    final image = _selectedMedia[index];
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: Image.file(
@@ -324,7 +440,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
             SizedBox(height: getPercentageHeight(3, context)),
             ElevatedButton(
-              onPressed: isUploading ? null : _uploadImage,
+              onPressed: isUploading ? null : _uploadMedia,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(56),
                 backgroundColor:
@@ -334,10 +450,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 ),
               ),
               child: isUploading
-                  ? const CircularProgressIndicator(
-                      color: kAccent,
-                    )
-                  : Text("Upload", style: textTheme.titleMedium?.copyWith(color: kAccent)),
+                  ? const CircularProgressIndicator(color: kAccent)
+                  : Text(
+                      "Upload",
+                      style: textTheme.titleMedium?.copyWith(
+                        color: isDarkMode ? kAccent : kWhite,
+                      ),
+                    ),
             ),
           ],
         ),

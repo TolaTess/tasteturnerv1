@@ -372,12 +372,15 @@ class SearchContent extends StatelessWidget {
                 ),
 
           // ✅ Multiple Images Overlay Icon
-          if (mediaPaths != null && mediaPaths.length > 1)
+          if (mediaPaths != null && mediaPaths.length > 1 ||
+              dataSrc['isVideo'] == true)
             Positioned(
               top: 4,
               right: 4,
               child: Icon(
-                Icons.content_copy,
+                dataSrc['isVideo'] == true
+                    ? Icons.play_circle
+                    : Icons.content_copy,
                 color: Colors.white,
                 size: getPercentageWidth(4, context),
               ),
@@ -452,12 +455,14 @@ class SearchContentPost extends StatelessWidget {
                 ),
 
           // ✅ Multiple Images Icon
-          if (mediaPaths.length > 1)
+          if (mediaPaths.length > 1 || dataSrc.isVideo == true)
             Positioned(
               top: 4,
               right: 4,
               child: Icon(
-                Icons.content_copy,
+                dataSrc.isVideo == true
+                    ? Icons.play_circle
+                    : Icons.content_copy,
                 color: Colors.white,
                 size: getPercentageWidth(4, context),
               ),

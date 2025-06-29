@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/pages/edit_goal.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../constants.dart';
 import '../data_models/ingredient_data.dart';
@@ -9,12 +11,15 @@ import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
+import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
+import '../service/gemini_service.dart';
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
+import 'food_analysis_results_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
@@ -44,6 +49,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   final MealApiService _apiService = MealApiService();
   final FoodApiService _macroApiService = FoodApiService();
+  final GeminiService _geminiService = GeminiService();
   final RxBool _isSearching = false.obs;
 
   // Replace the food section maps with meal type maps
@@ -263,6 +269,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   // Search box
                   Row(
                     children: [
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      IconButton(
+                        onPressed: () => _handleCameraAction(mealType),
+                        icon: Icon(Icons.camera_alt,
+                            size: getIconScale(7, context)),
+                      ),
                       Flexible(
                         child: Padding(
                           padding:
@@ -406,6 +418,77 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             );
           },
         ),
+      ),
+    );
+  }
+
+  Future<void> _handleCameraAction(String mealType) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: kAccent),
+        ),
+      );
+
+      // Pick image using the custom image picker
+      List<XFile> pickedImages =
+          await openMultiImagePickerModal(context: context);
+
+      if (pickedImages.isEmpty) {
+        Navigator.pop(context); // Close loading dialog
+        return;
+      }
+
+      // Crop the first image
+      XFile? croppedImage = await cropImage(pickedImages.first, context);
+      if (croppedImage == null) {
+        Navigator.pop(context); // Close loading dialog
+        return;
+      }
+
+      // Analyze the image
+      final analysisResult = await _geminiService.analyzeFoodImageWithContext(
+        imageFile: File(croppedImage.path),
+        mealType: mealType,
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Navigate to results screen for review and editing
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FoodAnalysisResultsScreen(
+            imageFile: File(croppedImage.path),
+            analysisResult: analysisResult,
+            mealType: mealType,
+          ),
+        ),
+      );
+
+      // Refresh the data
+      await _loadData();
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      _showErrorDialog('Analysis failed: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -1171,18 +1254,17 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   Text(
                     mealType,
                     style: textTheme.titleLarge?.copyWith(
-                          fontSize: getPercentageWidth(4.5, context),
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode ? kWhite : kBlack,
-                        ),
+                      fontSize: getPercentageWidth(4.5, context),
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                   ),
                   SizedBox(height: getPercentageHeight(0.5, context)),
                   Text(
                     recommendedCalories,
                     style: textTheme.bodyLarge?.copyWith(
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        ),
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
                   ),
                   if (currentCalories > 0)
                     SizedBox(height: getPercentageHeight(1, context)),
@@ -1190,9 +1272,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     Text(
                       'Added: $currentCalories kcal',
                       style: textTheme.bodyMedium?.copyWith(
-                            color: kAccent,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        color: kAccent,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   if (meals.isNotEmpty)
                     Padding(
@@ -1202,12 +1284,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         meals.map((e) => e.name).join(', '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            textTheme.titleMedium?.copyWith(
-                                  color: isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
-                                ),
+                        style: textTheme.titleMedium?.copyWith(
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        ),
                       ),
                     ),
                 ],

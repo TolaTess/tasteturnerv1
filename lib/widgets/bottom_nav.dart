@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:tasteturner/helper/utils.dart';
-import 'package:tasteturner/tabs_screen/recipe_screen.dart';
-import 'package:tasteturner/tabs_screen/spin_screen.dart';
 import '../constants.dart';
 import '../tabs_screen/home_screen.dart';
 import '../tabs_screen/inspiration_screen.dart';
 import '../tabs_screen/meal_design_screen.dart';
 import '../tabs_screen/program_screen.dart';
+import '../tabs_screen/spin_screen.dart';
 import '../themes/theme_provider.dart';
 
 class BottomNavSec extends StatefulWidget {

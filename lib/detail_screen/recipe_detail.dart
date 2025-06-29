@@ -267,6 +267,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SliverToBoxAdapter(
       child: Wrap(
         children: [
@@ -284,17 +285,77 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       Text(
                         capitalizeFirstLetter(widget.meal.title),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: getTextScale(4, context),
-                          fontWeight: FontWeight.bold,
+                        maxLines: 2,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
-                      Text(
-                        " $serves: ${widget.meal.serveQty}",
-                        style: TextStyle(fontSize: getTextScale(3, context)),
+                      if (widget.meal.description != null &&
+                          widget.meal.description!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              vertical: getPercentageHeight(0.5, context)),
+                          child: Text(
+                            widget.meal.description!,
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: isDarkMode ? kLightGrey : kDarkGrey,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      SizedBox(height: getPercentageHeight(0.5, context)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "$serves: ${widget.meal.serveQty}",
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          if (widget.meal.cookingTime != null &&
+                              widget.meal.cookingTime!.isNotEmpty) ...[
+                            SizedBox(width: getPercentageWidth(4, context)),
+                            Icon(Icons.access_time,
+                                size: getIconScale(4, context), color: kAccent),
+                            SizedBox(width: getPercentageWidth(1, context)),
+                            Text(
+                              widget.meal.cookingTime!,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
+                      if (widget.meal.cookingMethod != null &&
+                          widget.meal.cookingMethod!.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(
+                              top: getPercentageHeight(0.5, context)),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.restaurant,
+                                  size: getIconScale(4, context),
+                                  color: kAccent),
+                              SizedBox(width: getPercentageWidth(1, context)),
+                              Text(
+                                "Method: ${capitalizeFirstLetter(widget.meal.cookingMethod!)}",
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -358,11 +419,12 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           }
                         }
                       },
-                      icon:
-                          Icon(Icons.add, size: getResponsiveBoxSize(context, 15, 15)),
+                      icon: Icon(Icons.add,
+                          size: getResponsiveBoxSize(context, 15, 15)),
                       label: Text('Today\'s Meal',
-                          style:
-                              TextStyle(fontSize: getTextScale(3.5, context))),
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w400,
+                          )),
                       style: TextButton.styleFrom(
                         foregroundColor: kAccent,
                         padding: EdgeInsets.symmetric(
@@ -406,8 +468,9 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         icon: Icon(Icons.edit,
                             size: getResponsiveBoxSize(context, 15, 15)),
                         label: Text('Edit Meal',
-                            style: TextStyle(
-                                fontSize: getTextScale(3.5, context))),
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w400,
+                            )),
                         style: TextButton.styleFrom(
                           foregroundColor: kAccent,
                           padding: EdgeInsets.symmetric(
@@ -429,42 +492,42 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                       ? kDarkGrey
                                       : kWhite,
                               title: Text('Delete Meal',
-                                  style: TextStyle(
-                                      color:
-                                          getThemeProvider(context).isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                      fontSize:
-                                          getTextScale(4.5, context))),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        getThemeProvider(context).isDarkMode
+                                            ? kWhite
+                                            : kDarkGrey,
+                                    fontWeight: FontWeight.w400,
+                                  )),
                               content: Text(
                                   'Are you sure you want to delete this meal? This action cannot be undone.',
-                                  style: TextStyle(
-                                      color:
-                                          getThemeProvider(context).isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                      fontSize:
-                                          getTextScale(3.5, context))),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        getThemeProvider(context).isDarkMode
+                                            ? kWhite
+                                            : kDarkGrey,
+                                    fontWeight: FontWeight.w400,
+                                  )),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
                                   child: Text('Cancel',
-                                      style: TextStyle(
-                                          color: getThemeProvider(context)
-                                                  .isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                          fontSize:
-                                              getTextScale(3.5, context))),
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: getThemeProvider(context)
+                                                .isDarkMode
+                                            ? kWhite
+                                            : kDarkGrey,
+                                        fontWeight: FontWeight.w400,
+                                      )),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
                                   child: Text('Delete',
-                                      style: TextStyle(
-                                          color: kRed,
-                                          fontSize:
-                                              getTextScale(3.5, context))),
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: kRed,
+                                        fontWeight: FontWeight.w400,
+                                      )),
                                 ),
                               ],
                             ),
@@ -528,6 +591,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SliverPadding(
       padding: EdgeInsets.only(
         left: getPercentageWidth(5, context),
@@ -588,10 +652,9 @@ class _RecipeProfileState extends State<RecipeProfile> {
                     Text(
                       capitalizeFirstLetter(
                           widget.mealUser?.displayName ?? appName),
-                      style: TextStyle(
-                        fontSize: getTextScale(4, context),
+                      style: textTheme.bodyLarge?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -652,14 +715,19 @@ class NutritionFacts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
 
-    // Use the meal.macros map
-    Map<String, String> nutritionMap = {
-      ...meal.macros, // Add existing macros
-      'Calories': '${meal.calories} kcal', // Add calories as a new entry
-    };
+    Map<String, String> nutritionMap = {};
+    if (meal.nutrition.isNotEmpty) {
+      nutritionMap = meal.nutrition;
+    } else if (meal.nutritionalInfo.isNotEmpty) {
+      nutritionMap = meal.nutritionalInfo;
+    } else {
+      nutritionMap = {...meal.macros};
+      nutritionMap['calories'] = meal.calories.toString().toLowerCase();
+    }
 
-// Convert map entries to a list for iteration
+    // Convert map entries to a list for iteration
     List<MapEntry<String, String>> nutritionEntries =
         nutritionMap.entries.toList();
 
@@ -668,7 +736,6 @@ class NutritionFacts extends StatelessWidget {
         left: getPercentageWidth(3, context),
         right: getPercentageWidth(3, context),
         top: getPercentageHeight(3, context),
-        bottom: getPercentageHeight(5, context),
       ),
       sliver: SliverGrid(
         delegate: SliverChildBuilderDelegate(
@@ -688,19 +755,18 @@ class NutritionFacts extends StatelessWidget {
                     Text(
                       capitalizeFirstLetter(
                           nutritionEntries[index].key), // Display key
-                      style: TextStyle(
+                      style: textTheme.displayMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.bold,
-                        fontSize: getTextScale(3, context),
+                        fontWeight: FontWeight.w400,
+                        fontSize: getTextScale(4, context),
                       ),
                     ),
                     // Quantity (value)
                     Text(
                       nutritionEntries[index].value, // Display value
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w500,
-                        fontSize: getTextScale(2.5, context),
                       ),
                     ),
                   ],
@@ -734,6 +800,7 @@ class IngredientsTittle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SliverToBoxAdapter(
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -743,12 +810,12 @@ class IngredientsTittle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(ingredients,
-                style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    color: isDarkMode ? kWhite : kBlack,
-                    fontWeight: FontWeight.bold)),
+                style: textTheme.bodyLarge?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontWeight: FontWeight.bold,
+                )),
             Text("${meal.ingredients.length} $items",
-                style: TextStyle(fontSize: getTextScale(2.5, context)))
+                style: textTheme.bodySmall?.copyWith())
           ],
         ),
       ),
@@ -804,8 +871,9 @@ class IngredientsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: EdgeInsets.only(right: getPercentageWidth(0.5, context)),
+      padding: EdgeInsets.only(right: getPercentageWidth(1.2, context)),
       child: Container(
         decoration: BoxDecoration(
           color: isDarkMode ? kLightGrey : kWhite,
@@ -813,29 +881,31 @@ class IngredientsCard extends StatelessWidget {
         ),
         child: Padding(
           padding: EdgeInsets.only(
-              bottom: getPercentageHeight(1, context),
-              left: getPercentageWidth(1, context),
-              right: getPercentageWidth(1, context)),
+              bottom: getPercentageHeight(2, context),
+              left: getPercentageWidth(2, context),
+              right: getPercentageWidth(2, context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                height: getPercentageHeight(1, context),
+                height: getPercentageHeight(2, context),
               ),
               //ingredient title
               Text(
                 capitalizeFirstLetter(ingredientName),
-                style: TextStyle(
-                    fontSize: getTextScale(3, context),
-                    fontWeight: FontWeight.w700,
-                    color: isDarkMode ? kWhite : kBlack),
+                style: textTheme.bodyMedium?.copyWith(
+                  fontSize: getTextScale(3, context),
+                  fontWeight: FontWeight.w700,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
               ),
               //ingredient quantity
               Text(ingredientQty,
-                  style: TextStyle(
-                      fontSize: getTextScale(2.5, context),
-                      fontWeight: FontWeight.w500,
-                      color: isDarkMode ? kWhite : kBlack))
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontSize: getTextScale(2.5, context),
+                    fontWeight: FontWeight.w500,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ))
             ],
           ),
         ),
@@ -857,6 +927,7 @@ class DirectionsTittle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SliverToBoxAdapter(
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -866,12 +937,15 @@ class DirectionsTittle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(directions,
-                style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    color: isDarkMode ? kWhite : kBlack,
-                    fontWeight: FontWeight.bold)),
-            Text("${meal.steps.length} steps",
-                style: TextStyle(fontSize: getTextScale(2.5, context)))
+                style: textTheme.bodyLarge?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontWeight: FontWeight.w500,
+                )),
+            Text(
+                "${meal.instructions.length} ${meal.instructions.length == 1 ? 'step' : 'steps'}",
+                  style: textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w400,
+                ))
           ],
         ),
       ),
@@ -896,9 +970,9 @@ class DirectionsDetail extends StatelessWidget {
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
-            for (int i = 0; i < meal.steps.length; i++)
+            for (int i = 0; i < meal.instructions.length; i++)
               DirectionsCard(
-                direction: meal.steps[i],
+                direction: meal.instructions[i],
                 index: i,
               ),
           ],
@@ -921,7 +995,8 @@ class DirectionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode = getThemeProvider(context).isDarkMode;  
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
@@ -938,15 +1013,19 @@ class DirectionsCard extends StatelessWidget {
             //step number
             Text(
               'Step ${index + 1}',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: getTextScale(3, context),
-                  color: isDarkMode ? kWhite : kBlack),
+              style: textTheme.displaySmall?.copyWith(
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
             ),
             //direction
             Text(
               direction,
-              style: TextStyle(fontSize: getTextScale(2.5, context)),
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w400,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
             )
           ],
         ),

@@ -157,6 +157,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final battleDeadline = DateTime.parse(
         firebaseService.generalData['battleDeadline'] ??
             DateTime.now().toString());
@@ -166,8 +167,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
       appBar: AppBar(
         centerTitle: true,
         title: Text(
-          'Challenge',
-          style: TextStyle(fontSize: getTextScale(4, context)),
+          'Food Challenge',
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getTextScale(7, context),
+          ),
         ),
       ),
       body: RefreshIndicator(

@@ -77,7 +77,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       serveQtyController.text = meal.serveQty.toString();
       caloriesController.text = meal.calories.toString();
       categoryController.text = meal.categories.join(', ');
-      stepsController.text = meal.steps.join('\n');
+      stepsController.text = meal.instructions.join('\n');
       mediaPaths.addAll(meal.mediaPaths);
       // Prefill ingredients
       ingredientsList.clear();
@@ -191,8 +191,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         serveQty: int.tryParse(serveQtyController.text) ?? 1,
         calories: int.tryParse(caloriesController.text) ?? 0,
         ingredients: mIngredients,
-        macros: macros,
-        steps: stepsController.text.split("\n"),
+        nutritionalInfo: macros,
+        instructions: stepsController.text.split("\n"),
         categories:
             categoryController.text.split(",").map((c) => c.trim()).toList(),
         mealId: mealId,
@@ -524,13 +524,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                       decoration: InputDecoration(
                                         labelText: "Ingredient",
                                         labelStyle: TextStyle(
-                                          fontSize:
-                                              getTextScale(4, context),
+                                          fontSize: getTextScale(4, context),
                                           color: kAccent,
                                         ),
                                         hintStyle: TextStyle(
-                                          fontSize:
-                                              getTextScale(3.5, context),
+                                          fontSize: getTextScale(3.5, context),
                                           color:
                                               kLightGrey.withValues(alpha: 0.5),
                                         ),

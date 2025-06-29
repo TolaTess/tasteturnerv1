@@ -342,6 +342,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                           isDarkMode: isDarkMode,
                           showCaloriesAndGoal: showCaloriesAndGoal,
                           user: user,
+                          color: colors[selectedUserIndex % colors.length],
                         ),
                       if (familyMode)
                         FamilySelectorSection(
@@ -591,6 +592,7 @@ class MealPlanSection extends StatelessWidget {
   final bool isDarkMode;
   final bool showCaloriesAndGoal;
   final Map<String, dynamic> user;
+  final Color color;
 
   const MealPlanSection({
     super.key,
@@ -599,6 +601,7 @@ class MealPlanSection extends StatelessWidget {
     required this.isDarkMode,
     required this.showCaloriesAndGoal,
     required this.user,
+    required this.color,
   });
 
   @override
@@ -612,7 +615,8 @@ class MealPlanSection extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                Navigator.of(context).push(
+                Navigator.push(
+                  context,
                   MaterialPageRoute(
                     builder: (_) => const BottomNavSec(selectedIndex: 4),
                   ),
@@ -644,7 +648,12 @@ class MealPlanSection extends StatelessWidget {
         if (meals.isNotEmpty)
           GestureDetector(
             onTap: () {
-              Get.to(() => const BottomNavSec(selectedIndex: 4));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BottomNavSec(selectedIndex: 4),
+                ),
+              );
             },
             child: SizedBox(
               height: getProportionalHeight(125, context),
@@ -657,7 +666,13 @@ class MealPlanSection extends StatelessWidget {
                   final meal = meals[index];
                   return GestureDetector(
                     onTap: () {
-                      Get.to(() => RecipeDetailScreen(mealData: meal.meal));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              RecipeDetailScreen(mealData: meal.meal),
+                        ),
+                      );
                     },
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -669,29 +684,17 @@ class MealPlanSection extends StatelessWidget {
                             vertical: getPercentageHeight(2, context),
                           ),
                           decoration: BoxDecoration(
-                            color: getDayTypeColor(
-                                    (mealPlan['dayType'] ?? '')
-                                        .replaceAll('_', ' '),
-                                    isDarkMode)
-                                .withOpacity(0.2),
+                            color: color.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(18),
                             boxShadow: [
                               BoxShadow(
-                                color: getDayTypeColor(
-                                        (mealPlan['dayType'] ?? '')
-                                            .replaceAll('_', ' '),
-                                        isDarkMode)
-                                    .withOpacity(0.3),
+                                color: color.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                             border: Border.all(
-                              color: getDayTypeColor(
-                                      (mealPlan['dayType'] ?? '')
-                                          .replaceAll('_', ' '),
-                                      isDarkMode)
-                                  .withOpacity(0.18),
+                              color: color.withOpacity(0.18),
                               width: 1.2,
                             ),
                           ),
@@ -739,8 +742,8 @@ class MealPlanSection extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            padding:
-                                EdgeInsets.all(getPercentageWidth(2, context)),
+                            padding: EdgeInsets.all(
+                                getPercentageWidth(2, context)),
                             child: Text(
                               getMealTypeSubtitle(meal.mealType),
                               style: Theme.of(context)
@@ -750,6 +753,41 @@ class MealPlanSection extends StatelessWidget {
                                     fontSize: getTextScale(5, context),
                                     color: kAccent,
                                   ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: getPercentageWidth(2, context),
+                          right: getPercentageWidth(2, context),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const BottomNavSec(selectedIndex: 4),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(1, context)),
+                              decoration: BoxDecoration(
+                                color: getDayTypeColor(
+                                        (mealPlan['dayType'] ?? '')
+                                            .replaceAll('_', ' '),
+                                        isDarkMode)
+                                    .withOpacity(0.13),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.edit,
+                                size: getIconScale(5.5, context),
+                                color: getDayTypeColor(
+                                    (mealPlan['dayType'] ?? '')
+                                        .replaceAll('_', ' '),
+                                    isDarkMode),
+                              ),
                             ),
                           ),
                         ),
@@ -914,13 +952,13 @@ Widget _buildTagChip(dynamic tag, BuildContext context) {
       //                                 isDarkMode)),
       //                   ),
       //                 SizedBox(width: getPercentageWidth(1, context)),
-      //                 Icon(
-      //                   Icons.edit,
-      //                   size: getIconScale(5.5, context),
-      //                   color: getDayTypeColor(
-      //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-      //                       isDarkMode),
-      //                 ),
+        //                 Icon(
+        //                   Icons.edit,
+        //                   size: getIconScale(5.5, context),
+        //                   color: getDayTypeColor(
+        //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
+        //                       isDarkMode),
+        //                 ),
       //               ],
       //             ),
       //           ),
