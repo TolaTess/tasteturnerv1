@@ -241,7 +241,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
             ),
           ),
         ),
-        SizedBox(height: getPercentageHeight(3, context)),
+        SizedBox(height: getPercentageHeight(2, context)),
       ],
     );
   }

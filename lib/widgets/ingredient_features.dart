@@ -1,20 +1,20 @@
-import '../widgets/bottom_nav.dart';
-import '../widgets/search_button.dart';
 import 'package:flutter/material.dart';
+import '../widgets/search_button.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
-import 'icon_widget.dart';
 
 class IngredientFeatures extends StatefulWidget {
   final List<MacroData> items;
   final bool isRecipe;
+  final String? searchIngredient;
   const IngredientFeatures({
     Key? key,
     required this.items,
     this.isRecipe = false,
+    this.searchIngredient,
   }) : super(key: key);
 
   @override
@@ -28,10 +28,33 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   int _displayedItemCount = 10;
   bool _isLoading = false;
 
+  // Helper method to get base filtered items based on searchIngredient
+  List<MacroData> get _baseFilteredItems {
+    if (widget.searchIngredient == null || widget.searchIngredient!.isEmpty) {
+      return widget.items;
+    }
+    print(widget.searchIngredient);
+    print(widget.items.first.techniques);
+
+    return widget.items.where((item) {
+      // Search in techniques if they exist
+      if (item.techniques.isNotEmpty) {
+        return item.techniques.any((technique) => technique
+            .toLowerCase()
+            .contains(widget.searchIngredient!.toLowerCase()));
+      }
+      // Fallback to title search
+      return item.title
+          .toLowerCase()
+          .contains(widget.searchIngredient!.toLowerCase());
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
-    _filteredItems = widget.items.take(10).toList();
+    // Apply initial filtering based on searchIngredient
+    _filteredItems = _baseFilteredItems.take(10).toList();
 
     // Fetch user's shopping list and pre-select items
     _preselectShoppingList();
@@ -93,15 +116,18 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   void _filterItems(String query) {
     setState(() {
       if (query.isEmpty) {
-        _filteredItems = widget.items.take(10).toList();
+        // When search is empty, show base filtered items (considering searchIngredient)
+        _filteredItems = _baseFilteredItems.take(10).toList();
+        _displayedItemCount = 10;
       } else {
-        _filteredItems = widget.items
+        // Apply search query on top of base filtered items
+        _filteredItems = _baseFilteredItems
             .where((item) =>
                 item.title.toLowerCase().contains(query.toLowerCase()))
             .toList();
+        // Reset displayed count on new search
+        _displayedItemCount = 10;
       }
-      // Reset displayed count on new search
-      _displayedItemCount = 10;
     });
   }
 
@@ -115,12 +141,12 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     setState(() {
       final nextBatch = _displayedItemCount + 10;
       if (_searchController.text.isEmpty) {
-        // If no search query, load from widget.items
+        // If no search query, load more from base filtered items
         _displayedItemCount = nextBatch;
-        _filteredItems = widget.items.take(_displayedItemCount).toList();
+        _filteredItems = _baseFilteredItems.take(_displayedItemCount).toList();
       } else {
-        // If there's a search query, load more from filtered results
-        final allFiltered = widget.items
+        // If there's a search query, load more from search filtered results
+        final allFiltered = _baseFilteredItems
             .where((item) => item.title
                 .toLowerCase()
                 .contains(_searchController.text.toLowerCase()))
@@ -135,15 +161,16 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final sortedItems = List<MacroData>.from(_filteredItems)
       ..sort((a, b) => a.title.compareTo(b.title));
 
-    // Update hasMoreItems condition to check against the appropriate list
+    // Update hasMoreItems condition to work with base filtered items
     final bool hasMoreItems;
     if (_searchController.text.isEmpty) {
-      hasMoreItems = widget.items.length > _filteredItems.length;
+      hasMoreItems = _baseFilteredItems.length > _filteredItems.length;
     } else {
-      final allFilteredCount = widget.items
+      final allFilteredCount = _baseFilteredItems
           .where((item) => item.title
               .toLowerCase()
               .contains(_searchController.text.toLowerCase()))
@@ -153,32 +180,16 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding:
-              EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
-          child: InkWell(
-            onTap: () {
-              if (!widget.isRecipe) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BottomNavSec(
-                      selectedIndex: 1,
-                    ),
-                  ),
-                );
-              }
-            },
-            child: const IconCircleButton(),
-          ),
-        ),
+        automaticallyImplyLeading: true,
+        backgroundColor: kAccent,
+        toolbarHeight: getPercentageHeight(10, context),
+        centerTitle: true,
         title: Text(
-          'Ingredient Features',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: getTextScale(4, context),
+          capitalizeFirstLetter(
+              widget.searchIngredient ?? 'Ingredient Features'),
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getTextScale(7, context),
+            color: isDarkMode ? kWhite : kDarkGrey,
           ),
         ),
       ),
@@ -205,9 +216,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               children: [
                 Text(
                   'Ingredients',
-                  style: TextStyle(
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: getTextScale(3.5, context),
+                    fontSize: getTextScale(5, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
@@ -241,9 +252,10 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                             )
                           : Text(
                               'See More',
-                              style: TextStyle(
-                                  color: kWhite,
-                                  fontSize: getTextScale(3, context)),
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: kWhite,
+                                fontSize: getTextScale(4, context),
+                              ),
                             ),
                     ),
                   ),

@@ -121,6 +121,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               words[_index],
                               key: ValueKey<String>(words[_index]),
                               style: textTheme.displayMedium?.copyWith(
+                                fontSize: getTextScale(6, context),
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
@@ -130,6 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         Text(
                           "with Confidence",
                           style: textTheme.displayMedium?.copyWith(
+                            fontSize: getTextScale(6, context),
                             color: kWhite,
                             fontWeight: FontWeight.w100,
                           ),

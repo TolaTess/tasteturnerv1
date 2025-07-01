@@ -8,8 +8,6 @@ import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
-import '../screens/message_screen.dart' show TastyScreen;
-import '../widgets/bottom_nav.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
 
@@ -126,34 +124,6 @@ class _BuddyTabState extends State<BuddyTab> {
       }
     });
     return mostCommonCategory;
-  }
-
-  Color _getMealTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'protein':
-        return kAccent.withOpacity(0.5);
-      case 'grain':
-        return kBlue.withOpacity(0.5);
-      case 'vegetable':
-        return kAccentLight.withOpacity(0.5);
-      case 'fruit':
-        return kPurple.withOpacity(0.5);
-      default:
-        return kPink.withOpacity(0.5);
-    }
-  }
-
-  String _getMealTypeImage(String type) {
-    switch (type.toLowerCase()) {
-      case 'protein':
-        return 'assets/images/meat.jpg';
-      case 'grain':
-        return 'assets/images/grain.jpg';
-      case 'vegetable':
-        return 'assets/images/vegetable.jpg';
-      default:
-        return 'assets/images/placeholder.jpg';
-    }
   }
 
   Widget _buildDefaultView(BuildContext context) {
@@ -446,6 +416,24 @@ class _BuddyTabState extends State<BuddyTab> {
                         ),
                       ),
                     ),
+                    userService.currentUser.value?.isPremium ?? false
+                        ? const SizedBox.shrink()
+                        : SizedBox(height: getPercentageHeight(1, context)),
+                    userService.currentUser.value?.isPremium ?? false
+                        ? const SizedBox.shrink()
+                        : PremiumSection(
+                            isPremium:
+                                userService.currentUser.value?.isPremium ??
+                                    false,
+                            titleOne: joinChallenges,
+                            titleTwo: premium,
+                            isDiv: false,
+                          ),
+                    userService.currentUser.value?.isPremium ?? false
+                        ? const SizedBox.shrink()
+                        : SizedBox(height: getPercentageHeight(0.5, context)),
+
+                    // ------------------------------------Premium / Ads-------------------------------------
                     SizedBox(height: getPercentageHeight(2, context)),
                     Container(
                       margin: EdgeInsets.symmetric(
@@ -522,10 +510,10 @@ class _BuddyTabState extends State<BuddyTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildAddMealTypeLegend(context, 'protein'),
-                        _buildAddMealTypeLegend(context, 'grain'),
-                        _buildAddMealTypeLegend(context, 'vegetable'),
-                        _buildAddMealTypeLegend(context, 'fruit'),
+                        buildAddMealTypeLegend(context, 'protein'),
+                        buildAddMealTypeLegend(context, 'grain'),
+                        buildAddMealTypeLegend(context, 'vegetable'),
+                        buildAddMealTypeLegend(context, 'fruit'),
                       ],
                     ),
                     SizedBox(height: getPercentageHeight(1, context)),
@@ -547,29 +535,6 @@ class _BuddyTabState extends State<BuddyTab> {
             },
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildAddMealTypeLegend(BuildContext context, String mealType) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: kAccent.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: getPercentageWidth(4, context),
-        vertical: getPercentageHeight(1, context),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.square_rounded, color: _getMealTypeColor(mealType)),
-          SizedBox(width: getPercentageWidth(2, context)),
-          Text(capitalizeFirstLetter(mealType),
-              style: textTheme.bodyMedium?.copyWith(color: kAccent)),
-        ],
       ),
     );
   }
@@ -620,7 +585,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 vertical: getPercentageHeight(1, context),
               ),
               decoration: BoxDecoration(
-                color: _getMealTypeColor(meal.category ?? 'default'),
+                color: getMealTypeColor(meal.category ?? 'default'),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(
@@ -635,7 +600,7 @@ class _BuddyTabState extends State<BuddyTab> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.asset(
-                      _getMealTypeImage(meal.category ?? 'default'),
+                      getMealTypeImage(meal.category ?? 'default'),
                       fit: BoxFit.cover,
                     ),
                   ),

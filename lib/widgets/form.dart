@@ -63,12 +63,12 @@ class EmailField extends StatelessWidget {
   final TextEditingController controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {  
+    final textTheme = Theme.of(context).textTheme;
     return SafeTextField(
       controller: controller,
-      style: TextStyle(
+      style: textTheme.bodyMedium?.copyWith(
         color: themeProvider ? kWhite : kBlack,
-        fontSize: getTextScale(3, context),
       ),
       decoration: InputDecoration(
         filled: true,
@@ -76,23 +76,20 @@ class EmailField extends StatelessWidget {
         enabledBorder: underlineInputBorder(),
         focusedBorder: underlineInputBorder(),
         border: underlineInputBorder(),
-        labelStyle: TextStyle(
+        labelStyle: textTheme.bodyMedium?.copyWith(
           color: kLightGrey,
-          fontSize: getTextScale(3.5, context),
         ),
         labelText: kHint,
         suffixIcon: Icon(
           Icons.email_outlined,
-          color: themeProvider ? kPrimaryColor : kBlack,
-          size: getPercentageWidth(4, context),
+          color: themeProvider ? kWhite : kDarkGrey,
+          size: getIconScale(5.5, context),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
           vertical: getPercentageHeight(0.5, context),
         ),
-        hintStyle: TextStyle(
-          fontSize: getTextScale(3.5, context),
-        ),
+        hintStyle: textTheme.bodyMedium?.copyWith(),
       ),
     );
   }
@@ -117,11 +114,11 @@ class _PasswordFieldState extends State<PasswordField> {
   bool _isTextVisible = false;
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return SafeTextField(
       controller: widget.controller,
-      style: TextStyle(
+      style: textTheme.bodyMedium?.copyWith(
         color: widget.themeProvider ? kWhite : kBlack,
-        fontSize: getTextScale(3, context),
       ),
       obscureText: !_isTextVisible,
       keyboardType: TextInputType.emailAddress,
@@ -131,23 +128,20 @@ class _PasswordFieldState extends State<PasswordField> {
         enabledBorder: underlineInputBorder(),
         focusedBorder: underlineInputBorder(),
         border: underlineInputBorder(),
-        labelStyle: TextStyle(
+        labelStyle: textTheme.bodyMedium?.copyWith(
           color: kLightGrey,
-          fontSize: getTextScale(3.5, context),
         ),
         labelText: widget.kHint,
         contentPadding: EdgeInsets.symmetric(
           horizontal: 0,
           vertical: getPercentageHeight(0.5, context),
         ),
-        hintStyle: TextStyle(
-          fontSize: getTextScale(3.5, context),
-        ),
+        hintStyle: textTheme.bodyMedium?.copyWith(),
         suffixIcon: IconButton(
           icon: Icon(
             _isTextVisible ? Icons.visibility : Icons.visibility_off,
-            color: widget.themeProvider ? kPrimaryColor : kBlack,
-            size: getIconScale(7, context),   
+            color: widget.themeProvider ? kWhite : kDarkGrey,
+            size: getIconScale(5.5, context),   
           ),
           onPressed: () {
             setState(() {

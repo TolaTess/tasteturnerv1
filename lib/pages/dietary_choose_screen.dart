@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -493,6 +494,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       await saveMealPlanToFirestore(
           userId, date, mealIds, mealPlan, selectedDiet);
       await _updateUserPreferences(userId);
+      FirebaseAnalytics.instance.logEvent(name: 'meal_plan_generated');
 
       // Hide loading and navigate back
       if (mounted) {

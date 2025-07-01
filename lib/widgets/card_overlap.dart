@@ -10,7 +10,8 @@ class OverlappingCardsView extends StatefulWidget {
   final EdgeInsets padding;
   final ScrollController? controller;
   final bool isRecipe;
-
+  final bool isTechnique;
+  final bool isProgram;
   const OverlappingCardsView({
     Key? key,
     required this.children,
@@ -20,6 +21,8 @@ class OverlappingCardsView extends StatefulWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.controller,
     this.isRecipe = false,
+    this.isTechnique = false,
+    this.isProgram = false,
   }) : super(key: key);
 
   @override
@@ -46,84 +49,109 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
       sortedIndices.add(selectedIndex!);
     }
 
+    // Calculate total width needed for all cards
+    // Account for overlap between cards and potential expansion of selected card
+    final baseWidth = (widget.children.length - 1) * (widget.cardWidth * 0.2) +
+        widget.cardWidth;
+    final totalWidth =
+        baseWidth + (widget.cardWidth * 0.3); // Extra space for expansion
+
     return SizedBox(
-      height: widget.cardHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            clipBehavior: Clip.none,
-            children: sortedIndices.map((index) {
-              final child = widget.children[index];
-              final isSelected = selectedIndex == index;
-              final isTopCard = index == sortedIndices.last;
+      height: widget.cardHeight + 30, // Extra height for shadows and elevation
+      child: Padding(
+        padding: widget.padding.add(EdgeInsets.only(
+            top: 15, bottom: 15)), // Extra padding for animations
+        child: Scrollbar(
+          controller: widget.controller,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: widget.controller,
+            clipBehavior: Clip.none, // Allow overflow for shadows
+            child: SizedBox(
+              width: totalWidth,
+              height: widget.cardHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: sortedIndices.map((index) {
+                  final child = widget.children[index];
+                  final isSelected = selectedIndex == index;
+                  final isTopCard = index == sortedIndices.last;
 
-              // If this is the top card and no card is selected, auto-select it
-              if (isTopCard && selectedIndex == null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && selectedIndex == null) {
-                    selectCard(index);
+                  // If this is the top card and no card is selected, auto-select it
+                  if (isTopCard && selectedIndex == null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted && selectedIndex == null) {
+                        selectCard(index);
+                      }
+                    });
                   }
-                });
-              }
 
-              // Calculate position based on selection state
-              double leftPosition =
-                  index * (widget.cardWidth * 0.2); // Default 80% overlap
+                  // Calculate position based on selection state
+                  double leftPosition =
+                      index * (widget.cardWidth * 0.2); // Default 80% overlap
 
-              // If there's a selected card, adjust positions
-              if (selectedIndex != null) {
-                if (index == selectedIndex) {
-                  // Selected card stays at its position
-                  leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
-                } else if (index > selectedIndex!) {
-                  // Cards after the selected one should be more visible
-                  leftPosition = (selectedIndex! * (widget.cardWidth * 0.2)) +
-                      (widget.cardWidth * 0.8) + // Show 20% of next card
-                      ((index - selectedIndex! - 1) * (widget.cardWidth * 0.2));
-                }
-              }
+                  // If there's a selected card, adjust positions
+                  if (selectedIndex != null) {
+                    if (index == selectedIndex) {
+                      // Selected card stays at its position
+                      leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
+                    } else if (index > selectedIndex!) {
+                      // Cards after the selected one should be more visible
+                      leftPosition = (selectedIndex! *
+                              (widget.cardWidth * 0.2)) +
+                          (widget.cardWidth * 0.8) + // Show 20% of next card
+                          ((index - selectedIndex! - 1) *
+                              (widget.cardWidth * 0.2));
+                    }
+                  }
 
-              if (child is OverlappingCard) {
-                return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  left: leftPosition,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width:
-                        isSelected ? widget.cardWidth * 1.2 : widget.cardWidth,
-                    child: GestureDetector(
-                      onTap: () => selectCard(index),
-                      child: OverlappingCard(
-                        title: child.title,
-                        subtitle: child.subtitle,
-                        color: child.color,
-                        imageUrl: child.imageUrl,
+                  if (child is OverlappingCard) {
+                    return AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      left: leftPosition,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         width: isSelected
                             ? widget.cardWidth * 1.2
                             : widget.cardWidth,
-                        height: widget.cardHeight,
-                        index: index,
-                        isSelected: isSelected || isTopCard,
-                        isRecipe: widget.isRecipe,
-                        onTap: child.onTap,
+                        child: GestureDetector(
+                          onTap: () => selectCard(index),
+                          child: OverlappingCard(
+                            title: child.title,
+                            subtitle: child.subtitle,
+                            color: child.color,
+                            imageUrl: child.imageUrl,
+                            width: isSelected
+                                ? widget.cardWidth * 1.2
+                                : widget.cardWidth,
+                            height: widget.cardHeight,
+                            index: index,
+                            isSelected: isSelected || isTopCard,
+                            isRecipe: widget.isRecipe,
+                            isTechnique: widget.isTechnique,
+                            onTap: child.onTap,
+                            type: child.type,
+                            isProgram: widget.isProgram,
+                          ),
+                        ),
                       ),
+                    );
+                  }
+                  return AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left: leftPosition,
+                    child: SizedBox(
+                      width: widget.cardWidth,
+                      child: child,
                     ),
-                  ),
-                );
-              }
-              return AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                left: leftPosition,
-                child: SizedBox(
-                  width: widget.cardWidth,
-                  child: child,
-                ),
-              );
-            }).toList(),
-          );
-        },
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -131,6 +159,7 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
 
 class OverlappingCard extends StatefulWidget {
   final String title;
+  final String? type;
   final String? subtitle;
   final Color color;
   final VoidCallback? onTap;
@@ -140,10 +169,13 @@ class OverlappingCard extends StatefulWidget {
   final int index;
   final bool isSelected;
   final bool isRecipe;
+  final bool isTechnique;
+  final bool isProgram;
 
   const OverlappingCard({
     Key? key,
     required this.title,
+    this.type,
     this.subtitle,
     required this.color,
     this.onTap,
@@ -153,6 +185,8 @@ class OverlappingCard extends StatefulWidget {
     required this.index,
     this.isSelected = false,
     this.isRecipe = false,
+    this.isTechnique = false,
+    this.isProgram = false,
   }) : super(key: key);
 
   @override
@@ -200,8 +234,14 @@ class _OverlappingCardState extends State<OverlappingCard>
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final imageUrl =
-        widget.imageUrl ?? getAssetImageForItem(widget.title.toLowerCase());
+
+    final imageUrl = widget.imageUrl?.isNotEmpty == true && !widget.isProgram
+        ? widget.imageUrl!
+        : widget.isProgram
+            ? getAssetImageForItem(widget.type!.toLowerCase())
+            : getAssetImageForItem(widget.title.toLowerCase());
+
+    final isLongTitle = widget.title.length > 10;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -232,10 +272,41 @@ class _OverlappingCardState extends State<OverlappingCard>
               Positioned.fill(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                  ),
+                  child: imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              color: widget.color.withOpacity(0.3),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: widget.color,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            // Log the error for debugging
+                            print(
+                                'Failed to load image: $imageUrl, Error: $error');
+                            return Image.asset(
+                              getAssetImageForItem(imageUrl),
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                        ),
                 ),
               ),
             Container(
@@ -262,16 +333,18 @@ class _OverlappingCardState extends State<OverlappingCard>
                   if (!widget.isSelected)
                     Positioned(
                       left: getPercentageWidth(1, context),
-                      bottom: getPercentageHeight(5, context),
+                      bottom: getPercentageHeight(0, context),
                       child: Transform.rotate(
                         angle: -1.5708, // -90 degrees in radians
                         alignment: Alignment.topLeft,
                         child: SizedBox(
                           width: widget.height * 0.8,
                           child: Text(
-                            capitalizeFirstLetter(widget.title),
+                            !widget.isRecipe && !widget.isTechnique
+                                ? capitalizeFirstLetter(widget.type ?? '')
+                                : capitalizeFirstLetter(widget.title),
                             style: textTheme.displayMedium?.copyWith(
-                              fontSize: 20,
+                              fontSize: isLongTitle ? 16 : 20,
                               fontWeight: FontWeight.w400,
                               color: isDarkMode ? kWhite : kDarkGrey,
                             ),
@@ -292,13 +365,15 @@ class _OverlappingCardState extends State<OverlappingCard>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            capitalizeFirstLetter(widget.title),
+                            !widget.isRecipe || !widget.isTechnique
+                                ? capitalizeFirstLetter(widget.title)
+                                : capitalizeFirstLetter(widget.type ?? ''),
                             style: textTheme.displayMedium?.copyWith(
-                              fontSize: 20,
+                              fontSize: isLongTitle ? 18 : 20,
                               fontWeight: FontWeight.w400,
                               color: isDarkMode ? kWhite : kDarkGrey,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (widget.subtitle != null)
@@ -311,7 +386,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                                       ? kWhite.withOpacity(0.7)
                                       : kDarkGrey,
                                 ),
-                                maxLines: 2,
+                                maxLines: widget.isRecipe ? 4 : 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -342,7 +417,11 @@ class _OverlappingCardState extends State<OverlappingCard>
                                   ),
                                 ),
                                 child: Text(
-                                  widget.isRecipe ? 'View Recipes' : 'Join Program',
+                                  widget.isRecipe
+                                      ? 'View'
+                                      : widget.isTechnique == true
+                                          ? 'View'
+                                          : 'Join Program',
                                   style: textTheme.labelLarge?.copyWith(
                                     color: isDarkMode ? kDarkGrey : kWhite,
                                   ),

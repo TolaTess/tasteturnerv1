@@ -12,12 +12,19 @@ class EmailSigninScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const IconCircleButton(),
+        title: Text(
+          "Sign In",
+          style: textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        automaticallyImplyLeading: true,
+        backgroundColor: kAccent,
+        toolbarHeight: getPercentageHeight(10, context),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -29,25 +36,20 @@ class EmailSigninScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: getPercentageHeight(1, context)),
-                Text(
-                  "Sign In",
-                  style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.w600,
+                SizedBox(height: getPercentageHeight(2.5, context)),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(0.5, context),
+                  ),
+                  child: Text(
+                    welcomeMessage,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: kAccent,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
-                SizedBox(height: getPercentageHeight(2.5, context)),
-                Text(
-                  welcomeMessage,
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
-                    color: kAccent,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                SizedBox(height: getPercentageHeight(2.5, context)),
-                SigninForm(),
+                const SigninForm(),
               ],
             ),
           ),
@@ -81,10 +83,13 @@ class _SigninFormState extends State<SigninForm> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Form(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(height: getPercentageHeight(2.5, context)),
+
           //email form
           EmailField(
             kHint: "Your Email",
@@ -92,7 +97,7 @@ class _SigninFormState extends State<SigninForm> {
             controller: emailController,
           ),
 
-          SizedBox(height: getPercentageHeight(4, context)),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           //password form
           PasswordField(
@@ -101,7 +106,7 @@ class _SigninFormState extends State<SigninForm> {
             controller: passwordController,
           ),
 
-          SizedBox(height: getPercentageHeight(4, context)),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           Align(
             alignment: Alignment.center,
@@ -113,8 +118,7 @@ class _SigninFormState extends State<SigninForm> {
                   builder: (context) => AlertDialog(
                     title: Text(
                       'Reset Password',
-                      style: TextStyle(
-                        fontSize: getTextScale(3.5, context),
+                      style: textTheme.bodyMedium?.copyWith(
                         color: kAccent,
                       ),
                     ),
@@ -123,18 +127,14 @@ class _SigninFormState extends State<SigninForm> {
                       children: [
                         Text(
                           'Enter your email address and we\'ll send you a link to reset your password.',
-                          style: TextStyle(
-                            fontSize: getTextScale(3, context),
-                          ),
+                          style: textTheme.bodyMedium?.copyWith(),
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),
                         SafeTextField(
                           controller: emailController,
                           decoration: InputDecoration(
                             hintText: 'Email',
-                            hintStyle: TextStyle(
-                              fontSize: getTextScale(3.5, context),
-                            ),
+                            hintStyle: textTheme.bodyMedium?.copyWith(),
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -145,8 +145,7 @@ class _SigninFormState extends State<SigninForm> {
                         onPressed: () => Navigator.pop(context),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(
-                            fontSize: getTextScale(3.3, context),
+                          style: textTheme.bodyMedium?.copyWith(
                             color: isDarkMode ? kWhite : kBlack,
                           ),
                         ),
@@ -166,8 +165,7 @@ class _SigninFormState extends State<SigninForm> {
                         },
                         child: Text(
                           'Reset Password',
-                          style: TextStyle(
-                            fontSize: getTextScale(3.5, context),
+                          style: textTheme.bodyMedium?.copyWith(
                             color: kAccent,
                           ),
                         ),
@@ -178,18 +176,17 @@ class _SigninFormState extends State<SigninForm> {
               },
               child: Text(
                 "Forgot password?",
-                style: TextStyle(
-                  fontSize: getTextScale(3.5, context),
+                style: textTheme.bodyMedium?.copyWith(
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
           ),
-          SizedBox(height: getPercentageHeight(4, context)),
+          SizedBox(height: getPercentageHeight(5, context)),
 
           //Sign in button
           AppButton(
-            text: "Sign In",
+            text: "Login",
             onPressed: () => authController.loginUser(
                 context, emailController.text, passwordController.text),
             type: AppButtonType.primary,

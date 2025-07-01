@@ -100,7 +100,7 @@ OutlineInputBorder outlineInputBorder(
 ) {
   return OutlineInputBorder(
     borderRadius: BorderRadius.circular(radius),
-    borderSide: BorderSide(color: kAccent.withValues(alpha: kMidOpacity)),
+    borderSide: BorderSide(color: kAccent.withValues(alpha: 0.2)),
   );
 }
 
@@ -108,6 +108,7 @@ String getAssetImageForItem(String itemType) {
   switch (itemType.toLowerCase()) {
     case 'fruit':
     case 'raw':
+    case '8+8+8 rule':
       return 'assets/images/fruit.jpg';
     case 'honey':
     case 'grilling':
@@ -117,24 +118,29 @@ String getAssetImageForItem(String itemType) {
       return 'assets/images/milk.jpg';
     case 'vegetables':
     case 'soup':
+    case 'Intermittent fasting':
       return 'assets/images/vegetable.jpg';
     case 'vegetable':
     case 'sautéing':
       return 'assets/images/vegetable.jpg';
     case 'meat':
     case 'roasting':
+    case 'gut health':
       return 'assets/images/meat.jpg';
     case 'grain':
     case 'baking':
       return 'assets/images/grain.jpg';
     case 'fish':
     case 'poaching':
+    case 'hormonal health':
       return 'assets/images/fish.jpg';
     case 'egg':
     case 'boiling':
+    case 'balanced':
       return 'assets/images/egg.jpg';
     case 'nut':
     case 'mashing':
+    case 'no sugar':
       return 'assets/images/nut.jpg';
     case 'herb':
       return 'assets/images/herb.jpg';

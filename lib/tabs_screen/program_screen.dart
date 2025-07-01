@@ -9,10 +9,12 @@ import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
+import '../pages/program_progress_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/program_service.dart';
 import '../widgets/goal_diet_widget.dart';
 import '../widgets/card_overlap.dart';
+import '../widgets/program_detail_widget.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -53,6 +55,8 @@ class _ProgramScreenState extends State<ProgramScreen>
 
     _pickDietGoalRecommendationsIfNeeded();
     _loadProgramTypes();
+    // Load user's enrolled programs
+    _programService.loadUserPrograms();
   }
 
   @override
@@ -67,11 +71,21 @@ class _ProgramScreenState extends State<ProgramScreen>
       final types = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
-          'type': doc.id,
+          'programId': doc.id,
           'image': data['image'] ?? '',
           'name': data['name'] ?? '',
           'description': data['description'] ?? '',
+          'type': data['type'] ?? '',
+          'goals': List<String>.from(data['goals'] ?? []),
+          'guidelines': List<String>.from(data['guidelines'] ?? []),
+          'tips': List<String>.from(data['tips'] ?? []),
+          'duration': data['duration'] ?? '',
           'options': List<String>.from(data['options'] ?? []),
+          'benefits': List<String>.from(data['benefits'] ?? []),
+          'fitnessProgram':
+              Map<String, dynamic>.from(data['fitnessProgram'] ?? {}),
+          'mealPlan': Map<String, dynamic>.from(data['mealPlan'] ?? {}),
+          'nutrition': Map<String, dynamic>.from(data['nutrition'] ?? {}),
         };
       }).toList();
 
@@ -227,130 +241,31 @@ class _ProgramScreenState extends State<ProgramScreen>
     });
   }
 
-  Future<void> _showProgramQuestionnaire(String programType) async {
+  Future<void> _showProgramQuestionnaire(
+      String programType, bool isDarkMode) async {
     final programData = programTypes.firstWhere(
       (program) => program['type'] == programType,
       orElse: () => throw Exception('Program type not found'),
     );
 
-    final questions = [
-      'What is your current weight (in kg)?',
-      'What is your target weight (in kg)?',
-      'How many meals do you prefer per day?',
-      'Do you have any food allergies?',
-      'How many days per week can you exercise?',
-    ];
-
-    final answers = <String, String>{};
-    final textTheme = Theme.of(context).textTheme;
-
-    await showDialog(
+    final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Customize Your ${programData['name']} Program',
-          style: textTheme.titleLarge?.copyWith(color: kAccent),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                programData['description'],
-                style: textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              for (var question in questions)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: question,
-                      labelStyle: textTheme.bodyMedium,
-                      border: OutlineInputBorder(),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: kAccent),
-                      ),
-                    ),
-                    style: textTheme.bodyLarge,
-                    onChanged: (value) => answers[question] = value,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            child: Text(
-              'Cancel',
-              style: textTheme.labelLarge?.copyWith(color: Colors.grey),
-            ),
-            onPressed: () => Navigator.pop(context, null),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kAccent,
-            ),
-            child: Text(
-              'Generate Program',
-              style: textTheme.labelLarge?.copyWith(color: kWhite),
-            ),
-            onPressed: () => Navigator.pop(context, answers),
-          ),
-        ],
+      builder: (context) => ProgramDetailWidget(
+        program: programData,
       ),
     );
 
-    if (answers.length == questions.length) {
+    if (result == 'joined') {
       setState(() => isLoading = true);
       try {
-        // Create a detailed prompt for Gemini
-        final prompt = '''
-Create a personalized fitness and nutrition program with the following details:
+        // Join the program with default option since no options are available
+        await _programService.joinProgram(programData['programId'], 'default');
 
-Program Type: ${programData['name']}
-Description: ${programData['description']}}
-
-User Profile:
-- Diet Preference: $selectedDiet
-- Fitness Goal: $selectedGoal
-- Current Weight: ${answers['What is your current weight (in kg)?']} kg
-- Target Weight: ${answers['What is your target weight (in kg)?']} kg
-- Preferred Meals/Day: ${answers['How many meals do you prefer per day?']}
-- Food Allergies: ${answers['Do you have any food allergies?']}
-- Exercise Days/Week: ${answers['How many days per week can you exercise?']}
-
-Requirements:
-${programData['requirements'].map((req) => '- $req').join('\n')}
-
-Please provide a structured program including:
-1. Weekly meal plans
-2. Exercise recommendations
-3. Progress tracking metrics
-4. Nutrition guidelines
-5. Weekly goals and milestones
-''';
-
-        final programResponse = await geminiService.generateCustomProgram(
-          answers,
-          programType,
-          selectedDiet,
-          additionalContext: prompt,
-        );
-
-        // Add program type specific data
-        programResponse['type'] = programType;
-        programResponse['name'] = programData['name'];
-        programResponse['description'] = programData['description'];
-        programResponse['duration'] = programData['duration'];
-        programResponse['options'] = programData['options'];
-
-        await _programService.createProgram(programResponse);
         setState(() => isLoading = false);
         Get.snackbar(
           'Success',
-          'Your program has been created!',
+          'You\'ve successfully joined the ${programData['name']} program!',
           backgroundColor: kAccentLight,
           colorText: kWhite,
         );
@@ -358,7 +273,7 @@ Please provide a structured program including:
         setState(() => isLoading = false);
         Get.snackbar(
           'Error',
-          'Failed to create program. Please try again.',
+          'Failed to join program. Please try again.',
           backgroundColor: Colors.red,
           colorText: kWhite,
         );
@@ -394,6 +309,248 @@ Please provide a structured program including:
         senderId: 'buddy',
       );
     }
+  }
+
+  Widget _buildEnrolledProgramsSection(
+      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+    return Obx(() {
+      // Check if user has enrolled programs
+      if (_programService.userPrograms.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ' Current Programs',
+            style: textTheme.headlineMedium?.copyWith(
+              color: isDarkMode ? kWhite : kDarkGrey,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+          ...List.generate(_programService.userPrograms.length, (index) {
+            final program = _programService.userPrograms[index];
+            return FutureBuilder<List<String>>(
+              future: _programService.getProgramUsers(program.programId),
+              builder: (context, snapshot) {
+                final userCount = snapshot.data?.length ?? 0;
+
+                return GestureDetector(
+                  onTap: () async {
+                    // Find complete program data from Firestore
+                    try {
+                      final programDoc = await firestore
+                          .collection('programs')
+                          .doc(program.programId)
+                          .get();
+
+                      if (programDoc.exists) {
+                        final programData = {
+                          'programId': program.programId,
+                          ...programDoc.data()!,
+                        };
+                        Get.to(() => ProgramDetailWidget(program: programData));
+                      } else {
+                        // Fallback to basic program data
+                        final programData = {
+                          'programId': program.programId,
+                          'name': program.name,
+                          'description': program.description,
+                          'type': program.type,
+                          'duration': program.duration,
+                          'goals': [],
+                          'guidelines': [],
+                          'tips': [],
+                          'options': [],
+                        };
+                        Get.to(() => ProgramDetailWidget(program: programData));
+                      }
+                    } catch (e) {
+                      Get.snackbar(
+                        'Error',
+                        'Unable to load program details',
+                        backgroundColor: Colors.red,
+                        colorText: kWhite,
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    margin: EdgeInsets.only(
+                        bottom: getPercentageHeight(1, context)),
+                    padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? kDarkGrey : kWhite,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: kAccent.withOpacity(0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        // Program icon
+                        Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: kAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.fitness_center,
+                            color: kAccent,
+                            size: getIconScale(6, context),
+                          ),
+                        ),
+                        SizedBox(width: getPercentageWidth(4, context)),
+
+                        // Program details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                program.name,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                program.description,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode
+                                      ? kWhite.withOpacity(0.7)
+                                      : kDarkGrey.withOpacity(0.7),
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.8, context)),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.people,
+                                    color: Colors.green,
+                                    size: getIconScale(4, context),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(1, context)),
+                                  Text(
+                                    '$userCount members',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(3, context)),
+                                  Icon(
+                                    Icons.schedule,
+                                    color: Colors.orange,
+                                    size: getIconScale(4, context),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(1, context)),
+                                  Text(
+                                    program.duration,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(2.5, context)),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Get.to(() => ProgramProgressScreen(
+                                            programId: program.programId,
+                                            programName: program.name,
+                                            programDescription:
+                                                program.description,
+                                            benefits: program.benefits,
+                                          ));
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(
+                                          getPercentageWidth(1.5, context)),
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Tracking',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: Colors.purple,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Leave program button
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              await _programService
+                                  .leaveProgram(program.programId);
+                              Get.snackbar(
+                                'Success',
+                                'You\'ve left the ${program.name} program',
+                                backgroundColor: kAccentLight,
+                                colorText: kWhite,
+                              );
+                            } catch (e) {
+                              Get.snackbar(
+                                'Error',
+                                'Failed to leave program',
+                                backgroundColor: Colors.red,
+                                colorText: kWhite,
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(2, context)),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.exit_to_app,
+                              color: Colors.red,
+                              size: getIconScale(5, context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+          SizedBox(height: getPercentageHeight(2, context)),
+        ],
+      );
+    });
   }
 
   @override
@@ -470,7 +627,6 @@ Please provide a structured program including:
                           : () =>
                               _pickDietGoalRecommendationsIfNeeded(force: true),
                     ),
-              SizedBox(height: getPercentageHeight(1.5, context)),
               // AI Coach Section
               Text(
                 'Speak to "Tasty" AI Coach',
@@ -557,8 +713,14 @@ Please provide a structured program including:
                 ),
               ],
               SizedBox(height: getPercentageHeight(2, context)),
+
+              // Current enrolled programs section
+              _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
+
               Text(
-                'Customize Your Program',
+                _programService.userPrograms.length > 1
+                    ? 'Explore Programs'
+                    : 'Customize Your Program',
                 style: textTheme.headlineMedium?.copyWith(
                   color: accent,
                 ),
@@ -573,8 +735,9 @@ Please provide a structured program including:
                             ),
                           )
                         : OverlappingCardsView(
-                            cardWidth: getPercentageWidth(70, context),
+                            cardWidth: getPercentageWidth(65, context),
                             cardHeight: getPercentageHeight(25, context),
+                            isProgram: true,
                             overlap: 60,
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(4, context),
@@ -583,6 +746,7 @@ Please provide a structured program including:
                               programTypes.length,
                               (index) => OverlappingCard(
                                 title: programTypes[index]['name'] ?? '',
+                                type: programTypes[index]['type'],
                                 subtitle:
                                     programTypes[index]['description'] ?? '',
                                 color: colors[index % colors.length],
@@ -594,12 +758,14 @@ Please provide a structured program including:
                                 index: index,
                                 onTap: () => _showProgramQuestionnaire(
                                   programTypes[index]['type'],
+                                  isDarkMode,
                                 ),
+                                isProgram: true,
                               ),
                             ),
                           ),
                   )),
-              SizedBox(height: getPercentageHeight(3, context)),
+              SizedBox(height: getPercentageHeight(6, context)),
             ],
           ),
         ),

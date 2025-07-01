@@ -681,7 +681,7 @@ class MealPlanSection extends StatelessWidget {
                           width: getPercentageWidth(32, context),
                           padding: EdgeInsets.symmetric(
                             horizontal: getPercentageWidth(2, context),
-                            vertical: getPercentageHeight(2, context),
+                            vertical: getPercentageHeight(1.5, context),
                           ),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.08),
@@ -710,7 +710,7 @@ class MealPlanSection extends StatelessWidget {
                                     ?.copyWith(
                                       fontWeight: FontWeight.w500,
                                     ),
-                                maxLines: 3,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               if (showCaloriesAndGoal &&
@@ -728,8 +728,8 @@ class MealPlanSection extends StatelessWidget {
                         ),
                         // Meal type icon as a top-level overlay
                         Positioned(
-                          top: getPercentageWidth(-4.5, context),
-                          left: getPercentageWidth(-1, context),
+                          top: getPercentageWidth(0, context),
+                          left: getPercentageWidth(0, context),
                           child: Container(
                             decoration: BoxDecoration(
                               color: isDarkMode ? kDarkGrey : kWhite,

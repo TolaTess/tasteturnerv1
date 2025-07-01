@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tasteturner/helper/helper_functions.dart';
-import 'package:tasteturner/service/macro_manager.dart';
-import 'package:tasteturner/widgets/ingredient_features.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/data_models/macro_data.dart';
+
+import '../service/macro_manager.dart';
+import '../widgets/ingredient_features.dart';
 
 class ShoppingTab extends StatefulWidget {
   const ShoppingTab({super.key});
@@ -118,12 +119,17 @@ class _ShoppingTabState extends State<ShoppingTab> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        automaticallyImplyLeading: true,
+        toolbarHeight: getPercentageHeight(10, context),
         title: Text(
           'Shopping List',
-          style: TextStyle(fontSize: getTextScale(4, context)),
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getTextScale(7, context),
+          ),
         ),
       ),
       body: Obx(() {
@@ -146,13 +152,15 @@ class _ShoppingTabState extends State<ShoppingTab> {
         List<Widget> listWidgets = [];
 
         if (manualItems.isNotEmpty) {
-          listWidgets.add(_buildSectionHeader('Added Manually'));
+          listWidgets
+              .add(_buildSectionHeader('Added Manually', textTheme, context));
           listWidgets.addAll(
               _buildConsolidatedList(manualItems.toList(), isManual: true));
         }
 
         if (generatedItems.isNotEmpty) {
-          listWidgets.add(_buildSectionHeader('From Your Meal Plan'));
+          listWidgets.add(
+              _buildSectionHeader('From Your Meal Plan', textTheme, context));
           listWidgets.addAll(
               _buildConsolidatedList(generatedItems.toList(), isManual: false));
         }
@@ -187,12 +195,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
                               title: 'Shopping Day',
                               icon: Icons.edit_calendar,
                               text: _selectedDay ?? 'Select Day',
+                              textTheme: textTheme,
                             ),
                             _buildInfoColumn(
                               context,
                               title: 'Items',
                               icon: Icons.shopping_basket,
                               text: '$purchasedCount / $totalCount',
+                              textTheme: textTheme,
                             ),
                           ],
                         ),
@@ -204,9 +214,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
                           )),
                       child: Text(
                         'SEE MORE INGREDIENTS',
-                        style: TextStyle(
+                        style: textTheme.displayMedium?.copyWith(
                           fontSize: getTextScale(4, context),
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.normal,
                           color: kAccentLight,
                         ),
                       ),
@@ -228,14 +238,17 @@ class _ShoppingTabState extends State<ShoppingTab> {
   }
 
   Widget _buildInfoColumn(BuildContext context,
-      {required String title, required IconData icon, required String text}) {
+      {required String title,
+      required IconData icon,
+      required String text,
+      required TextTheme textTheme}) {
     return Column(
       children: [
         Text(
           title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: getPercentageHeight(2.2, context),
+          style: textTheme.titleLarge?.copyWith(
+            fontSize: getTextScale(4.5, context),
+            fontWeight: FontWeight.w200,
             color: kAccent,
           ),
         ),
@@ -260,10 +273,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
               Text(
                 textAlign: TextAlign.center,
                 text,
-                style: TextStyle(
+                style: textTheme.bodyMedium?.copyWith(
+                  fontSize: getTextScale(4, context),
+                  fontWeight: FontWeight.w200,
                   color: kAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: getPercentageHeight(1.8, context),
                 ),
               ),
             ],
@@ -273,7 +286,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(
+      String title, TextTheme textTheme, BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: getPercentageWidth(4, context),
@@ -281,9 +295,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
       ),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: getTextScale(4, context),
-          fontWeight: FontWeight.bold,
+        style: textTheme.titleLarge?.copyWith(
+          fontSize: getTextScale(4.5, context),
+          fontWeight: FontWeight.w200,
           color: kAccent,
         ),
       ),
@@ -414,24 +428,26 @@ class ShoppingListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final String title = capitalizeFirstLetter(item.title);
     final String? amount = item.macros['amount'] as String?;
 
-    final textStyle = TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: getTextScale(4, context),
-        decoration:
-            item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
-        color: item.isSelected
-            ? Colors.grey[500]
-            : (isDarkMode ? kWhite : kBlack));
+    final textStyle = textTheme.displayMedium?.copyWith(
+      fontWeight: FontWeight.w200,
+      fontSize: getTextScale(4, context),
+      decoration:
+          item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
+      color:
+          item.isSelected ? Colors.grey[500] : (isDarkMode ? kWhite : kBlack),
+    );
 
-    final amountTextStyle = TextStyle(
-        fontSize: getTextScale(3.5, context),
-        decoration:
-            item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
-        color: Colors.grey[600]);
+    final amountTextStyle = textTheme.bodyMedium?.copyWith(
+      fontSize: getTextScale(3.5, context),
+      decoration:
+          item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
+      color: item.isSelected ? Colors.grey[500] : (isDarkMode ? kWhite : kBlack),
+    );
 
     ImageProvider<Object> backgroundImage;
     if (item.mediaPaths.isNotEmpty &&
@@ -458,10 +474,6 @@ class ShoppingListItem extends StatelessWidget {
             padding: EdgeInsets.all(getPercentageWidth(2, context)),
             child: Row(
               children: [
-                // CircleAvatar(
-                //   radius: getPercentageWidth(5, context),
-                //   backgroundImage: backgroundImage,
-                // ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 Expanded(
                   child: Column(

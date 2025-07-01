@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_svg/svg.dart';
@@ -410,7 +411,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           fontSize: getPercentageWidth(4.5, context)),
                     ),
                     Text(
-                      ' ${shortMonthName(DateTime.now().month)} ${DateTime.now().day}',                 
+                      ' ${shortMonthName(DateTime.now().month)} ${DateTime.now().day}',
                       style: textTheme.displayMedium?.copyWith(
                           color: kAccentLight,
                           fontWeight: FontWeight.w500,
@@ -871,23 +872,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               ),
             ),
           ),
-          userService.currentUser.value?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : SizedBox(height: getPercentageHeight(1, context)),
-          userService.currentUser.value?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : PremiumSection(
-                  isPremium: userService.currentUser.value?.isPremium ?? false,
-                  titleOne: joinChallenges,
-                  titleTwo: premium,
-                  isDiv: false,
-                ),
-          userService.currentUser.value?.isPremium ?? false
-              ? const SizedBox.shrink()
-              : SizedBox(height: getPercentageHeight(0.5, context)),
-
-          // ------------------------------------Premium / Ads-------------------------------------
-
           // Meals List Section
           _buildMealsList(),
           SizedBox(height: getPercentageHeight(11, context)),
@@ -1035,6 +1019,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       batch.set(sharedDocRef, data);
                     }
                     await batch.commit();
+                    FirebaseAnalytics.instance
+                        .logEvent(name: 'calendar_shared');
 
                     // 5. Navigate to FriendScreen with newCalId
                     Get.to(() => FriendScreen(
@@ -1713,6 +1699,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
       // Only navigate to recipe selection if "Add Meal" was clicked
       if (action == 'add_meal') {
+        FirebaseAnalytics.instance.logEvent(name: 'meal_plan_added');
         Navigator.push(
           context,
           MaterialPageRoute(

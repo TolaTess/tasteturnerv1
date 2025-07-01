@@ -17,14 +17,17 @@ class WeeklyPlan {
 
   factory WeeklyPlan.fromJson(Map<String, dynamic> json) {
     return WeeklyPlan(
-      week: json['week'],
-      goals: List<String>.from(json['goals']),
-      mealPlan: Map<String, List<String>>.from(json['mealPlan'].map(
-        (key, value) => MapEntry(key, List<String>.from(value)),
-      )),
-      nutritionGuidelines:
-          Map<String, String>.from(json['nutritionGuidelines']),
-      tips: List<String>.from(json['tips']),
+      week: json['week'] ?? 1,
+      goals: json['goals'] != null ? List<String>.from(json['goals']) : [],
+      mealPlan: json['mealPlan'] != null
+          ? Map<String, List<String>>.from(json['mealPlan'].map(
+              (key, value) => MapEntry(key, List<String>.from(value ?? [])),
+            ))
+          : {},
+      nutritionGuidelines: json['nutritionGuidelines'] != null
+          ? Map<String, String>.from(json['nutritionGuidelines'])
+          : {},
+      tips: json['tips'] != null ? List<String>.from(json['tips']) : [],
     );
   }
 
@@ -52,6 +55,7 @@ class Program {
   final DateTime createdAt;
   final DateTime startDate;
   final bool isActive;
+  final List<String> benefits;
 
   Program({
     required this.programId,
@@ -66,24 +70,38 @@ class Program {
     required this.createdAt,
     required this.startDate,
     this.isActive = true,
+    required this.benefits,
   });
 
   factory Program.fromJson(Map<String, dynamic> json) {
     return Program(
-      programId: json['programId'],
-      type: json['type'],
-      name: json['name'],
-      description: json['description'],
-      duration: json['duration'],
-      weeklyPlans: (json['weeklyPlans'] as List)
-          .map((plan) => WeeklyPlan.fromJson(plan))
-          .toList(),
-      requirements: List<String>.from(json['requirements']),
-      recommendations: List<String>.from(json['recommendations']),
-      userId: json['userId'],
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      startDate: (json['startDate'] as Timestamp).toDate(),
+      programId: json['programId'] ?? '',
+      type: json['type'] ?? '',
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      duration: json['duration'] ?? '',
+      weeklyPlans: json['weeklyPlans'] != null
+          ? (json['weeklyPlans'] as List)
+              .map((plan) => WeeklyPlan.fromJson(plan))
+              .toList()
+          : [],
+      requirements: json['requirements'] != null
+          ? List<String>.from(json['requirements'])
+          : [],
+      recommendations: json['recommendations'] != null
+          ? List<String>.from(json['recommendations'])
+          : [],
+      userId: json['userId'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? (json['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      startDate: json['startDate'] != null
+          ? (json['startDate'] as Timestamp).toDate()
+          : DateTime.now(),
       isActive: json['isActive'] ?? true,
+      benefits: json['benefits'] != null
+          ? List<String>.from(json['benefits'])
+          : [],
     );
   }
 
@@ -101,6 +119,7 @@ class Program {
       'createdAt': Timestamp.fromDate(createdAt),
       'startDate': Timestamp.fromDate(startDate),
       'isActive': isActive,
+      'benefits': benefits,
     };
   }
 }

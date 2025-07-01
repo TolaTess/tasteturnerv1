@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
 import '../service/tasty_popup_service.dart';
@@ -51,7 +52,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   String selectedCategoryIngredient = 'all';
   bool showIngredientSpin = true; // New state to toggle between modes
   bool _funMode = false;
-  late List<Map<String, dynamic>> _categoryDatasIngredient;
+
   List<Map<String, dynamic>> _mealDietCategories = [];
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
@@ -72,26 +73,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Set default for meal diet categories
     if (userService.currentUser.value?.familyMode ?? false) {
-      _mealDietCategories = [...helperController.kidsCategory];
+      _mealDietCategories = [
+        ...helperController.category
+            .where((category) => category['kidsFriendly'] == true)
+      ];
     } else {
       _mealDietCategories = [...helperController.category];
-    }
-
-    // Set default for ingredient categories
-    final customCategory = {
-      'id': 'custom',
-      'name': 'Custom',
-      'category': 'Custom'
-    };
-    _categoryDatasIngredient = [...helperController.category];
-    if (_categoryDatasIngredient.isEmpty ||
-        _categoryDatasIngredient.first['id'] != 'custom') {
-      _categoryDatasIngredient.insert(0, customCategory);
-    }
-    if (_categoryDatasIngredient.isNotEmpty &&
-        selectedCategoryIdIngredient.isEmpty) {
-      selectedCategoryIdIngredient = _categoryDatasIngredient[1]['id'] ?? '';
-      selectedCategoryIngredient = _categoryDatasIngredient[1]['name'] ?? '';
     }
 
     // Ensure meal list is populated for default category
@@ -191,6 +178,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         builder: (context) {
           final TextEditingController modalController = TextEditingController();
           final isDarkMode = getThemeProvider(context).isDarkMode;
+          final textTheme = Theme.of(context).textTheme;
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
@@ -198,16 +186,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             backgroundColor: isDarkMode ? kDarkGrey : kWhite,
             title: Text(
               'Enter Ingredients',
-              style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+              style: textTheme.titleMedium
+                  ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
             ),
             content: SafeTextFormField(
               controller: modalController,
-              style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+              style: textTheme.bodyMedium
+                  ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
               keyboardType: TextInputType.text,
               decoration: InputDecoration(
                 labelText: "Add your Ingredients (eggs, tuna, etc.)",
-                labelStyle:
-                    TextStyle(color: isDarkMode ? kLightGrey : kDarkGrey),
+                labelStyle: textTheme.bodyMedium
+                    ?.copyWith(color: isDarkMode ? kLightGrey : kDarkGrey),
                 enabledBorder: outlineInputBorder(10),
                 focusedBorder: outlineInputBorder(10),
                 border: outlineInputBorder(10),
@@ -218,7 +208,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                 ),
               ),
               TextButton(
@@ -232,9 +223,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   _funMode = true;
                   Navigator.pop(context, items);
                 },
-                child: const Text(
+                child: Text(
                   'Add',
-                  style: TextStyle(color: kAccent),
+                  style: textTheme.bodyMedium?.copyWith(color: kAccent),
                 ),
               ),
             ],
@@ -290,20 +281,55 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       });
     } else {
       final newIngredientList = widget.ingredientList.where((ingredient) {
-        if (selectedCategoryIngredient.toLowerCase() == 'smoothie') {
-          return ingredient.techniques.any((technique) =>
-              technique.toLowerCase().contains('smoothie') ||
-              technique.toLowerCase().contains('blending') ||
-              technique.toLowerCase().contains('juicing'));
+        final selectedCategory = selectedCategoryIngredient.toLowerCase();
+
+        // Check if the ingredient type matches or contains the category
+        if (ingredient.type.toLowerCase().contains(selectedCategory)) {
+          return true;
         }
-        if (selectedCategoryIngredient.toLowerCase() == 'soup') {
-          return ingredient.techniques.any((technique) =>
-              technique.toLowerCase().contains('soup') ||
-              technique.toLowerCase().contains('stewing'));
+
+        // Check if any of the ingredient's categories contain the selected category
+        if (ingredient.categories.any(
+            (category) => category.toLowerCase().contains(selectedCategory))) {
+          return true;
         }
-        return ingredient.techniques.any((technique) => technique
-            .toLowerCase()
-            .contains(selectedCategoryIngredient.toLowerCase()));
+
+        // Additional checks for common ingredient mappings
+        switch (selectedCategory) {
+          case 'protein':
+            return ingredient.type.toLowerCase().contains('meat') ||
+                ingredient.type.toLowerCase().contains('protein') ||
+                ingredient.type.toLowerCase().contains('fish') ||
+                ingredient.type.toLowerCase().contains('poultry') ||
+                ingredient.type.toLowerCase().contains('egg') ||
+                ingredient.type.toLowerCase().contains('bean') ||
+                ingredient.type.toLowerCase().contains('legume') ||
+                ingredient.categories.any((cat) =>
+                    cat.toLowerCase().contains('protein') ||
+                    cat.toLowerCase().contains('meat') ||
+                    cat.toLowerCase().contains('fish'));
+          case 'grain':
+            return ingredient.type.toLowerCase().contains('grain') ||
+                ingredient.type.toLowerCase().contains('cereal') ||
+                ingredient.type.toLowerCase().contains('rice') ||
+                ingredient.type.toLowerCase().contains('wheat') ||
+                ingredient.type.toLowerCase().contains('oat') ||
+                ingredient.categories.any((cat) =>
+                    cat.toLowerCase().contains('grain') ||
+                    cat.toLowerCase().contains('carb'));
+          case 'vegetable':
+            return ingredient.type.toLowerCase().contains('vegetable') ||
+                ingredient.type.toLowerCase().contains('veggie') ||
+                ingredient.categories.any((cat) =>
+                    cat.toLowerCase().contains('vegetable') ||
+                    cat.toLowerCase().contains('veggie'));
+          case 'fruit':
+            return ingredient.type.toLowerCase().contains('fruit') ||
+                ingredient.categories
+                    .any((cat) => cat.toLowerCase().contains('fruit'));
+          default:
+            return false;
+        }
       }).toList();
 
       setState(() {
@@ -323,10 +349,11 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   @override
   Widget build(BuildContext context) {
     final categoryDatasMeal = helperController.headers;
-    final categoryDatasIngredient = _categoryDatasIngredient;
     final categoryDatasIngredientDiet = _mealDietCategories;
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+    final dietPreference =
+        userService.currentUser.value?.settings?['dietPreference'];
 
     return Scaffold(
       appBar: AppBar(
@@ -366,7 +393,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   'Take a Spin!',
                   style: textTheme.displaySmall?.copyWith(color: kAccent),
                 ),
-                SizedBox(height: getPercentageHeight(1.5, context)),
+                SizedBox(height: getPercentageHeight(2, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -409,10 +436,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 ),
                 Expanded(
                   child: showIngredientSpin
-                      ? _buildIngredientSpinView(
-                          isDarkMode, categoryDatasIngredient)
+                      ? _buildIngredientSpinView(isDarkMode)
                       : _buildMealSpinView(isDarkMode, categoryDatasMeal,
-                          categoryDatasIngredientDiet),
+                          categoryDatasIngredientDiet, textTheme, dietPreference),
                 ),
               ],
             ),
@@ -422,20 +448,49 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     );
   }
 
-  Widget _buildIngredientSpinView(
-      bool isDarkMode, List<Map<String, dynamic>> categoryDatas) {
+  Widget _buildIngredientSpinView(bool isDarkMode) {
     return Column(
       children: [
-        SizedBox(height: getPercentageHeight(2, context)),
+        SizedBox(height: getPercentageHeight(3, context)),
 
         //category options
-        CategorySelector(
-          categories: categoryDatas,
-          selectedCategoryId: selectedCategoryIdIngredient,
-          onCategorySelected: _updateCategoryIngredientData,
-          isDarkMode: isDarkMode,
-          accentColor: kAccentLight,
-          darkModeAccentColor: kDarkModeAccent,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            GestureDetector(
+              onTap: () => _updateCategoryIngredientData('protein', 'protein'),
+              child: buildAddMealTypeLegend(
+                context,
+                'protein',
+                isSelected: selectedCategoryIngredient == 'protein',
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _updateCategoryIngredientData('grain', 'grain'),
+              child: buildAddMealTypeLegend(
+                context,
+                'grain',
+                isSelected: selectedCategoryIngredient == 'grain',
+              ),
+            ),
+            GestureDetector(
+              onTap: () =>
+                  _updateCategoryIngredientData('vegetable', 'vegetable'),
+              child: buildAddMealTypeLegend(
+                context,
+                'vegetable',
+                isSelected: selectedCategoryIngredient == 'vegetable',
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _updateCategoryIngredientData('fruit', 'fruit'),
+              child: buildAddMealTypeLegend(
+                context,
+                'fruit',
+                isSelected: selectedCategoryIngredient == 'fruit',
+              ),
+            ),
+          ],
         ),
 
         SizedBox(height: getPercentageHeight(2, context)),
@@ -460,7 +515,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   Widget _buildMealSpinView(
       bool isDarkMode,
       List<Map<String, dynamic>> categoryDatas,
-      List<Map<String, dynamic>> categoryDatatDiet) {
+      List<Map<String, dynamic>> categoryDatatDiet,
+      TextTheme textTheme,
+      String dietPreference) {
     return Column(
       children: [
         userService.currentUser.value?.isPremium ?? false
@@ -489,28 +546,30 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
         Row(
           children: [
+            if (dietPreference != null)
             Expanded(
               flex: 1,
               child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(1.3, context),
+                ),
                 decoration: BoxDecoration(
                   color: kAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: IconButton(
-                  iconSize: getIconScale(7, context),
-                  icon: SvgPicture.asset('assets/images/svg/check.svg',
-                      height: getIconScale(7, context),
-                      width: getIconScale(7, context),
-                      color: showDietCategories
-                          ? kAccentLight
-                          : isDarkMode
-                              ? kWhite
-                              : kDarkGrey),
-                  onPressed: () {
+                child: GestureDetector(
+                  onTap: () {
                     setState(() {
-                      showDietCategories = !showDietCategories;
+                      selectedCategoryIdMeal = dietPreference;
+                      selectedCategoryMeal = dietPreference;
+                      _updateMealListByType();
                     });
                   },
+                  child: Text(
+                        dietPreference,
+                    style: textTheme.titleMedium?.copyWith(color: kAccent),
+                  ),
                 ),
               ),
             ),

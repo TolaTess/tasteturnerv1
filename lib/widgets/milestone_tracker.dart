@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../tabs_screen/program_screen.dart';
 
 class MilestonesTracker extends StatelessWidget {
-  final List<bool> milestones;
-  final String title;
-  final String subtitle;
+  final int ongoingPrograms;
+  final VoidCallback? onJoinProgram;
 
   const MilestonesTracker({
     Key? key,
-    required this.milestones,
-    this.title = 'Milestones Achieved',
-    this.subtitle =
-        'Regularly monitor your progress to achieve goals and celebrate your accomplishments along the way.',
+    required this.ongoingPrograms,
+    this.onJoinProgram,
   }) : super(key: key);
 
   @override
@@ -21,95 +20,75 @@ class MilestonesTracker extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: getPercentageWidth(4, context),
-        vertical: getPercentageHeight(1, context),
-      ),
+      height: ongoingPrograms > 0
+          ? getPercentageHeight(5, context)
+          : getPercentageHeight(5, context),
+      margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+      padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context)),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            kAccentLight.withOpacity(0.2),
-            kAccentLight.withOpacity(0.1),
-          ],
+        color: isDarkMode
+            ? kDarkGrey.withOpacity(0.5)
+            : kAccentLight.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: kAccent.withOpacity(0.3),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(getPercentageWidth(4, context)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: textTheme.displayMedium?.copyWith(
-                fontSize: getTextScale(4.5, context),
-                color: isDarkMode ? kWhite : kBlack,
-                fontWeight: FontWeight.w200,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(0.5, context)),
-            Text(
-              subtitle,
+      child: Row(
+        children: [
+          // Status Icon
+          Icon(
+            ongoingPrograms > 0 ? Icons.trending_up : Icons.info_outline,
+            size: 12,
+            color: ongoingPrograms > 0 ? Colors.green : kAccent,
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+
+          // Status Text
+          Expanded(
+            child: Text(
+              ongoingPrograms > 0
+                  ? '$ongoingPrograms program${ongoingPrograms > 1 ? 's' : ''} ongoing'
+                  : 'No active programs',
               style: textTheme.bodyMedium?.copyWith(
-                fontSize: getTextScale(3, context),
                 color: isDarkMode
-                    ? kWhite.withOpacity(0.7)
-                    : kBlack.withOpacity(0.7),
+                    ? kWhite.withOpacity(0.8)
+                    : kDarkGrey.withOpacity(0.8),
+                fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(
-                milestones.length,
-                (index) => _buildMilestonePoint(
-                  context,
-                  isCompleted: milestones[index],
-                  isLast: index == milestones.length - 1,
+          ),
+
+          // Call to Action
+          GestureDetector(
+            onTap: () {
+              if (onJoinProgram != null) {
+                onJoinProgram!();
+              } else if (ongoingPrograms == 0) {
+                // Navigate to program screen when no active programs
+                Get.to(() => const ProgramScreen());
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(1, context)),
+              decoration: BoxDecoration(
+                color: kAccent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                ongoingPrograms > 0 ? 'View' : 'Join Program',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildMilestonePoint(
-    BuildContext context, {
-    required bool isCompleted,
-    required bool isLast,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: getPercentageWidth(6, context),
-          height: getPercentageWidth(6, context),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isCompleted ? kAccent : kAccent.withOpacity(0.3),
-            border: Border.all(
-              color: isCompleted ? kAccent : kAccent.withOpacity(0.5),
-              width: 2,
-            ),
-          ),
-          child: isCompleted
-              ? Icon(
-                  Icons.check,
-                  size: getIconScale(4, context),
-                  color: kWhite,
-                )
-              : null,
-        ),
-        if (!isLast)
-          Container(
-            width: getPercentageWidth(8, context),
-            height: 2,
-            color: isCompleted ? kAccent : kAccent.withOpacity(0.3),
-          ),
-      ],
     );
   }
 }

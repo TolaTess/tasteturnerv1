@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:get/get.dart';
 
 import '../constants.dart';
@@ -14,7 +15,7 @@ class HelperController extends GetxController {
   final RxList<Map<String, dynamic>> kidsCategory =
       RxList<Map<String, dynamic>>([]);
   RxMap<String, dynamic> winners = <String, dynamic>{}.obs;
-
+  final RxList<Map<String, dynamic>> rainbow = RxList<Map<String, dynamic>>([]);
   @override
   void onInit() {
     super.onInit();
@@ -24,6 +25,7 @@ class HelperController extends GetxController {
     fetchMacros();
     fetchWinners();
     fetchKidsCategory();
+    fetchRainbows();
   }
 
 // Fetch plans from Firestore
@@ -145,11 +147,10 @@ class HelperController extends GetxController {
               final result = {
                 'id': doc.id,
                 'name': data['name'] as String? ?? '',
-                'category': data['category'] as String? ?? '',
-                'categories': categoriesList,
+                'bestFor': data['bestFor'] as List<dynamic>? ?? [],
+                'equipment': data['equipment'] as List<dynamic>? ?? [],
+                'heatType': data['heatType'] as String? ?? '',
                 'description': data['description'] as String? ?? '',
-                'createdAt': data['createdAt'],
-                'updatedAt': data['updatedAt'],
               };
               return result;
             } catch (e) {
@@ -162,6 +163,43 @@ class HelperController extends GetxController {
     } catch (e) {
       print('Error fetching macros: $e');
       macros.value = [];
+    }
+  }
+
+  Future<void> fetchRainbows() async {
+    try {
+      final snapshot = await firestore.collection('rainbows').get();
+      if (snapshot.docs.isEmpty) {
+        rainbow.value = [];
+        return;
+      }
+
+      rainbow.value = snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data();
+              final name = data['name'] as String? ?? '';
+              final description = data['description'] as String? ?? '';
+              if (name.isEmpty) {
+                print('Category name is empty for document ${doc.id}');
+                return null;
+              }
+              return {
+                'id': doc.id,
+                'name': name,
+                'description': description,
+              };
+            } catch (e) {
+              print('Error parsing category data: $e');
+              return null;
+            }
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList()
+        ..sort((a, b) => a['name'].compareTo(b['name']));
+    } catch (e) {
+      print('Error fetching categories: $e');
+      category.value = [];
     }
   }
 
@@ -178,6 +216,7 @@ class HelperController extends GetxController {
             try {
               final data = doc.data();
               final name = data['name'] as String? ?? '';
+              final description = data['description'] as String? ?? '';
               if (name.isEmpty) {
                 print('Category name is empty for document ${doc.id}');
                 return null;
@@ -185,6 +224,8 @@ class HelperController extends GetxController {
               return {
                 'id': doc.id,
                 'name': name,
+                'description': description,
+                'kidsFriendly': data['kidsFriendly'] as bool? ?? false,
               };
             } catch (e) {
               print('Error parsing category data: $e');
@@ -344,6 +385,7 @@ class HelperController extends GetxController {
       'meals': FieldValue.arrayUnion(
           []), // Only initialize if meals field doesn't exist
     }, SetOptions(merge: true));
+    FirebaseAnalytics.instance.logEvent(name: 'special_day_added');
   }
 
   Future<void> saveMealPlanBuddy(String userId, String formattedDate,

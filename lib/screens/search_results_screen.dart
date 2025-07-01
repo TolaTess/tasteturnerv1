@@ -116,6 +116,16 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                         .toLowerCase()
                         .contains(widget.search.toLowerCase())))
                 .toList();
+          } else if (widget.screen == 'technique') {
+            filteredMeals = allMeals
+                .where((meal) =>
+                    widget.search.contains('&')
+                        ? widget.search
+                            .toLowerCase()
+                            .split('&')
+                            .every((method) => meal.cookingMethod!.toLowerCase().contains(method.trim()))
+                        : meal.cookingMethod!.toLowerCase().contains(widget.search.toLowerCase()))
+                .toList();
           } else {
             filteredMeals = allMeals
                 .where((meal) => (meal.categories).any((category) => category

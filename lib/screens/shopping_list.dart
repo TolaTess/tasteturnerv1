@@ -77,18 +77,13 @@ class _MealSpinListState extends State<MealSpinList> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select items', style: TextStyle(fontSize: 20)),
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 15.0),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.pop(context); // Navigate back when pressed
-            },
-            child: const IconCircleButton(),
-          ),
-        ),
+        automaticallyImplyLeading: true,
+        title: Text('Select items',
+            style:
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 15.0),
@@ -97,10 +92,13 @@ class _MealSpinListState extends State<MealSpinList> {
                 _saveToMealPlan();
                 Navigator.pop(context);
               },
-              child: IconCircleButton(
-                icon: Icons.save,
-                isColorChange: _selectedItems.isNotEmpty ? true : false,
-                size: kIconSizeMedium,
+              child: Padding(
+                padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                child: IconCircleButton(
+                  icon: Icons.save_alt,
+                  isColorChange: _selectedItems.isNotEmpty ? true : false,
+                  size: kIconSizeMedium,
+                ),
               ),
             ),
           ),

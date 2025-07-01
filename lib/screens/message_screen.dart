@@ -211,6 +211,7 @@ class _MessageScreenState extends State<MessageScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -223,17 +224,15 @@ class _MessageScreenState extends State<MessageScreen>
               backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
               title: Text(
                 inbox,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: getTextScale(4, context),
-                  color: themeProvider.isDarkMode ? kWhite : kBlack,
+                style: textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               pinned: true,
               leading: Padding(
                 padding: EdgeInsets.only(
                   right: getPercentageWidth(2, context),
-                  left: getPercentageWidth(2, context),
+                  left: getPercentageWidth(2.5, context),
                 ),
                 child: GestureDetector(
                   onTap: () => Navigator.push(
@@ -243,7 +242,10 @@ class _MessageScreenState extends State<MessageScreen>
                               selectedIndex: 0,
                             )),
                   ),
-                  child: const IconCircleButton(),
+                  child: IconCircleButton(
+                    isRemoveContainer: true,
+                    size: getIconScale(6, context),
+                  ),
                 ),
               ),
               actions: [

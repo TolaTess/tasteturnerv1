@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
@@ -12,6 +13,7 @@ import '../widgets/premium_widget.dart';
 import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../widgets/card_overlap.dart';
+import '../widgets/technique_detail_widget.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
@@ -93,9 +95,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        backgroundColor: kAccent,
+        automaticallyImplyLeading: true,
+        toolbarHeight: getPercentageHeight(10, context),
         title: Text(
           'Recipes',
-          style: TextStyle(fontSize: getTextScale(4, context)),
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getTextScale(7, context),
+          ),
         ),
       ),
       body: SafeArea(
@@ -103,7 +110,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: getPercentageHeight(1, context)),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               // Cooking Techniques Section
               Padding(
@@ -123,10 +130,12 @@ class _RecipeScreenState extends State<RecipeScreen> {
                           ),
                         if (dietPreference != 'balanced')
                           SizedBox(height: getPercentageHeight(0.5, context)),
-                        Text(
-                          '        Cooking Techniques',
-                          style: textTheme.displaySmall?.copyWith(
-                            color: kAccent,
+                        Center(
+                          child: Text(
+                            'Cooking Techniques',
+                            style: textTheme.displaySmall?.copyWith(
+                              color: kAccent,
+                            ),
                           ),
                         ),
                       ],
@@ -139,7 +148,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                         cardWidth: getPercentageWidth(50, context),
                         cardHeight: getPercentageHeight(20, context),
                         overlap: 50,
-                        isRecipe: true,
+                        isRecipe: false,
+                        isTechnique: true,
                         children: List.generate(
                           limitedTechniques.length,
                           (index) {
@@ -152,22 +162,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
                               onTap: () {
                                 showDialog(
                                   context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: Text(technique['name'] ?? ''),
-                                    content: Text(technique['description'] ??
-                                        'No description available'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Close'),
-                                      ),
-                                    ],
+                                  builder: (context) => TechniqueDetailWidget(
+                                    technique: technique,
                                   ),
                                 );
                               },
                               index: index,
                               isSelected: false,
-                              isRecipe: true,
+                              isRecipe: false,
                             );
                           },
                         ),

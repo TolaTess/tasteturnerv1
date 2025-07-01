@@ -33,12 +33,19 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const IconCircleButton(),
+        title: Text(
+          "Sign Up",
+          style: textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        automaticallyImplyLeading: true,
+        backgroundColor: kAccent,
+        toolbarHeight: getPercentageHeight(10, context),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -52,22 +59,8 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                   horizontal: getPercentageWidth(5, context),
                 ),
                 child: Text(
-                  "Sign Up",
-                  style: TextStyle(
-                    fontSize: getTextScale(5.5, context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(2.5, context)),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(5, context),
-                ),
-                child: Text(
                   widget.welcomeMessage,
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
+                  style: textTheme.bodyMedium?.copyWith(
                     color: kAccent,
                     fontStyle: FontStyle.italic,
                   ),
@@ -128,6 +121,7 @@ class _SignUpFormState extends State<SignUpForm> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Form(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,9 +171,8 @@ class _SignUpFormState extends State<SignUpForm> {
                         EdgeInsets.only(top: getPercentageHeight(1, context)),
                     child: Text(
                       "Passwords do not match",
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: Colors.red,
-                        fontSize: getTextScale(3, context),
                       ),
                     ),
                   ),
@@ -227,15 +220,12 @@ class _SignUpFormState extends State<SignUpForm> {
                           children: [
                             TextSpan(
                               text: "I agree to ",
-                              style: TextStyle(
-                                fontSize: getTextScale(2.5, context),
-                              ),
+                              style: textTheme.bodyMedium?.copyWith(),
                             ),
                             TextSpan(
                               text: "term of service and privacy policy",
-                              style: TextStyle(
+                              style: textTheme.bodyMedium?.copyWith(
                                 decoration: TextDecoration.underline,
-                                fontSize: getTextScale(2.5, context),
                               ),
                             )
                           ],
@@ -252,9 +242,8 @@ class _SignUpFormState extends State<SignUpForm> {
                       top: getPercentageHeight(1, context)),
                   child: Text(
                     "Please accept the terms and conditions to continue",
-                    style: TextStyle(
+                    style: textTheme.bodyMedium?.copyWith(
                       color: Colors.red,
-                      fontSize: getTextScale(3, context),
                     ),
                   ),
                 ),
@@ -287,6 +276,7 @@ class TermsOfServiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
@@ -302,50 +292,59 @@ class TermsOfServiceScreen extends StatelessWidget {
             Center(
               child: Text(
                 "Terms of Service",
-                style: TextStyle(
-                    fontSize: getTextScale(5.5, context),
-                    fontWeight: FontWeight.bold,
-                    color: kAccent),
+                style: textTheme.displaySmall
+                    ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                 textAlign: TextAlign.center,
               ),
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Center(
-              child: Text(
-                "Welcome to our $appName. \n \nBy using this application, you agree to the following terms:",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: getTextScale(4, context)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    "Welcome to our $appName.",
+                    textAlign: TextAlign.center,
+                    style: textTheme.displaySmall?.copyWith(),
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  Text(
+                    textAlign: TextAlign.center,
+                    "By using this application, you agree to the following terms:",
+                    style: textTheme.titleMedium?.copyWith(),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Text(
               "1. The nutritional information provided is for informational purposes only and should not replace professional medical advice.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               "2. AI generated content is not 100% accurate and should not be used as a substitute for professional medical advice.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               "3. We strive for accuracy but cannot guarantee that all nutritional data is 100% accurate.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               "4. Your personal data will be handled according to our Privacy Policy and will not be shared with third parties without your consent.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               "5. You are responsible for maintaining the confidentiality of your account information.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               "6. We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.",
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(),
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Column(
@@ -353,9 +352,8 @@ class TermsOfServiceScreen extends StatelessWidget {
               children: [
                 Text(
                   "Last updated: 2025",
-                  style: TextStyle(
+                  style: textTheme.bodyMedium?.copyWith(
                     fontStyle: FontStyle.italic,
-                    fontSize: getTextScale(2, context),
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -370,10 +368,9 @@ class TermsOfServiceScreen extends StatelessWidget {
                     },
                     child: Text(
                       'View Privacy Policy',
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: kAccentLight,
                         decoration: TextDecoration.underline,
-                        fontSize: getTextScale(2.5, context),
                       ),
                     ),
                   ),

@@ -416,7 +416,7 @@ class _PieChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
-    final centerRadius = radius * 0.20; // Adjust size as needed
+    final centerRadius = radius * 0.22; // Adjust size as needed
     canvas.drawCircle(center, centerRadius, centerCirclePaint);
     canvas.drawCircle(center, centerRadius, centerBorderPaint);
 

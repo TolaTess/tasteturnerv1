@@ -59,7 +59,8 @@ void showGenerationLimitDialog(BuildContext context,
   );
 }
 
-void navigateToChooseDiet(BuildContext context, {bool isDontShowPicker = false}) {
+void navigateToChooseDiet(BuildContext context,
+    {bool isDontShowPicker = false}) {
   Navigator.push(
     context,
     MaterialPageRoute(
@@ -105,4 +106,65 @@ Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
           colorFilter: ColorFilter.mode(
               isDarkMode ? kWhite : kDarkGrey, BlendMode.srcIn));
   }
+}
+
+Color getMealTypeColor(String type) {
+  switch (type.toLowerCase()) {
+    case 'protein':
+      return kAccent.withOpacity(0.5);
+    case 'grain':
+      return kBlue.withOpacity(0.5);
+    case 'vegetable':
+      return kAccentLight.withOpacity(0.5);
+    case 'fruit':
+      return kPurple.withOpacity(0.5);
+    default:
+      return kPink.withOpacity(0.5);
+  }
+}
+
+String getMealTypeImage(String type) {
+  switch (type.toLowerCase()) {
+    case 'protein':
+      return 'assets/images/meat.jpg';
+    case 'grain':
+      return 'assets/images/grain.jpg';
+    case 'vegetable':
+      return 'assets/images/vegetable.jpg';
+    default:
+      return 'assets/images/placeholder.jpg';
+  }
+}
+
+Widget buildAddMealTypeLegend(BuildContext context, String mealType,
+    {bool isSelected = false}) {
+  final textTheme = Theme.of(context).textTheme;
+
+  return Container(
+    decoration: BoxDecoration(
+      color: isSelected
+          ? kAccentLight.withOpacity(0.3)
+          : kAccent.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(10),
+      border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
+    ),
+    padding: EdgeInsets.symmetric(
+      horizontal: getPercentageWidth(4, context),
+      vertical: getPercentageHeight(1, context),
+    ),
+    child: Column(
+      children: [
+        Icon(Icons.square_rounded,
+            color: isSelected ? kAccentLight : getMealTypeColor(mealType)),
+        SizedBox(width: getPercentageWidth(2, context)),
+        Text(
+          capitalizeFirstLetter(mealType),
+          style: textTheme.bodyMedium?.copyWith(
+            color: isSelected ? kAccentLight : kAccent,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
+    ),
+  );
 }

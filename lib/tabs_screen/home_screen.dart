@@ -15,6 +15,7 @@ import '../screens/add_food_screen.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
+import '../service/program_service.dart';
 import '../widgets/announcement.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
@@ -22,6 +23,7 @@ import '../widgets/milestone_tracker.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/second_nav_widget.dart';
 import 'food_challenge_screen.dart';
+import 'program_screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int currentPage = 0;
   final PageController _pageController = PageController();
   bool familyMode = userService.currentUser.value?.familyMode ?? false;
+  late final ProgramService _programService;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -53,6 +56,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // Initialize ProgramService
+    _programService = Get.put(ProgramService());
+
     // _initializeMealData();
     _loadShowCaloriesPref();
     _getAllDisabled().then((value) {
@@ -742,30 +748,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           isDiv: false,
                         ),
 
-                  currentUser.isPremium ?? false
-                      ? const SizedBox.shrink()
-                      : SizedBox(height: getPercentageHeight(1, context)),
-                  currentUser.isPremium ?? false
-                      ? const SizedBox.shrink()
-                      : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-
                   // ------------------------------------Premium / Ads-------------------------------------
-
-                  // Milestones tracker
-                  GestureDetector(
-                    onTap: () {
-                      Get.to(
-                        () => const ProgramProgressScreen(
-                        ),
-                      );
-                    },
-                    child: const MilestonesTracker(
-                      milestones: [true, true, true, false, false],
-                      title: 'Milestones',
-                      subtitle: 'Your Program progress!',
-                    ),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  const Divider(
+                    color: kAccentLight,
+                    thickness: 1.5,
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
+                  // Milestones tracker
+                  Obx(() => GestureDetector(
+                        onTap: () {
+                          if (_programService.userPrograms.isNotEmpty) {
+                            Get.to(() => const ProgramProgressScreen());
+                          } else {
+                            Get.to(() => const ProgramScreen());
+                          }
+                        },
+                        child: MilestonesTracker(
+                          ongoingPrograms: _programService.userPrograms.length,
+                          onJoinProgram: () {
+                            if (_programService.userPrograms.isNotEmpty) {
+                              Get.to(() => const ProgramProgressScreen());
+                            } else {
+                              Get.to(() => const ProgramScreen());
+                            }
+                          },
+                        ),
+                      )),
+
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                   // Nutrition Overview
                   LayoutBuilder(

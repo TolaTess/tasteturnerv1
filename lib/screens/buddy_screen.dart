@@ -130,7 +130,6 @@ class _TastyScreenState extends State<TastyScreen> {
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSender': messages.last.senderId,
       });
-
     } catch (e) {
       print("Failed to save chat summary: $e");
     }
@@ -227,6 +226,7 @@ class _TastyScreenState extends State<TastyScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     if (isPremium || isInFreeTrial) {
       if (chatId == null) {
         // Chat is still initializing
@@ -243,7 +243,7 @@ class _TastyScreenState extends State<TastyScreen> {
             },
             child: Column(
               children: [
-                SizedBox(height: getPercentageHeight(4.5, context)),
+                SizedBox(height: getPercentageHeight(2.5, context)),
                 Row(
                   children: [
                     if (isPremium || isInFreeTrial)
@@ -280,28 +280,15 @@ class _TastyScreenState extends State<TastyScreen> {
                                     child: const IconCircleButton(),
                                   ),
                                 SizedBox(width: getPercentageWidth(2, context)),
-                                CircleAvatar(
-                                  backgroundColor:
-                                      kAccentLight.withOpacity(0.5),
-                                  backgroundImage: const AssetImage(
-                                    tastyImage, // Adjust the path to your tasty image
-                                  ),
-                                  radius: getResponsiveBoxSize(context, 18, 18),
-                                ),
-                                SizedBox(
-                                    width: getPercentageWidth(1.5, context)),
                                 Text(
                                   "Tasty Menu:",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: getTextScale(4, context),
-                                        color: themeProvider.isDarkMode
-                                            ? kWhite
-                                            : kDarkGrey,
-                                      ),
+                                  style: textTheme.displaySmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: getTextScale(7, context),
+                                    color: themeProvider.isDarkMode
+                                        ? kWhite
+                                        : kDarkGrey,
+                                  ),
                                 ),
                               ],
                             ),
@@ -314,17 +301,20 @@ class _TastyScreenState extends State<TastyScreen> {
                                       context,
                                       "💬 Chat about your fitness goals and progress",
                                       "Ask for advice, motivation, or meal planning",
-                                      themeProvider.isDarkMode),
+                                      themeProvider.isDarkMode,
+                                      textTheme),
                                   _buildFeatureItem(
                                       context,
                                       "🎡 Type 'spin' to use the ingredient wheel",
                                       "Get random food suggestions based on your macros",
-                                      themeProvider.isDarkMode),
+                                      themeProvider.isDarkMode,
+                                      textTheme),
                                   _buildFeatureItem(
                                       context,
                                       "📊 Discuss your nutrition and workout plans",
                                       "Get personalized recommendations for your goals",
-                                      themeProvider.isDarkMode),
+                                      themeProvider.isDarkMode,
+                                      textTheme),
                                 ],
                               ),
                             ],
@@ -371,7 +361,7 @@ class _TastyScreenState extends State<TastyScreen> {
                     );
                   }),
                 ),
-                _buildInputSection(themeProvider.isDarkMode),
+                _buildInputSection(themeProvider.isDarkMode, textTheme),
                 SizedBox(
                   height: MediaQuery.of(context).viewInsets.bottom + 16,
                 ),
@@ -387,7 +377,7 @@ class _TastyScreenState extends State<TastyScreen> {
     }
   }
 
-  Widget _buildInputSection(bool isDarkMode) {
+  Widget _buildInputSection(bool isDarkMode, TextTheme textTheme) {
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -404,8 +394,7 @@ class _TastyScreenState extends State<TastyScreen> {
               child: SafeTextFormField(
                 controller: textController,
                 keyboardType: TextInputType.multiline,
-                style: TextStyle(
-                  fontSize: getTextScale(4, context),
+                style: textTheme.bodyMedium?.copyWith(
                   color: isDarkMode ? kWhite : kBlack,
                 ),
                 enabled: _canUserSendMessage(),
@@ -419,7 +408,7 @@ class _TastyScreenState extends State<TastyScreen> {
                       vertical: getPercentageHeight(1.2, context),
                       horizontal: getPercentageWidth(1.6, context)),
                   hintText: _getInputHintText(),
-                  hintStyle: TextStyle(
+                  hintStyle: textTheme.bodyMedium?.copyWith(
                     color: isDarkMode
                         ? kWhite.withOpacity(0.5)
                         : kDarkGrey.withOpacity(0.5),
@@ -760,8 +749,8 @@ Greet the user warmly and offer guidance based on:
   }
 
   // Move this outside the build method
-  Widget _buildFeatureItem(
-      BuildContext context, String title, String subtitle, bool isDarkMode) {
+  Widget _buildFeatureItem(BuildContext context, String title, String subtitle,
+      bool isDarkMode, TextTheme textTheme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -773,20 +762,18 @@ Greet the user warmly and offer guidance based on:
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontSize: getTextScale(3.5, context),
-                      ),
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
                 ),
                 Center(
                   child: Text(
                     subtitle,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDarkMode ? kWhite : kBlack,
-                          fontSize: getTextScale(3, context),
-                        ),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                   ),
                 ),
               ],
@@ -800,6 +787,7 @@ Greet the user warmly and offer guidance based on:
   Future<void> checkAndPromptAIPayment(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     final startDateStr = prefs.getString('ai_trial_start_date');
+    final textTheme = Theme.of(context).textTheme;
     if (startDateStr != null) {
       final startDate = DateTime.parse(startDateStr);
       final now = DateTime.now();
@@ -808,20 +796,27 @@ Greet the user warmly and offer guidance based on:
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('AI Assistant Trial Ended'),
+            title: Text('AI Assistant Trial Ended',
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                )),
             content: Text(
-                'Your free trial has ended. Subscribe to continue using the AI Assistant.'),
+              'Your free trial has ended. Subscribe to continue using the AI Assistant.',
+              style: textTheme.bodySmall?.copyWith(),
+            ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                   // Trigger payment flow here
                 },
-                child: Text('Subscribe'),
+                child:
+                    Text('Subscribe', style: textTheme.bodySmall?.copyWith()),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Maybe Later'),
+                child:
+                    Text('Maybe Later', style: textTheme.bodySmall?.copyWith()),
               ),
             ],
           ),

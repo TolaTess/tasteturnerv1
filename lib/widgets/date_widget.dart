@@ -1,11 +1,6 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:simple_circular_progress_bar/simple_circular_progress_bar.dart';
-
-import '../constants.dart';
-import '../helper/utils.dart';
-import '../screens/add_food_screen.dart';
 
 class WavePainter extends CustomPainter {
   final double animationValue; // Fill level

@@ -166,6 +166,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        automaticallyImplyLeading: true,
+        toolbarHeight: getPercentageHeight(10, context),
         title: Text(
           'Food Challenge',
           style: textTheme.displaySmall?.copyWith(

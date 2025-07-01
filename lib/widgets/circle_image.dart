@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 
 class IngredientListViewRecipe extends StatefulWidget {
@@ -119,21 +120,22 @@ class IngredientItem extends StatelessWidget {
             children: [
               ClipOval(
                 child: Container(
-                  width: getResponsiveBoxSize(context, 77, 77),
-                  height: getResponsiveBoxSize(context, 77, 77),
+                  width: getResponsiveBoxSize(context, 100, 100),
+                  height: getResponsiveBoxSize(context, 100, 100),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        kAccentLight.withOpacity(0.1),
-                        kAccentLight.withOpacity(0.3),
+                        getMealTypeColor(dataSrc.type).withOpacity(0.1),
+                        getMealTypeColor(dataSrc.type).withOpacity(0.3),
                       ],
                     ),
                     image: const DecorationImage(
-                      image: AssetImage('assets/images/placeholder.jpg'),
+                      image: AssetImage('assets/images/vegetable_stamp.jpg'),
                       fit: BoxFit.cover,
+                      opacity: 0.5,
                     ),
                   ),
                 ),
@@ -151,10 +153,10 @@ class IngredientItem extends StatelessWidget {
                   child: Text(
                     firstWord,
                     textAlign: TextAlign.center,
-                    maxLines: 2,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: isSelected ? kAccent : kWhite,
+                          color: isSelected ? kAccent : kDarkGrey,
                           fontSize: getPercentageWidth(3, context),
                         ),
                   ),

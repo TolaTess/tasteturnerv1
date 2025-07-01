@@ -160,6 +160,48 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
+  // Helper method to get only the date part (without time) for comparison
+  String _getDateOnly(DateTime dateTime) {
+    return DateFormat('yyyy-MM-dd').format(dateTime);
+  }
+
+  // Helper method to build date header widget
+  Widget _buildDateHeader(DateTime date, bool isDarkMode, TextTheme textTheme) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDate = DateTime(date.year, date.month, date.day);
+
+    String dateText;
+    if (messageDate == today) {
+      dateText = 'Today';
+    } else if (messageDate == yesterday) {
+      dateText = 'Yesterday';
+    } else {
+      // Format as "June 24, 2025" for older dates
+      dateText = DateFormat('MMMM d, yyyy').format(date);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? kLightGrey.withOpacity(0.3)
+                : kLightGrey.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            dateText,
+            style: textTheme.bodyMedium?.copyWith(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -169,6 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     // Check if latest message is a pending friend request
     bool isPendingFriendRequest = false;
     if (chatController.messages.isNotEmpty) {
@@ -181,57 +224,46 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        leadingWidth: MediaQuery.of(context).size.width,
-        leading: Row(
-          children: [
-            InkWell(
-              onTap: () => Navigator.pop(context),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 15),
-                child: IconCircleButton(
-                  isRemoveContainer: true,
-                ),
+        automaticallyImplyLeading: true,
+        centerTitle: true,
+        title: Text(
+          widget.friend?.displayName ?? 'Chat',
+          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          GestureDetector(
+            onTap: widget.friendId!.isEmpty
+                ? () {}
+                : () {
+                    Navigator.of(context).pop();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            UserProfileScreen(userId: widget.friendId!),
+                      ),
+                    );
+                  },
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: getPercentageWidth(2, context),
               ),
-            ),
-            const Spacer(),
-            Text(
-              widget.friend?.displayName ?? 'Chat',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: getTextScale(4, context),
-                  color: isDarkMode ? kWhite : kDarkGrey),
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(width: getPercentageWidth(1, context)),
-            GestureDetector(
-              onTap: widget.friendId!.isEmpty
-                  ? () {}
-                  : () {
-                      Navigator.of(context).pop();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              UserProfileScreen(userId: widget.friendId!),
-                        ),
-                      );
-                    },
               child: CircleAvatar(
                 backgroundColor: kAccent,
-                radius: getResponsiveBoxSize(context, 20, 20),
+                radius: getResponsiveBoxSize(context, 16, 16),
                 child: CircleAvatar(
                   backgroundImage: widget.friend?.profileImage != null &&
                           widget.friend!.profileImage!.isNotEmpty &&
                           widget.friend!.profileImage!.contains('http')
                       ? NetworkImage(widget.friend!.profileImage!)
                       : const AssetImage(intPlaceholderImage) as ImageProvider,
-                  radius: getResponsiveBoxSize(context, 18, 18),
+                  radius: getResponsiveBoxSize(context, 14, 14),
                 ),
               ),
             ),
-            SizedBox(width: getPercentageWidth(2, context)),
-          ],
-        ),
+          ),
+        ],
       ),
       body: chatId == null
           ? noItemTastyWidget(
@@ -271,20 +303,43 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         itemBuilder: (context, index) {
                           final message = messages[index];
-                          return ChatItem(
-                            dataSrc: message,
-                            isMe: message.senderId == userService.userId,
-                            chatController: chatController,
-                            chatId: chatId!,
+
+                          // Check if we need to show a date header
+                          bool showDateHeader = false;
+                          if (index == 0) {
+                            // Always show date header for first message
+                            showDateHeader = true;
+                          } else {
+                            // Check if date is different from previous message
+                            final previousMessage = messages[index - 1];
+                            final currentDate =
+                                _getDateOnly(message.timestamp.toDate());
+                            final previousDate = _getDateOnly(
+                                previousMessage.timestamp.toDate());
+                            showDateHeader = currentDate != previousDate;
+                          }
+
+                          return Column(
+                            children: [
+                              if (showDateHeader)
+                                _buildDateHeader(message.timestamp.toDate(),
+                                    isDarkMode, textTheme),
+                              ChatItem(
+                                dataSrc: message,
+                                isMe: message.senderId == userService.userId,
+                                chatController: chatController,
+                                chatId: chatId!,
+                              ),
+                            ],
                           );
                         },
                       );
                     }),
                   ),
-                  _buildInputSection(isDarkMode,
+                  _buildInputSection(isDarkMode, textTheme,
                       isDisabled: isPendingFriendRequest,
                       hint: isPendingFriendRequest
-                          ? 'Waiting to accept'
+                          ? 'You can\'t send messages yet'
                           : 'Type your caption...'),
                 ],
               ),
@@ -344,7 +399,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _onNewMessage();
   }
 
-  Widget _buildInputSection(bool isDarkMode,
+  Widget _buildInputSection(bool isDarkMode, TextTheme textTheme,
       {bool isDisabled = false, String hint = 'Type your caption...'}) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -379,10 +434,7 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: textController,
               keyboardType: TextInputType.multiline,
               enabled: !isDisabled,
-              style: TextStyle(
-                fontSize: getTextScale(4, context),
-                color: isDarkMode ? kWhite : kBlack,
-              ),
+              style: textTheme.bodyMedium?.copyWith(),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: isDarkMode ? kLightGrey : kWhite,
@@ -393,11 +445,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     vertical: getPercentageHeight(1.2, context),
                     horizontal: getPercentageWidth(1.6, context)),
                 hintText: hint,
-                hintStyle: TextStyle(
-                  color: isDarkMode
-                      ? kWhite.withOpacity(0.5)
-                      : kBlack.withOpacity(0.5),
-                ),
+                hintStyle: textTheme.bodyMedium?.copyWith(),
               ),
             ),
           ),
@@ -441,6 +489,7 @@ class ChatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     double screenWidth = MediaQuery.of(context).size.width;
     List<String> extractedItems = extractSlashedItems(dataSrc.messageContent);
     if (extractedItems.isEmpty) {
@@ -525,8 +574,8 @@ class ChatItem extends StatelessWidget {
                           child: url.contains('http')
                               ? Image.network(
                                   url,
-                                  height: getPercentageHeight(30, context),
-                                  width: getPercentageWidth(70, context),
+                                  height: getPercentageHeight(20, context),
+                                  width: getPercentageWidth(60, context),
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Image.asset(
@@ -549,18 +598,19 @@ class ChatItem extends StatelessWidget {
               // Show Text if Available
               if (dataSrc.messageContent.isNotEmpty)
                 Text(
-                  getTextBeforeSlash(dataSrc.messageContent),
-                  style: TextStyle(fontSize: getTextScale(3, context)),
+                  getTextBeforeSlash(
+                      dataSrc.messageContent.replaceAll('00:00:00.000 ', '')),
+                  style: textTheme.bodyMedium?.copyWith(),
                 ),
 
               // Show Calendar Share Request if available
               if (dataSrc.shareRequest != null)
-                _buildShareRequest(context, isDarkMode),
+                _buildShareRequest(context, isDarkMode, textTheme),
 
               // Show Friend Request if available
               if (dataSrc.friendRequest != null)
                 _buildFriendRequest(
-                    context, isDarkMode, chatId, dataSrc.messageId),
+                    context, isDarkMode, chatId, dataSrc.messageId, textTheme),
 
               SizedBox(height: getPercentageHeight(0.5, context)),
 
@@ -571,14 +621,14 @@ class ChatItem extends StatelessWidget {
                 children: [
                   Text(
                     DateFormat('hh:mm a').format(dataSrc.timestamp.toDate()),
-                    style: TextStyle(fontSize: getTextScale(2, context)),
+                    style: textTheme.bodySmall?.copyWith(color: kAccentLight),
                   ),
                   if (isMe) SizedBox(width: getPercentageWidth(1, context)),
                   if (isMe)
                     Icon(
                       Icons.done_all,
                       size: getPercentageWidth(3, context),
-                      color: Colors.blue,
+                      color: kAccent,
                     ),
                 ],
               ),
@@ -589,12 +639,14 @@ class ChatItem extends StatelessWidget {
     );
   }
 
-  Widget _buildFriendRequest(
-      BuildContext context, bool isDarkMode, String chatId, String messageId) {
+  Widget _buildFriendRequest(BuildContext context, bool isDarkMode,
+      String chatId, String messageId, TextTheme textTheme) {
     final friendRequest = dataSrc.friendRequest!;
     final status = friendRequest['status'] as String? ?? 'pending';
     final friendName = friendRequest['friendName'] as String? ?? 'Friend';
     final date = friendRequest['date'] as String?;
+    final formattedDate =
+        DateFormat('MMM d, yyyy').format(DateTime.parse(date!));
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -616,10 +668,9 @@ class ChatItem extends StatelessWidget {
               Expanded(
                 child: Text(
                   '$friendName wants to be your friend',
-                  style: TextStyle(
+                  style: textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: kAccent,
-                    fontSize: getTextScale(3, context),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -633,8 +684,7 @@ class ChatItem extends StatelessWidget {
                       messageId,
                     );
                   },
-                  child: Text('Accept',
-                      style: TextStyle(fontSize: getTextScale(2, context))),
+                  child: Text('Accept', style: textTheme.bodySmall?.copyWith()),
                   style: TextButton.styleFrom(
                       foregroundColor: isDarkMode ? kWhite : kDarkGrey),
                 ),
@@ -643,8 +693,7 @@ class ChatItem extends StatelessWidget {
                   padding:
                       EdgeInsets.only(left: getPercentageWidth(1, context)),
                   child: Text('Accepted',
-                      style: TextStyle(
-                          color: kAccent, fontSize: getTextScale(2, context))),
+                      style: textTheme.bodySmall?.copyWith(color: kAccent)),
                 ),
             ],
           ),
@@ -652,11 +701,8 @@ class ChatItem extends StatelessWidget {
             Padding(
               padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
               child: Text(
-                'Requested on $date',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white54 : Colors.black54,
-                  fontSize: getTextScale(2, context),
-                ),
+                'Requested on $formattedDate',
+                style: textTheme.bodySmall?.copyWith(),
               ),
             ),
         ],
@@ -664,7 +710,8 @@ class ChatItem extends StatelessWidget {
     );
   }
 
-  Widget _buildShareRequest(BuildContext context, bool isDarkMode) {
+  Widget _buildShareRequest(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
     final shareRequest = dataSrc.shareRequest!;
     final status = shareRequest['status'] as String;
     final type = shareRequest['type'] as String;
@@ -699,7 +746,7 @@ class ChatItem extends StatelessWidget {
             SizedBox(width: getPercentageWidth(1, context)),
             Text(
               type == 'entire_calendar' ? 'Calendar Share' : 'Day Share',
-              style: TextStyle(
+              style: textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: kAccent,
               ),
@@ -711,10 +758,7 @@ class ChatItem extends StatelessWidget {
             padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Text(
               'Date: $formattedDate',
-              style: TextStyle(
-                fontSize: getTextScale(2, context),
-                color: isDarkMode ? Colors.white70 : Colors.black54,
-              ),
+              style: textTheme.bodySmall?.copyWith(),
             ),
           ),
         if (!isMe && status == 'pending')
@@ -746,8 +790,7 @@ class ChatItem extends StatelessWidget {
                   ),
                   child: Text(
                     'Accept',
-                    style: TextStyle(
-                        color: kAccent, fontSize: getTextScale(2, context)),
+                    style: textTheme.bodySmall?.copyWith(color: kAccent),
                   ),
                 ),
               ],
@@ -758,8 +801,7 @@ class ChatItem extends StatelessWidget {
             padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
             child: Text(
               'Accepted',
-              style: TextStyle(
-                fontSize: getTextScale(2, context),
+              style: textTheme.bodySmall?.copyWith(
                 color: Colors.green[400],
                 fontWeight: FontWeight.w500,
               ),

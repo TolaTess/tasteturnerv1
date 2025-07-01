@@ -801,6 +801,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         centerTitle: true,
+        backgroundColor: kAccent,
+        automaticallyImplyLeading: true,
+        toolbarHeight: getPercentageHeight(10, context),
         title: Text(
           widget.title,
           style: Theme.of(context).textTheme.displaySmall?.copyWith(

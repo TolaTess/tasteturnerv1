@@ -19,17 +19,18 @@ class SearchButton2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SafeTextField(
-      style: TextStyle(
+      style: textTheme.bodyMedium?.copyWith(
           color: isDarkMode ? kBlack : kWhite,
-          fontSize: getTextScale(3, context)),
+          fontSize: getTextScale(4, context)),
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: kText,
-        hintStyle: TextStyle(
+        hintStyle: textTheme.bodyMedium?.copyWith(
             color: isDarkMode ? kBlack : kWhite,
-            fontSize: getTextScale(3, context)),
+            fontSize: getTextScale(4, context)),
         prefixIcon: Icon(Icons.search,
             color: isDarkMode ? kBlack : kWhite,
             size: getIconScale(6, context)),
@@ -70,6 +71,7 @@ class _ThirdButtonState extends State<ThirdButton> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
       child: ElevatedButton(
         onPressed: () {
@@ -106,7 +108,7 @@ class _ThirdButtonState extends State<ThirdButton> {
           children: [
             Icon(
               isSaved
-                  ? Icons.save
+                  ? Icons.save_alt
                   : widget.icon, // Show save icon if on spin screen
               size: getPercentageWidth(2, context),
             ),
@@ -115,7 +117,9 @@ class _ThirdButtonState extends State<ThirdButton> {
               isSaved
                   ? "Save"
                   : widget.text, // Show "Save" text if on spin screen
-              style: TextStyle(fontSize: getTextScale(3, context)),
+              style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? kBlack : kWhite,
+                  fontSize: getTextScale(4, context)),
             ),
           ],
         ),

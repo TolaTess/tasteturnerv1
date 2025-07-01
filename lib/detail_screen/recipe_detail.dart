@@ -190,10 +190,10 @@ class SlvAppBar extends StatelessWidget {
       }),
 
       bottom: PreferredSize(
-        preferredSize: Size.fromHeight(getPercentageHeight(10, context)),
+        preferredSize: Size.fromHeight(getPercentageHeight(3.5, context)),
         child: Container(
           width: double.infinity,
-          height: getPercentageHeight(10, context),
+          height: getPercentageHeight(3.5, context),
           decoration: BoxDecoration(
             color: isDarkMode ? kDarkGrey : kWhite,
             borderRadius: const BorderRadius.only(
@@ -302,10 +302,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                             textAlign: TextAlign.center,
                             style: textTheme.bodyMedium?.copyWith(
                               fontStyle: FontStyle.italic,
-                              color: isDarkMode ? kLightGrey : kDarkGrey,
+                              color: kLightGrey,
                               fontWeight: FontWeight.w400,
                             ),
-                            maxLines: 3,
+                            maxLines: 5,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -493,19 +493,17 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                       : kWhite,
                               title: Text('Delete Meal',
                                   style: textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        getThemeProvider(context).isDarkMode
-                                            ? kWhite
-                                            : kDarkGrey,
+                                    color: getThemeProvider(context).isDarkMode
+                                        ? kWhite
+                                        : kDarkGrey,
                                     fontWeight: FontWeight.w400,
                                   )),
                               content: Text(
                                   'Are you sure you want to delete this meal? This action cannot be undone.',
                                   style: textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        getThemeProvider(context).isDarkMode
-                                            ? kWhite
-                                            : kDarkGrey,
+                                    color: getThemeProvider(context).isDarkMode
+                                        ? kWhite
+                                        : kDarkGrey,
                                     fontWeight: FontWeight.w400,
                                   )),
                               actions: [
@@ -514,10 +512,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                       Navigator.pop(context, false),
                                   child: Text('Cancel',
                                       style: textTheme.bodyMedium?.copyWith(
-                                        color: getThemeProvider(context)
-                                                .isDarkMode
-                                            ? kWhite
-                                            : kDarkGrey,
+                                        color:
+                                            getThemeProvider(context).isDarkMode
+                                                ? kWhite
+                                                : kDarkGrey,
                                         fontWeight: FontWeight.w400,
                                       )),
                                 ),
@@ -727,6 +725,13 @@ class NutritionFacts extends StatelessWidget {
       nutritionMap['calories'] = meal.calories.toString().toLowerCase();
     }
 
+    List<Color> colors = [
+      Colors.orange,
+      Colors.blue,
+      Colors.green,
+      Colors.purple,
+    ];
+
     // Convert map entries to a list for iteration
     List<MapEntry<String, String>> nutritionEntries =
         nutritionMap.entries.toList();
@@ -742,8 +747,12 @@ class NutritionFacts extends StatelessWidget {
           (context, index) {
             return Container(
               decoration: BoxDecoration(
-                color: isDarkMode ? kLightGrey : kWhite,
+                color: colors[index % colors.length].withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: colors[index % colors.length].withOpacity(0.3),
+                  width: 1,
+                ),
               ),
               child: Padding(
                 padding: EdgeInsets.symmetric(
@@ -810,9 +819,9 @@ class IngredientsTittle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(ingredients,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? kWhite : kBlack,
-                  fontWeight: FontWeight.bold,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontWeight: FontWeight.bold,
                 )),
             Text("${meal.ingredients.length} $items",
                 style: textTheme.bodySmall?.copyWith())
@@ -876,7 +885,7 @@ class IngredientsCard extends StatelessWidget {
       padding: EdgeInsets.only(right: getPercentageWidth(1.2, context)),
       child: Container(
         decoration: BoxDecoration(
-          color: isDarkMode ? kLightGrey : kWhite,
+          color: isDarkMode ? kLightGrey : kAccent.withOpacity(0.4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
@@ -939,11 +948,11 @@ class DirectionsTittle extends StatelessWidget {
             Text(directions,
                 style: textTheme.bodyLarge?.copyWith(
                   color: isDarkMode ? kWhite : kBlack,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.bold,
                 )),
             Text(
                 "${meal.instructions.length} ${meal.instructions.length == 1 ? 'step' : 'steps'}",
-                  style: textTheme.bodySmall?.copyWith(
+                style: textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w400,
                 ))
           ],
@@ -995,14 +1004,19 @@ class DirectionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;  
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
       decoration: BoxDecoration(
-          color: isDarkMode ? kLightGrey : kWhite,
-          borderRadius: BorderRadius.circular(10)),
+        color: colors[index % colors.length].withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: colors[index % colors.length].withOpacity(0.3),
+          width: 1,
+        ),
+      ),
       child: Padding(
         padding: EdgeInsets.symmetric(
             horizontal: getPercentageWidth(3, context),
