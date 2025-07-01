@@ -72,6 +72,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final user = userService.currentUser.value;
     final nameController = TextEditingController(text: user?.displayName);
     final bioController = TextEditingController(text: user?.bio);
@@ -85,7 +86,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ),
         centerTitle: true,
         title: Text("Edit Profile",
-            style: TextStyle(fontSize: getTextScale(4, context))),
+              style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
       ),
       body: SafeArea(
         child: SizedBox(

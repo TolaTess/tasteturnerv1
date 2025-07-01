@@ -59,6 +59,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final String? mediaPath = widget.recipe.mediaPaths.isNotEmpty
         ? widget.recipe.mediaPaths.first
         : extPlaceholderImage;
@@ -163,23 +164,28 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                         // Recipe title
                         Text(
                           widget.recipe.title,
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: MediaQuery.of(context).size.width > 700
-                                  ? getPercentageHeight(2.3, context)
-                                  : getPercentageHeight(1.8, context),
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w500,
-                              overflow: TextOverflow.ellipsis),
-                          maxLines: 2,
+                              color: kWhite),
+                          maxLines: 3,
                         ),
-                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        SizedBox(height: getPercentageHeight(1, context)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             //Serves quantity
                             Text(
+                              "${widget.recipe.calories} kcal",
+                              style: textTheme.bodyMedium?.copyWith(
+                                  fontSize: getPercentageWidth(3, context),
+                                  color: kWhite),
+                            ),
+                            Text(
                               "${widget.recipe.serveQty} servings",
-                              style: TextStyle(color: Colors.white, fontSize:  getPercentageWidth(2.5, context)),
+                              style: textTheme.bodyMedium?.copyWith(
+                                  fontSize: getPercentageWidth(3, context),
+                                  color: kWhite),
                             ),
                           ],
                         ),
@@ -200,7 +206,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           child: Icon(
                             Icons.check_circle,
                             color: kAccent,
-                            size: getPercentageWidth(5, context),
+                            size: getIconScale(5, context),
                           ),
                         ),
                       ),

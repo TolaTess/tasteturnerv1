@@ -41,13 +41,14 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         title: Text('Favorites',
-            style: TextStyle(
-                fontSize: getTextScale(4, context),
-                fontWeight: FontWeight.w600)),
+            style: textTheme.displaySmall?.copyWith(
+                fontSize: getPercentageWidth(7, context),
+                fontWeight: FontWeight.w500)),
         automaticallyImplyLeading: false,
         leading: Padding(
           padding: EdgeInsets.all(getPercentageWidth(1, context)),
@@ -83,7 +84,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                             horizontal: getPercentageWidth(2, context)),
                         child: Column(
                           children: [
-                            SizedBox(height: getPercentageHeight(1, context)),
+                            SizedBox(height: getPercentageHeight(2, context)),
                             // Generate favorite recipe cards using RecipeCardFlex()
                             ...List.generate(
                               favoriteMeals.length,

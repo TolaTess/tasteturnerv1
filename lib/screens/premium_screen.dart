@@ -126,6 +126,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   Widget _buildPriceCard(bool isDarkMode) {
+    final textTheme = Theme.of(context).textTheme;
     final monthlyPrice = premiumPlan?['plan']?['month']?.toDouble() ?? 9.99;
     final yearlyPrice = premiumPlan?['plan']?['year']?.toDouble() ?? 99.99;
     final isDiscount = premiumPlan?['isDiscount'] ?? false;
@@ -161,28 +162,21 @@ class _PremiumScreenState extends State<PremiumScreen> {
           children: [
             Text(
               isYearlyPlan ? 'Your Yearly Plan' : 'Your Monthly Plan',
-              style: TextStyle(
-                fontSize: getTextScale(5, context),
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? kLightGrey : kBlack,
-              ),
+              style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? kLightGrey : kBlack),
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               '\$${currentPrice.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: getTextScale(5, context),
-                fontWeight: FontWeight.bold,
-                color: kAccent,
-              ),
+              style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold, color: kAccent),
             ),
             if (isYearlyPlan)
               Text(
                 '\$${perMonthPrice.toStringAsFixed(2)}/mo',
-                style: TextStyle(
-                  fontSize: getTextScale(4, context),
-                  color: isDarkMode ? kLightGrey : kBlack,
-                ),
+                style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kLightGrey : kBlack),
               ),
           ],
         ),
@@ -213,36 +207,27 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 children: [
                   Text(
                     'Monthly',
-                    style: TextStyle(
-                      fontSize: getTextScale(5, context),
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? kLightGrey : kBlack,
-                    ),
+                    style: textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? kLightGrey : kBlack),
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
                   if (isDiscount && discountPerc > 0)
                     Text(
                       '\$${monthlyPrice.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        decoration: TextDecoration.lineThrough,
-                        color: isDarkMode ? Colors.grey : Colors.grey[600],
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: isDarkMode ? Colors.grey : Colors.grey[600]),
                     ),
                   Text(
                     '\$${monthlyPerMonth.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: getTextScale(5, context),
-                      fontWeight: FontWeight.bold,
-                      color: kAccent,
-                    ),
+                    style: textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold, color: kAccent),
                   ),
                   Text(
                     '/month',
-                    style: TextStyle(
-                      fontSize: getTextScale(3.5, context),
-                      color: isDarkMode ? kLightGrey : kBlack,
-                    ),
+                    style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kLightGrey : kBlack),
                   ),
                 ],
               ),
@@ -274,11 +259,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     children: [
                       Text(
                         'Yearly',
-                        style: TextStyle(
-                          fontSize: getTextScale(5, context),
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? kLightGrey : kBlack,
-                        ),
+                        style: textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? kLightGrey : kBlack),
                       ),
                       SizedBox(width: getPercentageWidth(1, context)),
                       Flexible(
@@ -293,11 +276,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           child: Text(
                             textAlign: TextAlign.center,
                             'SAVE ${((1 - yearlyPerMonth / monthlyPerMonth) * 100).toStringAsFixed(0)}%',
-                            style: TextStyle(
-                              fontSize: getPercentageHeight(1.2, context),
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.bodyMedium?.copyWith(
+                                color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -307,26 +287,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   if (isDiscount && discountPerc > 0)
                     Text(
                       '\$${yearlyPrice.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        decoration: TextDecoration.lineThrough,
-                        color: isDarkMode ? Colors.grey : Colors.grey[600],
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: isDarkMode ? Colors.grey : Colors.grey[600]),
                     ),
                   Text(
                     '\$${discountedYearlyPrice.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: getTextScale(5, context),
-                      fontWeight: FontWeight.bold,
-                      color: kAccent,
-                    ),
+                    style: textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold, color: kAccent),
                   ),
                   Text(
                     '\$${yearlyPerMonth.toStringAsFixed(2)}/mo',
-                    style: TextStyle(
-                      fontSize: getTextScale(3.5, context),
-                      color: isDarkMode ? kLightGrey : kBlack,
-                    ),
+                    style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kLightGrey : kBlack),
                   ),
                 ],
               ),
@@ -341,7 +314,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final user = userService.currentUser.value;
-
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
@@ -350,9 +323,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
         ),
         title: Text(
           isUserPremium ? 'Your Plan' : 'Go Premium',
-          style: TextStyle(
-            fontSize: getTextScale(3.5, context),
-          ),
+          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
         ),
         centerTitle: true,
       ),
@@ -373,15 +344,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
-                        style: TextStyle(
-                            fontSize: getTextScale(5, context),
+                        style: textTheme.displaySmall?.copyWith(
                             fontWeight: FontWeight.w300,
                             color: isDarkMode ? kLightGrey : kBlack),
                         children: [
                           TextSpan(text: 'Welcome '),
                           TextSpan(
                             text: user?.displayName ?? '',
-                            style: TextStyle(
+                            style: textTheme.displaySmall?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: isDarkMode ? kLightGrey : kAccent),
                           ),
@@ -395,10 +365,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       isUserPremium
                           ? 'You are currently enjoying an ad-free experience! Along with the below benefits.'
                           : 'Upgrade to Premium for an ad-free experience!',
-                      style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: textTheme.titleMedium?.copyWith(),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(
@@ -415,10 +382,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         children: [
                           Text(
                             isUserPremium ? '' : 'Premium Benefits',
-                            style: TextStyle(
-                              fontSize: getTextScale(4.5, context),
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
                           if (premiumPlan != null &&
@@ -452,7 +417,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               padding: EdgeInsets.only(
                                   bottom: getPercentageHeight(1, context)),
                               child: Text(_purchaseError!,
-                                  style: TextStyle(color: Colors.red)),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                      color: Colors.red)),
                             ),
                           AppButton(
                             text: _purchaseInProgress
@@ -490,10 +456,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         },
                         child: Text(
                           'Cancel anytime',
-                          style: TextStyle(
-                            fontSize: getTextScale(4, context),
-                            color: isDarkMode ? kLightGrey : kBlack,
-                          ),
+                          style: textTheme.bodyLarge?.copyWith(
+                              color: isDarkMode ? kLightGrey : kBlack),
                         ),
                       ),
                   ],
@@ -512,18 +476,20 @@ class BulletPoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: getPercentageHeight(1, context)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.check_circle,
-              color: kAccent, size: getPercentageWidth(2, context)),
+              color: kAccent, size: getPercentageWidth(4, context)),
           SizedBox(width: getPercentageWidth(2, context)),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: getTextScale(4, context)),
+              style:
+                  textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],

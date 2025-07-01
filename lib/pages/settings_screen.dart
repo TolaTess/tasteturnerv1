@@ -16,45 +16,23 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: getPercentageHeight(10, context),
+        backgroundColor: kAccent,
+        automaticallyImplyLeading: true,
+        centerTitle: true,
+        title: Text('Settings',
+            style:
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               height: getPercentageHeight(2, context),
-            ),
-
-            //home appbar
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(2, context),
-              ),
-              child: Row(
-                children: [
-                  // back arrow
-                  InkWell(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const IconCircleButton(),
-                  ),
-
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        settings,
-                        style: TextStyle(
-                          fontSize: getTextScale(5, context),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: getPercentageHeight(1, context),
             ),
             SizedBox(
               width: double.infinity,
@@ -145,6 +123,7 @@ class _SettingCategoryState extends State<SettingCategory> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         GestureDetector(
@@ -163,18 +142,19 @@ class _SettingCategoryState extends State<SettingCategory> {
                           //prefix icon
                           Icon(
                             widget.setting.prefixicon,
-                            size: getPercentageWidth(4, context),
+                            size: getTextScale(6.5, context),
                           ),
                           SizedBox(
-                            width: getPercentageWidth(1, context),
+                            width: getPercentageWidth(2.5, context),
                           ),
 
                           //setting category
                           Text(
                             widget.setting.category,
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                            ),
+                            style: textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                fontSize: getTextScale(5, context),
+                                color: isDarkMode ? kWhite : kDarkGrey),
                           ),
                         ],
                       ),
@@ -198,18 +178,19 @@ class _SettingCategoryState extends State<SettingCategory> {
                           //prefix icon
                           Icon(
                             widget.setting.prefixicon,
-                            size: getPercentageWidth(4, context),
+                            size: getTextScale(6.5, context),
                           ),
                           SizedBox(
-                            width: getPercentageWidth(1, context),
+                            width: getPercentageWidth(2.5, context),
                           ),
 
                           //setting category
                           Text(
                             widget.setting.category,
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                            ),
+                            style: textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                fontSize: getTextScale(5, context),
+                                color: isDarkMode ? kWhite : kDarkGrey),
                           ),
                         ],
                       ),
@@ -217,18 +198,22 @@ class _SettingCategoryState extends State<SettingCategory> {
                       //suffix icon
                       Icon(
                         widget.setting.suffixicon,
-                        size: getPercentageWidth(4, context),
+                        size: getTextScale(6.5, context),
                       )
                     ],
                   ),
           ),
         ),
+        SizedBox(height: getPercentageHeight(1, context)),
 
         //divider
         Divider(
-          color: isDarkMode ? kLightGrey : kDarkGrey,
-          thickness: 1,
+          color: isDarkMode
+              ? kLightGrey.withOpacity(0.5)
+              : kDarkGrey.withOpacity(0.5),
+          thickness: 0.5,
         ),
+        SizedBox(height: getPercentageHeight(1, context)),
       ],
     );
   }

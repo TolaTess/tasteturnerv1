@@ -3,6 +3,7 @@ import 'package:tasteturner/helper/utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../constants.dart';
+import '../widgets/primary_button.dart';
 
 class HelpSupport extends StatelessWidget {
   const HelpSupport({super.key});
@@ -10,9 +11,14 @@ class HelpSupport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Help & Support'),
+        title: Text(
+          'Help & Support',
+          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -21,23 +27,30 @@ class HelpSupport extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(height: getPercentageHeight(2, context)),
                 Center(
                   child: Text(
                     'Frequently Asked Questions',
-                    style: TextStyle(
-                        fontSize: getTextScale(4.5, context),
-                        fontWeight: FontWeight.bold,
-                        color: kAccent),
+                    style: textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildFAQItem('How do I use the spin feature?',
-                    'Double tap to start spinning, and tap once to stop. It\'s that simple!'),
-                _buildFAQItem('How do I use the calendar and sharing features?',
-                    'You can add your special days to the calendar and share them with friends and family by clicking the share icon. Switch between personal and shared calendar views by clicking the person icon.'),
-                _buildFAQItem('What is the ingredient battle?',
-                    'The ingredient battle is our weekly challenge that encourages you to explore different ingredients and get creative with cooking. Join the challenge and earn points for a chance to win vouchers to your favorite restaurants!'),
+                SizedBox(height: getPercentageHeight(1, context)),
+                _buildFAQItem(
+                    'How do I use the spin feature?',
+                    'Double tap to start spinning, and tap once to stop. It\'s that simple!',
+                    textTheme),
+                SizedBox(height: getPercentageHeight(1, context)),
+                _buildFAQItem(
+                    'How do I use the calendar and sharing features?',
+                    'You can add your special days to the calendar and share them with friends and family by clicking the share icon. Switch between personal and shared calendar views by clicking the person icon.',
+                    textTheme),
+                SizedBox(height: getPercentageHeight(1, context)),
+                _buildFAQItem(
+                    'What is the ingredient battle?',
+                    'The ingredient battle is our weekly challenge that encourages you to explore different ingredients and get creative with cooking. Join the challenge and earn points for a chance to win vouchers to your favorite restaurants!',
+                    textTheme),
                 SizedBox(height: getPercentageHeight(1, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -52,10 +65,8 @@ class HelpSupport extends StatelessWidget {
                       },
                       child: Text(
                         'More FAQs',
-                        style: TextStyle(
+                        style: textTheme.bodyMedium?.copyWith(
                           color: kAccentLight,
-                          fontSize: getTextScale(4, context),
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
@@ -69,10 +80,8 @@ class HelpSupport extends StatelessWidget {
                       },
                       child: Text(
                         'Privacy Policy',
-                        style: TextStyle(
+                        style: textTheme.bodyMedium?.copyWith(
                           color: kAccentLight,
-                          fontSize: getTextScale(4, context),
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
@@ -86,37 +95,29 @@ class HelpSupport extends StatelessWidget {
                         },
                         child: Text(
                           'Our website',
-                          style: TextStyle(
+                          style: textTheme.bodyMedium?.copyWith(
                             color: kAccentLight,
-                            fontSize: getTextScale(4, context),
-                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: getPercentageHeight(5, context)),
                 Center(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
-                      backgroundColor: isDarkMode
-                          ? kDarkModeAccent.withOpacity(0.50)
-                          : kAccent.withOpacity(0.50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                    onPressed: () async {
-                      final Uri emailLaunchUri = Uri(
-                        scheme: 'mailto',
-                        path: 'support@tasteturner.com',
-                      );
-                      await launchUrl(emailLaunchUri);
-                    },
-                    child: const Text('Contact Support'),
-                  ),
+                  child: AppButton(
+                      text: 'Contact Support',
+                      onPressed: () async {
+                        final Uri emailLaunchUri = Uri(
+                          scheme: 'mailto',
+                          path: 'support@tasteturner.com',
+                        );
+                        await launchUrl(emailLaunchUri);
+                      },
+                      width: userService.currentUser.value?.isPremium == true
+                          ? 100
+                          : 40,
+                      type: AppButtonType.secondary),
                 ),
               ],
             ),
@@ -126,7 +127,7 @@ class HelpSupport extends StatelessWidget {
     );
   }
 
-  Widget _buildFAQItem(String question, String answer) {
+  Widget _buildFAQItem(String question, String answer, TextTheme textTheme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -134,12 +135,12 @@ class HelpSupport extends StatelessWidget {
         children: [
           Text(
             question,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             answer,
-            style: const TextStyle(fontSize: 14),
+            style: textTheme.bodyMedium,
           ),
         ],
       ),

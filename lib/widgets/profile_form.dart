@@ -29,22 +29,22 @@ class EditProfileForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     return Form(
       child: Column(
         children: [
           // Edit Name
           SafeTextFormField(
             controller: nameController,
-            style: TextStyle(
-                color: kLightGrey, fontSize: getTextScale(3, context)),
+            style: textTheme.bodyMedium?.copyWith(
+                color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
             decoration: InputDecoration(
               labelText: "Name",
-              labelStyle: TextStyle(
+              labelStyle: textTheme.bodyMedium?.copyWith(
                   color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               hintText: "Enter your name",
-              hintStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
-                  fontSize: getTextScale(3, context)),
+              hintStyle: textTheme.bodyMedium?.copyWith(
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/person.svg"),
@@ -58,16 +58,15 @@ class EditProfileForm extends StatelessWidget {
           // Edit Bio
           SafeTextFormField(
             controller: dobController,
-            style: TextStyle(
-                color: kLightGrey, fontSize: getTextScale(3, context)),
+            style: textTheme.bodyMedium?.copyWith(
+                color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
             decoration: InputDecoration(
               labelText: "D.O.B (MM-dd)",
-              labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
-                  fontSize: getTextScale(3, context)),
+              labelStyle: textTheme.bodyMedium?.copyWith(
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               hintText: "Share you date of birth (MM-dd)?",
-              hintStyle: TextStyle(
-                  color: kLightGrey, fontSize: getTextScale(3, context)),
+              hintStyle: textTheme.bodyMedium?.copyWith(
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon: const CustomSuffixIcon(
                   svgIcon: "assets/images/svg/heart.svg"),
@@ -81,16 +80,15 @@ class EditProfileForm extends StatelessWidget {
           // Edit Bio
           SafeTextFormField(
             controller: bioController,
-            style: TextStyle(
-                color: kLightGrey, fontSize: getTextScale(3, context)),
+            style: textTheme.bodyMedium?.copyWith(
+                color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
             decoration: InputDecoration(
               labelText: "About me",
-              labelStyle: TextStyle(
-                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
-                  fontSize: getTextScale(3, context)),
+              labelStyle: textTheme.bodyMedium?.copyWith(
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               hintText: "How do you feel?",
-              hintStyle: TextStyle(
-                  color: kLightGrey, fontSize: getTextScale(3, context)),
+              hintStyle: textTheme.bodyMedium?.copyWith(
+                  color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey),
               floatingLabelBehavior: FloatingLabelBehavior.always,
               suffixIcon:
                   const CustomSuffixIcon(svgIcon: "assets/images/svg/book.svg"),
@@ -147,8 +145,7 @@ class EditProfileForm extends StatelessWidget {
                   },
                   child: Text('Update Family Members',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: kAccent, fontSize: getTextScale(3, context))),
+                      style: textTheme.bodyMedium?.copyWith(color: kAccent)),
                 ),
                 IconButton(
                   onPressed: () {

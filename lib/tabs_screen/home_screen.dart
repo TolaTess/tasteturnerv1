@@ -6,6 +6,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
@@ -770,7 +771,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             if (_programService.userPrograms.isNotEmpty) {
                               Get.to(() => const ProgramProgressScreen());
                             } else {
-                              Get.to(() => const ProgramScreen());
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const BottomNavSec(
+                                      selectedIndex: 1),
+                                ),
+                              );
                             }
                           },
                         ),

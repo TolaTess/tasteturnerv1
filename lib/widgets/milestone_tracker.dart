@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../tabs_screen/program_screen.dart';
+import 'bottom_nav.dart';
 
 class MilestonesTracker extends StatelessWidget {
   final int ongoingPrograms;
@@ -67,7 +68,11 @@ class MilestonesTracker extends StatelessWidget {
                 onJoinProgram!();
               } else if (ongoingPrograms == 0) {
                 // Navigate to program screen when no active programs
-                Get.to(() => const ProgramScreen());
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const BottomNavSec(
+                            selectedIndex: 1)));
               }
             },
             child: Container(

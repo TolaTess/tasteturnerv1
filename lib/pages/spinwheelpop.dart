@@ -437,8 +437,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 Expanded(
                   child: showIngredientSpin
                       ? _buildIngredientSpinView(isDarkMode)
-                      : _buildMealSpinView(isDarkMode, categoryDatasMeal,
-                          categoryDatasIngredientDiet, textTheme, dietPreference),
+                      : _buildMealSpinView(
+                          isDarkMode,
+                          categoryDatasMeal,
+                          categoryDatasIngredientDiet,
+                          textTheme,
+                          dietPreference),
                 ),
               ],
             ),
@@ -547,32 +551,36 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         Row(
           children: [
             if (dietPreference != null)
-            Expanded(
-              flex: 1,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(2, context),
-                  vertical: getPercentageHeight(1.3, context),
-                ),
-                decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedCategoryIdMeal = dietPreference;
-                      selectedCategoryMeal = dietPreference;
-                      _updateMealListByType();
-                    });
-                  },
-                  child: Text(
-                        dietPreference,
-                    style: textTheme.titleMedium?.copyWith(color: kAccent),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(1.3, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          setState(() {
+                            selectedCategoryIdMeal = dietPreference;
+                            selectedCategoryMeal = dietPreference;
+                          });
+                          _updateMealListByType();
+                        }
+                      });
+                    },
+                    child: Text(
+                      dietPreference,
+                      style: textTheme.titleMedium?.copyWith(color: kAccent),
+                    ),
                   ),
                 ),
               ),
-            ),
             Expanded(
               flex: 3,
               child: CategorySelector(

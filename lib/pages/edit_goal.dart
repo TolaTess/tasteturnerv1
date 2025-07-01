@@ -5,16 +5,18 @@ import '../helper/utils.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/daily_routine_list.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/primary_button.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
   final bool isRoutineExpand;
   final bool isHealthExpand;
-  const NutritionSettingsPage({super.key, this.isRoutineExpand = false, this.isHealthExpand = false});
+  const NutritionSettingsPage(
+      {super.key, this.isRoutineExpand = false, this.isHealthExpand = false});
 
   @override
   _NutritionSettingsPageState createState() => _NutritionSettingsPageState();
-} 
+}
 
 class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final _formKey = GlobalKey<FormState>();
@@ -36,7 +38,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
   @override
   void initState() {
-    super.initState();  
+    super.initState();
 
     _categoryDatasIngredient = [...helperController.category];
 
@@ -134,17 +136,17 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         leading: InkWell(
           onTap: () => Navigator.pop(context),
           child: const IconCircleButton(),
         ),
         title: Text(
-          "",
-          style: TextStyle(
-            fontSize: getTextScale(4, context),
-          ),
+          "Edit Goals",
+          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
         ),
       ),
       body: Padding(
@@ -157,29 +159,17 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               SizedBox(height: getPercentageHeight(2, context)),
               // Nutrition Section
               if (!widget.isRoutineExpand)
-                Center(
-                  child: Text(
-                    "Edit Goals",
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              if (!widget.isRoutineExpand)
                 SizedBox(height: getPercentageHeight(2, context)),
               if (!widget.isRoutineExpand)
                 SafeTextFormField(
                   controller: waterController,
-                  style: TextStyle(
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                      fontSize: getTextScale(3.2, context)),
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: "Daily Water Intake (mls)",
-                    labelStyle: TextStyle(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontSize: getTextScale(3, context)),
+                    labelStyle: textTheme.bodyMedium
+                        ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                     enabledBorder: outlineInputBorder(20),
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
@@ -196,15 +186,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand)
                 SafeTextFormField(
                   controller: foodController,
-                  style: TextStyle(
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                      fontSize: getTextScale(3.2, context)),
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: "Calories",
-                    labelStyle: TextStyle(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontSize: getTextScale(3, context)),
+                    labelStyle: textTheme.bodyMedium
+                        ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                     enabledBorder: outlineInputBorder(20),
                     focusedBorder: outlineInputBorder(20),
                     border: outlineInputBorder(20),
@@ -221,7 +209,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ExpansionTile(
                   initiallyExpanded: widget.isHealthExpand,
                   title: Text("Health & Fitness",
-                      style: TextStyle(fontSize: getTextScale(3.5, context))),
+                      style: textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w500)),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
@@ -245,15 +234,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: targetStepsController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Target Steps",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
                         focusedBorder: outlineInputBorder(20),
                         border: outlineInputBorder(20),
@@ -268,14 +255,12 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: fitnessGoalController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       decoration: InputDecoration(
                         labelText: "Fitness Goal",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
                         focusedBorder: outlineInputBorder(20),
                         border: outlineInputBorder(20),
@@ -296,9 +281,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                                 return ListTile(
                                   title: Text(
                                     healthGoals[index],
-                                    style: TextStyle(
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                        fontSize: getTextScale(3, context)),
+                                    style: textTheme.bodyMedium?.copyWith(
+                                        color: isDarkMode ? kWhite : kDarkGrey),
                                   ),
                                   onTap: () {
                                     fitnessGoalController.text =
@@ -320,7 +304,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ExpansionTile(
                   title: Text(
                     "Weight Management",
-                    style: TextStyle(fontSize: getTextScale(3.5, context)),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w500),
                   ),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
@@ -330,15 +315,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: startingWeightController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Starting Weight (kg)",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
                         focusedBorder: outlineInputBorder(20),
                         border: outlineInputBorder(20),
@@ -353,15 +336,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: goalWeightController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Goal Weight (kg)",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
                         focusedBorder: outlineInputBorder(20),
                         border: outlineInputBorder(20),
@@ -376,15 +357,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: currentWeightController,
-                      style: TextStyle(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontSize: getTextScale(3.2, context)),
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: "Current Weight (kg)",
-                        labelStyle: TextStyle(
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                            fontSize: getTextScale(3, context)),
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
                         focusedBorder: outlineInputBorder(20),
                         border: outlineInputBorder(20),
@@ -410,19 +389,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
               // Save Button
               if (!widget.isRoutineExpand)
-                ElevatedButton(
+                AppButton(
                   onPressed: _saveSettings,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                    backgroundColor:
-                        isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                  ),
-                  child: Text("Save Settings",
-                      style: TextStyle(
-                          fontSize: getTextScale(3, context), color: kWhite)),
+                  text: "Save Settings",
+                  width: userService.currentUser.value?.isPremium == true
+                          ? 100
+                          : 40,
+                  type: AppButtonType.secondary,
                 ),
 
               SizedBox(height: getPercentageHeight(2, context)),

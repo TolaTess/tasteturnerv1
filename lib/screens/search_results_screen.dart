@@ -304,14 +304,14 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                             ),
                           ),
                         ),
-                height: getPercentageHeight(28, context),
+                height: getPercentageHeight(22, context),
               );
             },
             childCount: displayedMeals.length + (_hasMore.value ? 1 : 0),
           ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisExtent: getPercentageHeight(25, context),
+            mainAxisExtent: getPercentageHeight(20, context),
             crossAxisSpacing: getPercentageWidth(2, context),
             mainAxisSpacing: getPercentageHeight(2, context),
           ),

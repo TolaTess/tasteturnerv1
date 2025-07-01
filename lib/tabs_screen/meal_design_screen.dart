@@ -1176,7 +1176,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                   ?.toLowerCase()
                       ? false
                       : true),
-              icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
+              icon: Icon(Icons.add, size: getIconScale(6, context)),
               label: Text('Add Meal',
                   style: textTheme.bodyMedium?.copyWith(
                       fontSize: getPercentageWidth(3.5, context),
@@ -1715,6 +1715,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     showSharedCalendars ? selectedSharedCalendarId : null,
                 familyMember: selectedCategory.toLowerCase(),
                 isFamilyMode: familyMode,
+                isFilter: true,
                 isBackToMealPlan: true),
           ),
         ).then((_) {
@@ -1756,7 +1757,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                         ?.toLowerCase()
                             ? false
                             : true),
-                    icon: Icon(Icons.add, size: getPercentageWidth(6, context)),
+                    icon: Icon(Icons.add, size: getIconScale(6, context)),
                     label: Text('Add Meal',
                         style: textTheme.bodyMedium?.copyWith(
                             fontSize: getPercentageWidth(3.5, context),
