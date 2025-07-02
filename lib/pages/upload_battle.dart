@@ -5,16 +5,16 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:video_player/video_player.dart';
+
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/icon_widget.dart';
 import '../service/battle_service.dart';
 import '../widgets/category_selector.dart';
 import '../service/helper_controller.dart';
+import '../widgets/primary_button.dart';
 import '../widgets/video_player_widget.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
@@ -337,11 +337,17 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     }
 
     if (_isVideo) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: VideoPlayerWidget(
-          videoUrl: _selectedMedia.first.path,
-          autoPlay: false,
+      return Container(
+        height: MediaQuery.of(context).size.height > 1100
+            ? getPercentageHeight(35, context)
+            : getPercentageHeight(30, context),
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: VideoPlayerWidget(
+            videoUrl: _selectedMedia.first.path,
+            autoPlay: false,
+          ),
         ),
       );
     }
@@ -365,37 +371,32 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Text(
           !widget.isMainPost
               ? "Upload Battle Media - ${capitalizeFirstLetter(widget.battleCategory)}"
               : "Upload Media",
-          style: textTheme.titleLarge?.copyWith(color: kAccentLight),
+          style: textTheme.displaySmall
+              ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
         ),
-        leading: InkWell(
-          onTap: () => widget.isMainPost
-              ? Get.to(() => const BottomNavSec(selectedIndex: 2))
-              : Get.back(),
-          child: const IconCircleButton(
-            isRemoveContainer: true,
+        automaticallyImplyLeading: true,
+        actions: [
+          IconButton(
+            onPressed: () => _pickMedia(),
+            icon: Icon(
+              Icons.add,
+              size: getIconScale(10, context),
+              color: kAccent,
+            ),
           ),
-        ),
+          SizedBox(width: getPercentageWidth(2, context)),
+        ],
       ),
       body: Padding(
         padding:
             EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(width: getPercentageWidth(2, context)),
-                IconButton(
-                  onPressed: () => _pickMedia(),
-                  icon: Icon(Icons.add, size: getIconScale(10, context)),
-                ),
-                SizedBox(width: getPercentageWidth(2, context)),
-              ],
-            ),
             SizedBox(height: getPercentageHeight(1, context)),
             _buildMediaPreview(),
             SizedBox(height: getPercentageHeight(2, context)),
@@ -439,24 +440,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ),
 
             SizedBox(height: getPercentageHeight(3, context)),
-            ElevatedButton(
-              onPressed: isUploading ? null : _uploadMedia,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
-                backgroundColor:
-                    isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(50),
-                ),
-              ),
-              child: isUploading
-                  ? const CircularProgressIndicator(color: kAccent)
-                  : Text(
-                      "Upload",
-                      style: textTheme.titleMedium?.copyWith(
-                        color: isDarkMode ? kAccent : kWhite,
-                      ),
-                    ),
+            AppButton(
+              onPressed: isUploading ? () {} : () => _uploadMedia(),
+              text: isUploading ? "Uploading..." : "Upload",
+              isLoading: isUploading,
             ),
           ],
         ),

@@ -393,6 +393,7 @@ class UserDetailsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -410,12 +411,8 @@ class UserDetailsSection extends StatelessWidget {
                       Flexible(
                         child: Text(
                           capitalizeFirstLetter(user['name'] ?? ''),
-                          style: Theme.of(context)
-                              .textTheme
-                              .displaySmall
-                              ?.copyWith(
-                                fontSize: 25,
-                              ),
+                          style: textTheme.displaySmall?.copyWith(
+                              fontSize: getPercentageWidth(6, context)),
                         ),
                       ),
                       if (user['name'] ==
@@ -432,7 +429,8 @@ class UserDetailsSection extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 2.0),
                       child: Text(
                         user['fitnessGoal'],
-                        style: Theme.of(context).textTheme.labelLarge,
+                        style: textTheme.bodyMedium?.copyWith(
+                            fontSize: getPercentageWidth(3, context)),
                       ),
                     ),
                 ],
@@ -457,7 +455,8 @@ class UserDetailsSection extends StatelessWidget {
                 ),
                 child: Text(
                   '${user['foodGoal']} kcal',
-                  style: Theme.of(context).textTheme.labelLarge,
+                  style: textTheme.bodyMedium
+                      ?.copyWith(fontSize: getPercentageWidth(3, context)),
                 ),
               ),
             // Edit button as floating action
@@ -569,12 +568,14 @@ class UserDetailsSection extends StatelessWidget {
                   if (eatenCalories < targetCalories)
                     Text(
                       '${eatenCalories.toStringAsFixed(0)} kcal',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(fontSize: getPercentageWidth(3, context)),
                     ),
                   if (targetCalories > 0 && showCaloriesAndGoal)
                     Text(
                       '${targetCalories.toStringAsFixed(0)} kcal',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(fontSize: getPercentageWidth(3, context)),
                     ),
                 ],
               ),
@@ -606,6 +607,7 @@ class MealPlanSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         SizedBox(height: getPercentageHeight(1, context)),
@@ -638,7 +640,8 @@ class MealPlanSection extends StatelessWidget {
                       user['name'] == userService.currentUser.value?.displayName
                           ? 'Add a meal plan'
                           : 'Add a meal plan for ${capitalizeFirstLetter(user['name'] ?? '')}',
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(fontSize: getPercentageWidth(3, context)),
                     ),
                   ),
                 ),
@@ -704,12 +707,9 @@ class MealPlanSection extends StatelessWidget {
                             children: [
                               Text(
                                 capitalizeFirstLetter(meal.meal.title ?? ''),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                style: textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: getPercentageWidth(3, context)),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -719,8 +719,9 @@ class MealPlanSection extends StatelessWidget {
                                   padding: const EdgeInsets.only(top: 4.0),
                                   child: Text(
                                     '${meal.meal.calories} kcal',
-                                    style:
-                                        Theme.of(context).textTheme.labelMedium,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                        fontSize:
+                                            getPercentageWidth(3, context)),
                                   ),
                                 ),
                             ],
@@ -742,17 +743,13 @@ class MealPlanSection extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            padding: EdgeInsets.all(
-                                getPercentageWidth(2, context)),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(2, context)),
                             child: Text(
                               getMealTypeSubtitle(meal.mealType),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .displaySmall
-                                  ?.copyWith(
-                                    fontSize: getTextScale(5, context),
-                                    color: kAccent,
-                                  ),
+                              style: textTheme.displaySmall?.copyWith(
+                                  fontSize: getPercentageWidth(5, context),
+                                  color: kAccent),
                             ),
                           ),
                         ),
@@ -878,90 +875,3 @@ class FamilySelectorSection extends StatelessWidget {
     );
   }
 }
-
-Widget _buildTagChip(dynamic tag, BuildContext context) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    margin: const EdgeInsets.only(top: 2),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.22),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Text(
-      tag.toString(),
-      style: Theme.of(context).textTheme.labelLarge,
-    ),
-  );
-}
-
-
-      //  if (meals.isNotEmpty &&
-      //       (user['name'] == userService.currentUser.value?.displayName))
-      //     Row(
-      //       mainAxisAlignment: MainAxisAlignment.center,
-      //       children: [
-      //         GestureDetector(
-      //           onTap: () {
-      //             Navigator.of(context).push(
-      //               MaterialPageRoute(
-      //                 builder: (_) => const BottomNavSec(selectedIndex: 4),
-      //               ),
-      //             );
-      //           },
-      //           child: Container(
-      //             padding: EdgeInsets.symmetric(
-      //                 horizontal: getPercentageWidth(1.2, context),
-      //                 vertical: getPercentageHeight(0.6, context)),
-      //             decoration: BoxDecoration(
-      //               color: getDayTypeColor(
-      //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-      //                       isDarkMode)
-      //                   .withOpacity(0.2),
-      //               borderRadius: BorderRadius.circular(12),
-      //             ),
-      //             child: Row(
-      //               children: [
-      //                 if (meals.isNotEmpty)
-      //                   Icon(
-      //                     getDayTypeIcon(
-      //                         (mealPlan['dayType'] ?? '').replaceAll('_', ' ')),
-      //                     size: getIconScale(5.5, context),
-      //                     color: getDayTypeColor(
-      //                         (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-      //                         isDarkMode),
-      //                   ),
-      //                 if (meals.isNotEmpty)
-      //                   SizedBox(width: getPercentageWidth(1, context)),
-      //                 if (meals.isNotEmpty)
-      //                   Text(
-      //                     (mealPlan['dayType'] ?? '').toLowerCase() ==
-      //                             'regular_day'
-      //                         ? 'Meal Plan'
-      //                         : capitalizeFirstLetter(
-      //                             (mealPlan['dayType'] ?? '')
-      //                                 .replaceAll('_', ' ')),
-      //                     style: Theme.of(context)
-      //                         .textTheme
-      //                         .displaySmall
-      //                         ?.copyWith(
-      //                             fontSize: 18,
-      //                             fontWeight: FontWeight.w400,
-      //                             color: getDayTypeColor(
-      //                                 (mealPlan['dayType'] ?? '')
-      //                                     .replaceAll('_', ' '),
-      //                                 isDarkMode)),
-      //                   ),
-      //                 SizedBox(width: getPercentageWidth(1, context)),
-        //                 Icon(
-        //                   Icons.edit,
-        //                   size: getIconScale(5.5, context),
-        //                   color: getDayTypeColor(
-        //                       (mealPlan['dayType'] ?? '').replaceAll('_', ' '),
-        //                       isDarkMode),
-        //                 ),
-      //               ],
-      //             ),
-      //           ),
-      //         ),
-      //       ],
-      //     ),

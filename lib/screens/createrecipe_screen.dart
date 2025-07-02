@@ -275,6 +275,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     index: 1,
                     searchIngredient: '',
                     screen: 'ingredient',
+                    isNoTechnique: true,
                   ),
                 );
               } else if (screen == 'addManual' ||

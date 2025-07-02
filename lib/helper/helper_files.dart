@@ -138,25 +138,25 @@ String getMealTypeImage(String type) {
 
 Widget buildAddMealTypeLegend(BuildContext context, String mealType,
     {bool isSelected = false}) {
-  final textTheme = Theme.of(context).textTheme;
+    final textTheme = Theme.of(context).textTheme;
 
-  return Container(
-    decoration: BoxDecoration(
+    return Container(
+      decoration: BoxDecoration(
       color: isSelected
           ? kAccentLight.withOpacity(0.3)
           : kAccent.withOpacity(0.15),
-      borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(10),
       border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
-    ),
-    padding: EdgeInsets.symmetric(
-      horizontal: getPercentageWidth(4, context),
-      vertical: getPercentageHeight(1, context),
-    ),
-    child: Column(
-      children: [
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(4, context),
+        vertical: getPercentageHeight(1, context),
+      ),
+      child: Column(
+        children: [
         Icon(Icons.square_rounded,
             color: isSelected ? kAccentLight : getMealTypeColor(mealType)),
-        SizedBox(width: getPercentageWidth(2, context)),
+          SizedBox(width: getPercentageWidth(2, context)),
         Text(
           capitalizeFirstLetter(mealType),
           style: textTheme.bodyMedium?.copyWith(
@@ -164,7 +164,7 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }

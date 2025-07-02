@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
-import 'package:tasteturner/pages/edit_goal.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../pages/edit_goal.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
@@ -28,6 +27,7 @@ class RecipeListCategory extends StatefulWidget {
   final bool isFamilyMode;
   final String? familyMember;
   final bool? isBackToMealPlan;
+  final bool isNoTechnique;
 
   const RecipeListCategory({
     Key? key,
@@ -44,6 +44,7 @@ class RecipeListCategory extends StatefulWidget {
     this.isFamilyMode = false,
     this.familyMember = '',
     this.isBackToMealPlan = false,
+    this.isNoTechnique = false,
   }) : super(key: key);
 
   @override
@@ -221,12 +222,12 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                       : SizedBox(height: getPercentageHeight(2, context)),
 
                   // Curated dietPreference meals section
-                  widget.isFilter
+                  (widget.isNoTechnique)
                       ? const SizedBox.shrink()
                       : Obx(() {
                           final dietPreference = userService
                               .currentUser.value?.settings['dietPreference'];
-                          if (dietPreference != null && !widget.isFilter) {
+                          if (dietPreference != null && !widget.isNoTechnique) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -410,7 +411,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                           );
                         }),
 
-                  widget.isFilter
+                  widget.isNoTechnique
                       ? const SizedBox.shrink()
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -455,7 +456,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                       : null,
                   backgroundColor:
                       selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
-                  child: Icon(Icons.save_alt, size: getPercentageWidth(7, context)),
+                  child: Icon(Icons.save_alt,
+                      size: getPercentageWidth(7, context)),
                 )
               : FloatingActionButton(
                   onPressed: selectedMealIds.isNotEmpty
@@ -464,7 +466,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                       : null,
                   backgroundColor:
                       selectedMealIds.isNotEmpty ? kAccent : kLightGrey,
-                  child: Icon(Icons.save_alt, size: getPercentageWidth(7, context)),
+                  child: Icon(Icons.save_alt,
+                      size: getPercentageWidth(7, context)),
                 )
           : null,
     );

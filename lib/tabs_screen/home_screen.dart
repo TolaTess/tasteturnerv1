@@ -392,9 +392,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             children: [
                               Text(
                                 '$greeting ${currentUser.displayName}!',
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontSize: getPercentageWidth(5, context),
-                                ),
+                                style: textTheme.displaySmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: getPercentageWidth(6, context)),
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
@@ -402,7 +402,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 inspiration,
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontSize: getTextScale(3, context),
-                                  color: kLightGrey.withOpacity(0.7),
+                                  color: isDarkMode
+                                      ? kLightGrey.withOpacity(0.9)
+                                      : kDarkGrey.withOpacity(0.5),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -774,8 +776,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const BottomNavSec(
-                                      selectedIndex: 1),
+                                  builder: (context) =>
+                                      const BottomNavSec(selectedIndex: 1),
                                 ),
                               );
                             }

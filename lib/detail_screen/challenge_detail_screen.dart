@@ -241,15 +241,21 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   }
 
   Widget _buildMediaContent(String url) {
-    final isVideo = url.toLowerCase().contains('.mp4') ||
-        url.toLowerCase().contains('.mov') ||
-        url.toLowerCase().contains('.avi') ||
-        url.toLowerCase().contains('.webm');
+    // Enhanced video detection
+    final videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'];
+    final isVideoByExtension =
+        videoExtensions.any((ext) => url.toLowerCase().contains(ext));
+    final isVideoByData = _currentPostData['isVideo'] == true;
+    final isVideo = isVideoByExtension || isVideoByData;
 
     if (isVideo) {
-      return VideoPlayerWidget(
-        videoUrl: url,
-        autoPlay: false,
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: VideoPlayerWidget(
+          videoUrl: url,
+          autoPlay: true,
+        ),
       );
     }
 
@@ -562,7 +568,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                   isLiked
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: isLiked ? kAccent : null,
+                                  color: isLiked
+                                      ? kAccent
+                                      : kAccent.withOpacity(0.5),
                                   size: getResponsiveBoxSize(context, 23, 23),
                                 ),
                               ),
@@ -572,6 +580,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                 style: TextStyle(
                                   fontSize: getTextScale(3, context),
                                   fontWeight: FontWeight.w400,
+                                  color: isLiked
+                                      ? kAccent
+                                      : kAccent.withOpacity(0.5),
                                 ),
                               ),
                             ],

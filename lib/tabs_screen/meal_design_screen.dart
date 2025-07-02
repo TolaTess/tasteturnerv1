@@ -404,9 +404,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     Text(
                       '${getRelativeDayString(DateTime.now())}, ',
                       style: textTheme.displayMedium?.copyWith(
-                          color: getThemeProvider(context).isDarkMode
-                              ? Colors.white
-                              : Colors.black,
                           fontWeight: FontWeight.w500,
                           fontSize: getPercentageWidth(4.5, context)),
                     ),
@@ -1540,6 +1537,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             familyMember: selectedCategory.toLowerCase(),
             isFamilyMode: familyMode,
             isBackToMealPlan: true,
+            isNoTechnique: true,
           ),
         ),
       ).then((_) {
@@ -1715,7 +1713,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     showSharedCalendars ? selectedSharedCalendarId : null,
                 familyMember: selectedCategory.toLowerCase(),
                 isFamilyMode: familyMode,
-                isFilter: true,
+                isNoTechnique: true,
                 isBackToMealPlan: true),
           ),
         ).then((_) {

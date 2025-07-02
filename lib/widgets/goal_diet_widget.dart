@@ -323,7 +323,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
           'Featured Meal for ${capitalizeFirstLetter(widget.diet)}',
           style: textTheme.bodyLarge?.copyWith(
             color: kAccent,
-            fontSize: getTextScale(6, context),
+            fontSize: getTextScale(5, context),
           ),
           textAlign: TextAlign.center,
         ),
@@ -372,7 +372,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                           style: textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
-                          maxLines: 3,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),

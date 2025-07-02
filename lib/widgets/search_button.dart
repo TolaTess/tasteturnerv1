@@ -91,6 +91,7 @@ class _ThirdButtonState extends State<ThirdButton> {
                   searchIngredient: '',
                   isMealplan: true,
                   mealPlanDate: widget.date,
+                  isNoTechnique: true,
                 ),
               ),
             );

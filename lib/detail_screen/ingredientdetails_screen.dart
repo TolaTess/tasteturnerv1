@@ -208,9 +208,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                         builder: (context) => RecipeListCategory(
                           index: 1,
                           searchIngredient: widget.item.title,
-                          isFilter: true,
                           screen: 'ingredient',
                           isBack: true,
+                          isNoTechnique: true,
                         ),
                       ),
                     );

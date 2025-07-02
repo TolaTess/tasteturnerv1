@@ -7,6 +7,8 @@ import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'dart:typed_data';
 
 class SearchContentGrid extends StatefulWidget {
   const SearchContentGrid({
@@ -323,8 +325,9 @@ class SearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     final List<dynamic>? mediaPaths = dataSrc['mediaPaths'] as List<dynamic>?;
-    final String? mediaType = dataSrc['mediaType'] as String?;
+    final bool isVideo = dataSrc['isVideo'] == true;
 
     final String? mediaPath = mediaPaths != null && mediaPaths.isNotEmpty
         ? mediaPaths.first as String
@@ -333,67 +336,162 @@ class SearchContent extends StatelessWidget {
     final isDietCompatible = dataSrc['category']!.toLowerCase() ==
         userService.currentUser.value?.settings['dietPreference'].toLowerCase();
 
+    // Helper function to check if URL is video
+    bool _isVideoUrl(String url) {
+      final videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'];
+      return videoExtensions.any((ext) => url.toLowerCase().contains(ext));
+    }
+
+    final bool isMediaVideo =
+        isVideo || (mediaPath != null && _isVideoUrl(mediaPath));
+
+    // Widget to build video thumbnail
+    Widget _buildVideoThumbnail(String videoUrl) {
+      return FutureBuilder<Uint8List?>(
+        future: VideoThumbnail.thumbnailData(
+          video: videoUrl,
+          imageFormat: ImageFormat.JPEG,
+          maxWidth: 400,
+          quality: 75,
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData) {
+            print('snapshot.data: ${snapshot.data}');
+            return Image.memory(
+              snapshot.data!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            );
+          } else if (snapshot.hasError) {
+            return Container(
+              color: kBlueLight.withOpacity(0.5),
+              child: Center(
+                child: Icon(
+                  Icons.videocam,
+                  color: isDarkMode ? kWhite : kBlack,
+                  size: getPercentageWidth(8, context),
+                ),
+              ),
+            );
+          } else {
+            return Container(
+              color: Colors.grey[300],
+              child: const Center(
+                child: CircularProgressIndicator(color: kAccent),
+              ),
+            );
+          }
+        },
+      );
+    }
+
     return GestureDetector(
       onTap: press,
       child: Stack(
         children: [
-          // ✅ Image Display (with loading & error handling)
-          mediaPath != null && mediaPath.isNotEmpty
-              ? Image.network(
-                  mediaPath,
-                  height: MediaQuery.of(context).size.width > 800
-                      ? getPercentageHeight(18, context)
-                      : getPercentageHeight(18, context),
-                  width: MediaQuery.of(context).size.width > 800
-                      ? getPercentageWidth(33, context)
-                      : getPercentageWidth(33, context),
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(
-                        child: CircularProgressIndicator(
-                      color: kAccent,
-                    ));
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      intPlaceholderImage,
-                      height: getPercentageHeight(14, context),
-                      width: getPercentageWidth(14, context),
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
-              : Image.asset(
-                  intPlaceholderImage,
-                  height: getPercentageHeight(14, context),
-                  width: getPercentageWidth(14, context),
-                  fit: BoxFit.cover,
-                ),
+          // ✅ Media Display (Image or Video thumbnail)
+          Container(
+            height: MediaQuery.of(context).size.width > 800
+                ? getPercentageHeight(18, context)
+                : getPercentageHeight(18, context),
+            width: MediaQuery.of(context).size.width > 800
+                ? getPercentageWidth(33, context)
+                : getPercentageWidth(33, context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: isMediaVideo && mediaPath != null && mediaPath.isNotEmpty
+                  ? Stack(
+                      children: [
+                        // Video thumbnail
+                        _buildVideoThumbnail(mediaPath),
+                      ],
+                    )
+                  : mediaPath != null && mediaPath.isNotEmpty
+                      ? Image.network(
+                          mediaPath,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(color: kAccent),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              intPlaceholderImage,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          intPlaceholderImage,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+            ),
+          ),
 
           // ✅ Multiple Images Overlay Icon
-          if (mediaPaths != null && mediaPaths.length > 1 ||
-              dataSrc['isVideo'] == true)
+          if (mediaPaths != null && mediaPaths.length > 1 && !isMediaVideo)
             Positioned(
               top: 4,
               right: 4,
-              child: Icon(
-                dataSrc['isVideo'] == true
-                    ? Icons.play_circle
-                    : Icons.content_copy,
-                color: Colors.white,
-                size: getPercentageWidth(4, context),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.content_copy,
+                  color: Colors.white,
+                  size: getPercentageWidth(3.5, context),
+                ),
               ),
             ),
-          //add diet image
+
+          // ✅ Video Play Icon (for non-video content that is actually video)
+          if (isMediaVideo)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: getPercentageWidth(3.5, context),
+                ),
+              ),
+            ),
+
+          //add diet compatibility indicator
           if (isDietCompatible)
             Positioned(
               top: 4,
               left: 4,
-              child: Icon(
-                Icons.check_circle,
-                color: kAccent,
-                size: getPercentageWidth(6, context),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.check,
+                  color: kWhite,
+                  size: getPercentageWidth(3.5, context),
+                ),
               ),
             ),
         ],
@@ -417,65 +515,185 @@ class SearchContentPost extends StatelessWidget {
     final List<String> mediaPaths = dataSrc.mediaPaths;
     final String mediaPath =
         mediaPaths.isNotEmpty ? mediaPaths.first : extPlaceholderImage;
+    final bool isVideo = dataSrc.isVideo == true;
 
     final isDietCompatible = dataSrc.category!.toLowerCase() ==
         userService.currentUser.value?.settings['dietPreference'].toLowerCase();
+
+    // Helper function to check if URL is video
+    bool _isVideoUrl(String url) {
+      final videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'];
+      return videoExtensions.any((ext) => url.toLowerCase().contains(ext));
+    }
+
+    final bool isMediaVideo =
+        isVideo || (mediaPath.isNotEmpty && _isVideoUrl(mediaPath));
+
+    // Widget to build video thumbnail
+    Widget _buildVideoThumbnail(String videoUrl) {
+      return FutureBuilder<Uint8List?>(
+        future: VideoThumbnail.thumbnailData(
+          video: videoUrl,
+          imageFormat: ImageFormat.JPEG,
+          maxWidth: 400,
+          quality: 75,
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData) {
+            print('snapshot.data: ${snapshot.data}');
+            return Image.memory(
+              snapshot.data!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            );
+          } else if (snapshot.hasError) {
+            return Container(
+              color: Colors.grey[800],
+              child: Center(
+                child: Icon(
+                  Icons.videocam,
+                  color: Colors.white,
+                  size: getPercentageWidth(8, context),
+                ),
+              ),
+            );
+          } else {
+            return Container(
+              color: Colors.grey[300],
+              child: const Center(
+                child: CircularProgressIndicator(color: kAccent),
+              ),
+            );
+          }
+        },
+      );
+    }
+
     return GestureDetector(
       onTap: press,
       child: Stack(
         children: [
-          // Display image or fallback
-          mediaPath.isNotEmpty
-              ? Image.network(
-                  mediaPath,
-                  height: getPercentageHeight(33, context),
-                  width: getPercentageWidth(33, context),
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(
-                        child: CircularProgressIndicator(
-                      color: kAccent,
-                    ));
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      intPlaceholderImage,
-                      height: getPercentageHeight(14, context),
-                      width: getPercentageWidth(14, context),
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
-              : Image.asset(
-                  intPlaceholderImage,
-                  height: getPercentageHeight(14, context),
-                  width: getPercentageWidth(14, context),
-                  fit: BoxFit.cover,
-                ),
+          // Media Display (Image or Video thumbnail)
+          Container(
+            height: getPercentageHeight(33, context),
+            width: getPercentageWidth(33, context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: isMediaVideo && mediaPath.isNotEmpty
+                  ? Stack(
+                      children: [
+                        // Video thumbnail
+                        _buildVideoThumbnail(mediaPath),
+                        // Video overlay
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.center,
+                                end: Alignment.center,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.1),
+                                ],
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.play_circle_filled,
+                                color: Colors.white.withOpacity(0.9),
+                                size: getPercentageWidth(8, context),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : mediaPath.isNotEmpty
+                      ? Image.network(
+                          mediaPath,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(color: kAccent),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              intPlaceholderImage,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          intPlaceholderImage,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+            ),
+          ),
 
           // ✅ Multiple Images Icon
-          if (mediaPaths.length > 1 || dataSrc.isVideo == true)
+          if (mediaPaths.length > 1 && !isMediaVideo)
             Positioned(
               top: 4,
               right: 4,
-              child: Icon(
-                dataSrc.isVideo == true
-                    ? Icons.play_circle
-                    : Icons.content_copy,
-                color: Colors.white,
-                size: getPercentageWidth(4, context),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.content_copy,
+                  color: Colors.white,
+                  size: getPercentageWidth(3.5, context),
+                ),
               ),
             ),
-//add diet image
+
+          // ✅ Video Play Icon
+          if (isMediaVideo)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: getPercentageWidth(3.5, context),
+                ),
+              ),
+            ),
+
+          // Diet compatibility indicator
           if (isDietCompatible)
             Positioned(
               top: 4,
               left: 4,
-              child: Icon(
-                Icons.check_circle,
-                color: kAccent,
-                size: getPercentageWidth(6, context),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.check,
+                  color: kWhite,
+                  size: getPercentageWidth(3.5, context),
+                ),
               ),
             ),
         ],
