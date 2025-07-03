@@ -38,13 +38,13 @@ class SecondNavWidget extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [color.withOpacity(0.4), color],
+                colors: [color.withValues(alpha: 0.4), color],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

@@ -402,7 +402,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         horizontal: getPercentageWidth(2, context),
                       ),
                       decoration: BoxDecoration(
-                        color: kAccent.withOpacity(0.2),
+                          color: kAccent.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextButton(
@@ -559,7 +559,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     vertical: getPercentageHeight(1.3, context),
                   ),
                   decoration: BoxDecoration(
-                    color: kAccent.withOpacity(0.2),
+                    color: kAccent.withValues(alpha: 0.2),  
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: GestureDetector(

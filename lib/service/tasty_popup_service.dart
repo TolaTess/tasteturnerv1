@@ -141,7 +141,7 @@ class TutorialPopupService {
                 onComplete();
               },
               child: Container(
-                color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -268,7 +268,7 @@ class TutorialPopupService {
         borderRadius: BorderRadius.circular(getPercentageWidth(3, context)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: getPercentageWidth(2.5, context),
             offset: Offset(0, getPercentageHeight(1.25, context)),
           ),
@@ -281,7 +281,7 @@ class TutorialPopupService {
           Row(
             children: [
               // CircleAvatar(
-              //   backgroundColor: kAccentLight.withOpacity(0.5),
+              //   backgroundColor: kAccentLight.withValues(alpha: 0.5),
               //   radius: getPercentageWidth(3.75, context),
               //   backgroundImage: const AssetImage(tastyImage),
               // ),

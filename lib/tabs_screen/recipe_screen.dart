@@ -302,7 +302,7 @@ class MealsCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -328,9 +328,9 @@ class MealsCard extends StatelessWidget {
                   end: Alignment.centerRight,
                   colors: [
                     colors[dataSrc.title.hashCode % colors.length]
-                        .withOpacity(0.8),
+                        .withValues(alpha: 0.8),
                     colors[dataSrc.title.hashCode % colors.length]
-                        .withOpacity(0.5),
+                        .withValues(alpha: 0.5),
                   ],
                 ),
               ),
@@ -367,7 +367,7 @@ class MealsCard extends StatelessWidget {
                               ? "View your favourites"
                               : dataSrc.subtitle,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kWhite.withOpacity(0.7) : kDarkGrey,
+                        color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kDarkGrey,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

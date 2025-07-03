@@ -259,7 +259,7 @@ class _OverlappingCardState extends State<OverlappingCard>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(widget.isSelected ? 0.3 : 0.1),
+                color: Colors.black.withValues(alpha: widget.isSelected ? 0.3 : 0.1),
               blurRadius: widget.isSelected ? 16 : 8,
               offset: Offset(0, widget.isSelected ? 8 : 4),
               spreadRadius: widget.isSelected ? 3 : 0,
@@ -279,7 +279,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(
-                              color: widget.color.withOpacity(0.3),
+                              color: widget.color.withValues(alpha: 0.3),
                               child: Center(
                                 child: CircularProgressIndicator(
                                   value: loadingProgress.expectedTotalBytes !=
@@ -316,8 +316,8 @@ class _OverlappingCardState extends State<OverlappingCard>
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                   colors: [
-                    widget.color.withOpacity(0.9),
-                    widget.color.withOpacity(0.6),
+                    widget.color.withValues(alpha: 0.9),
+                    widget.color.withValues(alpha: 0.6),
                   ],
                 ),
               ),
@@ -383,7 +383,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                                 widget.subtitle!,
                                 style: textTheme.bodyMedium?.copyWith(
                                   color: isDarkMode
-                                      ? kWhite.withOpacity(0.7)
+                                      ? kWhite.withValues(alpha: 0.7)
                                       : kDarkGrey,
                                 ),
                                 maxLines: widget.isRecipe ? 4 : 2,

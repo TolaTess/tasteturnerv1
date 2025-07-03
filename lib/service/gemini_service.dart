@@ -138,9 +138,8 @@ class GeminiService {
     try {
       // Fetch user's current program enrollment
       final userProgramQuery = await firestore
-          .collection('userPrograms')
-          .where('userId', isEqualTo: currentUserId)
-          .where('isActive', isEqualTo: true)
+          .collection('userProgram')
+          .where('userIds', arrayContains: currentUserId)
           .limit(1)
           .get();
 
@@ -154,8 +153,9 @@ class GeminiService {
       };
 
       if (userProgramQuery.docs.isNotEmpty) {
-        final userProgramData = userProgramQuery.docs.first.data();
-        final programId = userProgramData['programId'] as String?;
+        final userProgramDoc = userProgramQuery.docs.first;
+        final userProgramData = userProgramDoc.data();
+        final programId = userProgramDoc.id; // Document ID is the program ID
 
         if (programId != null) {
           // Fetch program details
@@ -164,6 +164,8 @@ class GeminiService {
 
           if (programDoc.exists) {
             final programData = programDoc.data()!;
+
+            print('programData: $programData');
 
             context.addAll({
               'hasProgram': true,
@@ -222,6 +224,7 @@ class GeminiService {
   /// Build comprehensive context string for AI prompts
   Future<String> _buildAIContext() async {
     final userContext = await _getUserContext();
+    print('userContext: $userContext');
 
     String context = '''
 USER CONTEXT:
@@ -764,7 +767,10 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
   },
   "mealType": "breakfast|lunch|dinner|snack",
   "estimatedPortionSize": "small|medium|large",
-  "ingredients": ["ingredient1", "ingredient2", ...],
+  "ingredients": {
+        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+        "ingredient2": "amount with unit"
+    },
   "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
   "confidence": "high|medium|low",
   "notes": "any additional observations about the food"
@@ -906,7 +912,10 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
   },
   "mealType": "breakfast|lunch|dinner|snack",
   "estimatedPortionSize": "small|medium|large",
-  "ingredients": ["ingredient1", "ingredient2", ...],
+  "ingredients": {
+        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+        "ingredient2": "amount with unit"
+    },
   "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
   "confidence": "high|medium|low",
   "healthScore": number (1-10),
@@ -1149,10 +1158,13 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     required String userId,
     required String mealType,
     required String imagePath,
+    String? mealId,
   }) async {
     try {
-      final docRef = firestore.collection('meals').doc();
-      final mealId = docRef.id;
+      final docRef = mealId != null && mealId.isNotEmpty
+          ? firestore.collection('meals').doc(mealId)
+          : firestore.collection('meals').doc();
+      final finalMealId = docRef.id;
 
       final totalNutrition =
           analysisResult['totalNutrition'] as Map<String, dynamic>;
@@ -1173,7 +1185,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       }
 
       final meal = Meal(
-        mealId: mealId,
+        mealId: finalMealId,
         userId: userId,
         title: title,
         createdAt: DateTime.now(),
@@ -1195,7 +1207,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       );
 
       await docRef.set(meal.toJson());
-      return mealId;
+      return finalMealId;
     } catch (e) {
       print('Error creating meal from analysis: $e');
       throw Exception('Failed to create meal: $e');

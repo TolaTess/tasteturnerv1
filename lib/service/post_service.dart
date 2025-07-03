@@ -26,15 +26,11 @@ class PostService extends GetxService {
       if (useCache && _feedCache.containsKey(cacheKey)) {
         final cached = _feedCache[cacheKey]!;
         if (DateTime.now().difference(cached.timestamp) < cacheValidDuration) {
-          print('Returning cached posts for $cacheKey');
           return cached.result;
         } else {
           _feedCache.remove(cacheKey);
         }
       }
-
-      print(
-          'Fetching posts from cloud function: category=$category, limit=$limit');
 
       final HttpsCallable callable = _functions.httpsCallable('getPostsFeed');
       final HttpsCallableResult result = await callable.call({
@@ -72,7 +68,6 @@ class PostService extends GetxService {
         throw Exception(data['error'] ?? 'Failed to fetch posts');
       }
     } catch (e) {
-      print('Error fetching posts: $e');
       return PostFeedResult(
         posts: [],
         hasMore: false,
@@ -106,7 +101,6 @@ class PostService extends GetxService {
         throw Exception(data['error'] ?? 'Failed to fetch trending posts');
       }
     } catch (e) {
-      print('Error fetching trending posts: $e');
       return [];
     }
   }
@@ -136,7 +130,6 @@ class PostService extends GetxService {
         throw Exception(data['error'] ?? 'Failed to fetch posts by category');
       }
     } catch (e) {
-      print('Error fetching posts by category: $e');
       return [];
     }
   }
@@ -144,13 +137,11 @@ class PostService extends GetxService {
   /// Clear cache (useful for refresh)
   void clearCache() {
     _feedCache.clear();
-    print('Post cache cleared');
   }
 
   /// Clear specific category cache
   void clearCategoryCache(String category) {
     _feedCache.removeWhere((key, value) => key.startsWith(category));
-    print('Cache cleared for category: $category');
   }
 
   /// Get user-specific posts efficiently with server-side processing
@@ -167,15 +158,11 @@ class PostService extends GetxService {
       if (useCache && _feedCache.containsKey(cacheKey)) {
         final cached = _feedCache[cacheKey]!;
         if (DateTime.now().difference(cached.timestamp) < cacheValidDuration) {
-          print('Returning cached user posts for $cacheKey');
           return cached.result;
         } else {
           _feedCache.remove(cacheKey);
         }
       }
-
-      print(
-          'Fetching user posts from cloud function: userId=$userId, limit=$limit');
 
       final HttpsCallable callable = _functions.httpsCallable('getUserPosts');
       final HttpsCallableResult result = await callable.call({
@@ -212,7 +199,6 @@ class PostService extends GetxService {
         throw Exception(data['error'] ?? 'Failed to fetch user posts');
       }
     } catch (e) {
-      print('Error fetching user posts: $e');
       return PostFeedResult(
         posts: [],
         hasMore: false,
@@ -225,8 +211,7 @@ class PostService extends GetxService {
 
   /// Clear user-specific cache
   void clearUserCache(String userId) {
-    _feedCache.removeWhere((key, value) => key.startsWith('user_$userId'));
-    print('Cache cleared for user: $userId');
+    _feedCache.removeWhere((key, value) => key.startsWith('user_$userId')); 
   }
 
   /// Get cache status for debugging

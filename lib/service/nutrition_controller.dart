@@ -138,7 +138,6 @@ class NutritionController extends GetxController {
   /// Fetches calories for the past 7 days (including today) from the daily_summary collection.
   Future<Map<String, int>> fetchCaloriesByDate(String userId) async {
     if (userId.isEmpty) {
-      print("Invalid user ID. Returning empty data.");
       return {};
     }
 
@@ -166,7 +165,6 @@ class NutritionController extends GetxController {
           doc.id: doc.data()['calories'] as int? ?? 0
       };
     } catch (e) {
-      print("Error fetching calories from summary: $e");
       return {};
     }
   }
@@ -217,7 +215,6 @@ class NutritionController extends GetxController {
       }
       streakDays.value = currentStreak;
     } catch (e) {
-      print("Error fetching streak days from summary: $e");
       streakDays.value = 0;
     }
   }
@@ -284,7 +281,6 @@ class NutritionController extends GetxController {
         currentSteps.value = 0.0;
       }
     } catch (e) {
-      print("Error fetching daily metrics: $e");
       currentWater.value = 0.0;
       currentSteps.value = 0.0;
     }
@@ -345,7 +341,6 @@ class NutritionController extends GetxController {
       await BattleService.instance
           .updateUserPoints(userService.userId ?? '', 10);
     } catch (e) {
-      print("Error updating current water: $e");
       throw Exception("Failed to update current water");
     }
   }
@@ -382,7 +377,6 @@ class NutritionController extends GetxController {
         );
       }
     } catch (e) {
-      print("Error updating current steps: $e");
       throw Exception("Failed to update current steps");
     }
   }
@@ -584,7 +578,7 @@ class NutritionController extends GetxController {
       }
       fetchMealsForToday(userId, today);
     } catch (e) {
-      print('Error adding meal: $e');
+        return;
     }
   }
 
@@ -641,7 +635,7 @@ class NutritionController extends GetxController {
         userMealList.refresh();
       }
     } catch (e) {
-      print('Error removing meal: $e');
+        return;   
     }
   }
 

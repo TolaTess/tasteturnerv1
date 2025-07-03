@@ -30,7 +30,7 @@ class IconCircleButton extends StatelessWidget {
         ? Icon(icon,
             size: size,
             color: isColorChange
-                ? kAccent.withOpacity(kOpacity)
+                ? kAccent.withValues(alpha: kOpacity)
                 : themeProvider.isDarkMode
                     ? colorD
                     : colorL)
@@ -41,7 +41,7 @@ class IconCircleButton extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: kAccent.withOpacity(kMidOpacity)
+              color: kAccent.withValues(alpha: kMidOpacity)
             ),
             child: Icon(icon,
                 size: size,

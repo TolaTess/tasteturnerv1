@@ -122,12 +122,12 @@ class UserModel {
     }
     // Convert preferences map to be JSON-safe
     if (data['preferences'] != null) {
-      final prefs = Map<String, dynamic>.from(data['preferences']);
+      final preference = Map<String, dynamic>.from(data['preferences']);
       // Convert FieldValue to current timestamp string if present
-      if (prefs['lastUpdated'] != null && prefs['lastUpdated'] is FieldValue) {
-        prefs['lastUpdated'] = DateTime.now().toIso8601String();
+      if (preference['lastUpdated'] != null && preference['lastUpdated'] is FieldValue) {
+        preference['lastUpdated'] = DateTime.now().toIso8601String();
       }
-      data['preferences'] = prefs;
+      data['preferences'] = preference;
     }
     return data;
   }
@@ -186,18 +186,18 @@ class UserModel {
     return UserModel(
       displayName: displayName ?? this.displayName,
       profileImage: profileImage ?? this.profileImage,
-      isPremium: isPremium ?? this.isPremium,
+      isPremium: isPremium,
       familyMembers: familyMembers ?? this.familyMembers,
       familyMode: familyMode ?? this.familyMode,
       created_At: created_At ?? this.created_At,
       freeTrialDate: freeTrialDate ?? this.freeTrialDate,
-      settings: settings ?? this.settings,
-      preferences: preferences ?? this.preferences,
+      settings: settings,
+      preferences: preferences,
       userType: userType ?? this.userType,
       userId: userId ?? this.userId,
       bio: bio ?? this.bio,
       dob: dob ?? this.dob,
-      following: following ?? this.following,
+      following: following,
     );
   }
 }

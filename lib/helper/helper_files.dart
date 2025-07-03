@@ -111,15 +111,15 @@ Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
 Color getMealTypeColor(String type) {
   switch (type.toLowerCase()) {
     case 'protein':
-      return kAccent.withOpacity(0.5);
+      return kAccent.withValues(alpha: 0.5);  
     case 'grain':
-      return kBlue.withOpacity(0.5);
+      return kBlue.withValues(alpha: 0.5);
     case 'vegetable':
-      return kAccentLight.withOpacity(0.5);
+      return kAccentLight.withValues(alpha: 0.5);
     case 'fruit':
-      return kPurple.withOpacity(0.5);
+      return kPurple.withValues(alpha: 0.5);
     default:
-      return kPink.withOpacity(0.5);
+      return kPink.withValues(alpha: 0.5);
   }
 }
 
@@ -143,8 +143,8 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
     return Container(
       decoration: BoxDecoration(
       color: isSelected
-          ? kAccentLight.withOpacity(0.3)
-          : kAccent.withOpacity(0.15),
+            ? kAccentLight.withValues(alpha: 0.3)
+          : kAccent.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
       ),

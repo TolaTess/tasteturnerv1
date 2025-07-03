@@ -370,8 +370,8 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                     hintText: 'Type your caption...',
                     hintStyle: TextStyle(
                       color: isDarkMode
-                          ? kWhite.withOpacity(0.5)
-                          : kBlack.withOpacity(0.5),
+                          ? kWhite.withValues(alpha: 0.5)
+                          : kBlack.withValues(alpha: 0.5),
                       fontSize: getTextScale(3.5, context),
                     ),
                   ),
@@ -383,7 +383,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                       style: TextStyle(fontSize: getTextScale(4, context))),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isDarkMode ? kLightGrey.withOpacity(0.5) : kAccent,
+                        isDarkMode ? kLightGrey.withValues(alpha: 0.5) : kAccent,
                     foregroundColor: isDarkMode ? kWhite : kLightGrey,
                   ),
                   onPressed: _sendImages,
@@ -632,7 +632,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
               backgroundColor:
-                  isDarkMode ? kLightGrey : kAccent.withOpacity(0.50),
+                    isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(50),
               ),

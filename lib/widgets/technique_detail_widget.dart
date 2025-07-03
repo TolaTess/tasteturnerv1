@@ -46,7 +46,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -109,7 +109,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
       width: double.infinity,
       padding: EdgeInsets.all(getPercentageWidth(5, context)),
       decoration: BoxDecoration(
-        color: kAccent.withOpacity(0.1),
+          color: kAccent.withValues(alpha: 0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -133,7 +133,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
             child: Container(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color: isDarkMode ? kDarkGrey.withOpacity(0.5) : kWhite,
+                color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -204,8 +204,8 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
           padding: EdgeInsets.all(getPercentageWidth(4, context)),
           decoration: BoxDecoration(
             color: isDarkMode
-                ? kLightGrey.withOpacity(0.1)
-                : kLightGrey.withOpacity(0.1),
+                  ? kLightGrey.withValues(alpha: 0.1)
+                : kLightGrey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -390,9 +390,9 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
             vertical: getPercentageHeight(1, context),
           ),
           decoration: BoxDecoration(
-            color: heatColor.withOpacity(0.1),
+            color: heatColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: heatColor.withOpacity(0.3)),
+            border: Border.all(color: heatColor.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -421,9 +421,9 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
         vertical: getPercentageHeight(0.5, context),
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         capitalizeFirstLetter(text),

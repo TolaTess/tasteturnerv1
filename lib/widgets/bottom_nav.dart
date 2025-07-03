@@ -58,8 +58,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
         backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
         selectedItemColor: kAccent,
         unselectedItemColor: themeProvider.isDarkMode
-            ? kWhite.withOpacity(0.7)
-            : kBlack.withOpacity(0.7),
+            ? kWhite.withValues(alpha: 0.7)
+            : kBlack.withValues(alpha: 0.7),
         items: [
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
@@ -68,8 +68,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               height: getPercentageHeight(3, context),
               colorFilter: ColorFilter.mode(
                   themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kBlack.withValues(alpha: 0.7),
                   BlendMode.srcIn),
             ),
             activeIcon: SvgPicture.asset('assets/images/svg/home.svg',
@@ -85,8 +85,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               height: getPercentageHeight(3, context),
               colorFilter: ColorFilter.mode(
                   themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kBlack.withValues(alpha: 0.7),
                   BlendMode.srcIn),
             ),
             activeIcon: SvgPicture.asset('assets/images/svg/book.svg',
@@ -102,8 +102,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               height: getPercentageHeight(3, context),
               colorFilter: ColorFilter.mode(
                   themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kBlack.withValues(alpha: 0.7),
                   BlendMode.srcIn),
             ),
             activeIcon: SvgPicture.asset('assets/images/svg/explore.svg',
@@ -119,8 +119,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               height: getPercentageHeight(3, context),
               colorFilter: ColorFilter.mode(
                   themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
+                        ? kWhite.withValues(alpha: 0.7)
+                      : kBlack.withValues(alpha: 0.7),
                   BlendMode.srcIn),
             ),
             activeIcon: SvgPicture.asset('assets/images/svg/spin.svg',
@@ -136,8 +136,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
               height: getPercentageHeight(3, context),
               colorFilter: ColorFilter.mode(
                   themeProvider.isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kBlack.withOpacity(0.7),
+                        ? kWhite.withValues(alpha: 0.7)
+                      : kBlack.withValues(alpha: 0.7),
                   BlendMode.srcIn),
             ),
             activeIcon: SvgPicture.asset('assets/images/svg/cal.svg',

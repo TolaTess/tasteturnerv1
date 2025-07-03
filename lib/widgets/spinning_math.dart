@@ -311,14 +311,14 @@ class _PieChartPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = isDarkMode ? kWhite.withOpacity(0.1) : kBlack.withOpacity(0.1)
+      ..color = isDarkMode ? kWhite.withValues(alpha: 0.1) : kBlack.withValues(alpha: 0.1)
       ..strokeWidth = 2.0;
     double sweepAngle = 0;
 
     // Draw pie sections
     for (int i = 0; i < data.length; i++) {
       final sweepRad = (data[i] / total) * 2 * pi;
-      paint.color = kAccent.withOpacity(0.5);
+      paint.color = kAccent.withValues(alpha: 0.5);
 
       // Draw filled section
       canvas.drawArc(
@@ -349,7 +349,7 @@ class _PieChartPainter extends CustomPainter {
       // Draw icon background circle
       final iconBgPaint = Paint()
         ..color =
-            isDarkMode ? kDarkGrey.withOpacity(0.1) : kWhite.withOpacity(0.1)
+            isDarkMode ? kDarkGrey.withValues(alpha: 0.1) : kWhite.withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(
@@ -360,7 +360,7 @@ class _PieChartPainter extends CustomPainter {
 
       // Draw icon border
       final iconBorderPaint = Paint()
-        ..color = kAccent.withOpacity(0.1)
+        ..color = kAccent.withValues(alpha: 0.1)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
 
@@ -408,7 +408,7 @@ class _PieChartPainter extends CustomPainter {
     // Draw center circle
     final centerCirclePaint = Paint()
       ..color =
-          isDarkMode ? kDarkGrey.withOpacity(0.8) : kWhite.withOpacity(0.8)
+            isDarkMode ? kDarkGrey.withValues(alpha: 0.8) : kWhite.withValues(alpha: 0.8)
       ..style = PaintingStyle.fill;
 
     final centerBorderPaint = Paint()

@@ -128,8 +128,8 @@ class IngredientItem extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        getMealTypeColor(dataSrc.type).withOpacity(0.1),
-                        getMealTypeColor(dataSrc.type).withOpacity(0.3),
+                        getMealTypeColor(dataSrc.type).withValues(alpha: 0.1),  
+                        getMealTypeColor(dataSrc.type).withValues(alpha: 0.3),
                       ],
                     ),
                     image: const DecorationImage(

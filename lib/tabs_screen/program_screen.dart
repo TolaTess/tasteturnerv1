@@ -384,12 +384,12 @@ class _ProgramScreenState extends State<ProgramScreen>
                       color: isDarkMode ? kDarkGrey : kWhite,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: kAccent.withOpacity(0.3),
+                        color: kAccent.withValues(alpha: 0.3),    
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),    
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -402,7 +402,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                           padding:
                               EdgeInsets.all(getPercentageWidth(3, context)),
                           decoration: BoxDecoration(
-                            color: kAccent.withOpacity(0.1),
+                            color: kAccent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -431,8 +431,8 @@ class _ProgramScreenState extends State<ProgramScreen>
                                 program.description,
                                 style: textTheme.bodySmall?.copyWith(
                                   color: isDarkMode
-                                      ? kWhite.withOpacity(0.7)
-                                      : kDarkGrey.withOpacity(0.7),
+                                      ? kWhite.withValues(alpha: 0.7)
+                                      : kDarkGrey.withValues(alpha: 0.7),
                                 ),
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
@@ -487,7 +487,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                                       padding: EdgeInsets.all(
                                           getPercentageWidth(1.5, context)),
                                       decoration: BoxDecoration(
-                                        color: Colors.purple.withOpacity(0.1),
+                                        color: Colors.purple.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -530,7 +530,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                             padding:
                                 EdgeInsets.all(getPercentageWidth(2, context)),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
+                              color: Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -662,7 +662,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                       width: double.infinity,
                       padding: EdgeInsets.all(getPercentageWidth(3, context)),
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.08),
+                          color: accent.withValues(alpha: 0.08),
                       ),
                       child: Text(
                         aiCoachResponse,

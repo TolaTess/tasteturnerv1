@@ -832,7 +832,7 @@ class AllergyItem extends StatelessWidget {
           bottom: getPercentageHeight(2, context)),
       child: InkWell(
         onTap: () => onSelected(dataSrc.allergy),
-        splashColor: kPrimaryColor.withOpacity(0.4),
+        splashColor: kPrimaryColor.withValues(alpha: 0.4),    
         borderRadius: const BorderRadius.all(
           Radius.circular(50),
         ),

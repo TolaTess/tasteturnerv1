@@ -12,7 +12,7 @@ class WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = waveColor.withOpacity(animationValue.clamp(0.0, 1.0))
+      ..color = waveColor.withValues(alpha: animationValue.clamp(0.0, 1.0))
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -46,12 +46,12 @@ class StepsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = stepColor.withOpacity(0.1)
+      ..color = stepColor.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
     final filledPaint = Paint()
-      ..color = stepColor.withOpacity(0.3)
+      ..color = stepColor.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
@@ -116,7 +116,7 @@ class StepsPainter extends CustomPainter {
           Offset(x, y),
           5,
           Paint()
-            ..color = stepColor.withOpacity(0.3)
+            ..color = stepColor.withValues(alpha: 0.3)
             ..style = PaintingStyle.fill);
     }
   }

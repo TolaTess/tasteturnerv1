@@ -33,7 +33,6 @@ class MealManager extends GetxController {
               final data = doc.data();
               return Meal.fromJson(doc.id, data);
             } catch (e) {
-              print('Error parsing meal data: $e');
               return null;
             }
           })
@@ -70,14 +69,12 @@ class MealManager extends GetxController {
               final data = doc.data() as Map<String, dynamic>;
               return Meal.fromJson(doc.id, data);
             } catch (e) {
-              print('Error parsing meal data for category $category: $e');
               return null;
             }
           })
           .whereType<Meal>()
           .toList();
     } catch (e) {
-      print('Error fetching meals by category: $e');
       return [];
     }
   }
@@ -102,15 +99,13 @@ class MealManager extends GetxController {
             try {
               return Meal.fromJson(doc.id, doc.data());
             } catch (e) {
-              print('Error parsing meal data for title ${doc.id}: $e');
               return null;
             }
           })
           .whereType<Meal>()
           .toList();
     } catch (e) {
-      print('Error getting meals by titles: $e');
-      return [];
+      return [];  
     }
   }
 
@@ -183,7 +178,7 @@ class MealManager extends GetxController {
       // Add to local state
       _meals.add(mealData);
     } catch (e) {
-      print('Error adding meal: $e');
+      return;
     }
   }
 
@@ -193,7 +188,7 @@ class MealManager extends GetxController {
       await firestore.collection('meals').doc(mealId).delete();
       _meals.removeWhere((meal) => meal.mealId == mealId);
     } catch (e) {
-      print('Error removing meal: $e');
+      return;
     }
   }
 
@@ -202,7 +197,6 @@ class MealManager extends GetxController {
       final meal = await firestore.collection('meals').doc(mealId).get();
       return Meal.fromJson(mealId, meal.data() as Map<String, dynamic>);
     } catch (e) {
-      print('Error getting meal by meal ID: $e');
       return null;
     }
   }
@@ -269,7 +263,6 @@ class MealManager extends GetxController {
             // Add a small delay to prevent rate limiting
             await Future.delayed(const Duration(milliseconds: 100));
           } catch (e) {
-            print('Error fetching API meal $mealId: $e');
           }
         }
       }
@@ -289,7 +282,6 @@ class MealManager extends GetxController {
           .get();
       return snapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
-      print('Error searching meals: $e');
       return [];
     }
   }
@@ -384,7 +376,6 @@ class MealManager extends GetxController {
 
       return favoriteMeals;
     } catch (e) {
-      print('Error fetching favorite meals: $e');
       throw Exception('Could not fetch favorite meals');
     }
   }
@@ -408,7 +399,7 @@ class MealManager extends GetxController {
         await docRef.update({'meals': meals});
       }
     } catch (e) {
-      print('Error updating meal type: $e');
+      return;
     }
   }
 
@@ -446,7 +437,7 @@ class MealManager extends GetxController {
 
       await docRef.set(mealPlan, SetOptions(merge: true));
     } catch (e) {
-      print('Error adding meal plan: $e');
+      return;
     }
   }
 
@@ -476,7 +467,6 @@ class MealManager extends GetxController {
 
       return mealPlansWithMeals;
     } catch (e) {
-      print('Error fetching meal plans: $e');
       return [];
     }
   }
@@ -507,7 +497,6 @@ class MealManager extends GetxController {
 
       return mealPlansWithMeals;
     } catch (e) {
-      print('Error fetching meal plans for the date: $e');
       return [];
     }
   }
@@ -524,7 +513,6 @@ class MealManager extends GetxController {
 
       return querySnapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
-      print('Error fetching meal plans for the week: $e');
       return [];
     }
   }

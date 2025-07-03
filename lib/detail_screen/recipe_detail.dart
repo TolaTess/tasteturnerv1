@@ -174,8 +174,8 @@ class SlvAppBar extends StatelessWidget {
           padding: EdgeInsets.all(getPercentageWidth(0.5, context)),
           child: CircleAvatar(
             backgroundColor: isDarkMode
-                ? kDarkGrey.withOpacity(0.4)
-                : kWhite.withOpacity(0.4),
+                ? kDarkGrey.withValues(alpha: 0.4)
+                : kWhite.withValues(alpha: 0.4),
             child: IconButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -628,7 +628,7 @@ class _RecipeProfileState extends State<RecipeProfile> {
                   },
                   child: CircleAvatar(
                     radius: getResponsiveBoxSize(context, 20, 20),
-                    backgroundColor: kAccent.withOpacity(kOpacity),
+                    backgroundColor: kAccent.withValues(alpha: kOpacity),
                     child: CircleAvatar(
                       backgroundImage: widget.mealUser?.profileImage != null &&
                               widget.mealUser!.profileImage!.isNotEmpty &&
@@ -747,10 +747,10 @@ class NutritionFacts extends StatelessWidget {
           (context, index) {
             return Container(
               decoration: BoxDecoration(
-                color: colors[index % colors.length].withOpacity(0.1),
+                color: colors[index % colors.length].withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: colors[index % colors.length].withOpacity(0.3),
+                  color: colors[index % colors.length].withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -885,7 +885,7 @@ class IngredientsCard extends StatelessWidget {
       padding: EdgeInsets.only(right: getPercentageWidth(1.2, context)),
       child: Container(
         decoration: BoxDecoration(
-          color: isDarkMode ? kLightGrey : kAccent.withOpacity(0.4),
+            color: isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
@@ -1010,10 +1010,10 @@ class DirectionsCard extends StatelessWidget {
       width: double.infinity,
       margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
       decoration: BoxDecoration(
-        color: colors[index % colors.length].withOpacity(0.1),
+        color: colors[index % colors.length].withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: colors[index % colors.length].withOpacity(0.3),
+          color: colors[index % colors.length].withValues(alpha: 0.3),
           width: 1,
         ),
       ),

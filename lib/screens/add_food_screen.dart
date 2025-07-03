@@ -270,7 +270,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         top: getPercentageHeight(4, context),
                         bottom: getPercentageHeight(2, context)),
                     child: Text(
-                      'Add to $mealType',
+                      'Add to ${getMealTimeOfDay()}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: getPercentageWidth(4.5, context),
                             fontWeight: FontWeight.w400,
@@ -287,7 +287,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       Stack(
                         children: [
                           IconButton(
-                            onPressed: () => _handleCameraAction(mealType),
+                            onPressed: () => _handleCameraAction(),
                             icon: Icon(
                               Icons.camera_alt,
                               color: _canUseAI ? null : Colors.grey,
@@ -460,7 +460,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
-  Future<void> _handleCameraAction(String mealType) async {
+  Future<void> _handleCameraAction() async {
     // Check if user can use AI features
     if (!_canUseAI) {
       _showPremiumRequiredDialog();
@@ -496,7 +496,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Analyze the image
       final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: File(croppedImage.path),
-        mealType: mealType,
       );
 
       Navigator.pop(context); // Close loading dialog
@@ -508,7 +507,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           builder: (context) => FoodAnalysisResultsScreen(
             imageFile: File(croppedImage.path),
             analysisResult: analysisResult,
-            mealType: mealType,
           ),
         ),
       );
@@ -777,7 +775,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     selectedNumber,
                                     (index) => setModalState(
                                         () => selectedNumber = index),
-                                    false),
+                                    true),
                               ),
                             ),
                             Flexible(
@@ -791,7 +789,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   selectedUnit,
                                   (index) =>
                                       setModalState(() => selectedUnit = index),
-                                  false,
+                                  true,
                                   unitOptions,
                                 ),
                               ),
@@ -1222,7 +1220,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
               )
             ],
@@ -1236,10 +1234,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   value: progress,
                   minHeight: getProportionalHeight(60, context),
                   backgroundColor: isDarkMode
-                      ? kDarkGrey.withOpacity(kLowOpacity)
-                      : kWhite.withOpacity(kLowOpacity),
+                      ? kDarkGrey.withValues(alpha: kLowOpacity)
+                      : kWhite.withValues(alpha: kLowOpacity),
                   valueColor:
-                      AlwaysStoppedAnimation<Color>(iconColor.withOpacity(0.5)),
+                      AlwaysStoppedAnimation<Color>(iconColor.withValues(alpha: 0.5)),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1389,7 +1387,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         meals.map((e) => e.name).join(', '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleMedium?.copyWith(
+                        style: textTheme.bodySmall?.copyWith(
                           color:
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),

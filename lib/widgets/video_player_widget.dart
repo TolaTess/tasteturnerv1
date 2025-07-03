@@ -48,8 +48,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         materialProgressColors: ChewieProgressColors(
           playedColor: kAccent,
           handleColor: kAccent,
-          backgroundColor: kWhite.withOpacity(0.3),
-          bufferedColor: kWhite.withOpacity(0.5),
+          backgroundColor: kWhite.withValues(alpha: 0.3),
+          bufferedColor: kWhite.withValues(alpha: 0.5),
         ),
         placeholder: Container(
           color: Colors.black,
@@ -57,7 +57,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(
+                const CircularProgressIndicator(
                   color: kAccent,
                 ),
                 const SizedBox(height: 16),
@@ -96,7 +96,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                   Text(
                     errorMessage,
                     style: TextStyle(
-                      color: kWhite.withOpacity(0.7),
+                      color: kWhite.withValues(alpha: 0.7),
                       fontSize: getTextScale(2, context),
                     ),
                     textAlign: TextAlign.center,
@@ -156,7 +156,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         // Blurred background
         Positioned.fill(
           child: Container(
-            color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
           ),
         ),
         // Video player with natural aspect ratio

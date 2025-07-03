@@ -174,6 +174,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
     return SimpleLoadingOverlay(
       isLoading: isLoading && searchContentDatas.isEmpty,
       message: 'Loading posts...',
+      progressPercentage: 60,
       child: Column(
         children: [
           // Show empty state only when not loading and no data
@@ -283,9 +284,9 @@ class SearchContentGridState extends State<SearchContentGrid> {
                         horizontal: getPercentageWidth(6, context),
                       ),
                       decoration: BoxDecoration(
-                        color: kAccent.withOpacity(0.1),
+                        color: kAccent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(25),
-                        border: Border.all(color: kAccent.withOpacity(0.3)),
+                        border: Border.all(color: kAccent.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -521,7 +522,7 @@ class SearchContent extends StatelessWidget {
             );
           } else if (snapshot.hasError) {
             return Container(
-              color: kBlueLight.withOpacity(0.5),
+                color: kBlueLight.withValues(alpha: 0.5),
               child: Center(
                 child: Icon(
                   Icons.videocam,
@@ -601,7 +602,7 @@ class SearchContent extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -620,7 +621,7 @@ class SearchContent extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -639,7 +640,7 @@ class SearchContent extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.9),
+                  color: kAccent.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -749,14 +750,14 @@ class SearchContentPost extends StatelessWidget {
                                 end: Alignment.center,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.1),
+                                  Colors.black.withValues(alpha: 0.1),
                                 ],
                               ),
                             ),
                             child: Center(
                               child: Icon(
                                 Icons.play_circle_filled,
-                                color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 size: getPercentageWidth(8, context),
                               ),
                             ),
@@ -802,7 +803,7 @@ class SearchContentPost extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -821,7 +822,7 @@ class SearchContentPost extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -840,7 +841,7 @@ class SearchContentPost extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.9),
+                  color: kAccent.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(

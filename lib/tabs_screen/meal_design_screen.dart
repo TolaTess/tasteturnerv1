@@ -16,13 +16,13 @@ import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../screens/friend_screen.dart';
+import '../service/meal_plan_controller.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
-import '../widgets/premium_widget.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
@@ -40,26 +40,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   DateTime selectedDate = DateTime.now();
-  Map<DateTime, bool> specialMealDays = {};
-  Map<DateTime, List<MealWithType>> mealPlans = {};
-  Map<DateTime, String> dayTypes = {};
-  Map<DateTime, List<MealWithType>> sharedMealPlans = {};
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
-  bool showSharedCalendars = false;
   int get _tabCount => 2;
   bool isPremium = userService.currentUser.value?.isPremium ?? false;
   bool familyMode = userService.currentUser.value?.familyMode ?? false;
   final CalendarSharingController sharingController =
       Get.put(CalendarSharingController());
-  String? selectedSharedCalendarId;
-  bool isPersonalCalendar = false;
   final CalendarSharingService calendarSharingService =
       CalendarSharingService();
-  Map<DateTime, List<String>> birthdays = {};
+
   final GlobalKey _toggleCalendarButtonKey = GlobalKey();
   final GlobalKey _sharedCalendarButtonKey = GlobalKey();
+
+  // Get the MealPlanController instance
+  late final MealPlanController _mealPlanController;
 
   String selectedCategory = 'name';
   String selectedCategoryId = '';
@@ -68,6 +64,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   @override
   void initState() {
     super.initState();
+
+    // Initialize MealPlanController
+    _mealPlanController = Get.find<MealPlanController>();
+
     _tabController = TabController(
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
@@ -134,9 +134,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   Future<void> _onRefresh() async {
-    await Future.wait([
-      _loadMealPlans(),
-    ]);
+    _mealPlanController.refresh();
   }
 
   void _initializeBuddyData() {
@@ -155,32 +153,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         .get();
   }
 
-  Future<void> _loadFriendsBirthdays() async {
-    birthdays.clear();
-    final following =
-        userService.currentUser.value?.following as List<dynamic>?;
-    if (following == null) return;
-    for (final friendId in following) {
-      final doc = await firestore.collection('users').doc(friendId).get();
-      if (doc.exists) {
-        final data = doc.data();
-        final dob = data?['dob'] as String?; // MM-dd
-        final name = data?['displayName'] as String? ?? '';
-        if (dob != null && dob.length == 5) {
-          final now = DateTime.now();
-          final month = int.tryParse(dob.substring(0, 2));
-          final day = int.tryParse(dob.substring(3, 5));
-          if (month != null && day != null) {
-            final birthdayDate = DateTime(now.year, month, day);
-            birthdays.putIfAbsent(birthdayDate, () => []).add(name);
-          }
-        }
-      }
-    }
-    if (!mounted) return;
-    setState(() {});
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -196,6 +168,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
       _tabController.addListener(_handleTabIndex);
     }
+    _onRefresh();
     if (!mounted) return;
     setState(() {
       isPremium = userService.currentUser.value?.isPremium ?? false;
@@ -218,142 +191,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     super.dispose();
   }
 
-  Future<void> _loadMealPlans() async {
-    try {
-      final now = DateTime.now();
-      final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
-      final startDate = DateTime(firstDayOfCurrentMonth.year,
-          firstDayOfCurrentMonth.month - 1, 1); // 1st day of previous month
-      final endDate = DateTime(firstDayOfCurrentMonth.year,
-          firstDayOfCurrentMonth.month + 2, 0); // last day of next month
-
-      final userId = userService.userId;
-      if (userId == null || userId.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          mealPlans = {};
-          specialMealDays = {};
-          dayTypes = {};
-        });
-        return;
-      }
-      var userMealPlansQuery;
-      if (showSharedCalendars && selectedSharedCalendarId != null) {
-        isPersonalCalendar = false;
-        userMealPlansQuery = await firestore
-            .collection('shared_calendars')
-            .doc(selectedSharedCalendarId!)
-            .collection('date')
-            .get();
-      } else {
-        isPersonalCalendar = true;
-        userMealPlansQuery = await firestore
-            .collection('mealPlans')
-            .doc(userId)
-            .collection('date')
-            .get();
-      }
-
-      if (userMealPlansQuery.docs.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          mealPlans = {};
-          specialMealDays = {};
-          dayTypes = {};
-        });
-        return;
-      }
-
-      // Filter documents by date range in the app
-      final filteredDocs = userMealPlansQuery.docs.where((doc) {
-        final data = doc.data() as Map<String, dynamic>?;
-        final dateStr = data?['date'] as String?;
-        if (dateStr == null) return false;
-
-        try {
-          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          return !date.isBefore(startDate) && !date.isAfter(endDate);
-        } catch (e) {
-          print('Error parsing date: $e');
-          return false;
-        }
-      }).toList();
-
-      final newMealPlans = <DateTime, List<MealWithType>>{};
-      final newSpecialMealDays = <DateTime, bool>{};
-      final newDayTypes = <DateTime, String>{};
-
-      for (var doc in filteredDocs) {
-        final data = doc.data() as Map<String, dynamic>?;
-        final dateStr = data?['date'] as String?;
-        if (dateStr == null) continue;
-
-        try {
-          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-          final mealsList = data?['meals'] as List<dynamic>? ?? [];
-          final List<MealWithType> mealWithTypes = [];
-          for (final item in mealsList) {
-            if (item is String && item.contains('/')) {
-              final parts = item.split('/');
-              final mealId = parts[0];
-              final mealType = parts.length > 1 ? parts[1] : '';
-              final mealMember = parts.length > 2 ? parts[2] : '';
-              final meal = await mealManager.getMealbyMealID(mealId);
-              if (meal != null) {
-                mealWithTypes.add(MealWithType(
-                    meal: meal,
-                    mealType: mealType,
-                    familyMember: mealMember.toLowerCase(),
-                    fullMealId: item));
-              }
-            } else {
-              final mealId = item;
-              final meal = await mealManager.getMealbyMealID(mealId);
-              if (meal != null) {
-                mealWithTypes.add(MealWithType(
-                    meal: meal,
-                    mealType: 'default',
-                    familyMember:
-                        userService.currentUser.value?.displayName ?? '',
-                    fullMealId: mealId));
-              }
-            }
-          }
-          final isSpecial = data?['isSpecial'] ?? false;
-          final dayType = data?['dayType'] ?? 'regular_day';
-          if (mealWithTypes.isNotEmpty) {
-            newMealPlans[date] = mealWithTypes;
-          }
-          newDayTypes[date] = dayType;
-          if (isSpecial) {
-            newSpecialMealDays[date] = true;
-          }
-        } catch (e) {
-          print('Error processing meal plan for date $dateStr: $e');
-          continue;
-        }
-      }
-      _loadFriendsBirthdays();
-      if (!mounted) return;
-      setState(() {
-        mealPlans = newMealPlans;
-        specialMealDays = newSpecialMealDays;
-        dayTypes = newDayTypes;
-      });
-    } catch (e) {
-      print('Error loading meal plans: $e');
-      if (!mounted) return;
-      setState(() {
-        mealPlans = {};
-        specialMealDays = {};
-        dayTypes = {};
-      });
-    }
-  }
-
   /// Returns true if the given date is the user's birthday and in personal view
   bool _isUserBirthday(DateTime date) {
-    if (showSharedCalendars) return false;
+    if (_mealPlanController.showSharedCalendars.value) return false;
     final userDob = userService.currentUser.value?.dob;
     if (userDob == null || userDob.length != 5) return false;
     final month = int.tryParse(userDob.substring(0, 2));
@@ -369,124 +209,126 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final avatarUrl =
         userService.currentUser.value?.profileImage ?? intPlaceholderImage;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: const CustomDrawer(),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Profile image that opens drawer
-            GestureDetector(
-              onTap: () => _scaffoldKey.currentState?.openDrawer(),
-              child: CircleAvatar(
-                radius: MediaQuery.of(context).size.height > 1100
-                    ? getResponsiveBoxSize(context, 14, 14)
-                    : getResponsiveBoxSize(context, 18, 18),
-                backgroundColor: kAccent.withOpacity(kOpacity),
-                child: CircleAvatar(
-                  backgroundImage: getAvatarImage(avatarUrl),
-                  radius: MediaQuery.of(context).size.height > 1100
-                      ? getResponsiveBoxSize(context, 12, 12)
-                      : getResponsiveBoxSize(context, 16, 16),
+    return Obx(() => Scaffold(
+          key: _scaffoldKey,
+          drawer: const CustomDrawer(),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Profile image that opens drawer
+                GestureDetector(
+                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                  child: CircleAvatar(
+                    radius: MediaQuery.of(context).size.height > 1100
+                        ? getResponsiveBoxSize(context, 14, 14)
+                        : getResponsiveBoxSize(context, 18, 18),
+                    backgroundColor: kAccent.withValues(alpha: kOpacity), 
+                    child: CircleAvatar(
+                      backgroundImage: getAvatarImage(avatarUrl),
+                      radius: MediaQuery.of(context).size.height > 1100
+                          ? getResponsiveBoxSize(context, 12, 12)
+                          : getResponsiveBoxSize(context, 16, 16),
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(2, context)),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${getRelativeDayString(DateTime.now())}, ',
-                      style: textTheme.displayMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: getPercentageWidth(4.5, context)),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context)),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${getRelativeDayString(DateTime.now())}, ',
+                          style: textTheme.displayMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              fontSize: getPercentageWidth(4.5, context)),
+                        ),
+                        Text(
+                          ' ${shortMonthName(DateTime.now().month)} ${DateTime.now().day}',
+                          style: textTheme.displayMedium?.copyWith(
+                              color: kAccentLight,
+                              fontWeight: FontWeight.w500,
+                              fontSize: getPercentageWidth(4.5, context)),
+                        ),
+                      ],
                     ),
-                    Text(
-                      ' ${shortMonthName(DateTime.now().month)} ${DateTime.now().day}',
-                      style: textTheme.displayMedium?.copyWith(
-                          color: kAccentLight,
-                          fontWeight: FontWeight.w500,
-                          fontSize: getPercentageWidth(4.5, context)),
+                  ),
+                ),
+                if (_tabController.index == 0)
+                  InkWell(
+                    onTap: () => _addMealPlan(context, isDarkMode, true, '',
+                        goStraightToAddMeal: false),
+                    child: IconCircleButton(
+                      icon: _tabController.index == 0
+                          ? Icons.add
+                          : Icons.calendar_month,
+                      colorD: kAccent,
+                      isRemoveContainer: false,
                     ),
-                  ],
-                ),
-              ),
-            ),
-            if (_tabController.index == 0)
-              InkWell(
-                onTap: () => _addMealPlan(context, isDarkMode, true, '',
-                    goStraightToAddMeal: false),
-                child: IconCircleButton(
-                  icon: _tabController.index == 0
-                      ? Icons.add
-                      : Icons.calendar_month,
-                  colorD: kAccent,
-                  isRemoveContainer: false,
-                ),
-              ),
-            if (_tabController.index == 1)
-              SizedBox(width: getPercentageWidth(1, context)),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Planner',
-                      style: textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w300,
-                          fontSize: getPercentageWidth(6, context))),
+                  ),
+                if (_tabController.index == 1)
                   SizedBox(width: getPercentageWidth(1, context)),
-                ],
-              ),
+              ],
             ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('$appNameBuddy',
-                      style: textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w300,
-                          fontSize: getPercentageWidth(6, context))),
-                  SizedBox(width: getPercentageWidth(1, context)),
-                ],
-              ),
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Planner',
+                          style: textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w300,
+                              fontSize: getPercentageWidth(6, context))),
+                      SizedBox(width: getPercentageWidth(1, context)),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('$appNameBuddy',
+                          style: textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w300,
+                              fontSize: getPercentageWidth(6, context))),
+                      SizedBox(width: getPercentageWidth(1, context)),
+                    ],
+                  ),
+                ),
+              ],
+              labelColor: isDarkMode ? kWhite : kBlack,
+              labelStyle: textTheme.displayMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: getPercentageWidth(4, context)),
+              unselectedLabelColor: kLightGrey,
+              indicatorColor: isDarkMode ? kWhite : kBlack,
             ),
-          ],
-          labelColor: isDarkMode ? kWhite : kBlack,
-          labelStyle: textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              fontSize: getPercentageWidth(4, context)),
-          unselectedLabelColor: kLightGrey,
-          indicatorColor: isDarkMode ? kWhite : kBlack,
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(top: getProportionalHeight(5, context)),
-              child: _buildCalendarTab(),
+          ),
+          body: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                Padding(
+                  padding:
+                      EdgeInsets.only(top: getProportionalHeight(5, context)),
+                  child: _buildCalendarTab(),
+                ),
+                Padding(
+                  padding:
+                      EdgeInsets.only(top: getProportionalHeight(5, context)),
+                  child: const BuddyTab(),
+                ),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.only(top: getProportionalHeight(5, context)),
-              child: const BuddyTab(),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Widget _buildCalendarTab() {
@@ -509,12 +351,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           Container(
             decoration: BoxDecoration(
               color: isDarkMode
-                  ? kDarkGrey.withOpacity(0.9)
-                  : kWhite.withOpacity(0.9),
+                  ? kDarkGrey.withValues(alpha: 0.9)
+                  : kWhite.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -531,7 +373,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     // Calendar view toggle
                     SizedBox(width: getPercentageWidth(1, context)),
                     Text(
-                      showSharedCalendars
+                      _mealPlanController.showSharedCalendars.value
                           ? 'Shared'
                           : familyMode
                               ? 'Family'
@@ -548,7 +390,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     IconButton(
                       key: _toggleCalendarButtonKey,
                       icon: Icon(
-                        showSharedCalendars
+                        _mealPlanController.showSharedCalendars.value
                             ? Icons.person_outline
                             : Icons.people_outline,
                         size: getIconScale(7, context),
@@ -556,11 +398,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       onPressed: () {
                         if (!mounted) return;
                         setState(() {
-                          showSharedCalendars = !showSharedCalendars;
-                          _loadMealPlans();
+                          _mealPlanController.showSharedCalendars.value =
+                              !_mealPlanController.showSharedCalendars.value;
                         });
+                        _mealPlanController.refresh();
                       },
-                      tooltip: showSharedCalendars
+                      tooltip: _mealPlanController.showSharedCalendars.value
                           ? 'Show Personal Calendar'
                           : 'Show Shared Calendars',
                     ),
@@ -573,13 +416,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       key: _sharedCalendarButtonKey,
                       icon: Icon(
                         Icons.ios_share,
-                        size: getIconScale(5.5, context),
+                        size: getIconScale(4.5, context),
                       ),
                       onPressed: () => _shareCalendar(''),
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
-                    if (!showSharedCalendars) Spacer(),
-                    if (!showSharedCalendars)
+                    if (!_mealPlanController.showSharedCalendars.value)
+                      Spacer(),
+                    if (!_mealPlanController.showSharedCalendars.value)
                       Text(
                         ' ${shortMonthName(selectedDate.month)} ${selectedDate.day}',
                         style: textTheme.titleMedium?.copyWith(
@@ -587,7 +431,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ),
 
                     // Shared calendar selector
-                    if (showSharedCalendars)
+                    if (_mealPlanController.showSharedCalendars.value)
                       Flexible(
                         child: FutureBuilder<List<SharedCalendar>>(
                           future: calendarSharingService
@@ -614,9 +458,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                       ? kAccent
                                       : kBackgroundColor,
                               iconEnabledColor: kAccent,
-                              value: selectedSharedCalendarId,
+                              value: _mealPlanController
+                                  .selectedSharedCalendarId.value,
                               hint: Text('Select Calendar',
-                                  style: textTheme.titleLarge?.copyWith(
+                                  style: textTheme.titleSmall?.copyWith(
                                       color: isDarkMode ? kWhite : kDarkGrey)),
                               style: textTheme.bodyMedium?.copyWith(
                                   color: isDarkMode ? kWhite : kDarkGrey,
@@ -631,13 +476,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               onChanged: (val) {
                                 if (!mounted) return;
                                 setState(() {
-                                  selectedSharedCalendarId = val;
+                                  _mealPlanController
+                                      .selectedSharedCalendarId.value = val;
                                 });
                                 if (val != null) {
                                   sharingController.selectSharedCalendar(val);
                                   sharingController
                                       .selectSharedDate(selectedDate);
-                                  _loadMealPlans();
+                                  _mealPlanController.refresh();
                                 }
                               },
                             );
@@ -731,22 +577,26 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                     selectedDate.month,
                                     selectedDate.day);
 
-                                final hasSpecialMeal =
-                                    specialMealDays[normalizedDate] ?? false;
-                                final hasMeal =
-                                    mealPlans.containsKey(normalizedDate);
+                                final hasSpecialMeal = _mealPlanController
+                                        .specialMealDays[normalizedDate] ??
+                                    false;
+                                final hasMeal = _mealPlanController
+                                        .mealPlans[normalizedDate] !=
+                                    null;
                                 final isCurrentMonth =
                                     date.month == targetDate.month;
                                 final today = DateTime.now();
                                 final isPastDate = normalizedDate.isBefore(
                                     DateTime(
                                         today.year, today.month, today.day));
-                                final hasBirthday =
-                                    birthdays.containsKey(normalizedDate);
+                                final hasBirthday = _mealPlanController
+                                    .getFriendsBirthdaysForDate(normalizedDate)
+                                    .isNotEmpty;
                                 final isUserBirthday =
                                     _isUserBirthday(normalizedDate);
-                                final dayType =
-                                    dayTypes[normalizedDate] ?? 'regular_day';
+                                final dayType = _mealPlanController
+                                        .dayTypes[normalizedDate] ??
+                                    'regular_day';
 
                                 return GestureDetector(
                                   onTap: () {
@@ -765,14 +615,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                     decoration: BoxDecoration(
                                       color: hasSpecialMeal
                                           ? getDayTypeColor(
-                                                  dayTypes[normalizedDate]
+                                                  _mealPlanController.dayTypes[
+                                                              normalizedDate]
                                                           ?.replaceAll(
                                                               '_', ' ') ??
                                                       'regular_day',
                                                   isDarkMode)
-                                              .withOpacity(0.2)
+                                                .withValues(alpha: 0.2)
                                           : hasMeal
-                                              ? kLightGrey.withOpacity(0.2)
+                                              ? kLightGrey.withValues(alpha: 0.2)
                                               : null,
                                       borderRadius: BorderRadius.circular(8),
                                       border: normalizedDate ==
@@ -816,22 +667,24 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                             right: 2,
                                             top: 2,
                                             child: Icon(
-                                              getDayTypeIcon(
-                                                  dayTypes[normalizedDate]
-                                                          ?.replaceAll(
-                                                              '_', ' ') ??
-                                                      'regular_day'),
+                                              getDayTypeIcon(_mealPlanController
+                                                      .dayTypes[normalizedDate]
+                                                      ?.replaceAll('_', ' ') ??
+                                                  'regular_day'),
                                               size: getPercentageWidth(
                                                   2.5, context),
                                               color: getDayTypeColor(
-                                                  dayTypes[normalizedDate]
+                                                  _mealPlanController.dayTypes[
+                                                              normalizedDate]
                                                           ?.replaceAll(
                                                               '_', ' ') ??
                                                       'regular_day',
                                                   isDarkMode),
                                             ),
                                           ),
-                                        if (hasBirthday && showSharedCalendars)
+                                        if (hasBirthday &&
+                                            _mealPlanController
+                                                .showSharedCalendars.value)
                                           Positioned(
                                             right: 2,
                                             bottom: 2,
@@ -921,7 +774,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 fontSize: getTextScale(3, context)),
             decoration: InputDecoration(
               hintText: 'Enter title',
-              labelText: isPersonalCalendar
+              labelText: _mealPlanController.isPersonalCalendar.value
                   ? 'Calendar Title'
                   : 'Update calendar title',
               hintStyle: TextStyle(
@@ -951,7 +804,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               onPressed: () async {
                 if (calendarTitle.isNotEmpty) {
                   Navigator.pop(context);
-                  if (isPersonalCalendar) {
+                  if (_mealPlanController.isPersonalCalendar.value) {
                     // 1. Create new shared calendar doc
                     final newCalRef =
                         await firestore.collection('shared_calendars').add({
@@ -1036,7 +889,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           dataSrc: {
                             'type': 'entire_calendar',
                             'screen': 'meal_design',
-                            'calendarId': selectedSharedCalendarId,
+                            'calendarId': _mealPlanController
+                                .selectedSharedCalendarId.value,
                             'header': calendarTitle,
                             'isPersonal': 'false',
                           },
@@ -1072,7 +926,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final isPersonalSpecialDay =
-        specialMealDays[normalizedSelectedDate] ?? false;
+        _mealPlanController.specialMealDays[normalizedSelectedDate] ?? false;
 
     // Fallback to personal calendar logic
     List<MealWithType> personalMeals = [];
@@ -1083,20 +937,34 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     if (familyMode) {
       personalMeals = updateMealForFamily(
-          mealPlans[normalizedSelectedDate] ?? [],
+          _mealPlanController.mealPlans[normalizedSelectedDate] ?? [],
           selectedCategory,
           familyList);
     } else {
-      personalMeals = mealPlans[normalizedSelectedDate] ?? [];
+      personalMeals =
+          _mealPlanController.mealPlans[normalizedSelectedDate] ?? [];
     }
 
-    final sharedPlans = sharedMealPlans[normalizedSelectedDate] ?? [];
-    final hasMeal = mealPlans.containsKey(normalizedSelectedDate);
-    final birthdayNames = birthdays[normalizedSelectedDate] ?? <String>[];
+    final sharedPlans =
+        _mealPlanController.sharedMealPlans[normalizedSelectedDate] ?? [];
+    final hasMeal =
+        _mealPlanController.mealPlans.containsKey(normalizedSelectedDate);
+    final friendsBirthdays =
+        _mealPlanController.getFriendsBirthdaysForDate(normalizedSelectedDate);
+    final birthdayNames = friendsBirthdays
+        .map((birthday) => birthday['name'] as String? ?? '')
+        .toList();
 
     final birthdayName = birthdayNames.isEmpty ? '' : birthdayNames.join(', &');
 
-    if (!hasMeal && !isPersonalSpecialDay && sharedPlans.isEmpty) {
+    // Check if we have any meals to show
+    final hasPersonalMeals = personalMeals.isNotEmpty;
+    final hasSharedMeals =
+        _mealPlanController.showSharedCalendars.value && sharedPlans.isNotEmpty;
+    final hasAnyMeals = hasPersonalMeals || hasSharedMeals;
+
+    // Show empty state only if there are truly no meals and no special day
+    if (!hasAnyMeals && !hasMeal && !isPersonalSpecialDay) {
       return Column(
         children: [
           SizedBox(
@@ -1133,84 +1001,37 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             darkModeAccentColor: kDarkModeAccent,
           ),
         SizedBox(height: getPercentageHeight(1, context)),
+
+        // Show personal meals section
+
         _buildDateHeader(
             normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
-        SizedBox(height: getPercentageHeight(1, context)),
-        _buildMealsRow(personalMeals, birthdayName, isDarkMode),
-        if (showSharedCalendars && sharedPlans.isNotEmpty)
-          _buildMealsRow(sharedPlans, birthdayName, isDarkMode),
+
+        if (hasPersonalMeals) ...[
+          SizedBox(height: getPercentageHeight(1, context)),
+          _buildMealsRowContent(personalMeals, isDarkMode),
+          SizedBox(height: getPercentageHeight(1, context)),
+        ],
+
+        // Show shared meals section
+        if (hasSharedMeals) ...[
+          SizedBox(height: getPercentageHeight(1, context)),
+          _buildMealsRowContent(sharedPlans, isDarkMode),
+          SizedBox(height: getPercentageHeight(1, context)),
+        ],
+
         SizedBox(height: getPercentageHeight(7.5, context)),
       ],
     );
   }
 
-  Widget _buildMealsRow(
-      List<MealWithType> meals, String birthdayName, bool isDarkMode) {
+  // Content-only version for when we know meals exist
+  Widget _buildMealsRowContent(List<MealWithType> meals, bool isDarkMode) {
+    return _buildMealsListView(meals, isDarkMode);
+  }
+
+  Widget _buildMealsListView(List<MealWithType> meals, bool isDarkMode) {
     final textTheme = Theme.of(context).textTheme;
-    final normalizedDate =
-        DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final currentDayType = dayTypes[normalizedDate] ?? 'regular_day';
-    if (dayTypes[normalizedDate] == null) {
-      setState(() {
-        selectedDate = DateTime.now();
-      });
-    }
-    if (meals.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (birthdayName.isNotEmpty && showSharedCalendars) ...[
-              getBirthdayTextContainer(birthdayName, false, context),
-            ],
-            SizedBox(height: getPercentageHeight(3, context)),
-            TextButton.icon(
-              onPressed: () => _addMealPlan(
-                  context, isDarkMode, false, currentDayType,
-                  goStraightToAddMeal: !familyMode ||
-                          selectedCategory.toLowerCase() ==
-                              userService.currentUser.value?.displayName
-                                  ?.toLowerCase()
-                      ? false
-                      : true),
-              icon: Icon(Icons.add, size: getIconScale(6, context)),
-              label: Text('Add Meal',
-                  style: textTheme.bodyMedium?.copyWith(
-                      fontSize: getPercentageWidth(3.5, context),
-                      fontWeight: FontWeight.w400)),
-              style: TextButton.styleFrom(
-                foregroundColor: kAccent,
-              ),
-            ),
-            Text(
-              getRelativeDayString(normalizedDate) == 'Today' ||
-                      getRelativeDayString(normalizedDate) == 'Tomorrow'
-                  ? 'No meals planned for ${getRelativeDayString(normalizedDate)}'
-                  : 'No meals planned for this day',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: isDarkMode ? kLightGrey : kDarkGrey,
-                fontSize: getPercentageWidth(3.5, context),
-              ),
-            ),
-            SizedBox(width: getPercentageWidth(1, context)),
-            Text(
-              dayTypes[normalizedDate] == 'welcome_day'
-                  ? 'Welcome to ${appName}!'
-                  : 'Enjoy your ${capitalizeFirstLetter(dayTypes[normalizedDate]?.replaceAll('_', ' ') ?? 'regular_day')}!',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: getDayTypeColor(
-                    dayTypes[normalizedDate]?.replaceAll('_', ' ') ??
-                        'regular_day',
-                    isDarkMode),
-                fontSize: getPercentageWidth(3.5, context),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     return SizedBox(
       height: MediaQuery.of(context).size.height > 700
           ? getPercentageHeight(18, context)
@@ -1334,17 +1155,19 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             final userId = userService.userId;
                             if (userId == null) return;
 
-                            final docRef = showSharedCalendars
-                                ? firestore
-                                    .collection('shared_calendars')
-                                    .doc(selectedSharedCalendarId)
-                                    .collection('date')
-                                    .doc(formattedDate)
-                                : firestore
-                                    .collection('mealPlans')
-                                    .doc(userId)
-                                    .collection('date')
-                                    .doc(formattedDate);
+                            final docRef =
+                                _mealPlanController.showSharedCalendars.value
+                                    ? firestore
+                                        .collection('shared_calendars')
+                                        .doc(_mealPlanController
+                                            .selectedSharedCalendarId.value)
+                                        .collection('date')
+                                        .doc(formattedDate)
+                                    : firestore
+                                        .collection('mealPlans')
+                                        .doc(userId)
+                                        .collection('date')
+                                        .doc(formattedDate);
 
                             final doc = await docRef.get();
                             if (doc.exists) {
@@ -1357,7 +1180,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               setState(() {
                                 meals.removeAt(index);
                               });
-                              _loadMealPlans();
+                              _mealPlanController.refresh();
                             }
                           },
                         ),
@@ -1381,7 +1204,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: kAccent.withOpacity(0.5),
+                          color: kAccent.withValues(alpha: 0.5),
                           blurRadius: getPercentageWidth(1, context),
                           offset: const Offset(0, 2),
                         ),
@@ -1465,7 +1288,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           '${mealId}/${result.toLowerCase()}/${familyMember.toLowerCase()}';
       mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
     }
-    _loadMealPlans();
+    _mealPlanController.refresh();
   }
 
   void _selectDate(DateTime date) {
@@ -1475,7 +1298,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       selectedDate = normalizedSelectedDate;
     });
 
-    if (showSharedCalendars && selectedSharedCalendarId != null) {
+    if (_mealPlanController.showSharedCalendars.value &&
+        _mealPlanController.selectedSharedCalendarId.value != null) {
       sharingController.selectSharedDate(normalizedSelectedDate);
     }
   }
@@ -1531,9 +1355,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             mealPlanDate: formattedDate,
             isSpecial: selectedDayType != 'regular_day',
             screen: 'ingredient',
-            isSharedCalendar: showSharedCalendars,
-            sharedCalendarId:
-                showSharedCalendars ? selectedSharedCalendarId : null,
+            isSharedCalendar: _mealPlanController.showSharedCalendars.value,
+            sharedCalendarId: _mealPlanController.showSharedCalendars.value
+                ? _mealPlanController.selectedSharedCalendarId.value
+                : null,
             familyMember: selectedCategory.toLowerCase(),
             isFamilyMode: familyMode,
             isBackToMealPlan: true,
@@ -1541,7 +1366,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ),
         ),
       ).then((_) {
-        _loadMealPlans();
+        _mealPlanController.refresh();
       });
       return;
     }
@@ -1581,7 +1406,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   child: ListTile(
                     selected: selectedDayType ==
                         type.toLowerCase().replaceAll(' ', '_'),
-                    selectedTileColor: kAccentLight.withOpacity(0.1),
+                      selectedTileColor: kAccentLight.withValues(alpha: 0.1),
                     title: Text(
                       type,
                       style: textTheme.bodyMedium?.copyWith(
@@ -1613,13 +1438,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   onPressed: () => Navigator.pop(context),
                   color: isDarkMode ? kWhite : kBlack,
                 ),
-                if (isPersonalCalendar)
+                if (_mealPlanController.isPersonalCalendar.value)
                   IconButton(
                     icon: Icon(Icons.ios_share, size: getIconScale(5, context)),
                     onPressed: () async {
                       Navigator.pop(context);
                       _shareCalendar('single_day');
-                      await _loadMealPlans();
+                      _mealPlanController.refresh();
                     },
                     color: isDarkMode ? kWhite : kBlack,
                   ),
@@ -1628,7 +1453,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     onPressed: () async {
                       Navigator.pop(context,
                           {'dayType': selectedDayType, 'action': 'save'});
-                      await _loadMealPlans();
+                      _mealPlanController.refresh();
                     },
                     child: Text(
                       'Save',
@@ -1671,10 +1496,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     try {
       DocumentReference? sharedCalendarRef;
 
-      if (showSharedCalendars) {
+      if (_mealPlanController.showSharedCalendars.value) {
         sharedCalendarRef = firestore
             .collection('shared_calendars')
-            .doc(selectedSharedCalendarId!)
+            .doc(_mealPlanController.selectedSharedCalendarId.value!)
             .collection('date')
             .doc(formattedDate);
         await sharedCalendarRef!.set({
@@ -1691,8 +1516,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       }
       if (!mounted) return;
       setState(() {
-        specialMealDays[selectedDate] = dayType != 'regular_day';
-        dayTypes[selectedDate] = dayType;
+        _mealPlanController.specialMealDays[selectedDate] =
+            dayType != 'regular_day';
+        _mealPlanController.dayTypes[selectedDate] = dayType;
       });
 
       // Only navigate to recipe selection if "Add Meal" was clicked
@@ -1708,9 +1534,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 mealPlanDate: formattedDate,
                 isSpecial: dayType != 'regular_day',
                 screen: 'ingredient',
-                isSharedCalendar: showSharedCalendars,
-                sharedCalendarId:
-                    showSharedCalendars ? selectedSharedCalendarId : null,
+                isSharedCalendar: _mealPlanController.showSharedCalendars.value,
+                sharedCalendarId: _mealPlanController.showSharedCalendars.value
+                    ? _mealPlanController.selectedSharedCalendarId.value
+                    : null,
                 familyMember: selectedCategory.toLowerCase(),
                 isFamilyMode: familyMode,
                 isNoTechnique: true,
@@ -1718,7 +1545,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           ),
         ).then((_) {
           // Refresh meal plans after adding new meals
-          _loadMealPlans();
+          _mealPlanController.refresh();
         });
       }
     } catch (e) {
@@ -1734,7 +1561,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (birthdayName.isNotEmpty && showSharedCalendars) ...[
+            if (birthdayName.isNotEmpty &&
+                _mealPlanController.showSharedCalendars.value) ...[
               getBirthdayTextContainer(birthdayName, false, context),
             ],
             if (_isUserBirthday(date)) ...[
@@ -1798,8 +1626,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildDateHeader(DateTime date, String birthdayName, bool isDarkMode,
       List<MealWithType> meals) {
-    final isSpecialDay = specialMealDays[date] ?? false;
-    final currentDayType = dayTypes[date] ?? 'regular_day';
+    final isSpecialDay = _mealPlanController.specialMealDays[date] ?? false;
+    final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
     final isUserBirthday = _isUserBirthday(date);
     final textTheme = Theme.of(context).textTheme;
     return Column(
@@ -1851,7 +1679,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     if (isUserBirthday)
                       getBirthdayTextContainer('You', true, context),
                     if (meals.isNotEmpty)
-                      if (birthdayName.isNotEmpty && showSharedCalendars) ...[
+                      if (birthdayName.isNotEmpty &&
+                          _mealPlanController.showSharedCalendars.value) ...[
                         getBirthdayTextContainer(birthdayName, true, context),
                       ],
                     Text(
@@ -1879,7 +1708,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     decoration: BoxDecoration(
                       color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode)
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -1927,7 +1756,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     decoration: BoxDecoration(
                       color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode)
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(

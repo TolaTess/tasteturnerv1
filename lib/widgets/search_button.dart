@@ -99,8 +99,8 @@ class _ThirdButtonState extends State<ThirdButton> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isDarkMode
-              ? kDarkModeAccent.withOpacity(0.08)
-              : kAccent.withOpacity(0.60),
+              ? kDarkModeAccent.withValues(alpha: 0.08) 
+              : kAccent.withValues(alpha: 0.60),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
           ),

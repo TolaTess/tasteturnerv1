@@ -262,36 +262,16 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-          title: Text(
-              screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe',
-              style: TextStyle(fontSize: getTextScale(4, context))),
-          leading: InkWell(
-            onTap: () {
-              if (widget.screenType == 'list') {
-                Get.to(
-                  () => const RecipeListCategory(
-                    index: 1,
-                    searchIngredient: '',
-                    screen: 'ingredient',
-                    isNoTechnique: true,
-                  ),
-                );
-              } else if (screen == 'addManual' ||
-                  widget.screenType == 'addManual') {
-                Get.back();
-              } else {
-                Get.to(() => const BottomNavSec(
-                      selectedIndex: 1,
-                      foodScreenTabIndex: 1,
-                    ));
-              }
-            },
-            child: const IconCircleButton(
-              isRemoveContainer: true,
-            ),
-          )),
+        automaticallyImplyLeading: true,
+        centerTitle: true,
+        title: Text(
+            screen == 'addManual' ? 'Add to $foodType' : 'Create Recipe',
+            style:
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -307,14 +287,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 //Recipe Title
                 Text(
                   screen == 'addManual' ? '$foodType Title' : recipeTitle,
-                  style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: textTheme.titleLarge,
                 ),
 
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
 
                 SafeTextFormField(
@@ -340,7 +317,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
 
                 // Quantity and Units Row
@@ -354,10 +331,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                         children: [
                           Text(
                             "Serving Size",
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: textTheme.titleLarge,
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
                           SafeTextFormField(
@@ -387,7 +361,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
 
                     SizedBox(
-                      width: getPercentageWidth(1, context),
+                      width: getPercentageWidth(2, context),
                     ),
 
                     // Serving Unit
@@ -398,10 +372,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                         children: [
                           Text(
                             "Unit",
-                            style: TextStyle(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: textTheme.titleLarge,
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
                           DropdownButtonFormField<String>(
@@ -424,7 +395,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                             items: unitOptions.map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
-                                child: Text(value),
+                                child: Text(value,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                        color: kDarkGrey)),
                               );
                             }).toList(),
                             onChanged: (String? newValue) {
@@ -443,20 +416,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ],
                 ),
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
 
                 //Calories Time
                 Text(
                   'Calories',
-                  style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: textTheme.titleLarge,
                 ),
 
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
 
                 SafeTextFormField(
@@ -491,10 +461,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
                 Text(
                   ingredients,
-                  style: TextStyle(
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: textTheme.titleLarge,
                 ),
 
                 SizedBox(
@@ -522,12 +489,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                 children: [
                                   Expanded(
                                     child: SafeTextFormField(
+                                      style: textTheme.titleLarge?.copyWith(
+                                          color: kLightGrey),
                                       decoration: InputDecoration(
                                         labelText: "Ingredient",
-                                        labelStyle: TextStyle(
-                                          fontSize: getTextScale(4, context),
-                                          color: kAccent,
-                                        ),
+                                        labelStyle: textTheme.titleLarge
+                                            ?.copyWith(color: kLightGrey),
                                         hintStyle: TextStyle(
                                           fontSize: getTextScale(3.5, context),
                                           color:
@@ -550,7 +517,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                       setState(() {
                                         ingredientQuantities[index] = val;
                                       });
-                                    }, true),
+                                    }, false),
                                   ),
                                   SizedBox(
                                       width: getPercentageWidth(2, context)),
@@ -566,7 +533,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                           ingredientUnits[index] = val;
                                         });
                                       },
-                                      true,
+                                      false,
                                       unitOptions,
                                     ),
                                   ),
@@ -593,24 +560,23 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           borderRadius: BorderRadius.circular(50),
                         ),
                       ),
-                      icon: Icon(Icons.add),
-                      label: Text("Add Ingredient"),
+                      icon: Icon(Icons.add, size: getIconScale(7, context)),
+                      label: Text("Add Ingredient",
+                          style: textTheme.bodyLarge?.copyWith(
+                              color: kWhite, fontWeight: FontWeight.w600)),
                       onPressed: _addIngredient,
                     ),
                   ],
                 ),
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
 
                 //Add Cover Image
                 Center(
                   child: Text(
                     addCoverImage,
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.titleLarge,
                   ),
                 ),
 
@@ -704,17 +670,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   //Cooking Instructions
                   Text(
                     cookingInstructions,
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.titleLarge,
                   ),
                   Text(
                     notes,
-                    style: TextStyle(
-                      fontSize: getTextScale(3, context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.bodyMedium,
                   ),
                   SizedBox(
                     height: getPercentageHeight(1, context),
@@ -748,17 +708,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   //Notes
                   Text(
                     category,
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.titleLarge,
                   ),
                   Text(
                     snippet,
-                    style: TextStyle(
-                      fontSize: getTextScale(3, context),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.bodyMedium,
                   ),
                   SizedBox(
                     height: getPercentageHeight(1, context),
@@ -772,10 +726,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       enabledBorder: outlineInputBorder(20),
                       focusedBorder: outlineInputBorder(20),
                       border: outlineInputBorder(20),
-                      labelStyle: const TextStyle(color: Color(0xffefefef)),
-                      hintStyle: TextStyle(
-                          color: kLightGrey,
-                          fontSize: getTextScale(4, context)),
+                      labelStyle: textTheme.bodyMedium,
+                      hintStyle: textTheme.bodyMedium,
                       hintText: notesHint,
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       contentPadding: EdgeInsets.only(

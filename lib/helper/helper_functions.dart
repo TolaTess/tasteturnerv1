@@ -45,7 +45,7 @@ Widget buildTastyFloatingActionButton({
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: kAccentLight.withOpacity(0.5),
+        color: kAccentLight.withValues(alpha: 0.5), 
         shape: BoxShape.circle,
         image: const DecorationImage(
           image: AssetImage(tastyImage),
@@ -84,7 +84,7 @@ Widget buildProfileAvatar({
 }) {
   return CircleAvatar(
     radius: getResponsiveBoxSize(context, outerRadius, outerRadius),
-    backgroundColor: backgroundColor ?? kAccent.withOpacity(kOpacity),
+      backgroundColor: backgroundColor ?? kAccent.withValues(alpha: kOpacity),
     child: CircleAvatar(
       radius: getResponsiveBoxSize(context, innerRadius, innerRadius),
       child: ClipOval(
@@ -629,9 +629,9 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
             withCircleUi: false,
             initialSize: 0.8,
             baseColor: Colors.black,
-            maskColor: Colors.black.withOpacity(0.5),
+            maskColor: Colors.black.withValues(alpha: 0.5),     
             cornerDotBuilder: (size, edgeAlignment) => Container(
-              width: size,
+              width: size,    
               height: size,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -648,7 +648,7 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
           TextButton(
             onPressed: () => controller.crop(),
             child: const Text('Crop'),
-          ),
+          ),  
         ],
       );
     },
@@ -744,9 +744,9 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
 }
 
 final colors = [
-  kAccent.withOpacity(kMidOpacity),
-  kBlue.withOpacity(kMidOpacity),
-  kAccentLight.withOpacity(kMidOpacity),
-  kPurple.withOpacity(kMidOpacity),
-  kPink.withOpacity(kMidOpacity)
+  kAccent.withValues(alpha: kMidOpacity),
+  kBlue.withValues(alpha: kMidOpacity),
+  kAccentLight.withValues(alpha: kMidOpacity),
+  kPurple.withValues(alpha: kMidOpacity),
+  kPink.withValues(alpha: kMidOpacity)
 ];

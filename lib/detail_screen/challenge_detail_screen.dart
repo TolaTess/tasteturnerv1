@@ -6,18 +6,21 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:tasteturner/detail_screen/recipe_detail.dart';
-import 'package:tasteturner/widgets/video_player_widget.dart';
+import 'package:provider/provider.dart';
 
 import '../constants.dart';
 import '../data_models/meal_model.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/friend_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../screens/food_analysis_results_screen.dart';
+import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/video_player_widget.dart';
+import 'recipe_detail.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
   final Map<String, dynamic> dataSrc;
@@ -133,11 +136,30 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   }
 
   Future<void> _loadMeal() async {
-    final meal = await mealManager.getMealbyMealID(_currentPostData['id']);
-    if (mounted) {
-      setState(() {
-        hasMeal = meal != null;
-      });
+    try {
+      final mealId = _currentPostData['id'];
+      print('mealId: $mealId');
+      if (mealId != null && mealId.toString().isNotEmpty) {
+        final meal = await mealManager.getMealbyMealID(mealId);
+        if (mounted) {
+          setState(() {
+            hasMeal = meal != null;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            hasMeal = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading meal: $e');
+      if (mounted) {
+        setState(() {
+          hasMeal = false;
+        });
+      }
     }
   }
 
@@ -147,9 +169,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     return isPremium || isInFreeTrial;
   }
 
+  bool get _isUserPost {
+    return _currentPostData['userId'] == userService.userId;
+  }
+
   // Show dialog to choose between manual recipe creation and AI analysis
   Future<void> _showRecipeChoiceDialog() async {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
     return showDialog<void>(
       context: context,
@@ -171,47 +198,50 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'How would you like to create your recipe?',
+                _isUserPost
+                    ? 'How would you like to create your recipe?'
+                    : 'How would you like to create this recipe?',
                 style: TextStyle(
                   color: isDarkMode
-                      ? kWhite.withOpacity(0.8)
-                      : kBlack.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7) 
+                      : kBlack.withValues(alpha: 0.7),
                   fontSize: getTextScale(3.5, context),
                 ),
               ),
               SizedBox(height: getPercentageHeight(2, context)),
 
               // Manual recipe option
-              ListTile(
-                leading: Icon(
-                  Icons.edit,
-                  color: kAccent,
-                  size: getResponsiveBoxSize(context, 24, 24),
-                ),
-                title: Text(
-                  'Create Manually',
-                  style: TextStyle(
-                    color: isDarkMode ? kWhite : kBlack,
-                    fontWeight: FontWeight.w500,
-                    fontSize: getTextScale(4, context),
+              if (_isUserPost)
+                ListTile(
+                  leading: Icon(
+                    Icons.edit,
+                    color: kAccent,
+                    size: getResponsiveBoxSize(context, 24, 24),
                   ),
-                ),
-                subtitle: Text(
-                  'Add ingredients and steps yourself',
-                  style: TextStyle(
-                    color: isDarkMode
-                        ? kWhite.withOpacity(0.6)
-                        : kBlack.withOpacity(0.6),
-                    fontSize: getTextScale(3, context),
+                  title: Text(
+                    'Create Manually',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w500,
+                      fontSize: getTextScale(4, context),
+                    ),
                   ),
+                  subtitle: Text(
+                    'Add ingredients and steps yourself',
+                    style: TextStyle(
+                      color: isDarkMode
+                          ? kWhite.withValues(alpha: 0.6)
+                          : kBlack.withValues(alpha: 0.6),
+                      fontSize: getTextScale(3, context),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _createManualRecipe();
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _createManualRecipe();
-                },
-              ),
-
-              SizedBox(height: getPercentageHeight(1, context)),
+              if (_isUserPost)
+                SizedBox(height: getPercentageHeight(1, context)),
 
               // AI analysis option
               ListTile(
@@ -249,8 +279,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                   style: TextStyle(
                     color: _canUseAI
                         ? (isDarkMode
-                            ? kWhite.withOpacity(0.6)
-                            : kBlack.withOpacity(0.6))
+                            ? kWhite.withValues(alpha: 0.6)
+                            : kBlack.withValues(alpha: 0.6))
                         : Colors.grey,
                     fontSize: getTextScale(3, context),
                   ),
@@ -258,7 +288,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                 onTap: _canUseAI
                     ? () {
                         Navigator.of(context).pop();
-                        _analyzeWithAI();
+                        _analyzeWithAI(isDarkMode);
                       }
                     : () {
                         Navigator.of(context).pop();
@@ -301,21 +331,23 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   }
 
   // AI analysis flow
-  Future<void> _analyzeWithAI() async {
+  Future<void> _analyzeWithAI(bool isDarkMode) async {
     try {
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: kAccent),
+              const CircularProgressIndicator(color: kAccent),
               SizedBox(height: getPercentageHeight(2, context)),
               Text(
                 'Analyzing food image with AI...',
                 style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
                   fontSize: getTextScale(3.5, context),
                 ),
               ),
@@ -345,7 +377,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       // Analyze the image with AI
       final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: tempFile,
-        mealType: 'general', // Default meal type
+        mealType: getMealTimeOfDay(), // Default meal type
       );
 
       Navigator.pop(context); // Close loading dialog
@@ -357,7 +389,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           builder: (context) => FoodAnalysisResultsScreen(
             imageFile: tempFile,
             analysisResult: analysisResult,
-            mealType: 'general',
+            postId: _currentPostData['id'] ?? '',
           ),
         ),
       );
@@ -369,7 +401,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
   // Show premium required dialog
   void _showPremiumRequiredDialog() {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
     showDialog(
       context: context,
@@ -390,7 +423,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
           style: TextStyle(
             color:
-                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+                isDarkMode ? kWhite.withValues(alpha: 0.8) : kBlack.withValues(alpha: 0.7),
             fontSize: getTextScale(3.5, context),
           ),
         ),
@@ -427,7 +460,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
   // Show error dialog
   void _showErrorDialog(String message) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
     showDialog(
       context: context,
@@ -448,7 +482,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           message,
           style: TextStyle(
             color:
-                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+                isDarkMode ? kWhite.withValues(alpha: 0.8) : kBlack.withValues(alpha: 0.7),
             fontSize: getTextScale(3.5, context),
           ),
         ),
@@ -697,12 +731,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             shadows: [
               Shadow(
                 blurRadius: 10.0,
-                color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                 offset: const Offset(0, 0),
               ),
             ],
           ),
-        ),
+        ),    
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -772,7 +806,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                   padding: EdgeInsets.symmetric(
                       vertical: getPercentageHeight(1, context)),
                   decoration: BoxDecoration(
-                    color: kAccent.withOpacity(0.1),
+                    color: kAccent.withValues(alpha: 0.1),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -794,7 +828,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           ),
                           child: CircleAvatar(
                             radius: getResponsiveBoxSize(context, 17, 17),
-                            backgroundColor: kAccent.withOpacity(kOpacity),
+                            backgroundColor: kAccent.withValues(alpha: kOpacity),
                             child: CircleAvatar(
                               backgroundImage:
                                   _currentPostData['profileImage'] != null &&
@@ -813,7 +847,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             ),
                           ),
                         ),
-                      SizedBox(width: getPercentageWidth(4, context)),    
+                      SizedBox(width: getPercentageWidth(4, context)),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -841,7 +875,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           },
                           child: CircleAvatar(
                             radius: getResponsiveBoxSize(context, 17, 17),
-                            backgroundColor: kAccent.withOpacity(kOpacity),
+                              backgroundColor: kAccent.withValues(alpha: kOpacity),
                             child: Icon(
                               Icons.add_circle,
                               color: kWhite,

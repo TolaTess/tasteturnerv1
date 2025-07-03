@@ -31,8 +31,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final TextEditingController targetStepsController = TextEditingController();
   final TextEditingController heightController = TextEditingController();
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
-  String selectedCategory = 'balanced';
-  String selectedCategoryId = '';
   String selectedDietCategoryId = '';
   String selectedDietCategoryName = '';
 
@@ -41,11 +39,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     super.initState();
 
     _categoryDatasIngredient = [...helperController.category];
-
-    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
-    }
 
     final user = userService.currentUser.value;
     if (user != null) {
@@ -90,13 +83,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     super.dispose();
   }
 
-  void _updateCategoryData(String categoryId, String category) {
-    if (!mounted) return;
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedCategory = category;
-    });
-  }
 
   void _saveSettings() {
     if (_formKey.currentState?.validate() ?? false) {

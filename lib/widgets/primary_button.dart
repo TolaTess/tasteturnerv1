@@ -45,22 +45,22 @@ class AppButton extends StatelessWidget {
     switch (type) {
       case AppButtonType.primary:
         btnColor = isDarkMode
-            ? kDarkModeAccent.withOpacity(0.50)
-            : kAccent.withOpacity(0.50);
+            ? kDarkModeAccent.withValues(alpha: 0.50)
+            : kAccent.withValues(alpha: 0.50);
         txtColor = isDarkMode ? kWhite : kDarkGrey;
         borderCol = btnColor;
         break;
       case AppButtonType.secondary:
         btnColor = isDarkMode
-            ? kDarkModeAccent.withOpacity(0.50)
-            : kAccentLight.withOpacity(0.50);
+            ? kDarkModeAccent.withValues(alpha: 0.50)
+            : kAccentLight.withValues(alpha: 0.50);
         txtColor = isDarkMode ? kWhite : kDarkGrey;
         borderCol = btnColor;
         break;
       case AppButtonType.follow:
         btnColor = isDarkMode
-            ? kLightGrey.withOpacity(0.35)
-            : kAccent.withOpacity(kOpacity);
+              ? kLightGrey.withValues(alpha: 0.35)
+            : kAccent.withValues(alpha: kOpacity);
         txtColor = kWhite;
         borderCol = btnColor;
         break;
@@ -97,7 +97,11 @@ class AppButton extends StatelessWidget {
                     child: Text(
                       text,
                       style: textTheme.displaySmall?.copyWith(
-                          color: txtColor, fontWeight: FontWeight.w600, fontSize: getPercentageWidth(6.5, context)),
+                          color: txtColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: type == AppButtonType.follow
+                              ? getPercentageWidth(5.5, context)
+                              : getPercentageWidth(6.5, context)),
                     ),
                   ),
                 ],

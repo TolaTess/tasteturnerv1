@@ -335,7 +335,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                 : null,
             child: Container(
               decoration: BoxDecoration(
-                color: kAccent.withOpacity(0.1),
+                  color: kAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: EdgeInsets.all(getPercentageWidth(3, context)),
@@ -387,7 +387,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                         Text(
                           'Tap to view recipe',
                           style: textTheme.labelSmall?.copyWith(
-                            color: kAccent.withOpacity(0.7),
+                            color: kAccent.withValues(alpha: 0.7),
                           ),
                           textAlign: TextAlign.center,
                         ),

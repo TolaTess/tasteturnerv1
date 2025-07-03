@@ -327,12 +327,12 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               vertical: getPercentageHeight(0.5, context)),
           decoration: BoxDecoration(
             color: isDarkMode
-                ? kDarkGrey.withOpacity(0.9)
-                : kWhite.withOpacity(0.9),
+                ? kDarkGrey.withValues(alpha: 0.9)
+                : kWhite.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -365,11 +365,11 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
         decoration: BoxDecoration(
           color:
-              isDarkMode ? kDarkGrey.withOpacity(0.9) : kWhite.withOpacity(0.9),
+              isDarkMode ? kDarkGrey.withValues(alpha: 0.9) : kWhite.withValues(alpha: 0.9),    
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -404,7 +404,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: kAccent.withOpacity(0.2),
+                            color: kAccent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(

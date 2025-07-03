@@ -42,11 +42,11 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
   Map<String, dynamic> mealPlan = {};
   List<MealWithType> meals = [];
   final colors = [
-    kAccent.withOpacity(kMidOpacity),
-    kBlue.withOpacity(kMidOpacity),
-    kAccentLight.withOpacity(kMidOpacity),
-    kPurple.withOpacity(kMidOpacity),
-    kPink.withOpacity(kMidOpacity)
+    kAccent.withValues(alpha: kMidOpacity),
+    kBlue.withValues(alpha: kMidOpacity),
+    kAccentLight.withValues(alpha: kMidOpacity),
+    kPurple.withValues(alpha: kMidOpacity),
+    kPink.withValues(alpha: kMidOpacity)
   ];
 
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
@@ -169,8 +169,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                     labelText: 'Name',
                     labelStyle: TextStyle(
                         color: isDarkMode
-                            ? kWhite.withOpacity(0.5)
-                            : kDarkGrey.withOpacity(0.5))),
+                            ? kWhite.withValues(alpha: 0.5)
+                            : kDarkGrey.withValues(alpha: 0.5))),
               ),
               goalOptions.isNotEmpty
                   ? DropdownButtonFormField<String>(
@@ -190,8 +190,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                         labelText: 'Goal',
                         labelStyle: TextStyle(
                             color: isDarkMode
-                                ? kWhite.withOpacity(0.5)
-                                : kDarkGrey.withOpacity(0.5)),
+                                ? kWhite.withValues(alpha: 0.5)
+                                : kDarkGrey.withValues(alpha: 0.5)),
                       ),
                       dropdownColor: isDarkMode ? kDarkGrey : kWhite,
                       style: TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
@@ -203,8 +203,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                         labelText: 'Goal',
                         labelStyle: TextStyle(
                             color: isDarkMode
-                                ? kWhite.withOpacity(0.5)
-                                : kDarkGrey.withOpacity(0.5)),
+                                ? kWhite.withValues(alpha: 0.5)
+                                : kDarkGrey.withValues(alpha: 0.5)),
                       ),
                     ),
               TextField(
@@ -214,8 +214,8 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
                   labelText: 'Calorie Target',
                   labelStyle: TextStyle(
                       color: isDarkMode
-                          ? kWhite.withOpacity(0.5)
-                          : kDarkGrey.withOpacity(0.5)),
+                          ? kWhite.withValues(alpha: 0.5)
+                          : kDarkGrey.withValues(alpha: 0.5)),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -314,7 +314,7 @@ class _DailyNutritionOverview1State extends State<DailyNutritionOverview> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(32),
                 color: colors[selectedUserIndex % colors.length]
-                    .withOpacity(kMidOpacity),
+                    .withValues(alpha: kMidOpacity),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(32),
@@ -443,11 +443,11 @@ class UserDetailsSection extends StatelessWidget {
                     horizontal: getPercentageWidth(3, context),
                     vertical: getPercentageHeight(0.8, context)),
                 decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.85),
+                  color: kAccent.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: kAccent.withOpacity(0.18),
+                      color: kAccent.withValues(alpha: 0.18),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -480,7 +480,7 @@ class UserDetailsSection extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: kAccent.withOpacity(0.13),
+                    color: kAccent.withValues(alpha: 0.13),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.edit,
@@ -498,7 +498,7 @@ class UserDetailsSection extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: kAccent.withOpacity(0.13),
+                    color: kAccent.withValues(alpha: 0.13),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -535,8 +535,8 @@ class UserDetailsSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: isDarkMode
-                          ? kDarkGrey.withOpacity(0.18)
-                          : kWhite.withOpacity(0.18),
+                          ? kDarkGrey.withValues(alpha: 0.18)
+                          : kWhite.withValues(alpha: 0.18),
                     ),
                   ),
                   AnimatedContainer(
@@ -552,7 +552,7 @@ class UserDetailsSection extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: kAccent.withOpacity(0.18),
+                            color: kAccent.withValues(alpha: 0.18),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -629,7 +629,7 @@ class MealPlanSection extends StatelessWidget {
                     horizontal: getPercentageWidth(1, context),
                     vertical: getPercentageHeight(1, context)),
                 decoration: BoxDecoration(
-                  color: kAccent.withOpacity(0.13),
+                  color: kAccent.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -687,17 +687,17 @@ class MealPlanSection extends StatelessWidget {
                             vertical: getPercentageHeight(1.5, context),
                           ),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.08),
+                            color: color.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(18),
                             boxShadow: [
                               BoxShadow(
-                                color: color.withOpacity(0.3),
+                                color: color.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                             border: Border.all(
-                              color: color.withOpacity(0.18),
+                              color: color.withValues(alpha: 0.18),
                               width: 1.2,
                             ),
                           ),
@@ -737,7 +737,7 @@ class MealPlanSection extends StatelessWidget {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: kAccent.withOpacity(0.5),
+                                  color: kAccent.withValues(alpha: 0.5),
                                   blurRadius: getPercentageWidth(1, context),
                                   offset: const Offset(0, 2),
                                 ),
@@ -774,7 +774,7 @@ class MealPlanSection extends StatelessWidget {
                                         (mealPlan['dayType'] ?? '')
                                             .replaceAll('_', ' '),
                                         isDarkMode)
-                                    .withOpacity(0.13),
+                                    .withValues(alpha: 0.13),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -844,7 +844,7 @@ class FamilySelectorSection extends StatelessWidget {
                 boxShadow: [
                   if (i == selectedUserIndex)
                     BoxShadow(
-                      color: kAccent.withOpacity(0.18),
+                      color: kAccent.withValues(alpha: 0.18),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -855,8 +855,8 @@ class FamilySelectorSection extends StatelessWidget {
                 backgroundColor: i == selectedUserIndex
                     ? kAccent
                     : isDarkMode
-                        ? kDarkGrey.withOpacity(0.18)
-                        : kWhite.withOpacity(0.25),
+                          ? kDarkGrey.withValues(alpha: 0.18)
+                          : kWhite.withValues(alpha: 0.25),
                 child: fam['avatar'] == null
                     ? getAvatar(fam['ageGroup'], context, isDarkMode)
                     : ClipOval(

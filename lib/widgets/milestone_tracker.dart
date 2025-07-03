@@ -28,11 +28,11 @@ class MilestonesTracker extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context)),
       decoration: BoxDecoration(
         color: isDarkMode
-            ? kDarkGrey.withOpacity(0.5)
-            : kAccentLight.withOpacity(0.1),
+            ? kDarkGrey.withValues(alpha: 0.5)
+            : kAccentLight.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: kAccent.withOpacity(0.3),
+          color: kAccent.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -54,8 +54,8 @@ class MilestonesTracker extends StatelessWidget {
                   : 'No active programs',
               style: textTheme.bodyMedium?.copyWith(
                 color: isDarkMode
-                    ? kWhite.withOpacity(0.8)
-                    : kDarkGrey.withOpacity(0.8),
+                      ? kWhite.withValues(alpha: 0.8)
+                    : kDarkGrey.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500,
               ),
             ),

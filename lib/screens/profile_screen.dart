@@ -226,7 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final fitnessGoal =
         userService.currentUser.value?.settings['fitnessGoal'] ?? '';
     final shouldShowGoals =
-        ["Family Nutrition", "AI Guidance"].contains(fitnessGoal);
+        ["Family Nutrition"].contains(fitnessGoal);
 
     return Scaffold(
       body: SafeArea(

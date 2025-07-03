@@ -259,7 +259,7 @@ class _TastyScreenState extends State<TastyScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -410,8 +410,8 @@ class _TastyScreenState extends State<TastyScreen> {
                   hintText: _getInputHintText(),
                   hintStyle: textTheme.bodyMedium?.copyWith(
                     color: isDarkMode
-                        ? kWhite.withOpacity(0.5)
-                        : kDarkGrey.withOpacity(0.5),
+                          ? kWhite.withValues(alpha: 0.5)
+                        : kDarkGrey.withValues(alpha: 0.5),
                   ),
                 ),
               ),
@@ -475,14 +475,10 @@ class _TastyScreenState extends State<TastyScreen> {
           userService.currentUser.value?.settings['goalWeight'] ?? 0.0,
       'startingWeight':
           userService.currentUser.value?.settings['startingWeight'] ?? 0.0,
-      'gender': userService.currentUser.value?.settings['gender'] ?? '',
       'foodGoal': userService.currentUser.value?.settings['foodGoal'] ?? 0.0,
       'dietPreference':
           userService.currentUser.value?.settings['dietPreference'] ??
               'Balanced',
-      'bodyType': userService.currentUser.value?.settings['bodyType'] ?? '',
-      'bodyTypeSymptoms':
-          userService.currentUser.value?.settings['bodyTypeSymptoms'] ?? '',
     };
   }
 
@@ -496,11 +492,8 @@ Greet the user warmly and offer guidance based on:
 - Current Weight: ${userContext['currentWeight']}
 - Goal Weight: ${userContext['goalWeight']}
 - Starting Weight: ${userContext['startingWeight']}
-- Gender: ${userContext['gender']}
 - Food Goal: ${userContext['foodGoal']}
 - Diet Preference: ${userContext['dietPreference']}
-- Body Type: ${userContext['bodyType']}
-- Body Type Symptoms: ${userContext['bodyTypeSymptoms']}
 """;
   }
 
@@ -663,18 +656,18 @@ Greet the user warmly and offer guidance based on:
 
   // Helper: Get last Gemini welcome date
   Future<DateTime?> _getLastGeminiWelcomeDate() async {
-    final prefs = await SharedPreferences.getInstance();
+    final preference = await SharedPreferences.getInstance();
     final key = 'last_gemini_welcome_date_${userService.userId}';
-    final dateString = prefs.getString(key);
+    final dateString = preference.getString(key);
     if (dateString == null) return null;
     return DateTime.tryParse(dateString);
   }
 
   // Helper: Set last Gemini welcome date
   Future<void> _setLastGeminiWelcomeDate(DateTime date) async {
-    final prefs = await SharedPreferences.getInstance();
+    final preference = await SharedPreferences.getInstance();
     final key = 'last_gemini_welcome_date_${userService.userId}';
-    await prefs.setString(key, date.toIso8601String());
+    await preference.setString(key, date.toIso8601String());
   }
 
   Future<void> _initializeChatWithBuddy() async {
@@ -785,8 +778,8 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> checkAndPromptAIPayment(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final startDateStr = prefs.getString('ai_trial_start_date');
+    final preference = await SharedPreferences.getInstance();
+    final startDateStr = preference.getString('ai_trial_start_date');
     final textTheme = Theme.of(context).textTheme;
     if (startDateStr != null) {
       final startDate = DateTime.parse(startDateStr);

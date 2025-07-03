@@ -30,7 +30,7 @@ AnimatedContainer buildDot(int? index) {
     height: 8,
     width: 8,
     decoration: BoxDecoration(
-      color: currentPage == index ? kAccent : kWhite.withOpacity(0.50),
+      color: currentPage == index ? kAccent : kWhite.withValues(alpha: 0.50), 
       borderRadius: BorderRadius.circular(50),
     ),
   );
@@ -372,6 +372,7 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
     Function(int) onChanged, bool isColorChange,
     [List<String>? labels]) {
   final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
 
   return CupertinoPicker(
     scrollController: FixedExtentScrollController(initialItem: selectedValue),
@@ -383,13 +384,9 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
         child: Text(
           textAlign: TextAlign.center,
           labels != null ? labels[index] : index.toString(),
-          style: TextStyle(
-              color: isDarkMode
-                  ? isColorChange
-                      ? kBlack
-                      : kWhite
-                  : kBlack,
-              fontSize: getTextScale(4, context)),
+          style: textTheme.bodyMedium?.copyWith(
+            color: isColorChange ? kWhite : kDarkGrey,
+          ),
         ),
       ),
     ),
@@ -403,7 +400,7 @@ void showTastySnackbar(String title, String message, BuildContext context,
     title,
     message,
     snackPosition: SnackPosition.BOTTOM,
-    backgroundColor: backgroundColor ?? kAccentLight.withOpacity(0.5),
+    backgroundColor: backgroundColor ?? kAccentLight.withValues(alpha: 0.5),
   );
 }
 

@@ -18,8 +18,13 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey<SearchContentGridState> _gridKey =
       GlobalKey<SearchContentGridState>();
 
+  String selectedGoal = 'general';
+
   Future<void> _refreshPosts() async {
     // Clear cache and refresh
+    setState(() {
+      selectedGoal = 'general';
+    });
     PostService.instance.clearCategoryCache('general');
 
     // Trigger refresh in SearchContentGrid
@@ -31,7 +36,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.check_circle, color: kWhite, size: 20),
               SizedBox(width: 8),
@@ -53,30 +58,34 @@ class _InspirationScreenState extends State<InspirationScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
-
+    final userGoal = userService.currentUser.value?.settings['dietPreference'];
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
         toolbarHeight: getPercentageHeight(10, context),
         automaticallyImplyLeading: false,
         centerTitle: true,
-        title: Text(
-          "What's on Your Plate?",
-          style: textTheme.displayMedium?.copyWith(),
-        ),
-        actions: [
-          // Refresh button
-          IconButton(
-            onPressed: _refreshPosts,
-            icon: Icon(
-              Icons.refresh,
-              color: isDarkMode ? kWhite : kBlack,
-              size: 24,
+        title: Column(
+          children: [
+            Text(
+              "What's on Your Plate?",
+              style: textTheme.displayMedium?.copyWith(),
             ),
-            tooltip: 'Refresh posts',
-          ),
-          SizedBox(width: getPercentageWidth(2, context)),
-        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle,
+                    color: kWhite, size: getIconScale(3.5, context)),
+                SizedBox(width: 8),
+                Text(
+                  "Your $userGoal goal",
+                  style: textTheme.bodySmall
+                      ?.copyWith(fontSize: getTextScale(2.5, context)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -99,7 +108,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
             key: _gridKey,
             screenLength: 24, // Show more images on this dedicated screen
             listType: 'battle_post',
-            selectedCategory: 'general',
+            selectedCategory: selectedGoal,
           ),
         ),
       ),

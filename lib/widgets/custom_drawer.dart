@@ -93,9 +93,8 @@ class CustomDrawer extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: themeProvider.isDarkMode
-                      ? kPrimaryColor.withOpacity(0.1)
-                      : kPrimaryColor.withOpacity(
-                          0.3), // Color should be inside BoxDecoration
+                      ? kPrimaryColor.withValues(alpha: 0.1)    
+                      : kPrimaryColor.withValues(alpha: 0.3), // Color should be inside BoxDecoration
                   borderRadius: BorderRadius.circular(5), // Border radius
                 ),
                 child: DrawerItem(

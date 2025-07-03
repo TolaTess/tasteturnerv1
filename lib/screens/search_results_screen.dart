@@ -253,7 +253,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                             padding: EdgeInsets.all(
                                 getPercentageWidth(0.8, context)),
                             decoration: BoxDecoration(
-                              color: kAccent.withOpacity(0.1),
+                              color: kAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const CircularProgressIndicator(
@@ -267,7 +267,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                               padding: EdgeInsets.symmetric(
                                   horizontal: getPercentageWidth(2, context),
                                   vertical: getPercentageHeight(1, context)),
-                              backgroundColor: kAccent.withOpacity(0.1),
+                                backgroundColor: kAccent.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),

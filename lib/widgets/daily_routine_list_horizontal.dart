@@ -258,7 +258,7 @@ class _DailyRoutineListHorizontalState
           child: Text(
             'No routines set. Go to settings to add a routine.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? kWhite.withOpacity(0.5) : Colors.grey,
+                  color: isDarkMode ? kWhite.withValues(alpha: 0.5) : Colors.grey,
                 ),
           ),
         );
@@ -308,8 +308,8 @@ class _DailyRoutineListHorizontalState
             padding: EdgeInsets.all(getPercentageWidth(1, context)),
             decoration: BoxDecoration(
               color: isCompleted
-                  ? kAccent.withOpacity(0.3)
-                  : kAccent.withOpacity(0.1),
+                  ? kAccent.withValues(alpha: 0.3)
+                  : kAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -322,10 +322,10 @@ class _DailyRoutineListHorizontalState
                         color: isDarkMode
                         ? isCompleted
                             ? kWhite
-                            : kWhite.withOpacity(0.5)
+                            : kWhite.withValues(alpha: 0.5)
                         : isCompleted
                             ? kBlack
-                            : kBlack.withOpacity(0.5),
+                            : kBlack.withValues(alpha: 0.5),
                   ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
@@ -337,10 +337,10 @@ class _DailyRoutineListHorizontalState
                         color: isDarkMode
                             ? isCompleted
                                 ? kWhite
-                                : kWhite.withOpacity(0.5)
+                                : kWhite.withValues(alpha: 0.5)
                             : isCompleted
                                 ? kBlack
-                                : kBlack.withOpacity(0.5),
+                                : kBlack.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -391,20 +391,20 @@ class _DailyRoutineListHorizontalState
                 decoration: BoxDecoration(
                   color: isDarkMode
                       ? isCompleted
-                          ? kLightGrey.withOpacity(0.5)
+                          ? kLightGrey.withValues(alpha: 0.5)
                           : kDarkGrey
                       : isCompleted
-                          ? kAccentLight.withOpacity(0.5)
+                          ? kAccentLight.withValues(alpha: 0.5)
                           : kWhite,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isDarkMode
                         ? isCompleted
-                            ? kLightGrey.withOpacity(0.5)
-                            : kDarkGrey.withOpacity(0.5)
+                            ? kLightGrey.withValues(alpha: 0.5)
+                            : kDarkGrey.withValues(alpha: 0.5)
                         : isCompleted
-                            ? kAccentLight.withOpacity(0.5)
-                            : kDarkGrey.withOpacity(0.5),
+                            ? kAccentLight.withValues(alpha: 0.5)
+                            : kDarkGrey.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Column(

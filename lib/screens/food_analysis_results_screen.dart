@@ -2,19 +2,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/primary_button.dart';
 
 class FoodAnalysisResultsScreen extends StatefulWidget {
   final File imageFile;
   final Map<String, dynamic> analysisResult;
-  final String mealType;
+  final String? postId;
 
   const FoodAnalysisResultsScreen({
     super.key,
     required this.imageFile,
     required this.analysisResult,
-    required this.mealType,
+    this.postId = '',
   });
 
   @override
@@ -25,6 +26,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
 class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   late Map<String, dynamic> _editableAnalysis;
   bool _isSaving = false;
+  bool _hasCreatedMeal = false;
 
   @override
   void initState() {
@@ -42,6 +44,44 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     if (score >= 8) return 'Excellent nutritional choice!';
     if (score >= 6) return 'Good with room for improvement';
     return 'Consider healthier alternatives';
+  }
+
+  Future<void> _createMealOnly() async {
+    if (_hasCreatedMeal) return; // Don't create meal twice
+
+    try {
+      // Upload image to Firebase Storage
+      String imagePath =
+          'food_analysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final uploadTask =
+          await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      final mealType = getMealTimeOfDay();
+
+      // Save analysis to tastyanalysis collection
+      await geminiService.saveAnalysisToFirestore(
+        analysisResult: _editableAnalysis,
+        userId: userService.userId ?? '',
+        imagePath: downloadUrl,
+      );
+
+      // Create meal from analysis only
+      await geminiService.createMealFromAnalysis(
+        analysisResult: _editableAnalysis,
+        userId: tastyId,
+        mealType: mealType,
+        imagePath: downloadUrl,
+        mealId: widget.postId?.isNotEmpty == true ? widget.postId : null,
+      );
+
+      setState(() {
+        _hasCreatedMeal = true;
+      });
+    } catch (e) {
+      print('Failed to create meal: $e');
+      // Don't show error dialog on back navigation, just fail silently
+    }
   }
 
   Future<void> _saveAnalysis() async {
@@ -64,32 +104,38 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         imagePath: downloadUrl,
       );
 
+      final mealType = getMealTimeOfDay();
+
       // Create meal from analysis
       final mealId = await geminiService.createMealFromAnalysis(
         analysisResult: _editableAnalysis,
-        userId: userService.userId ?? '',
-        mealType: widget.mealType,
+        userId: tastyId,
+        mealType: mealType,
         imagePath: downloadUrl,
+        mealId: widget.postId?.isNotEmpty == true ? widget.postId : null,
       );
 
       // Add to daily meals
       await geminiService.addAnalyzedMealToDaily(
         mealId: mealId,
         userId: userService.userId ?? '',
-        mealType: widget.mealType,
+        mealType: mealType,
         analysisResult: _editableAnalysis,
       );
+
+      setState(() {
+        _hasCreatedMeal = true;
+      });
 
       // Show success message
       showTastySnackbar(
         'Success!',
-        'Food analyzed and added to your ${widget.mealType.toLowerCase()} meals.',
+        'Food analyzed and added to your ${mealType.toLowerCase()} meals.',
         context,
         backgroundColor: kAccent,
       );
 
-      // Navigate back to the add food screen
-      Navigator.of(context).pop();
+      // Navigate back to the previous screen
       Navigator.of(context).pop();
     } catch (e) {
       _showErrorDialog('Failed to save analysis: $e');
@@ -98,6 +144,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         _isSaving = false;
       });
     }
+  }
+
+  Future<bool> _onWillPop() async {
+    // Create meal only when user goes back without saving
+    if (!_hasCreatedMeal && !_isSaving) {
+      await _createMealOnly();
+    }
+    return true; // Allow navigation back
   }
 
   void _showErrorDialog(String message) {
@@ -177,10 +231,10 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(3, context)),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -208,8 +262,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             style: TextStyle(
               fontSize: getTextScale(2, context),
               color: isDarkMode
-                  ? kWhite.withOpacity(0.7)
-                  : kDarkGrey.withOpacity(0.7),
+                  ? kWhite.withValues(alpha: 0.7)
+                  : kDarkGrey.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -226,302 +280,307 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
     final healthScore = _editableAnalysis['healthScore'] as int? ?? 5;
 
-    return Scaffold(
-      backgroundColor: isDarkMode ? kBlack : kWhite,
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
         backgroundColor: isDarkMode ? kBlack : kWhite,
-        elevation: 0,
-        automaticallyImplyLeading: true,
-        title: Text(
-          'Food Analysis Results',
-          style: textTheme.displaySmall?.copyWith(
-            color: isDarkMode ? kWhite : kBlack,
-            fontSize: getTextScale(6, context),
-            fontWeight: FontWeight.w600,
+        appBar: AppBar(
+          backgroundColor: isDarkMode ? kBlack : kWhite,
+          elevation: 0,
+          automaticallyImplyLeading: true,
+          title: Text(
+            'Food Analysis Results',
+            style: textTheme.displaySmall?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+              fontSize: getTextScale(6, context),
+              fontWeight: FontWeight.w600,
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: _isSaving ? null : _saveAnalysis,
+              child: Text(
+                'Save',
+                style: textTheme.displayMedium?.copyWith(
+                  color: kAccent,
+                  fontSize: getTextScale(4, context),
+                  fontWeight: FontWeight.w200,
+                ),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _saveAnalysis,
-            child: Text(
-              'Save',
-              style: textTheme.displayMedium?.copyWith(
-                color: kAccent,
-                fontSize: getTextScale(4, context),
-                fontWeight: FontWeight.w200,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: _isSaving
-          ? const Center(
-              child: CircularProgressIndicator(color: kAccent),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image preview
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      widget.imageFile,
-                      height: getPercentageHeight(25, context),
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Health Score
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? kDarkGrey : kWhite,
+        body: _isSaving
+            ? const Center(
+                child: CircularProgressIndicator(color: kAccent),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Image preview
+                    ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      child: Image.file(
+                        widget.imageFile,
+                        height: getPercentageHeight(25, context),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    child: Row(
+
+                    const SizedBox(height: 20),
+
+                    // Health Score
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? kDarkGrey : kWhite,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _getHealthScoreColor(healthScore)
+                                  .withValues(alpha: 0.2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$healthScore',
+                                style: TextStyle(
+                                  fontSize: getTextScale(6, context),
+                                  fontWeight: FontWeight.bold,
+                                  color: _getHealthScoreColor(healthScore),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Health Score',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontSize: getTextScale(4, context),
+                                    fontWeight: FontWeight.w600,
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                  ),
+                                ),
+                                Text(
+                                  _getHealthScoreDescription(healthScore),
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontSize: getTextScale(3, context),
+                                    color: isDarkMode
+                                        ? kWhite.withValues(alpha: 0.7)
+                                        : kDarkGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Nutrition Summary
+                    Text(
+                      'Nutrition Summary',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontSize: getTextScale(5, context),
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 2.5,
                       children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _getHealthScoreColor(healthScore)
-                                .withOpacity(0.2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$healthScore',
-                              style: TextStyle(
-                                fontSize: getTextScale(6, context),
-                                fontWeight: FontWeight.bold,
-                                color: _getHealthScoreColor(healthScore),
-                              ),
-                            ),
+                        _buildNutritionCard(
+                          title: 'Calories',
+                          value: '${totalNutrition['calories'] ?? 0}',
+                          unit: 'kcal',
+                          color: Colors.orange,
+                        ),
+                        _buildNutritionCard(
+                          title: 'Protein',
+                          value: '${totalNutrition['protein'] ?? 0}',
+                          unit: 'grams',
+                          color: Colors.blue,
+                        ),
+                        _buildNutritionCard(
+                          title: 'Carbs',
+                          value: '${totalNutrition['carbs'] ?? 0}',
+                          unit: 'grams',
+                          color: Colors.green,
+                        ),
+                        _buildNutritionCard(
+                          title: 'Fat',
+                          value: '${totalNutrition['fat'] ?? 0}',
+                          unit: 'grams',
+                          color: Colors.purple,
+                        ),
+                      ],
+                    ),
+
+                    // Detected Food Items
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Detected Food Items',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontSize: getTextScale(5, context),
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? kWhite : kDarkGrey,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Health Score',
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontSize: getTextScale(4, context),
-                                  fontWeight: FontWeight.w600,
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                ),
-                              ),
-                              Text(
-                                _getHealthScoreDescription(healthScore),
-                                style: textTheme.bodyMedium?.copyWith(
-                                  fontSize: getTextScale(3, context),
-                                  color: isDarkMode
-                                      ? kWhite.withOpacity(0.7)
-                                      : kDarkGrey,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          'Tap to edit',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontSize: getTextScale(3, context),
+                            color: kAccent,
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
 
-                  const SizedBox(height: 20),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: foodItems.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final foodItem =
+                            foodItems[index] as Map<String, dynamic>;
+                        final nutrition =
+                            foodItem['nutritionalInfo'] as Map<String, dynamic>;
 
-                  // Nutrition Summary
-                  Text(
-                    'Nutrition Summary',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontSize: getTextScale(5, context),
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                    ),
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 2.5,
-                    children: [
-                      _buildNutritionCard(
-                        title: 'Calories',
-                        value: '${totalNutrition['calories'] ?? 0}',
-                        unit: 'kcal',
-                        color: Colors.orange,
-                      ),
-                      _buildNutritionCard(
-                        title: 'Protein',
-                        value: '${totalNutrition['protein'] ?? 0}',
-                        unit: 'grams',
-                        color: Colors.blue,
-                      ),
-                      _buildNutritionCard(
-                        title: 'Carbs',
-                        value: '${totalNutrition['carbs'] ?? 0}',
-                        unit: 'grams',
-                        color: Colors.green,
-                      ),
-                      _buildNutritionCard(
-                        title: 'Fat',
-                        value: '${totalNutrition['fat'] ?? 0}',
-                        unit: 'grams',
-                        color: Colors.purple,
-                      ),
-                    ],
-                  ),
-
-                  // Detected Food Items
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Detected Food Items',
-                        style: textTheme.titleMedium?.copyWith(
-                          fontSize: getTextScale(5, context),
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                        ),
-                      ),
-                      Text(
-                        'Tap to edit',
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontSize: getTextScale(3, context),
-                          color: kAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: foodItems.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final foodItem = foodItems[index] as Map<String, dynamic>;
-                      final nutrition =
-                          foodItem['nutritionalInfo'] as Map<String, dynamic>;
-
-                      return GestureDetector(
-                        onTap: () => _editFoodItem(index),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? kDarkGrey : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isDarkMode ? kDarkGrey : Colors.grey[300]!,
-                              width: 1,
+                        return GestureDetector(
+                          onTap: () => _editFoodItem(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isDarkMode ? kDarkGrey : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    isDarkMode ? kDarkGrey : Colors.grey[300]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        foodItem['name'] ?? 'Unknown Food',
+                                        style: textTheme.titleMedium?.copyWith(
+                                          fontSize: getTextScale(4, context),
+                                          fontWeight: FontWeight.w600,
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.edit,
+                                      color: kAccent,
+                                      size: getIconScale(5, context),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Weight: ${foodItem['estimatedWeight'] ?? 'Unknown'}g',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontSize: getTextScale(3, context),
+                                    color: isDarkMode
+                                          ? kWhite.withValues(alpha: 0.7)
+                                        : kDarkGrey,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${nutrition['calories'] ?? 0} cal',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          fontSize: getTextScale(3, context),
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        '${nutrition['protein'] ?? 0}g protein',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          fontSize: getTextScale(3, context),
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      foodItem['name'] ?? 'Unknown Food',
-                                      style: textTheme.titleMedium?.copyWith(
-                                        fontSize: getTextScale(4, context),
-                                        fontWeight: FontWeight.w600,
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.edit,
-                                    color: kAccent,
-                                    size: getIconScale(5, context),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Weight: ${foodItem['estimatedWeight'] ?? 'Unknown'}g',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  fontSize: getTextScale(3, context),
-                                  color: isDarkMode
-                                      ? kWhite.withOpacity(0.7)
-                                      : kDarkGrey,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${nutrition['calories'] ?? 0} cal',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        fontSize: getTextScale(3, context),
-                                        color: Colors.orange,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      '${nutrition['protein'] ?? 0}g protein',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        fontSize: getTextScale(3, context),
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
 
-                  SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(1, context)),
 
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: _isSaving
-                        ? const Center(
-                            child: CircularProgressIndicator(color: kAccent),
-                          )
-                        : AppButton(
-                            text:
-                                'Add to ${capitalizeFirstLetter(widget.mealType)}',
-                            onPressed: () => _saveAnalysis(),
-                            type: AppButtonType.primary,
-                            width: 100,
-                          ),
-                  ),
-                  SizedBox(height: getPercentageHeight(3, context)),
-                ],
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: _isSaving
+                          ? const Center(
+                              child: CircularProgressIndicator(color: kAccent),
+                            )
+                          : AppButton(
+                              text: 'Add to ${getMealTimeOfDay()}',
+                              onPressed: () => _saveAnalysis(),
+                              type: AppButtonType.primary,
+                              width: 100,
+                            ),
+                    ),
+                    SizedBox(height: getPercentageHeight(3, context)),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -694,7 +753,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
           child: Text(
             'Cancel',
             style: TextStyle(
-              color: isDarkMode ? kWhite.withOpacity(0.7) : kDarkGrey,
+              color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kDarkGrey,
             ),
           ),
         ),

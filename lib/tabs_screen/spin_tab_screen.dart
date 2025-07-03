@@ -74,7 +74,7 @@ class _RecipeTabScreenState extends State<RecipeTabScreen>
                 radius: MediaQuery.of(context).size.height > 1100
                     ? getResponsiveBoxSize(context, 14, 14)
                     : getResponsiveBoxSize(context, 18, 18),
-                backgroundColor: kAccent.withOpacity(kOpacity),
+                backgroundColor: kAccent.withValues(alpha: kOpacity), 
                 child: CircleAvatar(
                   backgroundImage: getAvatarImage(avatarUrl),
                   radius: MediaQuery.of(context).size.height > 1100

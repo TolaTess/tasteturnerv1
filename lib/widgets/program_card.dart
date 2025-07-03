@@ -24,8 +24,8 @@ class ProgramCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              kAccentLight.withOpacity(0.8),
-              kAccentLight.withOpacity(0.4),
+                kAccentLight.withValues(alpha: 0.8),
+              kAccentLight.withValues(alpha: 0.4),
             ],
           ),
         ),
@@ -42,8 +42,8 @@ class ProgramCard extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      kAccentLight.withOpacity(0.8),
-                      kAccentLight.withOpacity(0.4),
+                      kAccentLight.withValues(alpha: 0.8),
+                      kAccentLight.withValues(alpha: 0.4),
                     ],
                   ),
                 ),
@@ -64,7 +64,7 @@ class ProgramCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        Colors.black.withValues(alpha: 0.7),
                       ],
                     ),
                   ),

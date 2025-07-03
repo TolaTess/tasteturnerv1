@@ -42,22 +42,22 @@ class RoutineService {
   Future<List<RoutineItem>> _createDefaultRoutine(String userId) async {
     final defaultItems = [
       RoutineItem(
-        id: 'Gym',
-        title: 'Gym',
+        id: 'Exercise',
+        title: 'Exercise',
         value: '1 hour',
         type: 'duration',
         isEnabled: true,
       ),
       RoutineItem(
-        id: 'Water Intake',
-        title: 'Water Intake',
+        id: 'Water',
+        title: 'Water',
         value: '${userService.currentUser.value!.settings['waterIntake']} ml',
         type: 'quantity',
         isEnabled: true,
       ),
       RoutineItem(
-        id: 'Nutrition Goal',
-        title: 'Nutrition Goal',
+        id: 'Meals',
+        title: 'Meals',
         value:
             '${userService.currentUser.value!.settings['foodGoal']} calories',
         type: 'quantity',

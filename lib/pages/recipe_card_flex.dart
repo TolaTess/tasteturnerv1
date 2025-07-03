@@ -27,7 +27,6 @@ class RecipeCardFlex extends StatefulWidget {
 
 class _RecipeCardFlexState extends State<RecipeCardFlex> {
   bool _isFavorited = false;
-  bool _isSelected = false;
   final String? _userId = userService.userId;
 
   @override
@@ -51,12 +50,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
     });
   }
 
-  Future<void> _toggleSelection() async {
-    setState(() {
-      _isSelected = !_isSelected;
-    });
-  }
-
+  //todo: add a loading state
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -112,12 +106,12 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                         end: Alignment.bottomCenter,
                         colors: widget.isSelected
                             ? [
-                                kAccent.withOpacity(0.3),
-                                kAccent.withOpacity(0.7),
+                                kAccent.withValues(alpha: 0.3),
+                                kAccent.withValues(alpha: 0.7),
                               ]
                             : [
-                                const Color(0xff343434).withOpacity(0.1),
-                                const Color(0xff343434).withOpacity(0.5),
+                                const Color(0xff343434).withValues(alpha: 0.1),
+                                const Color(0xff343434).withValues(alpha: 0.5),
                               ],
                         stops: widget.isSelected ? [0.2, 0.9] : [0.0, 0.8], //todo: make this dynamic 
                       ),
@@ -132,7 +126,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                       onTap: widget.enableSelection ? null : _toggleFavorite,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Padding(
@@ -199,7 +193,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
+                          color: Colors.black.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Center(

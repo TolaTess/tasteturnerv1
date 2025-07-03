@@ -151,10 +151,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(4, context)),
         decoration: BoxDecoration(
-          color: isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1),
+          color: isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: kAccent.withOpacity(0.3),
+            color: kAccent.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -193,13 +193,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
               padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: !isYearlySelected
-                    ? (isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1))
+                    ? (isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1))
                     : (isDarkMode ? Colors.black12 : Colors.white),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: !isYearlySelected
-                      ? kAccent.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.3),
+                      ? kAccent.withValues(alpha: 0.3)
+                      : Colors.grey.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),
@@ -242,13 +242,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
               padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: isYearlySelected
-                    ? (isDarkMode ? kDarkGrey : kAccent.withOpacity(0.1))
+                    ? (isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1))
                     : (isDarkMode ? Colors.black12 : Colors.white),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isYearlySelected
-                      ? kAccent.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.3),
+                        ? kAccent.withValues(alpha: 0.3)
+                      : Colors.grey.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),

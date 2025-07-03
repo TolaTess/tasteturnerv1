@@ -116,11 +116,11 @@ class _LoadingScreenState extends State<LoadingScreen>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: kWhite.withOpacity(0.9),
+                      color: kWhite.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: kBlack.withOpacity(0.1),
+                          color: kBlack.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 5),
                         ),
@@ -144,7 +144,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                 width: MediaQuery.of(context).size.width * 0.7,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: kWhite.withOpacity(0.3),
+                  color: kWhite.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: AnimatedBuilder(
@@ -167,7 +167,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                             borderRadius: BorderRadius.circular(6),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF8FD14F).withOpacity(0.3),
+                                  color: const Color(0xFF8FD14F).withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -250,7 +250,7 @@ class _LoadingScreenState extends State<LoadingScreen>
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          color: (isDarkMode ? kBlack : kWhite).withOpacity(0.8),
+          color: (isDarkMode ? kBlack : kWhite).withValues(alpha: 0.8),
           child: _buildLoadingContent(context),
         ),
       );
@@ -336,7 +336,7 @@ class _SimpleLoadingOverlayState extends State<SimpleLoadingOverlay>
               color: Colors.transparent,
               child: Container(
                 color: widget.backgroundColor ??
-                    (isDarkMode ? kDarkGrey : kWhite).withOpacity(0.8),
+                    (isDarkMode ? kDarkGrey : kWhite).withValues(alpha: 0.8),
                 child: Stack(
                   children: [
                     // Back button
@@ -379,11 +379,11 @@ class _SimpleLoadingOverlayState extends State<SimpleLoadingOverlay>
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: kWhite.withOpacity(0.9),
+                                  color: kWhite.withValues(alpha: 0.9),
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: kBlack.withOpacity(0.1),
+                                      color: kBlack.withValues(alpha: 0.1),
                                       blurRadius: 10,
                                       offset: const Offset(0, 5),
                                     ),
@@ -407,7 +407,7 @@ class _SimpleLoadingOverlayState extends State<SimpleLoadingOverlay>
                             width: MediaQuery.of(context).size.width * 0.7,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: kWhite.withOpacity(0.3),
+                              color: kWhite.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: AnimatedBuilder(
@@ -430,7 +430,7 @@ class _SimpleLoadingOverlayState extends State<SimpleLoadingOverlay>
                                         borderRadius: BorderRadius.circular(6),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: kAccent.withOpacity(0.3),
+                                            color: kAccent.withValues(alpha: 0.3),
                                             blurRadius: 8,
                                             offset: const Offset(0, 2),
                                           ),

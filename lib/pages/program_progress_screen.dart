@@ -645,7 +645,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             child: Container(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color: kAccent.withOpacity(0.1),
+                color: kAccent.withValues(alpha: 0.1),  
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -664,8 +664,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   'Program ${currentProgramIndex + 1} of ${userPrograms.length}',
                   style: textTheme.bodySmall?.copyWith(
                     color: isDarkMode
-                        ? kWhite.withOpacity(0.7)
-                        : kDarkGrey.withOpacity(0.7),
+                        ? kWhite.withValues(alpha: 0.7)
+                        : kDarkGrey.withValues(alpha: 0.7),
                     fontSize: getTextScale(2.5, context),
                   ),
                 ),
@@ -682,8 +682,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                         color: index == currentProgramIndex
                             ? kAccent
                             : (isDarkMode
-                                ? kWhite.withOpacity(0.3)
-                                : kDarkGrey.withOpacity(0.3)),
+                                ? kWhite.withValues(alpha: 0.3)
+                                : kDarkGrey.withValues(alpha: 0.3)),
                         shape: BoxShape.circle,
                       ),
                     );
@@ -699,7 +699,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             child: Container(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color: kAccent.withOpacity(0.1),
+                color: kAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -790,7 +790,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -811,8 +811,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     _getComponentIcon(component['id']),
                     size: getIconScale(15, context),
                     color: isDarkMode
-                        ? kWhite.withOpacity(0.3)
-                        : kDarkGrey.withOpacity(0.3),
+                        ? kWhite.withValues(alpha: 0.3)
+                        : kDarkGrey.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -827,8 +827,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     colors: [
                       Colors.transparent,
                       isCompleted
-                          ? kAccent.withOpacity(0.7)
-                          : Colors.black.withOpacity(0.7),
+                          ? kAccent.withValues(alpha: 0.7)
+                          : Colors.black.withValues(alpha: 0.7),
                     ],
                   ),
                 ),
@@ -875,7 +875,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                       component['subtitle'],
                       style: textTheme.bodyMedium?.copyWith(
                         fontSize: getTextScale(3, context),
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   SizedBox(height: getPercentageHeight(0.5, context)),
@@ -884,7 +884,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -917,7 +917,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         color: isDarkMode ? kDarkGrey : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -956,8 +956,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     style: textTheme.bodyMedium?.copyWith(
                       fontSize: getTextScale(3.2, context),
                       color: isDarkMode
-                          ? kWhite.withOpacity(0.8)
-                          : kDarkGrey.withOpacity(0.8),
+                            ? kWhite.withValues(alpha: 0.8)
+                          : kDarkGrey.withValues(alpha: 0.8),
                       height: 1.4,
                     ),
                   ),
@@ -1038,14 +1038,14 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         color: isDarkMode ? kDarkGrey : kWhite,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: kAccent.withOpacity(0.3),
+          color: kAccent.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
             color: isDarkMode
-                ? kWhite.withOpacity(0.4)
-                : kDarkGrey.withOpacity(0.3),
+                ? kWhite.withValues(alpha: 0.4)
+                : kDarkGrey.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1106,8 +1106,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   style: TextStyle(
                     fontSize: getTextScale(2.5, context),
                     color: isDarkMode
-                        ? kWhite.withOpacity(0.7)
-                        : kDarkGrey.withOpacity(0.7),
+                        ? kWhite.withValues(alpha: 0.7)
+                        : kDarkGrey.withValues(alpha: 0.7),
                     fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
@@ -1168,8 +1168,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: getTextScale(3, context),
                   color: isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kDarkGrey.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kDarkGrey.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -1223,9 +1223,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   vertical: getPercentageHeight(0.8, context),
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
+                  color: Colors.orange.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   benefit,
@@ -1391,16 +1391,16 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                               Icons.assignment,
                               size: getIconScale(12, context),
                               color: isDarkMode
-                                  ? kWhite.withOpacity(0.5)
-                                  : kDarkGrey.withOpacity(0.5),
+                                  ? kWhite.withValues(alpha: 0.5)
+                                  : kDarkGrey.withValues(alpha: 0.5),
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
                               'No program components available',
                               style: textTheme.bodyLarge?.copyWith(
                                 color: isDarkMode
-                                    ? kWhite.withOpacity(0.7)
-                                    : kDarkGrey.withOpacity(0.7),
+                                      ? kWhite.withValues(alpha: 0.7)
+                                    : kDarkGrey.withValues(alpha: 0.7),
                               ),
                               textAlign: TextAlign.center,
                             ),

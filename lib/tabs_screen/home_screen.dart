@@ -355,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
           child: Container(
             decoration: BoxDecoration(
-              color: isDarkMode ? kLightGrey.withOpacity(0.1) : kWhite,
+              color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite, 
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -378,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               child: CircleAvatar(
                                 key: _addProfileButtonKey,
                                 radius: getResponsiveBoxSize(context, 20, 20),
-                                backgroundColor: kAccent.withOpacity(kOpacity),
+                                backgroundColor: kAccent.withValues(alpha: kOpacity),
                                 child: CircleAvatar(
                                   backgroundImage: getAvatarImage(avatarUrl),
                                   radius: getResponsiveBoxSize(context, 18, 18),
@@ -403,8 +403,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontSize: getTextScale(3, context),
                                   color: isDarkMode
-                                      ? kLightGrey.withOpacity(0.9)
-                                      : kDarkGrey.withOpacity(0.5),
+                                      ? kLightGrey.withValues(alpha: 0.9)
+                                      : kDarkGrey.withValues(alpha: 0.5),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -548,8 +548,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: currentDate.isBefore(DateTime.now()
                                     .subtract(const Duration(days: 7)))
                                 ? isDarkMode
-                                    ? kLightGrey.withOpacity(0.5)
-                                    : kDarkGrey.withOpacity(0.1)
+                                    ? kLightGrey.withValues(alpha: 0.5)
+                                    : kDarkGrey.withValues(alpha: 0.1)
                                 : null,
                           ),
                         ),
@@ -596,8 +596,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             size: getIconScale(7, context),
                             color: getCurrentDate(currentDate)
                                 ? isDarkMode
-                                    ? kLightGrey.withOpacity(0.5)
-                                    : kDarkGrey.withOpacity(0.1)
+                                    ? kLightGrey.withValues(alpha: 0.5)
+                                    : kDarkGrey.withValues(alpha: 0.1)
                                 : null,
                           ),
                         ),
@@ -620,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           horizontal: getPercentageWidth(3, context),
                           vertical: getPercentageHeight(0.5, context)),
                       decoration: BoxDecoration(
-                        color: kAccentLight.withOpacity(0.15),
+                          color: kAccentLight.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: kAccentLight, width: 1.5),
                       ),
@@ -682,7 +682,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           label: 'Diary',
                           icon: 'assets/images/svg/diary.svg',
                           color:
-                              isDarkMode ? kAccent : kAccent.withOpacity(0.5),
+                              isDarkMode ? kAccent : kAccent.withValues(alpha: 0.5),
                           destinationScreen: const AddFoodScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -690,7 +690,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Challenge',
                           icon: 'assets/images/svg/target.svg',
-                          color: isDarkMode ? kBlue : kBlue.withOpacity(0.5),
+                          color: isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
                           destinationScreen: const FoodChallengeScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -700,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           icon: 'assets/images/svg/shopping.svg',
                           color: isDarkMode
                               ? kAccentLight
-                              : kAccentLight.withOpacity(0.5),
+                              : kAccentLight.withValues(alpha: 0.5),
                           destinationScreen: const ShoppingTab(),
                           isDarkMode: isDarkMode,
                         ),
@@ -709,7 +709,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           label: 'Recipes',
                           icon: 'assets/images/svg/book-outline.svg',
                           color:
-                              isDarkMode ? kPurple : kPurple.withOpacity(0.5),
+                              isDarkMode ? kPurple : kPurple.withValues(alpha: 0.5),
                           destinationScreen: const RecipeScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -819,10 +819,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 padding: EdgeInsets.all(
                                     getPercentageWidth(2, context)),
                                 decoration: BoxDecoration(
-                                  color: kAccent.withOpacity(kMidOpacity),
+                                  color: colors[selectedUserIndex % colors.length]
+                                      .withValues(alpha: kMidOpacity),
                                   borderRadius: BorderRadius.circular(12),
                                   border:
-                                      Border.all(color: kAccent, width: 1.5),
+                                      Border.all(
+                                          color: colors[selectedUserIndex %
+                                              colors.length],
+                                          width: 1.5),
                                 ),
                                 child: Center(
                                   child: FamilySelectorSection(
@@ -848,7 +852,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   getPercentageWidth(2, context)),
                               decoration: BoxDecoration(
                                 color: colors[selectedUserIndex % colors.length]
-                                    .withOpacity(kMidOpacity),
+                                    .withValues(alpha: kMidOpacity),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                     color: colors[
@@ -904,7 +908,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     decoration: BoxDecoration(
                                       color: colors[
                                               selectedUserIndex % colors.length]
-                                          .withOpacity(kMidOpacity),
+                                            .withValues(alpha: kMidOpacity),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                           color: colors[selectedUserIndex %

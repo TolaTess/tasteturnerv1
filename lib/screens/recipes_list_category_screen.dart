@@ -395,7 +395,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               padding: EdgeInsets.all(
                                   getPercentageWidth(2, context)),
                               decoration: BoxDecoration(
-                                color: kAccent.withOpacity(0.1),
+                                color: kAccent.withValues(alpha: 0.1),        
                                 borderRadius: BorderRadius.circular(
                                     getPercentageWidth(2, context)),
                               ),

@@ -201,7 +201,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ? getPercentageWidth(17, context)
                       : getPercentageWidth(12, context),
                   decoration: BoxDecoration(
-                    color: kAccentLight.withOpacity(0.5),
+                    color: kAccentLight.withValues(alpha: 0.5), 
                     shape: BoxShape.circle,
                     image: const DecorationImage(
                       image: AssetImage(tastyImage),
@@ -394,7 +394,7 @@ class _BuddyTabState extends State<BuddyTab> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     TextButton(
                       style: TextButton.styleFrom(
-                        backgroundColor: kAccentLight.withOpacity(kOpacity),
+                        backgroundColor: kAccentLight.withValues(alpha: kOpacity),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -623,7 +623,7 @@ class _BuddyTabState extends State<BuddyTab> {
                     Text(
                       '${meal.calories} kcal',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                   ],

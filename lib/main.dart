@@ -19,6 +19,7 @@ import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
 import 'service/meal_manager.dart';
+import 'service/meal_plan_controller.dart';
 import 'service/notification_service.dart';
 import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
@@ -58,6 +59,7 @@ void main() async {
   Get.put(BattleService());
   Get.put(CalendarSharingService());
   Get.lazyPut(() => MealManager());
+  Get.lazyPut(() => MealPlanController());
   Get.lazyPut(() => PostController());
   Get.lazyPut(() => PostService());
   Get.lazyPut(() => NutritionController());

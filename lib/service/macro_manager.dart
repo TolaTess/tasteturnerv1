@@ -2,13 +2,11 @@ import 'dart:math';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import '../data_models/macro_data.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import 'meal_api_service.dart';
 import 'battle_service.dart';
-import 'package:tasteturner/helper/helper_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -72,7 +70,6 @@ class MacroManager extends GetxController {
           .whereType<MacroData>()
           .toList();
     } catch (e) {
-      print('Error fetching ingredients: $e');
       _demoIngredientData = [];
     }
   }
@@ -82,7 +79,6 @@ class MacroManager extends GetxController {
       final activeBattles = await _battleService.getActiveBattles();
       _ingredientBattle.value = activeBattles;
     } catch (e) {
-      print('Error fetching ingredient battle: $e');
       _ingredientBattle.value = [];
     }
   }
@@ -123,9 +119,9 @@ class MacroManager extends GetxController {
         'items': itemsPayload,
       });
     } on FirebaseFunctionsException catch (e) {
-      print('Failed to save manual items batch: ${e.code} - ${e.message}');
+      return;
     } catch (e) {
-      print('An unexpected error occurred while saving shopping list: $e');
+      return;
     }
   }
 
@@ -141,7 +137,6 @@ class MacroManager extends GetxController {
       final docSnapshot = await userMealsRef.get();
 
       if (!docSnapshot.exists) {
-        print("No shopping list found for week $currentWeek.");
         return [];
       }
 
@@ -178,7 +173,6 @@ class MacroManager extends GetxController {
 
       return [];
     } catch (e) {
-      print("Error fetching shopping list: $e");
       return [];
     }
   }
@@ -212,7 +206,7 @@ class MacroManager extends GetxController {
         shoppingList.clear();
       }
     }, onError: (e) {
-      print("Error fetching shopping list: $e");
+      return;
     });
   }
 
@@ -223,7 +217,6 @@ class MacroManager extends GetxController {
       {required bool isManual}) async {
     final userId = auth.currentUser?.uid;
     if (userId == null) {
-      print("Cannot mark item, user not logged in.");
       return;
     }
 
@@ -239,7 +232,6 @@ class MacroManager extends GetxController {
         final docSnapshot = await transaction.get(docRef);
 
         if (!docSnapshot.exists) {
-          print("Shopping list document does not exist, cannot update item.");
           return;
         }
 
@@ -255,7 +247,6 @@ class MacroManager extends GetxController {
         if (itemsMap.containsKey(key)) {
           itemsMap[key] = isPurchased;
         } else {
-          print("Warning: Item key '$key' not found in '$mapFieldToUpdate'.");
           return;
         }
 
@@ -263,14 +254,13 @@ class MacroManager extends GetxController {
         transaction.update(docRef, {mapFieldToUpdate: itemsMap});
       });
     } catch (e) {
-      print("Error in transaction for marking item as purchased: $e");
+      return;
     }
   }
 
   Future<void> removeFromShoppingList(String userId, MacroData item) async {
     try {
       if (item.id == null) {
-        print("Cannot remove item with null ID");
         return;
       }
 
@@ -287,8 +277,7 @@ class MacroManager extends GetxController {
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print("Error removing item from shopping list: $e");
-      throw Exception("Failed to remove item from shopping list");
+      return;
     }
   }
 
@@ -305,7 +294,6 @@ class MacroManager extends GetxController {
       final docSnapshot = await userMealsRef.get();
 
       if (!docSnapshot.exists) {
-        print("No shopping list found for week $week.");
         return {};
       }
 
@@ -320,7 +308,6 @@ class MacroManager extends GetxController {
 
       return {};
     } catch (e) {
-      print("Error fetching shopping list for week $week: $e");
       return {};
     }
   }
@@ -352,7 +339,6 @@ class MacroManager extends GetxController {
 
       return completeList;
     } catch (e) {
-      print("Error fetching ingredients 4: $e");
       return [];
     }
   }
@@ -495,7 +481,6 @@ class MacroManager extends GetxController {
       }
       return battleIngredients;
     } catch (e) {
-      print('Error getting ingredients battle: $e');
       return [];
     }
   }
@@ -511,7 +496,6 @@ class MacroManager extends GetxController {
       );
       _ensureDataFetchedBattle();
     } catch (e) {
-      print('Error joining battle: $e');
       rethrow;
     }
   }
@@ -522,7 +506,6 @@ class MacroManager extends GetxController {
     try {
       return await _battleService.hasUserJoinedBattle(battleId, userId);
     } catch (e) {
-      print('Error checking if user is in battle: $e');
       return false;
     }
   }
@@ -533,7 +516,6 @@ class MacroManager extends GetxController {
       await _battleService.removeUserFromBattle(userId, battleId);
       _ensureDataFetchedBattle();
     } catch (e) {
-      print('Error removing user from battle: $e');
       rethrow;
     }
   }
@@ -558,11 +540,9 @@ class MacroManager extends GetxController {
       if (ingredientDoc.exists) {
         return MacroData.fromJson(ingredientDoc.data()!, ingredientId);
       } else {
-        print('Ingredient with ID $ingredientId not found');
         return null;
       }
     } catch (e) {
-      print('Error fetching ingredient: $e');
       return null;
     }
   }
@@ -581,7 +561,6 @@ class MacroManager extends GetxController {
       }
       return null;
     } catch (e) {
-      print('Error fetching ingredient by name: $e');
       return null;
     }
   }
@@ -594,11 +573,8 @@ class MacroManager extends GetxController {
       final macroWithId = ingredient.copyWith(id: docRef.id);
       // Optionally, add to local cache
       _demoIngredientData.add(macroWithId);
-      print(
-          'Saved ingredient to Firestore: ${macroWithId.title} with ID: ${macroWithId.id}');
       return macroWithId;
     } catch (e) {
-      print('Error adding ingredient: $e');
       return null;
     }
   }
@@ -629,12 +605,10 @@ class MacroManager extends GetxController {
             'image': ingredient['image'],
             'measurement': entry.value,
           });
-        } else {
-          print('Ingredient ${entry.key} not found in Firestore.');
-        }
+        } 
       }
     } catch (e) {
-      print('Error fetching ingredients 3: $e');
+      return [];
     }
     return ingredientDetails;
   }
@@ -652,7 +626,6 @@ class MacroManager extends GetxController {
         return name.contains(query) || type.contains(query);
       }).toList();
     } catch (e) {
-      print('Error searching ingredients: $e');
       return [];
     }
   }
@@ -674,7 +647,6 @@ class MacroManager extends GetxController {
         'meals': meals,
       };
     } catch (e) {
-      print('Error searching meals and ingredients: $e');
       return {
         'ingredients': [],
         'meals': [],
@@ -692,10 +664,9 @@ class MacroManager extends GetxController {
       final HttpsCallable callable =
           functions.httpsCallable('generateAndSaveWeeklyShoppingList');
       final result = await callable.call();
-      print("Cloud function executed successfully: ${result.data}");
       // The listener will automatically pick up the new list
     } catch (e) {
-      print("Error calling cloud function: $e");
+      return;
     }
   }
 
@@ -769,7 +740,6 @@ class MacroManager extends GetxController {
         generatedShoppingList.assignAll(newGeneratedList);
         manualShoppingList.assignAll(newManualList);
       } catch (e) {
-        print('Error processing shopping list snapshot: $e');
         generatedShoppingList.clear();
         manualShoppingList.clear();
       } finally {
@@ -795,35 +765,9 @@ class MacroManager extends GetxController {
               (doc.data()['title'] as String?) ?? 'No Title';
         }
       } catch (e) {
-        print('Error fetching ingredient batch: $e');
+        return {};
       }
     }
     return ingredientsMap;
-  }
-
-  /// Helper to fetch MacroData objects from a list of Firestore document IDs.
-  Future<List<MacroData>> _fetchMacroDataByIds(List<String> ids) async {
-    try {
-      if (ids.isEmpty) return [];
-      final List<MacroData> items = [];
-      // Firestore 'in' queries are limited to 10 items.
-      final chunks = <List<String>>[];
-      for (var i = 0; i < ids.length; i += 10) {
-        chunks.add(ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10));
-      }
-
-      for (final chunk in chunks) {
-        final querySnapshot = await firestore
-            .collection('ingredients')
-            .where(FieldPath.documentId, whereIn: chunk)
-            .get();
-        items.addAll(querySnapshot.docs
-            .map((doc) => MacroData.fromJson(doc.data(), doc.id)));
-      }
-      return items;
-    } catch (e) {
-      print("Error fetching macro data by IDs: $e");
-      return [];
-    }
   }
 }
