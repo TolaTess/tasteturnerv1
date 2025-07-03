@@ -188,11 +188,21 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
                   ),
                 );
               },
-              child: Text(
-                '(see meals)',
-                style: textTheme.bodySmall?.copyWith(
-                  color: kAccent,
-                  fontWeight: FontWeight.w400,
+              child: Container( 
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(0.5, context),
+                ),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '(see meals)',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
             ),
@@ -321,15 +331,27 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
                       MaterialPageRoute(
                         builder: (context) => IngredientFeatures(
                           items: _macroManager.ingredient,
+                          searchIngredient: searchIngredient,
+                          screen: 'technique',
                         ),
                       ),
                     );
                   },
-                  child: Text(
-                    '(see ingredients)',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: kAccent,
-                      fontWeight: FontWeight.w400,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context),
+                      vertical: getPercentageHeight(0.5, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '(see ingredients)',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),

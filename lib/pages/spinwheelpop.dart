@@ -10,6 +10,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_files.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
 import '../service/tasty_popup_service.dart';
@@ -56,13 +57,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   List<Map<String, dynamic>> _mealDietCategories = [];
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
+  final GlobalKey _spinWheelKey = GlobalKey();
   bool showDietCategories = false;
-
+  bool isInFreeTrial = false;
   @override
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
     _loadMuteState();
+
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     // Set default for meal category
     final categoryDatasMeal = helperController.headers;
@@ -80,6 +86,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     } else {
       _mealDietCategories = [...helperController.category];
     }
+
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
 
     // Ensure meal list is populated for default category
     _updateMealListByType();
@@ -364,21 +374,15 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             getPercentageHeight(10, context), // Control height with percentage
         title: Text('Don\'t Know What to Eat?', style: textTheme.displayMedium),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.to(
-            () => const TastyScreen(screen: 'message'),
-          );
-        },
-        backgroundColor: kAccentLight,
-        child: CircleAvatar(
-          backgroundColor: kAccentLight,
-          child: Image.asset(
-            'assets/images/tasty/tasty.png',
-            width: getIconScale(5, context),
-            height: getIconScale(5, context),
-          ),
-        ),
+      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
+        verticalOffset: getPercentageHeight(5, context),
+        horizontalOffset: getPercentageWidth(2, context),
+      ),
+      floatingActionButton: buildTastyFloatingActionButton(
+        context: context,
+        buttonKey: _addSpinButtonKey,
+        themeProvider: getThemeProvider(context),
+        isInFreeTrial: isInFreeTrial,
       ),
       body: SingleChildScrollView(
         child: ConstrainedBox(
@@ -402,7 +406,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         horizontal: getPercentageWidth(2, context),
                       ),
                       decoration: BoxDecoration(
-                          color: kAccent.withValues(alpha: 0.2),
+                        color: kAccent.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextButton(
@@ -503,7 +507,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
-            key: _addSpinButtonKey,
+            key: _spinWheelKey,
             labels: widget.ingredientList,
             customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
             isMealSpin: false,
@@ -559,7 +563,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     vertical: getPercentageHeight(1.3, context),
                   ),
                   decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.2),  
+                    color: kAccent.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: GestureDetector(

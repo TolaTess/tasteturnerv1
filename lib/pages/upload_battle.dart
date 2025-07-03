@@ -86,17 +86,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     return tempPath;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    selectedCategory = HelperController.instance.category.value.isNotEmpty
-        ? HelperController.instance.category.value.first['name'] ?? 'general'
-        : 'general';
-    selectedCategoryId = HelperController.instance.category.value.isNotEmpty
-        ? HelperController.instance.category.value.first['id'] ?? ''
-        : '';
-  }
-
   Future<String?> _showMediaSelectionDialog({required bool isCamera}) async {
     return await showDialog<String>(
       context: context,
@@ -403,7 +392,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
             // Category Selector
             Obx(() => CategorySelector(
-                  categories: HelperController.instance.category.value,
+                  categories: helperController.category.value,
                   selectedCategoryId: selectedCategoryId,
                   onCategorySelected: (id, name) {
                     setState(() {

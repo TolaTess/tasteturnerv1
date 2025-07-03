@@ -40,17 +40,17 @@ Widget buildTastyFloatingActionButton({
         );
       }
     },
-    backgroundColor: kPrimaryColor,
-    child: Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: kAccentLight.withValues(alpha: 0.5), 
-        shape: BoxShape.circle,
-        image: const DecorationImage(
-          image: AssetImage(tastyImage),
-          fit: BoxFit.cover,
-        ),
+    backgroundColor:
+        themeProvider.isDarkMode ? kDarkGrey : kWhite,
+    child: CircleAvatar(
+      key:
+          buttonKey != null ? ValueKey('avatar_${buttonKey.toString()}') : null,
+      backgroundColor:
+          themeProvider.isDarkMode ? kDarkGrey : kWhite,
+      child: Image.asset(
+        'assets/images/tasty/tasty.png',
+        width: getIconScale(7.5, context),
+        height: getIconScale(7.5, context),
       ),
     ),
   );
@@ -84,7 +84,7 @@ Widget buildProfileAvatar({
 }) {
   return CircleAvatar(
     radius: getResponsiveBoxSize(context, outerRadius, outerRadius),
-      backgroundColor: backgroundColor ?? kAccent.withValues(alpha: kOpacity),
+    backgroundColor: backgroundColor ?? kAccent.withValues(alpha: kOpacity),
     child: CircleAvatar(
       radius: getResponsiveBoxSize(context, innerRadius, innerRadius),
       child: ClipOval(
@@ -629,9 +629,9 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
             withCircleUi: false,
             initialSize: 0.8,
             baseColor: Colors.black,
-            maskColor: Colors.black.withValues(alpha: 0.5),     
+            maskColor: Colors.black.withValues(alpha: 0.5),
             cornerDotBuilder: (size, edgeAlignment) => Container(
-              width: size,    
+              width: size,
               height: size,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -648,7 +648,7 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
           TextButton(
             onPressed: () => controller.crop(),
             child: const Text('Crop'),
-          ),  
+          ),
         ],
       );
     },

@@ -224,7 +224,6 @@ class GeminiService {
   /// Build comprehensive context string for AI prompts
   Future<String> _buildAIContext() async {
     final userContext = await _getUserContext();
-    print('userContext: $userContext');
 
     String context = '''
 USER CONTEXT:

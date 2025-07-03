@@ -10,11 +10,14 @@ class IngredientFeatures extends StatefulWidget {
   final List<MacroData> items;
   final bool isRecipe;
   final String? searchIngredient;
+  final String? screen;
+
   const IngredientFeatures({
     Key? key,
     required this.items,
     this.isRecipe = false,
     this.searchIngredient,
+    this.screen,
   }) : super(key: key);
 
   @override
@@ -33,12 +36,15 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     if (widget.searchIngredient == null || widget.searchIngredient!.isEmpty) {
       return widget.items;
     }
-    print(widget.searchIngredient);
-    print(widget.items.first.techniques);
 
     return widget.items.where((item) {
       // Search in techniques if they exist
       if (item.techniques.isNotEmpty) {
+        return item.techniques.any((technique) => technique
+            .toLowerCase()
+            .contains(widget.searchIngredient!.toLowerCase()));
+      }
+      if (widget.screen == 'technique') {
         return item.techniques.any((technique) => technique
             .toLowerCase()
             .contains(widget.searchIngredient!.toLowerCase()));
@@ -53,6 +59,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   @override
   void initState() {
     super.initState();
+    _searchController.text = widget.searchIngredient ?? '';
     // Apply initial filtering based on searchIngredient
     _filteredItems = _baseFilteredItems.take(10).toList();
 
@@ -121,10 +128,17 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         _displayedItemCount = 10;
       } else {
         // Apply search query on top of base filtered items
-        _filteredItems = _baseFilteredItems
-            .where((item) =>
-                item.title.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+        if (widget.screen == 'technique') {
+          _filteredItems = _baseFilteredItems
+              .where((item) => item.techniques.any((technique) =>
+                  technique.toLowerCase().contains(query.toLowerCase())))
+              .toList();
+        } else {
+          _filteredItems = _baseFilteredItems
+              .where((item) =>
+                  item.title.toLowerCase().contains(query.toLowerCase()))
+              .toList();
+        }
         // Reset displayed count on new search
         _displayedItemCount = 10;
       }
@@ -139,20 +153,28 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     await Future.delayed(const Duration(milliseconds: 500));
 
     setState(() {
-      final nextBatch = _displayedItemCount + 10;
-      if (_searchController.text.isEmpty) {
-        // If no search query, load more from base filtered items
-        _displayedItemCount = nextBatch;
-        _filteredItems = _baseFilteredItems.take(_displayedItemCount).toList();
+      if (widget.screen == 'technique') {
+        // For technique screen, reset the list to show all base items
+        _searchController.clear();
+        _filteredItems = widget.items.take(10).toList();
+        _displayedItemCount = 10;
       } else {
-        // If there's a search query, load more from search filtered results
-        final allFiltered = _baseFilteredItems
-            .where((item) => item.title
-                .toLowerCase()
-                .contains(_searchController.text.toLowerCase()))
-            .toList();
-        _displayedItemCount = nextBatch;
-        _filteredItems = allFiltered.take(_displayedItemCount).toList();
+        final nextBatch = _displayedItemCount + 10;
+        if (_searchController.text.isEmpty) {
+          // If no search query, load more from base filtered items
+          _displayedItemCount = nextBatch;
+          _filteredItems =
+              _baseFilteredItems.take(_displayedItemCount).toList();
+        } else {
+          // If there's a search query, load more from search filtered results
+          final allFiltered = _baseFilteredItems
+              .where((item) => item.title
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase()))
+              .toList();
+          _displayedItemCount = nextBatch;
+          _filteredItems = allFiltered.take(_displayedItemCount).toList();
+        }
       }
       _isLoading = false;
     });
@@ -167,15 +189,22 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
     // Update hasMoreItems condition to work with base filtered items
     final bool hasMoreItems;
-    if (_searchController.text.isEmpty) {
-      hasMoreItems = _baseFilteredItems.length > _filteredItems.length;
+    if (widget.screen == 'technique') {
+      // For technique screen, show button when there's a filter applied that can be reset
+      hasMoreItems = widget.searchIngredient != null &&
+          widget.searchIngredient!.isNotEmpty &&
+          _baseFilteredItems.length < widget.items.length;
     } else {
-      final allFilteredCount = _baseFilteredItems
-          .where((item) => item.title
-              .toLowerCase()
-              .contains(_searchController.text.toLowerCase()))
-          .length;
-      hasMoreItems = allFilteredCount > _filteredItems.length;
+      if (_searchController.text.isEmpty) {
+        hasMoreItems = _baseFilteredItems.length > _filteredItems.length;
+      } else {
+        final allFilteredCount = _baseFilteredItems
+            .where((item) => item.title
+                .toLowerCase()
+                .contains(_searchController.text.toLowerCase()))
+            .length;
+        hasMoreItems = allFilteredCount > _filteredItems.length;
+      }
     }
 
     return Scaffold(
@@ -243,7 +272,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                           ? SizedBox(
                               width: getPercentageWidth(4, context),
                               height: getPercentageHeight(2, context),
-                              child: CircularProgressIndicator(
+                              child: const CircularProgressIndicator(
                                 color: kAccent,
                                 strokeWidth: 2,
                                 valueColor:
@@ -251,7 +280,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                               ),
                             )
                           : Text(
-                              'See More',
+                              widget.screen == 'technique'
+                                  ? 'Show All'
+                                  : 'See More',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kWhite,
                                 fontSize: getTextScale(4, context),

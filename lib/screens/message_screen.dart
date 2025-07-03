@@ -412,9 +412,9 @@ class _MessageScreenState extends State<MessageScreen>
           ],
         ),
       ),
-      floatingActionButtonLocation: const CustomFloatingActionButtonLocation(
-        verticalOffset: 50, // Move up by 50 pixels
-        horizontalOffset: 20, // Move right by 20 pixels
+      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
+         verticalOffset: getPercentageHeight(5, context),
+          horizontalOffset: getPercentageWidth(2, context),
       ),
       floatingActionButton: buildTastyFloatingActionButton(
         context: context,

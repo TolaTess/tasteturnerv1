@@ -4,6 +4,7 @@ import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/widgets/helper_widget.dart';
 import 'package:tasteturner/service/post_service.dart';
 
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
 
@@ -86,6 +87,10 @@ class _InspirationScreenState extends State<InspirationScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
+         verticalOffset: getPercentageHeight(5, context),
+          horizontalOffset: getPercentageWidth(2, context),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

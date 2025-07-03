@@ -335,7 +335,7 @@ class NutritionController extends GetxController {
           id: 101,
           title: "Water Goal Achieved! 💧",
           body:
-              "Congratulations! You've reached your daily water intake goal! 10 points awarded! ",
+              "Congratulations! You've reached your daily water intake goal! Points awarded! ",
         );
       }
       await BattleService.instance
@@ -373,7 +373,7 @@ class NutritionController extends GetxController {
           id: 101,
           title: "Steps Goal Achieved! 💧",
           body:
-              "Congratulations! You've reached your daily steps goal! 10 points awarded!",
+              "Congratulations! You've reached your daily steps goal! Points awarded!",
         );
       }
     } catch (e) {

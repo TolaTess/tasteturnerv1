@@ -877,9 +877,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             radius: getResponsiveBoxSize(context, 17, 17),
                               backgroundColor: kAccent.withValues(alpha: kOpacity),
                             child: Icon(
-                              Icons.add_circle,
+                              Icons.camera_alt,
                               color: kWhite,
-                              size: getResponsiveBoxSize(context, 15, 15),
+                              size: getResponsiveBoxSize(context, 17, 17),
                             ),
                           ),
                         ),
@@ -931,7 +931,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                   isLiked
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: isLiked ? kAccent : kWhite,
+                                  color: isLiked ? Colors.red : kWhite,
                                   size: getResponsiveBoxSize(context, 23, 23),
                                 ),
                               ),
@@ -941,7 +941,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                 style: TextStyle(
                                   fontSize: getTextScale(3, context),
                                   fontWeight: FontWeight.w400,
-                                  color: isLiked ? kAccent : kWhite,
+                                  color: isLiked ? Colors.red : kWhite,
                                 ),
                               ),
                             ],
@@ -959,12 +959,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                               friendController.isFollowing(targetUserId);
                           return GestureDetector(
                             onTap: toggleFollow,
-                            child: Icon(
-                              isFollowing
-                                  ? Icons.people
-                                  : Icons.person_add_alt_1_outlined,
-                              color: isFollowing ? kAccentLight : kWhite,
-                              size: getResponsiveBoxSize(context, 23, 23),
+                            child: CircleAvatar(
+                              radius: getResponsiveBoxSize(context, 17, 17),
+                              backgroundColor: kAccent.withValues(alpha: kOpacity),
+                              child: Icon(
+                                isFollowing
+                                    ? Icons.people
+                                    : Icons.person_add_alt_1_outlined,
+                                color: isFollowing ? kAccentLight : kWhite,
+                                size: getResponsiveBoxSize(context, 17, 17),
+                              ),
                             ),
                           );
                         }),

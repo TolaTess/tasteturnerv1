@@ -65,7 +65,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   void initState() {
     super.initState();
-    _loadData();
+
+    // Defer the data loading until after the first frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+
     _getAllDisabled().then((value) {
       if (value) {
         allDisabled = value;
@@ -108,7 +113,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       _allIngredients = macroManager.ingredient;
       final currentDate = DateTime.now();
       dailyDataController.listenToDailyData(userId, currentDate);
-      setState(() {});
+      // No need for setState() when using GetX reactive state management
     } catch (e) {
       print('Error loading data: $e');
     }
@@ -1220,7 +1225,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
               )
             ],
@@ -1236,8 +1241,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   backgroundColor: isDarkMode
                       ? kDarkGrey.withValues(alpha: kLowOpacity)
                       : kWhite.withValues(alpha: kLowOpacity),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(iconColor.withValues(alpha: 0.5)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      iconColor.withValues(alpha: 0.5)),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

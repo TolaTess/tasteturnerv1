@@ -46,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   DateTime currentDate = DateTime.now();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
+  final GlobalKey _addHomeButtonKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> familyList = [];
@@ -53,10 +54,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
-
+  bool isInFreeTrial = false;
   @override
   void initState() {
     super.initState();
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
     // Initialize ProgramService
     _programService = Get.put(ProgramService());
 
@@ -355,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
           child: Container(
             decoration: BoxDecoration(
-              color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite, 
+              color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -378,7 +385,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               child: CircleAvatar(
                                 key: _addProfileButtonKey,
                                 radius: getResponsiveBoxSize(context, 20, 20),
-                                backgroundColor: kAccent.withValues(alpha: kOpacity),
+                                backgroundColor:
+                                    kAccent.withValues(alpha: kOpacity),
                                 child: CircleAvatar(
                                   backgroundImage: getAvatarImage(avatarUrl),
                                   radius: getResponsiveBoxSize(context, 18, 18),
@@ -488,21 +496,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Get.to(
-              () => const TastyScreen(screen: 'message'),
-            );
-          },
-          backgroundColor: kAccentLight,
-          child: CircleAvatar(
-            backgroundColor: kAccentLight,
-            child: Image.asset(
-              'assets/images/tasty/tasty.png',
-              width: getIconScale(5, context),
-              height: getIconScale(5, context),
-            ),
-          ),
+        floatingActionButtonLocation: CustomFloatingActionButtonLocation(
+          verticalOffset: getPercentageHeight(5, context),
+          horizontalOffset: getPercentageWidth(2, context),
+        ),
+        floatingActionButton: buildTastyFloatingActionButton(
+          context: context,
+          buttonKey: _addHomeButtonKey,
+          themeProvider: getThemeProvider(context),
+          isInFreeTrial: isInFreeTrial,
         ),
         body: RefreshIndicator(
           onRefresh: () async {
@@ -620,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           horizontal: getPercentageWidth(3, context),
                           vertical: getPercentageHeight(0.5, context)),
                       decoration: BoxDecoration(
-                          color: kAccentLight.withValues(alpha: 0.15),
+                        color: kAccentLight.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: kAccentLight, width: 1.5),
                       ),
@@ -681,8 +683,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Diary',
                           icon: 'assets/images/svg/diary.svg',
-                          color:
-                              isDarkMode ? kAccent : kAccent.withValues(alpha: 0.5),
+                          color: isDarkMode
+                              ? kAccent
+                              : kAccent.withValues(alpha: 0.5),
                           destinationScreen: const AddFoodScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -690,7 +693,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Challenge',
                           icon: 'assets/images/svg/target.svg',
-                          color: isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
+                          color:
+                              isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
                           destinationScreen: const FoodChallengeScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -708,8 +712,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         SecondNavWidget(
                           label: 'Recipes',
                           icon: 'assets/images/svg/book-outline.svg',
-                          color:
-                              isDarkMode ? kPurple : kPurple.withValues(alpha: 0.5),
+                          color: isDarkMode
+                              ? kPurple
+                              : kPurple.withValues(alpha: 0.5),
                           destinationScreen: const RecipeScreen(),
                           isDarkMode: isDarkMode,
                         ),
@@ -819,14 +824,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 padding: EdgeInsets.all(
                                     getPercentageWidth(2, context)),
                                 decoration: BoxDecoration(
-                                  color: colors[selectedUserIndex % colors.length]
-                                      .withValues(alpha: kMidOpacity),
+                                  color:
+                                      colors[selectedUserIndex % colors.length]
+                                          .withValues(alpha: kMidOpacity),
                                   borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(
-                                          color: colors[selectedUserIndex %
-                                              colors.length],
-                                          width: 1.5),
+                                  border: Border.all(
+                                      color: colors[
+                                          selectedUserIndex % colors.length],
+                                      width: 1.5),
                                 ),
                                 child: Center(
                                   child: FamilySelectorSection(
@@ -908,7 +913,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     decoration: BoxDecoration(
                                       color: colors[
                                               selectedUserIndex % colors.length]
-                                            .withValues(alpha: kMidOpacity),
+                                          .withValues(alpha: kMidOpacity),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                           color: colors[selectedUserIndex %
