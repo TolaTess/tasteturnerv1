@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
+import '../data_models/user_meal.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../themes/theme_provider.dart';
@@ -40,13 +41,11 @@ Widget buildTastyFloatingActionButton({
         );
       }
     },
-    backgroundColor:
-        themeProvider.isDarkMode ? kDarkGrey : kWhite,
+    backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
     child: CircleAvatar(
       key:
           buttonKey != null ? ValueKey('avatar_${buttonKey.toString()}') : null,
-      backgroundColor:
-          themeProvider.isDarkMode ? kDarkGrey : kWhite,
+      backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
       child: Image.asset(
         'assets/images/tasty/tasty.png',
         width: getIconScale(7.5, context),
@@ -72,6 +71,107 @@ class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
         FloatingActionButtonLocation.endFloat.getOffset(scaffoldGeometry);
     return Offset(offset.dx - horizontalOffset, offset.dy - verticalOffset);
   }
+}
+
+Widget buildFullWidthAddMealButton({
+  required BuildContext context,
+  required Meal meal,
+  VoidCallback? onSuccess,
+  VoidCallback? onError,
+}) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+
+  Future<void> addMealToTracking() async {
+    try {
+      final userMeal = UserMeal(
+        name: meal.title,
+        quantity: '1',
+        calories: meal.calories,
+        mealId: meal.mealId,
+        servings: 'serving',
+      );
+
+      await dailyDataController.addUserMeal(
+        userService.userId ?? '',
+        getMealTimeOfDay(),
+        userMeal,
+      );
+
+      if (context.mounted) {
+        showTastySnackbar(
+          'Success',
+          'Added ${meal.title} to today\'s meals',
+          context,
+        );
+      }
+      onSuccess?.call();
+    } catch (e) {
+      if (context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to add meal: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      onError?.call();
+    }
+  }
+
+  return Container(
+    width: MediaQuery.of(context).size.width - getPercentageWidth(4, context),
+    height: getPercentageHeight(7, context),
+    decoration: BoxDecoration(
+      color: isDarkMode ? kDarkGrey : kWhite,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: kAccent.withValues(alpha: 0.2),
+          blurRadius: 5,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: addMealToTracking,
+        child: Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                color: kAccent,
+                size: getIconScale(6, context),
+              ),
+              SizedBox(width: getPercentageWidth(3, context)),
+              Expanded(
+                child: Text(
+                  'Add to Today\'s Meals',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(4, context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Icon(
+                Icons.restaurant_menu,
+                color: kAccent,
+                size: getIconScale(6, context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 Widget buildProfileAvatar({

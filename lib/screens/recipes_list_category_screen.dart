@@ -416,7 +416,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(height: getPercentageHeight(5, context)),
+                            SizedBox(height: getPercentageHeight(4, context)),
                             Center(
                               child: Text(
                                 'All Meals',

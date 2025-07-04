@@ -26,10 +26,17 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Meal? _meal;
   bool _loading = false;
-
+  final GlobalKey _addRecipeButtonKey = GlobalKey();
+  bool isInFreeTrial = false;
   @override
   void initState() {
     super.initState();
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
     if (widget.screen == 'share_recipe') {
       _getMeal();
     } else {
@@ -54,6 +61,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return Scaffold(
+      floatingActionButton: buildFullWidthAddMealButton(
+        context: context,
+        meal: _meal!,
+      ),
       body: Obx(() {
         final mealUser = friendController.userProfileData.value;
 
@@ -356,6 +367,31 @@ class _RecipeTittleState extends State<RecipeTittle> {
                             ],
                           ),
                         ),
+                      if (widget.meal.categories.isNotEmpty) ...[
+                        Padding(
+                          padding: EdgeInsets.only(
+                              top: getPercentageHeight(0.5, context)),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.category,
+                                  size: getIconScale(4, context),
+                                  color: kAccent),
+                              SizedBox(width: getPercentageWidth(1, context)),
+                              Flexible(
+                                child: Text(
+                                  "Categories: ${widget.meal.categories.map((e) => capitalizeFirstLetter(e)).join(', ')}",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w400,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -378,57 +414,9 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: kRed,
-                            size: getResponsiveBoxSize(context, 15, 15),
+                            size: getResponsiveBoxSize(context, 17, 17),
                           ),
                         ),
-                      ),
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final userMeal = UserMeal(
-                          name: widget.meal.title,
-                          quantity: '1',
-                          calories: widget.meal.calories,
-                          mealId: widget.meal.mealId,
-                          servings: 'serving',
-                        );
-
-                        try {
-                          await dailyDataController.addUserMeal(
-                            userService.userId ?? '',
-                            getMealTimeOfDay(),
-                            userMeal,
-                          );
-
-                          if (mounted) {
-                            showTastySnackbar(
-                              'Success',
-                              'Added ${widget.meal.title} to today\'s meals',
-                              context,
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            showTastySnackbar(
-                              'Error',
-                              'Failed to add meal: $e',
-                              context,
-                              backgroundColor: kRed,
-                            );
-                          }
-                        }
-                      },
-                      icon: Icon(Icons.add,
-                          size: getResponsiveBoxSize(context, 15, 15)),
-                      label: Text('Today\'s Meal',
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w400,
-                          )),
-                      style: TextButton.styleFrom(
-                        foregroundColor: kAccent,
-                        padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(1.5, context)),
                       ),
                     ),
                     SizedBox(width: getPercentageWidth(1.5, context)),
@@ -453,8 +441,8 @@ class _RecipeTittleState extends State<RecipeTittle> {
                               horizontal: getPercentageWidth(1.5, context)),
                           child: Icon(
                             Icons.ios_share,
-                            color: kAccentLight,
-                            size: getResponsiveBoxSize(context, 15, 15),
+                            color: kAccent,
+                            size: getResponsiveBoxSize(context, 17, 17),
                           ),
                         ),
                       ),
@@ -772,7 +760,10 @@ class NutritionFacts extends StatelessWidget {
                     ),
                     // Quantity (value)
                     Text(
-                      nutritionEntries[index].value, // Display value
+                      nutritionEntries[index].value +
+                          (nutritionEntries[index].key == 'calories'
+                              ? ' kcal'
+                              : ' g'), // Display value
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w500,
@@ -819,9 +810,9 @@ class IngredientsTittle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(ingredients,
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: isDarkMode ? kWhite : kBlack,
-                    fontWeight: FontWeight.bold,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontWeight: FontWeight.bold,
                 )),
             Text("${meal.ingredients.length} $items",
                 style: textTheme.bodySmall?.copyWith())
@@ -885,7 +876,7 @@ class IngredientsCard extends StatelessWidget {
       padding: EdgeInsets.only(right: getPercentageWidth(1.2, context)),
       child: Container(
         decoration: BoxDecoration(
-            color: isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.4),
+          color: isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
@@ -984,6 +975,9 @@ class DirectionsDetail extends StatelessWidget {
                 direction: meal.instructions[i],
                 index: i,
               ),
+            SizedBox(
+              height: getPercentageHeight(12, context),
+            ),
           ],
         ),
       ),

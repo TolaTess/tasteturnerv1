@@ -289,8 +289,8 @@ class MealsCard extends StatelessWidget {
                 searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
                     ? "myMeals"
                     : dataSrc.title,
-                isFilter: true,
                 screen: 'categories',
+                isNoTechnique: true,
               ),
             ),
           );
@@ -367,7 +367,9 @@ class MealsCard extends StatelessWidget {
                               ? "View your favourites"
                               : dataSrc.subtitle,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kDarkGrey,
+                        color: isDarkMode
+                            ? kWhite.withValues(alpha: 0.7)
+                            : kDarkGrey,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
