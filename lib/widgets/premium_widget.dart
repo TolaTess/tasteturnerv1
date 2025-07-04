@@ -36,9 +36,9 @@ class _PremiumSectionState extends State<PremiumSection> {
 
   Future<void> _getBannerId() async {
     if (Platform.isIOS) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS_TEST'] ?? '';
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS'] ?? '';
     } else if (Platform.isAndroid) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID_TEST'] ?? '';
+      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID'] ?? '';
     }
     _loadBannerAd();
   }

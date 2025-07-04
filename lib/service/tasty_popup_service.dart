@@ -141,7 +141,7 @@ class TutorialPopupService {
                 onComplete();
               },
               child: Container(
-                  color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -259,8 +259,8 @@ class TutorialPopupService {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.4,
-        minWidth: MediaQuery.of(context).size.width * 0.3,
+        maxWidth: MediaQuery.of(context).size.width * 0.5,
+        minWidth: MediaQuery.of(context).size.width * 0.4,
       ),
       padding: padding,
       decoration: BoxDecoration(
@@ -280,12 +280,6 @@ class TutorialPopupService {
         children: [
           Row(
             children: [
-              // CircleAvatar(
-              //   backgroundColor: kAccentLight.withValues(alpha: 0.5),
-              //   radius: getPercentageWidth(3.75, context),
-              //   backgroundImage: const AssetImage(tastyImage),
-              // ),
-              // SizedBox(width: getPercentageWidth(2, context)),
               Expanded(
                 child: Text(
                   message,
@@ -312,7 +306,7 @@ class TutorialPopupService {
                     getPercentageHeight(7.5, context)),
               ),
               child: Text(
-                'Got it',
+                '',
                 style: TextStyle(
                     color: kAccent, fontSize: getTextScale(3, context)),
               ),

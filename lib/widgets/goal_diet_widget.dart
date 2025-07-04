@@ -209,7 +209,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
             margin: EdgeInsets.symmetric(
                 horizontal: getPercentageWidth(2, context),
                 vertical: getPercentageHeight(1, context)),
-            height: getPercentageHeight(25, context),
+            height: getPercentageHeight(27, context),
             child: AnimatedBuilder(
               animation: _flipAnimation,
               builder: (context, child) {

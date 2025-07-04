@@ -138,7 +138,13 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       // Navigate back to the previous screen
       Navigator.of(context).pop();
     } catch (e) {
-      _showErrorDialog('Failed to save analysis: $e');
+      print('Failed to save analysis: $e');
+      showTastySnackbar(
+        'Failed to save analysis',
+        'Please try again',
+        context,
+        backgroundColor: kAccent,
+      );
     } finally {
       setState(() {
         _isSaving = false;
@@ -154,21 +160,21 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return true; // Allow navigation back
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showErrorDialog(String message) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: const Text('Error'),
+  //       content: Text(message),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.of(context).pop(),
+  //           child: const Text('OK'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _editFoodItem(int index) {
     final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
@@ -226,6 +232,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     required String value,
     required String unit,
     required Color color,
+    TextTheme? textTheme,
   }) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Container(
@@ -249,22 +256,28 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: getTextScale(4, context),
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            unit,
-            style: TextStyle(
-              fontSize: getTextScale(2, context),
-              color: isDarkMode
-                  ? kWhite.withValues(alpha: 0.7)
-                  : kDarkGrey.withValues(alpha: 0.7),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value,
+                style: textTheme?.titleMedium?.copyWith(
+                  fontSize: getTextScale(4, context),
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              SizedBox(width: getPercentageWidth(1, context)),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: getTextScale(2, context),
+                  color: isDarkMode
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kDarkGrey.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -423,24 +436,28 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                           value: '${totalNutrition['calories'] ?? 0}',
                           unit: 'kcal',
                           color: Colors.orange,
+                          textTheme: textTheme,
                         ),
                         _buildNutritionCard(
                           title: 'Protein',
                           value: '${totalNutrition['protein'] ?? 0}',
                           unit: 'grams',
                           color: Colors.blue,
+                          textTheme: textTheme,
                         ),
                         _buildNutritionCard(
                           title: 'Carbs',
                           value: '${totalNutrition['carbs'] ?? 0}',
                           unit: 'grams',
                           color: Colors.green,
+                          textTheme: textTheme,
                         ),
                         _buildNutritionCard(
                           title: 'Fat',
                           value: '${totalNutrition['fat'] ?? 0}',
                           unit: 'grams',
                           color: Colors.purple,
+                          textTheme: textTheme,
                         ),
                       ],
                     ),
@@ -524,7 +541,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                                   style: textTheme.bodyMedium?.copyWith(
                                     fontSize: getTextScale(3, context),
                                     color: isDarkMode
-                                          ? kWhite.withValues(alpha: 0.7)
+                                        ? kWhite.withValues(alpha: 0.7)
                                         : kDarkGrey,
                                   ),
                                 ),

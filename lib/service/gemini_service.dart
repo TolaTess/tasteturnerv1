@@ -1168,13 +1168,20 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       final totalNutrition =
           analysisResult['totalNutrition'] as Map<String, dynamic>;
       final foodItems = analysisResult['foodItems'] as List<dynamic>;
-      final ingredients =
-          List<String>.from(analysisResult['ingredients'] ?? []);
 
-      // Create ingredients map from detected ingredients
+      // Handle ingredients - can be either Map or List from AI response
       final ingredientsMap = <String, String>{};
-      for (int i = 0; i < ingredients.length; i++) {
-        ingredientsMap['ingredient${i + 1}'] = ingredients[i];
+      final ingredientsFromAnalysis = analysisResult['ingredients'];
+
+      if (ingredientsFromAnalysis is Map<String, dynamic>) {
+        // If ingredients is a Map (expected format), use it directly
+        ingredientsMap.addAll(ingredientsFromAnalysis.cast<String, String>());
+      } else if (ingredientsFromAnalysis is List) {
+        // If ingredients is a List (fallback), convert to Map
+        final ingredientsList = List<String>.from(ingredientsFromAnalysis);
+        for (int i = 0; i < ingredientsList.length; i++) {
+          ingredientsMap['ingredient${i + 1}'] = ingredientsList[i];
+        }
       }
 
       // Create meal title from primary food item

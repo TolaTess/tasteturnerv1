@@ -12,6 +12,8 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import 'dart:typed_data';
 
 import 'loading_screen.dart';
+import 'optimized_image.dart';
+import 'cached_video_thumbnail.dart';
 
 class SearchContentGrid extends StatefulWidget {
   const SearchContentGrid({
@@ -174,8 +176,9 @@ class SearchContentGridState extends State<SearchContentGrid> {
     return SimpleLoadingOverlay(
       isLoading: isLoading && searchContentDatas.isEmpty,
       message: 'Loading posts...',
-      progressPercentage: 60,
+      progressPercentage: 85,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Show empty state only when not loading and no data
           if (searchContentDatas.isEmpty && !isLoading)
@@ -286,7 +289,8 @@ class SearchContentGridState extends State<SearchContentGrid> {
                       decoration: BoxDecoration(
                         color: kAccent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(25),
-                        border: Border.all(color: kAccent.withValues(alpha: 0.3)),
+                        border:
+                            Border.all(color: kAccent.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -504,42 +508,28 @@ class SearchContent extends StatelessWidget {
 
     // Widget to build video thumbnail
     Widget _buildVideoThumbnail(String videoUrl) {
-      return FutureBuilder<Uint8List?>(
-        future: VideoThumbnail.thumbnailData(
-          video: videoUrl,
-          imageFormat: ImageFormat.JPEG,
-          maxWidth: 400,
-          quality: 75,
+      return CachedVideoThumbnail(
+        videoUrl: videoUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.circular(8),
+        placeholder: Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: CircularProgressIndicator(color: kAccent),
+          ),
         ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.hasData) {
-            return Image.memory(
-              snapshot.data!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            );
-          } else if (snapshot.hasError) {
-            return Container(
-                color: kBlueLight.withValues(alpha: 0.5),
-              child: Center(
-                child: Icon(
-                  Icons.videocam,
-                  color: isDarkMode ? kWhite : kBlack,
-                  size: getPercentageWidth(8, context),
-                ),
-              ),
-            );
-          } else {
-            return Container(
-              color: Colors.grey[300],
-              child: const Center(
-                child: CircularProgressIndicator(color: kAccent),
-              ),
-            );
-          }
-        },
+        errorWidget: Container(
+          color: kBlueLight.withValues(alpha: 0.5),
+          child: Center(
+            child: Icon(
+              Icons.videocam,
+              color: isDarkMode ? kWhite : kBlack,
+              size: getPercentageWidth(8, context),
+            ),
+          ),
+        ),
       );
     }
 
@@ -565,25 +555,20 @@ class SearchContent extends StatelessWidget {
                       ],
                     )
                   : mediaPath != null && mediaPath.isNotEmpty
-                      ? Image.network(
-                          mediaPath,
+                      ? OptimizedImage(
+                          imageUrl: mediaPath,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(color: kAccent),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              intPlaceholderImage,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            );
-                          },
+                          placeholder: const Center(
+                            child: CircularProgressIndicator(color: kAccent),
+                          ),
+                          errorWidget: Image.asset(
+                            intPlaceholderImage,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                         )
                       : Image.asset(
                           intPlaceholderImage,
@@ -602,7 +587,7 @@ class SearchContent extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -687,42 +672,28 @@ class SearchContentPost extends StatelessWidget {
 
     // Widget to build video thumbnail
     Widget _buildVideoThumbnail(String videoUrl) {
-      return FutureBuilder<Uint8List?>(
-        future: VideoThumbnail.thumbnailData(
-          video: videoUrl,
-          imageFormat: ImageFormat.JPEG,
-          maxWidth: 400,
-          quality: 75,
+      return CachedVideoThumbnail(
+        videoUrl: videoUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.circular(8),
+        placeholder: Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: CircularProgressIndicator(color: kAccent),
+          ),
         ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.hasData) {
-            return Image.memory(
-              snapshot.data!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            );
-          } else if (snapshot.hasError) {
-            return Container(
-              color: Colors.grey[800],
-              child: Center(
-                child: Icon(
-                  Icons.videocam,
-                  color: Colors.white,
-                  size: getPercentageWidth(8, context),
-                ),
-              ),
-            );
-          } else {
-            return Container(
-              color: Colors.grey[300],
-              child: const Center(
-                child: CircularProgressIndicator(color: kAccent),
-              ),
-            );
-          }
-        },
+        errorWidget: Container(
+          color: Colors.grey[800],
+          child: Center(
+            child: Icon(
+              Icons.videocam,
+              color: Colors.white,
+              size: getPercentageWidth(8, context),
+            ),
+          ),
+        ),
       );
     }
 
@@ -757,7 +728,7 @@ class SearchContentPost extends StatelessWidget {
                             child: Center(
                               child: Icon(
                                 Icons.play_circle_filled,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 size: getPercentageWidth(8, context),
                               ),
                             ),
@@ -766,25 +737,20 @@ class SearchContentPost extends StatelessWidget {
                       ],
                     )
                   : mediaPath.isNotEmpty
-                      ? Image.network(
-                          mediaPath,
+                      ? OptimizedImage(
+                          imageUrl: mediaPath,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(color: kAccent),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              intPlaceholderImage,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            );
-                          },
+                          placeholder: const Center(
+                            child: CircularProgressIndicator(color: kAccent),
+                          ),
+                          errorWidget: Image.asset(
+                            intPlaceholderImage,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                         )
                       : Image.asset(
                           intPlaceholderImage,

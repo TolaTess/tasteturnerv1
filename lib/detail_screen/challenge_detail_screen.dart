@@ -138,7 +138,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   Future<void> _loadMeal() async {
     try {
       final mealId = _currentPostData['id'];
-      print('mealId: $mealId');
       if (mealId != null && mealId.toString().isNotEmpty) {
         final meal = await mealManager.getMealbyMealID(mealId);
         if (mounted) {
@@ -203,7 +202,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                     : 'How would you like to create this recipe?',
                 style: TextStyle(
                   color: isDarkMode
-                      ? kWhite.withValues(alpha: 0.7) 
+                      ? kWhite.withValues(alpha: 0.7)
                       : kBlack.withValues(alpha: 0.7),
                   fontSize: getTextScale(3.5, context),
                 ),
@@ -422,8 +421,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         content: Text(
           'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
           style: TextStyle(
-            color:
-                isDarkMode ? kWhite.withValues(alpha: 0.8) : kBlack.withValues(alpha: 0.7),
+            color: isDarkMode
+                ? kWhite.withValues(alpha: 0.8)
+                : kBlack.withValues(alpha: 0.7),
             fontSize: getTextScale(3.5, context),
           ),
         ),
@@ -481,8 +481,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         content: Text(
           message,
           style: TextStyle(
-            color:
-                isDarkMode ? kWhite.withValues(alpha: 0.8) : kBlack.withValues(alpha: 0.7),
+            color: isDarkMode
+                ? kWhite.withValues(alpha: 0.8)
+                : kBlack.withValues(alpha: 0.7),
             fontSize: getTextScale(3.5, context),
           ),
         ),
@@ -731,12 +732,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             shadows: [
               Shadow(
                 blurRadius: 10.0,
-                  color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 offset: const Offset(0, 0),
               ),
             ],
           ),
-        ),    
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -828,7 +829,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           ),
                           child: CircleAvatar(
                             radius: getResponsiveBoxSize(context, 17, 17),
-                            backgroundColor: kAccent.withValues(alpha: kOpacity),
+                            backgroundColor:
+                                kAccent.withValues(alpha: kOpacity),
                             child: CircleAvatar(
                               backgroundImage:
                                   _currentPostData['profileImage'] != null &&
@@ -866,16 +868,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           size: getResponsiveBoxSize(context, 23, 23),
                         ),
                       ),
-                      if (!hasMeal)
+                      if (!hasMeal && _currentPostData['isVideo'] != true)
                         SizedBox(width: getPercentageWidth(4, context)),
-                      if (!hasMeal)
+                      if (!hasMeal && _currentPostData['isVideo'] != true)
                         GestureDetector(
                           onTap: () {
                             _showRecipeChoiceDialog();
                           },
                           child: CircleAvatar(
                             radius: getResponsiveBoxSize(context, 17, 17),
-                              backgroundColor: kAccent.withValues(alpha: kOpacity),
+                            backgroundColor:
+                                kAccent.withValues(alpha: kOpacity),
                             child: Icon(
                               Icons.camera_alt,
                               color: kWhite,
@@ -961,7 +964,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             onTap: toggleFollow,
                             child: CircleAvatar(
                               radius: getResponsiveBoxSize(context, 17, 17),
-                              backgroundColor: kAccent.withValues(alpha: kOpacity),
+                              backgroundColor:
+                                  kAccent.withValues(alpha: kOpacity),
                               child: Icon(
                                 isFollowing
                                     ? Icons.people
@@ -1040,7 +1044,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                               );
                               if (context.mounted) {
                                 Get.to(() => const BottomNavSec(
-                                      selectedIndex: 1,
+                                      selectedIndex: 2,
                                     ));
                               }
                             }
