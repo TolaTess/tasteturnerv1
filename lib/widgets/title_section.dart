@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../themes/theme_provider.dart';
 
 //title section widget
 

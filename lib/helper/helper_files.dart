@@ -6,15 +6,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'utils.dart';
 
-String calculateRecommendedGoals(String goal) {
-  if (goal == "Lose Weight") {
-    return "";
-  } else if (goal == "Gain Muscle") {
-    return "";
-  } else {
-    return '';
+  String calculateRecommendedGoals(String goal) {
+    final userCalories =
+        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
+
+    if (goal == 'Healthy Eating') {
+      return userCalories.toString();
+    } else if (goal == 'Lose Weight') {
+      return 1500 > userCalories ? '1500' : userCalories.toString();
+    } else if (goal == 'Gain Muscle') {
+      return 2500 < userCalories ? '2500' : userCalories.toString();
+    } else {
+      return userCalories.toString(); // Default to user's calories
+    }
   }
-}
 
 Future<bool> checkMealPlanGenerationLimit(BuildContext context) async {
   try {

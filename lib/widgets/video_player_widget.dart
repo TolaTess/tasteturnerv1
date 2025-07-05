@@ -38,6 +38,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       await _videoPlayerController.initialize();
 
       _chewieController = ChewieController(
+        cupertinoProgressColors: ChewieProgressColors(
+          playedColor: kAccent,
+          handleColor: kAccent,
+          backgroundColor: kWhite.withValues(alpha: 0.3),
+          bufferedColor: kWhite.withValues(alpha: 0.5),
+        ),
         videoPlayerController: _videoPlayerController,
         autoPlay: widget.autoPlay,
         looping: false,
@@ -129,7 +135,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Widget build(BuildContext context) {
     if (!_isInitialized) {
       return Container(
-        color: Colors.black,
+        color: Colors.black.withValues(alpha: 0.5),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

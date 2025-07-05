@@ -780,7 +780,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     selectedNumber,
                                     (index) => setModalState(
                                         () => selectedNumber = index),
-                                    true),
+                                    false),
                               ),
                             ),
                             Flexible(
@@ -794,7 +794,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   selectedUnit,
                                   (index) =>
                                       setModalState(() => selectedUnit = index),
-                                  true,
+                                  false,
                                   unitOptions,
                                 ),
                               ),

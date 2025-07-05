@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
+import '../helper/helper_files.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -584,20 +585,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return false; // Return false if no preferences found
   }
 
-  String calculateRecommendedGoals(String goal) {
-    final userCalories =
-        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
 
-    if (goal == 'Healthy Eating') {
-      return userCalories.toString();
-    } else if (goal == 'Lose Weight') {
-      return 1500 > userCalories ? '1500' : userCalories.toString();
-    } else if (goal == 'Gain Muscle') {
-      return 2500 < userCalories ? '2500' : userCalories.toString();
-    } else {
-      return userCalories.toString(); // Default to user's calories
-    }
-  }
 
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;

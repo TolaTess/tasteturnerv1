@@ -584,7 +584,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          backgroundColor: kGreen,
+                                          backgroundColor: kAccent,
                                           duration: const Duration(seconds: 2),
                                           behavior: SnackBarBehavior.floating,
                                           shape: RoundedRectangleBorder(

@@ -42,7 +42,7 @@ class MilestonesTracker extends StatelessWidget {
           Icon(
             ongoingPrograms > 0 ? Icons.trending_up : Icons.info_outline,
             size: 12,
-            color: ongoingPrograms > 0 ? Colors.green : kAccent,
+            color: ongoingPrograms > 0 ? kAccent : kAccentLight.withValues(alpha: 0.3),
           ),
           SizedBox(width: getPercentageWidth(2, context)),
 

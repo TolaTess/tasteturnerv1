@@ -769,7 +769,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (_programService.userPrograms.isNotEmpty) {
                             Get.to(() => const ProgramProgressScreen());
                           } else {
-                            Get.to(() => const ProgramScreen());
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const BottomNavSec(selectedIndex: 1),
+                              ),
+                            );
                           }
                         },
                         child: MilestonesTracker(

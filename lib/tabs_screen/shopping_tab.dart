@@ -135,34 +135,38 @@ class _ShoppingTabState extends State<ShoppingTab> {
       body: Obx(() {
         final generatedItems = _macroManager.generatedShoppingList;
         final manualItems = _macroManager.manualShoppingList;
-
-        if (generatedItems.isEmpty && manualItems.isEmpty) {
-          return noItemTastyWidget(
-            'Your shopping list is empty!',
-            'Take a spin on the wheel to generate a list.',
-            context,
-            true,
-            'spin',
-          );
-        }
+        final hasItems = generatedItems.isNotEmpty || manualItems.isNotEmpty;
 
         final consolidatedCounts = _getConsolidatedCounts();
-        final purchasedCount = consolidatedCounts['purchased'];
-        final totalCount = consolidatedCounts['total'];
+        final purchasedCount = consolidatedCounts['purchased'] ?? 0;
+        final totalCount = consolidatedCounts['total'] ?? 0;
         List<Widget> listWidgets = [];
 
-        if (manualItems.isNotEmpty) {
-          listWidgets
-              .add(_buildSectionHeader('Added Manually', textTheme, context));
-          listWidgets.addAll(
-              _buildConsolidatedList(manualItems.toList(), isManual: true));
-        }
+        if (hasItems) {
+          if (manualItems.isNotEmpty) {
+            listWidgets
+                .add(_buildSectionHeader('Added Manually', textTheme, context));
+            listWidgets.addAll(
+                _buildConsolidatedList(manualItems.toList(), isManual: true));
+          }
 
-        if (generatedItems.isNotEmpty) {
+          if (generatedItems.isNotEmpty) {
+            listWidgets.add(
+                _buildSectionHeader('From Your Meal Plan', textTheme, context));
+            listWidgets.addAll(_buildConsolidatedList(generatedItems.toList(),
+                isManual: false));
+          }
+        } else {
+          // Show empty state in the list
           listWidgets.add(
-              _buildSectionHeader('From Your Meal Plan', textTheme, context));
-          listWidgets.addAll(
-              _buildConsolidatedList(generatedItems.toList(), isManual: false));
+            noItemTastyWidget(
+              'Your shopping list is empty!',
+              'Take a spin on the wheel to generate a list.',
+              context,
+              true,
+              'spin',
+            ),
+          );
         }
 
         return Column(
@@ -446,7 +450,8 @@ class ShoppingListItem extends StatelessWidget {
       fontSize: getTextScale(3.5, context),
       decoration:
           item.isSelected ? TextDecoration.lineThrough : TextDecoration.none,
-      color: item.isSelected ? Colors.grey[500] : (isDarkMode ? kWhite : kBlack),
+      color:
+          item.isSelected ? Colors.grey[500] : (isDarkMode ? kWhite : kBlack),
     );
 
     ImageProvider<Object> backgroundImage;

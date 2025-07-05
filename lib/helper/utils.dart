@@ -30,7 +30,7 @@ AnimatedContainer buildDot(int? index) {
     height: 8,
     width: 8,
     decoration: BoxDecoration(
-      color: currentPage == index ? kAccent : kWhite.withValues(alpha: 0.50), 
+      color: currentPage == index ? kAccent : kWhite.withValues(alpha: 0.50),
       borderRadius: BorderRadius.circular(50),
     ),
   );
@@ -351,7 +351,12 @@ Future<List<XFile>> openMultiImagePickerModal({
         },
       );
     },
-  );
+  ).then((_) {
+    // When modal is dismissed (user clicked back or swipe down)
+    if (!completer.isCompleted) {
+      completer.complete([]); // Return empty list when cancelled
+    }
+  });
 
   return completer.future;
 }

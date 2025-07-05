@@ -299,7 +299,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                         height:
                                             getPercentageHeight(25, context),
                                         child: const Center(
-                                            child: CircularProgressIndicator()),
+                                            child: CircularProgressIndicator(color: kAccent)),
                                       );
                                     }
                                     if (!snapshot.hasData ||

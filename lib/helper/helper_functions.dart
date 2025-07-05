@@ -613,7 +613,7 @@ String getFeatureDescription(String key, dynamic value) {
     case 'water':
       return 'Contains $value water content.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
     case 'rainbow':
-      return 'Natural color: $value\nColor indicates presence of different phytonutrients and antioxidants.';
+      return getRainbowDescription(value);
     case 'fiber':
       return 'Contains $value fiber content in 100g.\nThis affects the ingredient\'s texture, cooking properties, and nutritional density.';
     case 'g_i':
@@ -626,6 +626,23 @@ String getFeatureDescription(String key, dynamic value) {
       return 'Store at room temperature for $value.\nThis helps preserve the ingredient\'s freshness and flavor.';
     default:
       return '$key: $value';
+  }
+}
+
+String getRainbowDescription(dynamic value) {
+  switch (value.toLowerCase()) {
+    case 'red':
+      return 'Natural color: ${value.toUpperCase()}\nRich in phytonutrients, which helps fight off infections and diseases. Prevents damage that alters gene expression, which can help reduce inflammation and improve heart health.';
+    case 'orange':
+    case 'yellow':
+      return 'Natural color: ${value.toUpperCase()}\nRich in antioxidants, which promotes collagen production, which helps lower risk of reproductive diseases. High in beta-carotene. ';
+    case 'green':
+      return 'Natural color: ${value.toUpperCase()}\nRich in antioxidants which promotes health and healing. Anti-inflammatory, lowers risk of heart disease and a natural detoxifying with gut-healthy fiber and electrolytes.';
+    case 'purple':
+    case 'blue':
+      return 'Natural color: ${value.toUpperCase()}\nRich in polyphenols, which is high in anthocyanins that repair cell damage with an anti-inflammatory, resveratrol for skin and heart health, support healthy aging and improve cognitive function.';
+    default:
+      return 'Natural color: ${value.toUpperCase()}\nColor indicates presence of different phytonutrients and antioxidants.';
   }
 }
 
