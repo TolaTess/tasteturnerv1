@@ -5,6 +5,7 @@ import 'dart:ui'; // Add this import for ImageFilter
 import 'package:get/get.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:tasteturner/tabs_screen/food_challenge_screen.dart';
+import 'package:tasteturner/widgets/loading_screen.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
@@ -19,6 +20,7 @@ import '../widgets/helper_widget.dart';
 import 'badges_screen.dart';
 import '../pages/settings_screen.dart';
 import '../service/battle_service.dart';
+import '../service/post_service.dart';
 import '../widgets/milestone_tracker.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -31,12 +33,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool lastStatus = true;
   bool showAll = false;
-  List<Post> searchContentDatas = [];
+  List<Map<String, dynamic>> searchContentDatas = [];
   List<BadgeAchievementData> myBadge = [];
   late Future<Map<String, dynamic>> chartDataFuture;
   final userId = userService.userId ?? '';
   List<Map<String, dynamic>> ongoingBattles = [];
   bool isLoading = true;
+  bool isPostsLoading = true;
   bool showBattle = false;
 
   late ScrollController _scrollController;
@@ -112,17 +115,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchContent(String userId) async {
+    if (mounted) {
+      setState(() {
+        isPostsLoading = true;
+        searchContentDatas = [];
+      });
+    }
+
     try {
-      List<Post> fetchedData;
-      fetchedData = await postController.getUserPosts(userId);
-      if (mounted) {
+      // Use new optimized PostService for user posts
+      final postService = PostService.instance;
+      final result = await postService.getUserPosts(
+        userId: userId,
+        limit: 50, // Load more posts for profile
+        includeUserData: true,
+      );
+
+      if (result.isSuccess && mounted) {
         setState(() {
-          searchContentDatas = fetchedData;
+          searchContentDatas = result.posts;
+          isPostsLoading = false;
           showBattle = ongoingBattles.isNotEmpty;
         });
+      } else if (mounted) {
+        setState(() {
+          searchContentDatas = [];
+          isPostsLoading = false;
+          showBattle = ongoingBattles.isNotEmpty;
+        });
+        if (result.error != null) {
+          print('Error fetching user posts: ${result.error}');
+        }
       }
     } catch (e) {
       print('Error fetching content: $e');
+      if (mounted) {
+        setState(() {
+          searchContentDatas = [];
+          isPostsLoading = false;
+          showBattle = ongoingBattles.isNotEmpty;
+        });
+      }
     }
   }
 
@@ -912,7 +945,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     return Column(
                       children: [
-                        if (searchContentDatas.isEmpty)
+                        if (isPostsLoading)
+                          const LoadingScreen(
+                            loadingText: 'Loading posts...',
+                          )
+                        else if (searchContentDatas.isEmpty)
                           Padding(
                             padding:
                                 EdgeInsets.all(getPercentageWidth(4, context)),
@@ -941,15 +978,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             itemCount: itemCount,
                             itemBuilder: (BuildContext ctx, index) {
                               final data = searchContentDatas[index];
+                              // Convert Map to Post for SearchContentPost
+                              final post = Post.fromMap(data, data['id'] ?? '');
                               return SearchContentPost(
-                                dataSrc: data,
+                                dataSrc: post,
                                 press: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           ChallengeDetailScreen(
-                                        dataSrc: data.toFirestore(),
+                                        dataSrc:
+                                            data, // Use Map directly for ChallengeDetailScreen
                                         screen: 'myPost',
                                       ),
                                     ),

@@ -709,3 +709,212 @@ exports.addManualItemsToShoppingList = functions.https.onCall(
     }
   }
 );
+
+// Post-related cloud functions for optimized feed loading
+
+// Efficient post loading with server-side filtering and pagination
+exports.getPostsFeed = functions.https.onCall(async (data, context) => {
+  try {
+    const {
+      category = 'general',
+      limit = 24,
+      lastPostId = null,
+      excludePostId = null,
+      includeBattlePosts = true
+    } = data;
+
+    // Build query with server-side filtering
+    let query = admin.firestore()
+      .collection('posts')
+      .where('battleId', '!=', 'private')
+      .orderBy('battleId') // Required for != query
+      .orderBy('createdAt', 'desc');
+
+    // Apply category filtering on server
+    if (category && category.toLowerCase() !== 'all' && category.toLowerCase() !== 'general') {
+      query = query.where('category', '==', category);
+    }
+
+    // Apply pagination
+    if (lastPostId) {
+      const lastDoc = await admin.firestore().collection('posts').doc(lastPostId).get();
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc);
+      }
+    }
+
+    query = query.limit(limit);
+
+    const snapshot = await query.get();
+    
+    const posts = [];
+    const batchPromises = [];
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      
+      // Skip excluded post
+      if (excludePostId && doc.id === excludePostId) {
+        return;
+      }
+
+      // Only include essential data for grid view (optimization)
+      const optimizedPost = {
+        id: doc.id,
+        mediaPaths: data.mediaPaths || [],
+        isVideo: data.isVideo || false,
+        category: data.category || 'general',
+        name: data.name || 'Unknown',
+        userId: data.userId || '',
+        createdAt: data.createdAt,
+        isBattle: data.isBattle || false,
+        // Don't include heavy fields like full content, comments, etc.
+      };
+
+      posts.push(optimizedPost);
+
+      // Batch user data fetching for efficiency
+      if (data.userId) {
+        batchPromises.push(
+          admin.firestore().collection('users').doc(data.userId).get()
+        );
+      }
+    });
+
+    // Fetch user data in batch
+    const userDocs = await Promise.all(batchPromises);
+    const userMap = {};
+    
+    userDocs.forEach(userDoc => {
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        userMap[userDoc.id] = {
+          displayName: userData.displayName || 'Anonymous',
+          avatar: userData.avatar || '',
+          isPremium: userData.isPremium || false
+        };
+      }
+    });
+
+    // Attach user data to posts
+    posts.forEach(post => {
+      if (post.userId && userMap[post.userId]) {
+        post.userName = userMap[post.userId].displayName;
+        post.userAvatar = userMap[post.userId].avatar;
+        post.userIsPremium = userMap[post.userId].isPremium;
+      }
+    });
+
+    return {
+      success: true,
+      posts: posts,
+      hasMore: snapshot.docs.length === limit,
+      lastPostId: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null,
+      totalFetched: snapshot.docs.length
+    };
+
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return {
+      success: false,
+      error: error.message,
+      posts: []
+    };
+  }
+});
+
+// Get user-specific posts with optimized server-side processing
+exports.getUserPosts = functions.https.onCall(async (data, context) => {
+  try {
+    const {
+      userId,
+      limit = 30,
+      lastPostId = null,
+      includeUserData = true
+    } = data;
+
+    if (!userId) {
+      return {
+        success: false,
+        error: 'userId is required',
+        posts: []
+      };
+    }
+
+    // Build query to fetch user's posts directly from posts collection
+    let query = admin.firestore()
+      .collection('posts')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc');
+
+    // Apply pagination
+    if (lastPostId) {
+      const lastDoc = await admin.firestore().collection('posts').doc(lastPostId).get();
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc);
+      }
+    }
+
+    query = query.limit(limit);
+
+    const snapshot = await query.get();
+    const posts = [];
+
+    // Get user data once if needed
+    let userData = null;
+    if (includeUserData) {
+      const userDoc = await admin.firestore().collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        const userDataRaw = userDoc.data();
+        userData = {
+          displayName: userDataRaw.displayName || 'Anonymous',
+          profileImage: userDataRaw.profileImage || '',
+          isPremium: userDataRaw.isPremium || false
+        };
+      }
+    }
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      
+      const optimizedPost = {
+        id: doc.id,
+        userId: data.userId || '',
+        mediaPaths: data.mediaPaths || [],
+        isVideo: data.isVideo || false,
+        category: data.category || 'general',
+        name: data.name || 'Unknown',
+        createdAt: data.createdAt,
+        isBattle: data.isBattle || false,
+        battleId: data.battleId || '',
+        favorites: data.favorites || [],
+      };
+
+      // Attach user data if available
+      if (userData) {
+        optimizedPost.userName = userData.displayName;
+        optimizedPost.userAvatar = userData.profileImage;
+        optimizedPost.userIsPremium = userData.isPremium;
+      }
+
+      posts.push(optimizedPost);
+    });
+
+    return {
+      success: true,
+      posts: posts,
+      hasMore: snapshot.docs.length === limit,
+      lastPostId: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null,
+      totalFetched: snapshot.docs.length,
+      userData: userData
+    };
+
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    return {
+      success: false,
+      error: error.message,
+      posts: []
+    };
+  }
+});

@@ -14,7 +14,7 @@ import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
-import '../service/gemini_service.dart';
+
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/search_button.dart';
@@ -49,7 +49,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final ValueNotifier<double> currentStepsNotifier = ValueNotifier<double>(0);
   final MealApiService _apiService = MealApiService();
   final FoodApiService _macroApiService = FoodApiService();
-  final GeminiService _geminiService = GeminiService();
   final RxBool _isSearching = false.obs;
 
   // Replace the food section maps with meal type maps
@@ -58,6 +57,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final Map<String, List<UserMeal>> dinnerList = {};
   final Map<String, List<UserMeal>> snacksList = {};
   bool allDisabled = false;
+  bool isInFreeTrial = false;
 
   // Add this as a class field at the top of the class
   List<UserMeal> _pendingMacroItems = [];
@@ -74,11 +74,25 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         });
       }
     });
+
+    // Calculate free trial status
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
+    });
   }
 
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
+  }
+
+  // Check if user can use AI features (premium or free trial)
+  bool get _canUseAI {
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
+    return isPremium || isInFreeTrial;
   }
 
   @override
@@ -270,10 +284,34 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   Row(
                     children: [
                       SizedBox(width: getPercentageWidth(2, context)),
-                      IconButton(
-                        onPressed: () => _handleCameraAction(mealType),
-                        icon: Icon(Icons.camera_alt,
-                            size: getIconScale(7, context)),
+                      Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () => _handleCameraAction(mealType),
+                            icon: Icon(
+                              Icons.camera_alt,
+                              color: _canUseAI ? null : Colors.grey,
+                              size: getIconScale(7, context),
+                            ),
+                          ),
+                          if (!_canUseAI)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.orange,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.lock,
+                                  color: Colors.white,
+                                  size: getIconScale(3, context),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       Flexible(
                         child: Padding(
@@ -423,6 +461,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   }
 
   Future<void> _handleCameraAction(String mealType) async {
+    // Check if user can use AI features
+    if (!_canUseAI) {
+      _showPremiumRequiredDialog();
+      return;
+    }
+
     try {
       // Show loading dialog
       showDialog(
@@ -450,7 +494,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       }
 
       // Analyze the image
-      final analysisResult = await _geminiService.analyzeFoodImageWithContext(
+      final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: File(croppedImage.path),
         mealType: mealType,
       );
@@ -487,6 +531,64 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show premium required dialog
+  void _showPremiumRequiredDialog() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Premium Feature',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+            fontWeight: FontWeight.w600,
+            fontSize: getTextScale(4.5, context),
+          ),
+        ),
+        content: Text(
+          'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
+          style: TextStyle(
+            color:
+                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Maybe Later',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to premium screen
+              Navigator.pushNamed(context, '/premium');
+            },
+            child: Text(
+              'Subscribe',
+              style: TextStyle(
+                color: kAccent,
+                fontWeight: FontWeight.w600,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
           ),
         ],
       ),

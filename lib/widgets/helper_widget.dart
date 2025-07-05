@@ -7,8 +7,11 @@ import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
+import '../service/post_service.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'dart:typed_data';
+
+import 'loading_screen.dart';
 
 class SearchContentGrid extends StatefulWidget {
   const SearchContentGrid({
@@ -25,17 +28,21 @@ class SearchContentGrid extends StatefulWidget {
   final String selectedCategory;
 
   @override
-  _SearchContentGridState createState() => _SearchContentGridState();
+  SearchContentGridState createState() => SearchContentGridState();
 }
 
-class _SearchContentGridState extends State<SearchContentGrid> {
+// Make the state class public so it can be accessed for refresh
+class SearchContentGridState extends State<SearchContentGrid> {
   bool showAll = false;
   List<Map<String, dynamic>> searchContentDatas = [];
+  bool isLoading = true;
+  String? lastPostId;
+  bool hasMorePosts = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchContent();
+    fetchContent();
   }
 
   @override
@@ -43,18 +50,29 @@ class _SearchContentGridState extends State<SearchContentGrid> {
     super.didUpdateWidget(oldWidget);
     // Refetch content when category changes
     if (oldWidget.selectedCategory != widget.selectedCategory) {
-      _fetchContent();
+      fetchContent();
     }
   }
 
-  Future<void> _fetchContent() async {
+  // Method to refresh content (can be called from parent widgets)
+  Future<void> refresh() async {
+    await fetchContent();
+  }
+
+  Future<void> fetchContent() async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        searchContentDatas = [];
+        lastPostId = null;
+        hasMorePosts = false;
+      });
+    }
+
     try {
-      List<Map<String, dynamic>> fetchedData = [];
-
-      List<Map<String, dynamic>> snapshot;
-
       if (widget.listType == "meals") {
-        snapshot = await firestore
+        // Keep existing meals logic
+        final snapshot = await firestore
             .collection('meals')
             .get()
             .then((value) => value.docs.map((doc) {
@@ -62,64 +80,86 @@ class _SearchContentGridState extends State<SearchContentGrid> {
                   data['id'] = doc.id;
                   return data;
                 }).toList());
+
+        if (mounted) {
+          setState(() {
+            searchContentDatas = snapshot;
+            isLoading = false;
+          });
+        }
       } else if (widget.listType == "post" ||
           widget.listType == 'battle_post') {
-        // Fetch both posts and battle posts ordered by createdAt
-        final postSnapshot = await firestore
-            .collection('posts')
-            .orderBy('createdAt', descending: true)
-            .get();
+        // Use new PostService for efficient loading
+        final postService = PostService.instance;
+        final result = await postService.getPostsFeed(
+          category: widget.selectedCategory.isEmpty
+              ? 'general'
+              : widget.selectedCategory,
+          limit: widget.screenLength * 2, // Load more for better UX
+          excludePostId: widget.postId.isNotEmpty ? widget.postId : null,
+          includeBattlePosts: true,
+        );
 
-        snapshot = postSnapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              data['id'] = doc.id;
-              return data;
-            })
-            .where((data) => data['battleId'] != 'private')
-            .toList();
-      } else {
-        setState(() {
-          searchContentDatas = [];
-        });
-        return;
-      }
-
-      for (var doc in snapshot) {
-        final data = doc;
-
-        final postId = data['id'] as String?;
-        final postCategory = data['category'] as String?;
-
-        // If category is 'all' or no category selected, show all posts
-        if (widget.selectedCategory.toLowerCase() == 'all' ||
-            widget.selectedCategory.toLowerCase() == 'general' ||
-            widget.selectedCategory.isEmpty) {
-          if (postId != null && postId.isNotEmpty) {
-            fetchedData.add(data);
+        if (result.isSuccess && mounted) {
+          setState(() {
+            searchContentDatas = result.posts;
+            lastPostId = result.lastPostId;
+            hasMorePosts = result.hasMore;
+            isLoading = false;
+          });
+        } else if (mounted) {
+          setState(() {
+            searchContentDatas = [];
+            isLoading = false;
+          });
+          if (result.error != null) {
+            print('Error fetching posts: ${result.error}');
           }
-          continue;
         }
-
-        if (postCategory?.toLowerCase() ==
-                widget.selectedCategory.toLowerCase() &&
-            postId != null &&
-            postId.isNotEmpty) {
-          fetchedData.add(data);
+      } else {
+        if (mounted) {
+          setState(() {
+            searchContentDatas = [];
+            isLoading = false;
+          });
         }
-      }
-
-      if (widget.postId.isNotEmpty) {
-        fetchedData.removeWhere((item) => item['id'] == widget.postId);
-      }
-
-      if (mounted) {
-        setState(() {
-          searchContentDatas = fetchedData;
-        });
       }
     } catch (e) {
       print('Error fetching content: $e');
+      if (mounted) {
+        setState(() {
+          searchContentDatas = [];
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (!hasMorePosts || lastPostId == null || isLoading) return;
+
+    try {
+      final postService = PostService.instance;
+      final result = await postService.getPostsFeed(
+        category: widget.selectedCategory.isEmpty
+            ? 'general'
+            : widget.selectedCategory,
+        limit: widget.screenLength,
+        lastPostId: lastPostId,
+        excludePostId: widget.postId.isNotEmpty ? widget.postId : null,
+        includeBattlePosts: true,
+        useCache: false, // Don't cache pagination
+      );
+
+      if (result.isSuccess && mounted) {
+        setState(() {
+          searchContentDatas.addAll(result.posts);
+          lastPostId = result.lastPostId;
+          hasMorePosts = result.hasMore;
+        });
+      }
+    } catch (e) {
+      print('Error loading more posts: $e');
     }
   }
 
@@ -131,69 +171,185 @@ class _SearchContentGridState extends State<SearchContentGrid> {
             ? widget.screenLength
             : searchContentDatas.length);
 
-    return Column(
-      children: [
-        if (searchContentDatas.isEmpty)
-          Padding(
-            padding: EdgeInsets.all(getPercentageWidth(2, context)),
-            child: noItemTastyWidget("No posts yet.", "", context, false, ''),
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              int crossAxisCount =
-                  (constraints.maxWidth / 120).floor().clamp(3, 4);
-              return GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 1,
-                  crossAxisSpacing: 1,
-                ),
-                padding: EdgeInsets.only(
-                  bottom: getPercentageHeight(1, context),
-                ),
-                itemCount: itemCount,
-                itemBuilder: (BuildContext ctx, index) {
-                  final data = searchContentDatas[index];
-                  return SearchContent(
-                    dataSrc: data,
-                    press: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChallengeDetailScreen(
-                          screen: widget.listType,
-                          dataSrc: data,
-                          allPosts: searchContentDatas,
-                          initialIndex: index,
+    return SimpleLoadingOverlay(
+      isLoading: isLoading && searchContentDatas.isEmpty,
+      message: 'Loading posts...',
+      child: Column(
+        children: [
+          // Show empty state only when not loading and no data
+          if (searchContentDatas.isEmpty && !isLoading)
+            Padding(
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
+              child: noItemTastyWidget("No posts yet.", "", context, false, ''),
+            ),
+
+          // Show placeholder content when loading to give overlay something to cover
+          if (isLoading && searchContentDatas.isEmpty)
+            Container(
+              height: getPercentageHeight(90, context), // Give it some height
+              width: double.infinity,
+              child: const SizedBox(), // Empty but takes space
+            ),
+
+          // Show actual content when available
+          if (searchContentDatas.isNotEmpty)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                int crossAxisCount =
+                    (constraints.maxWidth / 120).floor().clamp(3, 4);
+                return GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 1,
+                  ),
+                  padding: EdgeInsets.only(
+                    bottom: getPercentageHeight(1, context),
+                  ),
+                  itemCount: itemCount,
+                  itemBuilder: (BuildContext ctx, index) {
+                    final data = searchContentDatas[index];
+                    return SearchContent(
+                      dataSrc: data,
+                      press: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChallengeDetailScreen(
+                            screen: widget.listType,
+                            dataSrc: data,
+                            allPosts: searchContentDatas,
+                            initialIndex: index,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        if (searchContentDatas.isNotEmpty &&
-            searchContentDatas.length > widget.screenLength)
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                showAll = !showAll;
-              });
-            },
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                  vertical: getPercentageHeight(1, context)),
-              child: Icon(
-                showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                size: getPercentageWidth(6, context),
-                color: Colors.grey,
-              ),
+                    );
+                  },
+                );
+              },
             ),
-          ),
-      ],
+
+          // Show All / Load More / Pagination controls
+          if (searchContentDatas.isNotEmpty && !isLoading)
+            Column(
+              children: [
+                // Traditional show all toggle for limited content
+                if (searchContentDatas.length > widget.screenLength && !showAll)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showAll = true;
+                      });
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1, context)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: getPercentageWidth(5, context),
+                            color: kAccent,
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Text(
+                            'Show All ${searchContentDatas.length} Posts',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Load more button for pagination (when showing all and more posts available)
+                if (showAll && hasMorePosts && widget.listType != "meals")
+                  GestureDetector(
+                    onTap: _loadMorePosts,
+                    child: Container(
+                      margin: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(1, context),
+                        horizontal: getPercentageWidth(4, context),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(1.5, context),
+                        horizontal: getPercentageWidth(6, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: kAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(color: kAccent.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.refresh,
+                            size: getPercentageWidth(4, context),
+                            color: kAccent,
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Text(
+                            'Load More Posts',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Collapse button when showing all
+                if (showAll && searchContentDatas.length > widget.screenLength)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showAll = false;
+                      });
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1, context)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_up,
+                            size: getPercentageWidth(5, context),
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Text(
+                            'Show Less',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -357,7 +513,6 @@ class SearchContent extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.hasData) {
-            print('snapshot.data: ${snapshot.data}');
             return Image.memory(
               snapshot.data!,
               fit: BoxFit.cover,
@@ -541,7 +696,6 @@ class SearchContentPost extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.hasData) {
-            print('snapshot.data: ${snapshot.data}');
             return Image.memory(
               snapshot.data!,
               fit: BoxFit.cover,

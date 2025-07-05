@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../service/gemini_service.dart';
 import '../widgets/primary_button.dart';
 
 class FoodAnalysisResultsScreen extends StatefulWidget {
@@ -24,7 +23,6 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
 }
 
 class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
-  final GeminiService _geminiService = GeminiService();
   late Map<String, dynamic> _editableAnalysis;
   bool _isSaving = false;
 
@@ -60,14 +58,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       final downloadUrl = await uploadTask.ref.getDownloadURL();
 
       // Save analysis to tastyanalysis collection
-      await _geminiService.saveAnalysisToFirestore(
+      await geminiService.saveAnalysisToFirestore(
         analysisResult: _editableAnalysis,
         userId: userService.userId ?? '',
         imagePath: downloadUrl,
       );
 
       // Create meal from analysis
-      final mealId = await _geminiService.createMealFromAnalysis(
+      final mealId = await geminiService.createMealFromAnalysis(
         analysisResult: _editableAnalysis,
         userId: userService.userId ?? '',
         mealType: widget.mealType,
@@ -75,7 +73,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       );
 
       // Add to daily meals
-      await _geminiService.addAnalyzedMealToDaily(
+      await geminiService.addAnalyzedMealToDaily(
         mealId: mealId,
         userId: userService.userId ?? '',
         mealType: widget.mealType,

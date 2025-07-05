@@ -12,6 +12,7 @@ import 'macro_manager.dart';
 import 'meal_manager.dart';
 import 'nutrition_controller.dart';
 import 'post_manager.dart';
+import 'post_service.dart';
 import 'user_service.dart';
 
 class AppBindings extends Bindings {
@@ -29,6 +30,7 @@ class AppBindings extends Bindings {
     Get.lazyPut(() => CalendarSharingService(), fenix: true);
     Get.lazyPut(() => MealManager(), fenix: true);
     Get.lazyPut(() => PostController(), fenix: true);
+    Get.lazyPut(() => PostService(), fenix: true);
     Get.lazyPut(() => NutritionController(), fenix: true);
     Get.lazyPut(() => ChatController(), fenix: true);
     Get.lazyPut(() => ChatSummaryController(), fenix: true);

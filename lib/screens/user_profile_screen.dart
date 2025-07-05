@@ -10,8 +10,10 @@ import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/loading_screen.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/title_section.dart';
+import '../service/post_service.dart';
 import 'badges_screen.dart';
 import 'chat_screen.dart';
 
@@ -26,8 +28,9 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool lastStatus = true;
   bool showAll = false;
-  List<Post> searchContentDatas = [];
+  List<Map<String, dynamic>> searchContentDatas = [];
   List<BadgeAchievementData> myBadge = [];
+  bool isLoading = true;
 
   late ScrollController _scrollController;
 
@@ -62,26 +65,44 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _fetchContent(String userId) async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        searchContentDatas = [];
+      });
+    }
+
     try {
-      // Fetch posts in batches of 30 to comply with Firestore limitations
-      final List<Post> allPosts = [];
-      final List<Post> fetchedPosts = await postController.getUserPosts(userId);
+      // Use new optimized PostService for user posts
+      final postService = PostService.instance;
+      final result = await postService.getUserPosts(
+        userId: userId,
+        limit: 50, // Load more posts for profile
+        includeUserData: true,
+      );
 
-      // Process posts in chunks of 30
-      for (var i = 0; i < fetchedPosts.length; i += 30) {
-        final end =
-            (i + 30 < fetchedPosts.length) ? i + 30 : fetchedPosts.length;
-        final chunk = fetchedPosts.sublist(i, end);
-        allPosts.addAll(chunk);
-      }
-
-      if (mounted) {
+      if (result.isSuccess && mounted) {
         setState(() {
-          searchContentDatas = allPosts;
+          searchContentDatas = result.posts;
+          isLoading = false;
         });
+      } else if (mounted) {
+        setState(() {
+          searchContentDatas = [];
+          isLoading = false;
+        });
+        if (result.error != null) {
+          print('Error fetching user posts: ${result.error}');
+        }
       }
     } catch (e) {
       print('Error fetching content: $e');
+      if (mounted) {
+        setState(() {
+          searchContentDatas = [];
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -344,7 +365,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                       return Column(
                         children: [
-                          if (searchContentDatas.isEmpty)
+                          if (isLoading)
+                            const LoadingScreen(
+                              loadingText: 'Loading posts...',
+                            )
+                          else if (searchContentDatas.isEmpty)
                             Padding(
                               padding: EdgeInsets.all(
                                   getPercentageWidth(4, context)),
@@ -375,15 +400,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               itemCount: itemCount,
                               itemBuilder: (BuildContext ctx, index) {
                                 final data = searchContentDatas[index];
+                                // Convert Map to Post for SearchContentPost
+                                final post =
+                                    Post.fromMap(data, data['id'] ?? '');
                                 return SearchContentPost(
-                                  dataSrc: data,
+                                  dataSrc: post,
                                   press: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             ChallengeDetailScreen(
-                                          dataSrc: data.toFirestore(),
+                                          dataSrc:
+                                              data, // Use Map directly for ChallengeDetailScreen
                                           screen: 'myPost',
                                         ),
                                       ),

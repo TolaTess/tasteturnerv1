@@ -1,8 +1,11 @@
 import 'dart:ui';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:tasteturner/detail_screen/recipe_detail.dart';
 import 'package:tasteturner/widgets/video_player_widget.dart';
 
@@ -12,6 +15,7 @@ import '../helper/utils.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/friend_screen.dart';
 import '../screens/user_profile_screen.dart';
+import '../screens/food_analysis_results_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 
@@ -48,6 +52,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   bool isFollowing = false;
   int likesCount = 0;
   bool hasMeal = false;
+  bool isInFreeTrial = false;
   List<String> extractedItems = [];
   Map<String, dynamic> get _currentPostData => _posts[_currentIndex];
 
@@ -81,6 +86,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
     Future.delayed(const Duration(milliseconds: 100), () {
       _animationController.forward();
+    });
+
+    // Calculate free trial status
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    setState(() {
+      isInFreeTrial = isFreeTrial;
     });
 
     _loadCurrentPostData();
@@ -126,6 +139,334 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         hasMeal = meal != null;
       });
     }
+  }
+
+  // Check if user can use AI features (premium or free trial)
+  bool get _canUseAI {
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
+    return isPremium || isInFreeTrial;
+  }
+
+  // Show dialog to choose between manual recipe creation and AI analysis
+  Future<void> _showRecipeChoiceDialog() async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Create Recipe',
+            style: TextStyle(
+              color: isDarkMode ? kWhite : kBlack,
+              fontWeight: FontWeight.w600,
+              fontSize: getTextScale(4.5, context),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'How would you like to create your recipe?',
+                style: TextStyle(
+                  color: isDarkMode
+                      ? kWhite.withOpacity(0.8)
+                      : kBlack.withOpacity(0.7),
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Manual recipe option
+              ListTile(
+                leading: Icon(
+                  Icons.edit,
+                  color: kAccent,
+                  size: getResponsiveBoxSize(context, 24, 24),
+                ),
+                title: Text(
+                  'Create Manually',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontWeight: FontWeight.w500,
+                    fontSize: getTextScale(4, context),
+                  ),
+                ),
+                subtitle: Text(
+                  'Add ingredients and steps yourself',
+                  style: TextStyle(
+                    color: isDarkMode
+                        ? kWhite.withOpacity(0.6)
+                        : kBlack.withOpacity(0.6),
+                    fontSize: getTextScale(3, context),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _createManualRecipe();
+                },
+              ),
+
+              SizedBox(height: getPercentageHeight(1, context)),
+
+              // AI analysis option
+              ListTile(
+                leading: Icon(
+                  Icons.auto_awesome,
+                  color: _canUseAI ? kAccent : Colors.grey,
+                  size: getResponsiveBoxSize(context, 24, 24),
+                ),
+                title: Row(
+                  children: [
+                    Text(
+                      'AI Analysis',
+                      style: TextStyle(
+                        color: _canUseAI
+                            ? (isDarkMode ? kWhite : kBlack)
+                            : Colors.grey,
+                        fontWeight: FontWeight.w500,
+                        fontSize: getTextScale(4, context),
+                      ),
+                    ),
+                    if (!_canUseAI) ...[
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Icon(
+                        Icons.lock,
+                        color: Colors.grey,
+                        size: getResponsiveBoxSize(context, 16, 16),
+                      ),
+                    ],
+                  ],
+                ),
+                subtitle: Text(
+                  _canUseAI
+                      ? 'Let AI analyze the food image'
+                      : 'Premium feature - Subscribe to unlock',
+                  style: TextStyle(
+                    color: _canUseAI
+                        ? (isDarkMode
+                            ? kWhite.withOpacity(0.6)
+                            : kBlack.withOpacity(0.6))
+                        : Colors.grey,
+                    fontSize: getTextScale(3, context),
+                  ),
+                ),
+                onTap: _canUseAI
+                    ? () {
+                        Navigator.of(context).pop();
+                        _analyzeWithAI();
+                      }
+                    : () {
+                        Navigator.of(context).pop();
+                        _showPremiumRequiredDialog();
+                      },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: kAccent,
+                  fontWeight: FontWeight.w500,
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Manual recipe creation (existing flow)
+  void _createManualRecipe() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateRecipeScreen(
+          networkImages:
+              List<String>.from(_currentPostData['mediaPaths'] ?? []),
+          mealId: _currentPostData['id'],
+          screenType: 'post_add',
+        ),
+      ),
+    );
+  }
+
+  // AI analysis flow
+  Future<void> _analyzeWithAI() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: kAccent),
+              SizedBox(height: getPercentageHeight(2, context)),
+              Text(
+                'Analyzing food image with AI...',
+                style: TextStyle(
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Get the first image from the post
+      final mediaPaths =
+          List<String>.from(_currentPostData['mediaPaths'] ?? []);
+      if (mediaPaths.isEmpty) {
+        Navigator.pop(context); // Close loading dialog
+        _showErrorDialog('No image found to analyze');
+        return;
+      }
+
+      final imageUrl = mediaPaths.first;
+
+      // Download the image to create a File object
+      final response = await http.get(Uri.parse(imageUrl));
+      final bytes = response.bodyBytes;
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp_analysis_image.jpg');
+      await tempFile.writeAsBytes(bytes);
+
+      // Analyze the image with AI
+      final analysisResult = await geminiService.analyzeFoodImageWithContext(
+        imageFile: tempFile,
+        mealType: 'general', // Default meal type
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Navigate to food analysis results screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FoodAnalysisResultsScreen(
+            imageFile: tempFile,
+            analysisResult: analysisResult,
+            mealType: 'general',
+          ),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      _showErrorDialog('AI analysis failed: $e');
+    }
+  }
+
+  // Show premium required dialog
+  void _showPremiumRequiredDialog() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Premium Feature',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+            fontWeight: FontWeight.w600,
+            fontSize: getTextScale(4.5, context),
+          ),
+        ),
+        content: Text(
+          'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
+          style: TextStyle(
+            color:
+                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Maybe Later',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to premium screen
+              Navigator.pushNamed(context, '/premium');
+            },
+            child: Text(
+              'Subscribe',
+              style: TextStyle(
+                color: kAccent,
+                fontWeight: FontWeight.w600,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show error dialog
+  void _showErrorDialog(String message) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Error',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+            fontWeight: FontWeight.w600,
+            fontSize: getTextScale(4.5, context),
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color:
+                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: kAccent,
+                fontWeight: FontWeight.w500,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -437,7 +778,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: getPercentageWidth(7, context)),
+                      SizedBox(width: getPercentageWidth(4, context)),
                       if (postUserId != userService.userId)
                         GestureDetector(
                           onTap: () => Navigator.push(
@@ -472,37 +813,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             ),
                           ),
                         ),
-                      if (postUserId == userService.userId && !hasMeal) ...[
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CreateRecipeScreen(
-                                    networkImages: List<String>.from(
-                                        _currentPostData['mediaPaths'] ?? []),
-                                    mealId: _currentPostData['id'],
-                                    screenType: 'post_add'),
-                              ),
-                            );
-                          },
-                          child: CircleAvatar(
-                            radius: getResponsiveBoxSize(context, 17, 17),
-                            backgroundColor: kAccent.withOpacity(kOpacity),
-                            child: Icon(
-                              Icons.add_circle,
-                              color: kWhite,
-                              size: getResponsiveBoxSize(context, 15, 15),
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (postUserId == userService.userId && !hasMeal) ...[
-                        SizedBox(width: getPercentageWidth(7, context)),
-                      ],
-                      if (postUserId != userService.userId) ...[
-                        SizedBox(width: getPercentageWidth(7, context)),
-                      ],
+                      SizedBox(width: getPercentageWidth(4, context)),    
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -517,10 +828,28 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                         },
                         child: Icon(
                           Icons.ios_share,
+                          color: kWhite,
                           size: getResponsiveBoxSize(context, 23, 23),
                         ),
                       ),
-                      SizedBox(width: getPercentageWidth(7, context)),
+                      if (!hasMeal)
+                        SizedBox(width: getPercentageWidth(4, context)),
+                      if (!hasMeal)
+                        GestureDetector(
+                          onTap: () {
+                            _showRecipeChoiceDialog();
+                          },
+                          child: CircleAvatar(
+                            radius: getResponsiveBoxSize(context, 17, 17),
+                            backgroundColor: kAccent.withOpacity(kOpacity),
+                            child: Icon(
+                              Icons.add_circle,
+                              color: kWhite,
+                              size: getResponsiveBoxSize(context, 15, 15),
+                            ),
+                          ),
+                        ),
+                      SizedBox(width: getPercentageWidth(4, context)),
                       if (hasMeal)
                         GestureDetector(
                           onTap: () {
@@ -568,9 +897,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                   isLiked
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: isLiked
-                                      ? kAccent
-                                      : kAccent.withOpacity(0.5),
+                                  color: isLiked ? kAccent : kWhite,
                                   size: getResponsiveBoxSize(context, 23, 23),
                                 ),
                               ),
@@ -580,9 +907,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                 style: TextStyle(
                                   fontSize: getTextScale(3, context),
                                   fontWeight: FontWeight.w400,
-                                  color: isLiked
-                                      ? kAccent
-                                      : kAccent.withOpacity(0.5),
+                                  color: isLiked ? kAccent : kWhite,
                                 ),
                               ),
                             ],
@@ -604,7 +929,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                               isFollowing
                                   ? Icons.people
                                   : Icons.person_add_alt_1_outlined,
-                              color: isFollowing ? kAccentLight : null,
+                              color: isFollowing ? kAccentLight : kWhite,
                               size: getResponsiveBoxSize(context, 23, 23),
                             ),
                           );

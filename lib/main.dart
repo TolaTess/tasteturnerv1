@@ -22,6 +22,7 @@ import 'service/meal_manager.dart';
 import 'service/notification_service.dart';
 import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
+import 'service/post_service.dart';
 import 'service/helper_controller.dart';
 import 'service/battle_service.dart';
 import 'service/user_service.dart';
@@ -58,6 +59,7 @@ void main() async {
   Get.put(CalendarSharingService());
   Get.lazyPut(() => MealManager());
   Get.lazyPut(() => PostController());
+  Get.lazyPut(() => PostService());
   Get.lazyPut(() => NutritionController());
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());

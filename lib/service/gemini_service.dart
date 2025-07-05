@@ -11,10 +11,50 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 
+/// Enhanced GeminiService with comprehensive user context integration
+///
+/// This service provides AI-powered functionality with intelligent context awareness:
+///
+/// **Context Features:**
+/// - Automatic program enrollment detection and details
+/// - User preferences (diet, family mode) integration
+/// - Program progress tracking and goal alignment
+/// - Intelligent program encouragement for non-enrolled users
+/// - Efficient context caching (30-minute cache validity)
+///
+/// **Usage Examples:**
+/// ```dart
+/// // Generate contextual meal plan
+/// final mealPlan = await geminiService.generateMealPlan("healthy meals for weight loss");
+///
+/// // Check if user has a program
+/// final hasProgram = await geminiService.isUserEnrolledInProgram();
+///
+/// // Refresh context after program changes
+/// await geminiService.refreshUserContext();
+/// ```
+///
+/// **Cache Management:**
+/// - Context is cached for 30 minutes or until user changes
+/// - Call `refreshUserContext()` after program enrollment/changes
+/// - Call `clearContextCache()` to force fresh data on next request
 class GeminiService {
+  static final GeminiService _instance = GeminiService._internal();
+  factory GeminiService() => _instance;
+  GeminiService._internal();
+
+  static GeminiService get instance => _instance;
+
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1';
   String? _activeModel; // Cache the working model name and full path
-  bool familyMode = userService.currentUser.value?.familyMode ?? false;
+
+  // Get current family mode dynamically
+  bool get familyMode => userService.currentUser.value?.familyMode ?? false;
+
+  // Cache user program context for efficiency
+  Map<String, dynamic>? _cachedUserContext;
+  String? _lastUserId;
+  DateTime? _lastContextFetch;
 
   // Initialize and find a working model
   Future<bool> initializeModel() async {
@@ -72,6 +112,187 @@ class GeminiService {
     }
   }
 
+  /// Get comprehensive user context including program details
+  Future<Map<String, dynamic>> _getUserContext() async {
+    final currentUserId = userService.userId;
+    if (currentUserId == null) {
+      return {
+        'hasProgram': false,
+        'encourageProgram': true,
+        'familyMode': false,
+        'dietPreference': 'none',
+        'programMessage':
+            'Consider enrolling in a personalized program to get tailored meal plans and nutrition guidance.',
+      };
+    }
+
+    // Check cache validity (refresh every 30 minutes or if user changed)
+    final now = DateTime.now();
+    if (_cachedUserContext != null &&
+        _lastUserId == currentUserId &&
+        _lastContextFetch != null &&
+        now.difference(_lastContextFetch!).inMinutes < 30) {
+      return _cachedUserContext!;
+    }
+
+    try {
+      // Fetch user's current program enrollment
+      final userProgramQuery = await firestore
+          .collection('userPrograms')
+          .where('userId', isEqualTo: currentUserId)
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      Map<String, dynamic> context = {
+        'userId': currentUserId,
+        'familyMode': userService.currentUser.value?.familyMode ?? false,
+        'dietPreference':
+            userService.currentUser.value?.settings['dietPreference'] ?? 'none',
+        'hasProgram': false,
+        'encourageProgram': true,
+      };
+
+      if (userProgramQuery.docs.isNotEmpty) {
+        final userProgramData = userProgramQuery.docs.first.data();
+        final programId = userProgramData['programId'] as String?;
+
+        if (programId != null) {
+          // Fetch program details
+          final programDoc =
+              await firestore.collection('programs').doc(programId).get();
+
+          if (programDoc.exists) {
+            final programData = programDoc.data()!;
+
+            context.addAll({
+              'hasProgram': true,
+              'encourageProgram': false,
+              'currentProgram': {
+                'id': programId,
+                'name': programData['name'] ?? 'Current Program',
+                'goal': programData['goal'] ?? 'Health improvement',
+                'description': programData['description'] ?? '',
+                'duration': programData['duration'] ?? '4 weeks',
+                'dietType':
+                    programData['dietType'] ?? context['dietPreference'],
+                'weeklyPlans': programData['weeklyPlans'] ?? [],
+                'requirements': programData['requirements'] ?? [],
+                'recommendations': programData['recommendations'] ?? [],
+              },
+              'programProgress': {
+                'startDate': userProgramData['startDate'],
+                'currentWeek': userProgramData['currentWeek'] ?? 1,
+                'completedDays': userProgramData['completedDays'] ?? 0,
+              },
+              'programMessage':
+                  'Continue following your ${programData['name']} program with goal: ${programData['goal']}. Consider these recommendations in all meal suggestions.',
+            });
+          }
+        }
+      }
+
+      if (!context['hasProgram']) {
+        context['programMessage'] =
+            'Consider enrolling in a personalized program to get tailored meal plans, nutrition guidance, and achieve your health goals more effectively.';
+      }
+
+      // Cache the context
+      _cachedUserContext = context;
+      _lastUserId = currentUserId;
+      _lastContextFetch = now;
+
+      return context;
+    } catch (e) {
+      print('Error fetching user context: $e');
+      // Return basic context on error
+      return {
+        'userId': currentUserId,
+        'familyMode': userService.currentUser.value?.familyMode ?? false,
+        'dietPreference':
+            userService.currentUser.value?.settings['dietPreference'] ?? 'none',
+        'hasProgram': false,
+        'encourageProgram': true,
+        'programMessage':
+            'Consider enrolling in a personalized program to get tailored meal plans and nutrition guidance.',
+      };
+    }
+  }
+
+  /// Build comprehensive context string for AI prompts
+  Future<String> _buildAIContext() async {
+    final userContext = await _getUserContext();
+
+    String context = '''
+USER CONTEXT:
+- Family Mode: ${userContext['familyMode'] ? 'Yes (generate family-friendly portions and options)' : 'No (individual portions)'}
+- Diet Preference: ${userContext['dietPreference']}
+''';
+
+    if (userContext['hasProgram'] == true) {
+      final program = userContext['currentProgram'] as Map<String, dynamic>;
+      final progress = userContext['programProgress'] as Map<String, dynamic>;
+
+      context += '''
+- Current Program: ${program['name']}
+- Program Goal: ${program['goal']}
+- Program Duration: ${program['duration']}
+- Current Week: ${progress['currentWeek']}
+- Program Diet Type: ${program['dietType']}
+''';
+
+      if (program['requirements'] != null &&
+          (program['requirements'] as List).isNotEmpty) {
+        context +=
+            '- Program Requirements: ${(program['requirements'] as List).join(', ')}\n';
+      }
+
+      if (program['recommendations'] != null &&
+          (program['recommendations'] as List).isNotEmpty) {
+        context +=
+            '- Program Recommendations: ${(program['recommendations'] as List).join(', ')}\n';
+      }
+
+      context +=
+          '\nIMPORTANT: All meal suggestions should align with the user\'s current program goals and requirements. ';
+    } else {
+      context +=
+          '\nNOTE: User is not enrolled in a program. Gently encourage program enrollment for personalized guidance. ';
+    }
+
+    context += userContext['programMessage'] as String;
+
+    return context;
+  }
+
+  /// Clear cached context (call when user changes programs or significant updates)
+  void clearContextCache() {
+    _cachedUserContext = null;
+    _lastUserId = null;
+    _lastContextFetch = null;
+  }
+
+  /// Get user's current program status (public method for other services)
+  Future<bool> isUserEnrolledInProgram() async {
+    final context = await _getUserContext();
+    return context['hasProgram'] == true;
+  }
+
+  /// Get current program details (public method for other services)
+  Future<Map<String, dynamic>?> getCurrentProgramDetails() async {
+    final context = await _getUserContext();
+    if (context['hasProgram'] == true) {
+      return context['currentProgram'] as Map<String, dynamic>?;
+    }
+    return null;
+  }
+
+  /// Force refresh of user context (useful after program enrollment/changes)
+  Future<void> refreshUserContext() async {
+    clearContextCache();
+    await _getUserContext(); // This will fetch fresh data
+  }
+
   Future<String> getResponse(String prompt, int maxTokens,
       {String? role}) async {
     // Initialize model if not already done
@@ -87,12 +308,15 @@ class GeminiService {
       return 'Error: API key not configured';
     }
 
-    // Add brevity instruction to the role/prompt
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+
+    // Add brevity instruction and context to the role/prompt
     final briefingInstruction =
         "Please provide brief, concise responses in 2-4 sentences maximum. ";
     final modifiedPrompt = role != null
-        ? '$briefingInstruction\n$role\nUser: $prompt'
-        : '$briefingInstruction\nUser: $prompt';
+        ? '$briefingInstruction\n$aiContext\n$role\nUser: $prompt'
+        : '$briefingInstruction\n$aiContext\nUser: $prompt';
 
     try {
       final response = await http.post(
@@ -172,13 +396,12 @@ class GeminiService {
       throw Exception('API key not configured');
     }
 
-    if (familyMode) {
-      prompt =
-          'For a family, generate a detailed meal plan based on the following requirements: $prompt';
-    } else {
-      prompt =
-          'Generate a detailed meal plan based on the following requirements: $prompt';
-    }
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+
+    final contextualPrompt = familyMode
+        ? 'For a family, generate a detailed meal plan based on the following requirements: $prompt'
+        : 'Generate a detailed meal plan based on the following requirements: $prompt';
 
     try {
       final response = await http.post(
@@ -190,7 +413,11 @@ class GeminiService {
               "parts": [
                 {
                   "text": '''
-You are a professional nutritionist and meal planner. $prompt
+You are a professional nutritionist and meal planner.
+
+$aiContext
+
+$contextualPrompt
 
 Generate a 7-day meal plan that is:
 
@@ -289,16 +516,17 @@ Important:
       throw Exception('API key not configured');
     }
 
-    if (familyMode) {
-      prompt =
-          'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
-    } else {
-      prompt =
-          'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
-    }
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+
+    final contextualPrompt = familyMode
+        ? 'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt'
+        : 'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
 
     final mealPrompt = '''
-    $prompt
+    $aiContext
+    
+    $contextualPrompt
 
     Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
     {
@@ -393,7 +621,18 @@ Important:
       throw Exception('API key not configured');
     }
 
+    // Get basic user context (but don't include existing program since we're creating a new one)
+    final userContext = await _getUserContext();
+
+    final basicContext = '''
+USER CONTEXT:
+- Family Mode: ${userContext['familyMode'] ? 'Yes (generate family-friendly portions and options)' : 'No (individual portions)'}
+- Current Diet Preference: ${userContext['dietPreference']}
+''';
+
     final prompt = '''
+$basicContext
+
 Generate a personalized fitness and nutrition program based on the following information:
 Program Type: $programType
 Program Context: $additionalContext
@@ -488,7 +727,12 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       final Uint8List imageBytes = await imageFile.readAsBytes();
       final String base64Image = base64Encode(imageBytes);
 
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+
       final prompt = '''
+$aiContext
+
 Analyze this food image and provide detailed nutritional information. Identify all visible food items, estimate portion sizes, and calculate nutritional values.
 
 Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
@@ -607,6 +851,9 @@ Important guidelines:
       final Uint8List imageBytes = await imageFile.readAsBytes();
       final String base64Image = base64Encode(imageBytes);
 
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+
       String contextualPrompt =
           'Analyze this food image and provide detailed nutritional information.';
 
@@ -624,6 +871,8 @@ Important guidelines:
       }
 
       final prompt = '''
+$aiContext
+
 $contextualPrompt
 
 Identify all visible food items, estimate portion sizes, and calculate nutritional values. Also provide suggestions for meal improvement if applicable.
@@ -760,6 +1009,9 @@ Important guidelines:
       final String base64Image1 = base64Encode(imageBytes1);
       final String base64Image2 = base64Encode(imageBytes2);
 
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+
       String prompt =
           'Compare these two food images and provide a detailed nutritional comparison.';
 
@@ -768,6 +1020,8 @@ Important guidelines:
       }
 
       prompt += '''
+
+$aiContext
 
 Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
 {
@@ -1002,3 +1256,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     }
   }
 }
+
+// Global instance for easy access throughout the app
+final geminiService = GeminiService.instance;
