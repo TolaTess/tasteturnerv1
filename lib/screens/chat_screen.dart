@@ -353,7 +353,7 @@ class _ChatScreenState extends State<ChatScreen> {
     for (File image in images) {
       try {
         final String fileName =
-            'chats/\\$chatId/\\${DateTime.now().millisecondsSinceEpoch}.jpg';
+            'chats/$chatId/${DateTime.now().millisecondsSinceEpoch}.jpg';
         final Reference storageRef = firebaseStorage.ref().child(fileName);
 
         final uploadTask = storageRef.putFile(image);

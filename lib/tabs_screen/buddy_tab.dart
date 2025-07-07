@@ -20,7 +20,6 @@ class BuddyTab extends StatefulWidget {
 
 class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
-  bool isPremium = userService.currentUser.value?.isPremium ?? false;
 
   // State for meal type filtering
   final ValueNotifier<Set<String>> selectedMealTypesNotifier =
@@ -64,9 +63,6 @@ class _BuddyTabState extends State<BuddyTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    setState(() {
-      isPremium = userService.currentUser.value?.isPremium ?? false;
-    });
     _initializeBuddyData();
   }
 
@@ -247,7 +243,9 @@ class _BuddyTabState extends State<BuddyTab> {
                 height: getPercentageHeight(3, context),
               ),
               Text(
-                isPremium ? tastyMessage : tastyMessage1,
+                (userService.currentUser.value?.isPremium ?? false)
+                    ? tastyMessage
+                    : tastyMessage1,
                 style: textTheme.displaySmall?.copyWith(
                   fontSize: getTextScale(5, context),
                 ),
@@ -257,7 +255,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 padding: EdgeInsets.symmetric(
                     horizontal: getPercentageWidth(3.2, context)),
                 child: Text(
-                  isPremium
+                  (userService.currentUser.value?.isPremium ?? false)
                       ? tastyMessage2
                       : isInFreeTrial
                           ? tastyMessage3
@@ -269,7 +267,8 @@ class _BuddyTabState extends State<BuddyTab> {
                 ),
               ),
               SizedBox(height: getPercentageHeight(2, context)),
-              if (isPremium || isInFreeTrial)
+              if ((userService.currentUser.value?.isPremium ?? false) ||
+                  isInFreeTrial)
                 AppButton(
                     text: 'Get Meal Plan',
                     onPressed: () async {
@@ -656,6 +655,14 @@ class _BuddyTabState extends State<BuddyTab> {
                                       SizedBox(
                                           height:
                                               getPercentageHeight(2, context)),
+                                      Icon(
+                                        Icons.restaurant_menu,
+                                        size: getPercentageWidth(12, context),
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(
+                                          height: getPercentageHeight(
+                                             1, context)),
                                       Text(
                                         'No meals match the current filter',
                                         textAlign: TextAlign.center,
@@ -665,7 +672,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                       ),
                                       SizedBox(
                                           height: getPercentageHeight(
-                                              0.5, context)),
+                                              1, context)),
                                       Text(
                                         'Try selecting different meal types above',
                                         textAlign: TextAlign.center,
