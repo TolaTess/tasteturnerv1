@@ -291,7 +291,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                       }
                     : () {
                         Navigator.of(context).pop();
-                        _showPremiumRequiredDialog();
+                        showPremiumRequiredDialog(context, isDarkMode);
                       },
               ),
             ],
@@ -396,66 +396,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       Navigator.pop(context); // Close loading dialog
       _showErrorDialog('AI analysis failed: $e');
     }
-  }
-
-  // Show premium required dialog
-  void _showPremiumRequiredDialog() {
-    final isDarkMode =
-        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        title: Text(
-          'Premium Feature',
-          style: TextStyle(
-            color: isDarkMode ? kWhite : kBlack,
-            fontWeight: FontWeight.w600,
-            fontSize: getTextScale(4.5, context),
-          ),
-        ),
-        content: Text(
-          'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
-          style: TextStyle(
-            color: isDarkMode
-                ? kWhite.withValues(alpha: 0.8)
-                : kBlack.withValues(alpha: 0.7),
-            fontSize: getTextScale(3.5, context),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Maybe Later',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: getTextScale(3.5, context),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to premium screen
-              Navigator.pushNamed(context, '/premium');
-            },
-            child: Text(
-              'Subscribe',
-              style: TextStyle(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-                fontSize: getTextScale(3.5, context),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // Show error dialog

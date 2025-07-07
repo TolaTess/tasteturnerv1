@@ -217,12 +217,12 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                             kText: searchMealHint,
                           ),
                         ),
-                  widget.isFilter
+                  widget.isFilter || searchQuery.isNotEmpty
                       ? const SizedBox.shrink()
                       : SizedBox(height: getPercentageHeight(2, context)),
 
                   // Curated dietPreference meals section
-                  (widget.isNoTechnique)
+                  (widget.isNoTechnique || searchQuery.isNotEmpty)
                       ? const SizedBox.shrink()
                       : Obx(() {
                           final dietPreference = userService

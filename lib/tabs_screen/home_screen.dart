@@ -399,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '$greeting ${currentUser.displayName}!',
+                                '$greeting ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
                                 style: textTheme.displaySmall?.copyWith(
                                     fontWeight: FontWeight.w500,
                                     fontSize: getPercentageWidth(6, context)),
@@ -497,14 +497,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-          verticalOffset: getPercentageHeight(5, context),
-          horizontalOffset: getPercentageWidth(2, context),
+          verticalOffset: getPercentageHeight(2, context),
         ),
-        floatingActionButton: buildTastyFloatingActionButton(
+        floatingActionButton: buildFullWidthHomeButton(
           context: context,
-          buttonKey: _addHomeButtonKey,
-          themeProvider: getThemeProvider(context),
-          isInFreeTrial: isInFreeTrial,
+          onSuccess: () {},
+          onError: () {},
         ),
         body: RefreshIndicator(
           onRefresh: () async {
@@ -946,7 +944,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     },
                   ),
                   SizedBox(
-                    height: getPercentageHeight(6, context),
+                    height: getPercentageHeight(15, context),
                   ),
                 ],
               ),

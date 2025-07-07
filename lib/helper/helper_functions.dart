@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../screens/buddy_screen.dart';
+import '../screens/food_analysis_results_screen.dart';
 import '../screens/premium_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/optimized_image.dart';
@@ -867,3 +868,392 @@ final colors = [
   kPurple.withValues(alpha: kMidOpacity),
   kPink.withValues(alpha: kMidOpacity)
 ];
+
+Widget buildFullWidthHomeButton({
+  required BuildContext context,
+  VoidCallback? onSuccess,
+  VoidCallback? onError,
+}) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+
+  // Check if user can use AI features (premium or free trial)
+  bool canUseAI() {
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
+    return isPremium || isFreeTrial;
+  }
+
+  Future<void> handleCameraAction() async {
+    // Check if user can use AI features
+    if (!canUseAI()) {
+      showPremiumRequiredDialog(context, isDarkMode);
+      return;
+    }
+
+    try {
+      // Show media selection dialog first
+      final selectedOption = await showMediaSelectionDialog(
+        isCamera: true,
+        context: context,
+      );
+
+      if (selectedOption == null) {
+        return; // User cancelled the dialog
+      }
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: kAccent),
+        ),
+      );
+
+      List<XFile> pickedImages = [];
+
+      if (selectedOption == 'photo') {
+        // Take photo with camera
+        final ImagePicker picker = ImagePicker();
+        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+        if (photo != null) {
+          pickedImages = [photo];
+        }
+      } else if (selectedOption == 'gallery') {
+        // Pick image from gallery using the existing modal
+        pickedImages = await openMultiImagePickerModal(context: context);
+      }
+
+      if (pickedImages.isEmpty) {
+        Navigator.pop(context); // Close loading dialog
+        return;
+      }
+
+      // Crop the first image (only for photos)
+      XFile? croppedImage = await cropImage(pickedImages.first, context);
+      if (croppedImage == null) {
+        Navigator.pop(context); // Close loading dialog
+        return;
+      }
+
+      // Analyze the image
+      final analysisResult = await geminiService.analyzeFoodImageWithContext(
+        imageFile: File(croppedImage.path),
+      );
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Navigate to results screen for review and editing
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FoodAnalysisResultsScreen(
+            imageFile: File(croppedImage.path),
+            analysisResult: analysisResult,
+          ),
+        ),
+      );
+
+      onSuccess?.call();
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      if (context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Analysis failed: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      onError?.call();
+    }
+  }
+
+  Future<void> navigateToTasty() async {
+    if (canUseAI()) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const TastyScreen(screen: 'message'),
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => showPremiumDialog(
+            context,
+            isDarkMode,
+            'Premium Feature',
+            'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
+      );
+    }
+  }
+
+  return Container(
+    width: double.infinity,
+    height: getPercentageHeight(7, context),
+    decoration: BoxDecoration(
+      color: isDarkMode ? kDarkGrey : kWhite,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: kAccent.withValues(alpha: 0.2),
+          blurRadius: 5,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        // Left side - Analyse meal
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              onTap: handleCameraAction,
+              child: Container(
+                height: double.infinity,
+                padding: EdgeInsets.only(left: getPercentageWidth(4, context)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      children: [
+                        // Icon(
+                        //   Icons.camera_alt,
+                        //   color: canUseAI() ? kAccent : Colors.grey,
+                        //   size: getIconScale(5, context),
+                        // ),
+                        if (!canUseAI())
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.lock,
+                                color: Colors.white,
+                                size: getIconScale(2.5, context),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Analyse\nMeal',
+                        style: textTheme.displaySmall?.copyWith(
+                          color: canUseAI() ? kAccentLight : Colors.grey,
+                          fontWeight: FontWeight.w600,
+                          fontSize: getTextScale(3.5, context),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Divider
+        Container(
+          width: 1,
+          height: getPercentageHeight(4, context),
+          color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+        ),
+        // Right side - Tasty screen navigation
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+              onTap: navigateToTasty,
+              child: Container(
+                height: double.infinity,
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      children: [
+                        // CircleAvatar(
+                        //   radius: getIconScale(2.5, context),
+                        //   backgroundColor: canUseAI() ? kAccent : Colors.grey,
+                        //   child: Image.asset(
+                        //     'assets/images/tasty/tasty.png',
+                        //     width: getIconScale(4, context),
+                        //     height: getIconScale(4, context),
+                        //   ),
+                        // ),
+                        if (!canUseAI())
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.lock,
+                                color: Colors.white,
+                                size: getIconScale(2.5, context),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Expanded(
+                      child: Text(
+                        'Chat with\nTasty AI',
+                        style: textTheme.displaySmall?.copyWith(
+                          color: canUseAI() ? kAccentLight : Colors.grey,
+                          fontWeight: FontWeight.w600,
+                          fontSize: getTextScale(3.5, context),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<String?> showMediaSelectionDialog(
+    {required bool isCamera, required BuildContext context}) async {
+  return await showDialog<String>(
+    context: context,
+    builder: (BuildContext context) {
+      final isDarkMode = getThemeProvider(context).isDarkMode;
+      final textTheme = Theme.of(context).textTheme;
+
+      final title = isCamera ? 'Choose capture mode' : 'Choose media type';
+      final options = isCamera
+          ? [
+              {
+                'icon': Icons.photo_camera,
+                'title': 'Take Photo',
+                'value': 'photo'
+              },
+              {
+                'icon': Icons.photo_library,
+                'title': 'Pick from Gallery',
+                'value': 'gallery'
+              },
+            ]
+          : [
+              {'icon': Icons.photo, 'title': 'Photos', 'value': 'photos'},
+              {'icon': Icons.video_library, 'title': 'Video', 'value': 'video'},
+            ];
+
+      return AlertDialog(
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          title,
+          style: textTheme.titleLarge?.copyWith(color: kAccentLight),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options
+              .map((option) => ListTile(
+                    leading: Icon(
+                      option['icon'] as IconData,
+                      color: isDarkMode ? kWhite : kDarkGrey,
+                    ),
+                    title: Text(
+                      option['title'] as String,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
+                    onTap: () =>
+                        Navigator.pop(context, option['value'] as String),
+                  ))
+              .toList(),
+        ),
+      );
+    },
+  );
+}
+
+// Helper function for premium dialog
+void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      title: Text(
+        'Premium Feature',
+        style: TextStyle(
+          color: isDarkMode ? kWhite : kBlack,
+          fontWeight: FontWeight.w600,
+          fontSize: getTextScale(4.5, context),
+        ),
+      ),
+      content: Text(
+        'AI food analysis is a premium feature. Update to premium to unlock this and many other amazing features!',
+        style: TextStyle(
+          color: isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+          fontSize: getTextScale(3.5, context),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'Maybe Later',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: getTextScale(3.5, context),
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            // Navigate to premium screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PremiumScreen()),
+            );
+          },
+          child: Text(
+            'Premium',
+            style: TextStyle(
+              color: kAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: getTextScale(3.5, context),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';

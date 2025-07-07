@@ -22,6 +22,39 @@ class _BuddyTabState extends State<BuddyTab> {
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   bool isPremium = userService.currentUser.value?.isPremium ?? false;
 
+  // State for meal type filtering
+  final ValueNotifier<Set<String>> selectedMealTypesNotifier =
+      ValueNotifier({});
+
+  // Toggle meal type selection
+  void toggleMealTypeSelection(String mealType) {
+    final currentSelection = Set<String>.from(selectedMealTypesNotifier.value);
+    if (currentSelection.contains(mealType)) {
+      currentSelection.remove(mealType);
+    } else {
+      currentSelection.add(mealType);
+    }
+    selectedMealTypesNotifier.value = currentSelection;
+  }
+
+  // Filter meals based on selected categories
+  List<MealWithType> filterMealsByType(
+      List<MealWithType> meals, Set<String> selectedMealTypes) {
+    if (selectedMealTypes.isEmpty) return meals; // Show all if none selected
+
+    return meals.where((mealWithType) {
+      final meal = mealWithType.meal;
+      final category = meal.category?.toLowerCase() ?? '';
+      return selectedMealTypes.contains(category);
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    selectedMealTypesNotifier.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -201,7 +234,7 @@ class _BuddyTabState extends State<BuddyTab> {
                       ? getPercentageWidth(17, context)
                       : getPercentageWidth(12, context),
                   decoration: BoxDecoration(
-                    color: kAccentLight.withValues(alpha: 0.5), 
+                    color: kAccentLight.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                     image: const DecorationImage(
                       image: AssetImage(tastyImage),
@@ -379,12 +412,15 @@ class _BuddyTabState extends State<BuddyTab> {
                               ),
                             ),
                             SizedBox(height: getPercentageHeight(0.5, context)),
-                            Text(
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              parts.length > 1 ? parts[1] : '',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: kLightGrey,
+                            Center(
+                              child: Text(
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                parts.length > 1 ? parts[1] : '',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: kLightGrey,
+                                ),
                               ),
                             ),
                           ],
@@ -394,7 +430,8 @@ class _BuddyTabState extends State<BuddyTab> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     TextButton(
                       style: TextButton.styleFrom(
-                        backgroundColor: kAccentLight.withValues(alpha: kOpacity),
+                        backgroundColor:
+                            kAccentLight.withValues(alpha: kOpacity),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -507,27 +544,143 @@ class _BuddyTabState extends State<BuddyTab> {
                       ),
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        buildAddMealTypeLegend(context, 'protein'),
-                        buildAddMealTypeLegend(context, 'grain'),
-                        buildAddMealTypeLegend(context, 'vegetable'),
-                        buildAddMealTypeLegend(context, 'fruit'),
-                      ],
+                    ValueListenableBuilder<Set<String>>(
+                      valueListenable: selectedMealTypesNotifier,
+                      builder: (context, selectedMealTypes, child) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            GestureDetector(
+                              onTap: () => toggleMealTypeSelection('protein'),
+                              child: buildAddMealTypeLegend(
+                                context,
+                                'protein',
+                                isSelected:
+                                    selectedMealTypes.contains('protein'),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => toggleMealTypeSelection('grain'),
+                              child: buildAddMealTypeLegend(
+                                context,
+                                'grain',
+                                isSelected: selectedMealTypes.contains('grain'),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => toggleMealTypeSelection('vegetable'),
+                              child: buildAddMealTypeLegend(
+                                context,
+                                'vegetable',
+                                isSelected:
+                                    selectedMealTypes.contains('vegetable'),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => toggleMealTypeSelection('fruit'),
+                              child: buildAddMealTypeLegend(
+                                context,
+                                'fruit',
+                                isSelected: selectedMealTypes.contains('fruit'),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    SizedBox(height: getPercentageHeight(1, context)),
-                    if (groupedMeals['breakfast']?.isNotEmpty ?? false)
-                      _buildMealsList(
-                          groupedMeals['breakfast']!, 'Breakfast', context),
-                    if (groupedMeals['lunch']?.isNotEmpty ?? false)
-                      _buildMealsList(groupedMeals['lunch']!, 'Lunch', context),
-                    if (groupedMeals['dinner']?.isNotEmpty ?? false)
-                      _buildMealsList(
-                          groupedMeals['dinner']!, 'Dinner', context),
-                    if (groupedMeals['snacks']?.isNotEmpty ?? false)
-                      _buildMealsList(
-                          groupedMeals['snacks']!, 'Snacks', context),
+                    // Filterable meal lists section
+                    ValueListenableBuilder<Set<String>>(
+                      valueListenable: selectedMealTypesNotifier,
+                      builder: (context, selectedMealTypes, child) {
+                        final totalMeals =
+                            (groupedMeals['breakfast']?.length ?? 0) +
+                                (groupedMeals['lunch']?.length ?? 0) +
+                                (groupedMeals['dinner']?.length ?? 0) +
+                                (groupedMeals['snacks']?.length ?? 0);
+
+                        final filteredBreakfast = filterMealsByType(
+                            groupedMeals['breakfast'] ?? [], selectedMealTypes);
+                        final filteredLunch = filterMealsByType(
+                            groupedMeals['lunch'] ?? [], selectedMealTypes);
+                        final filteredDinner = filterMealsByType(
+                            groupedMeals['dinner'] ?? [], selectedMealTypes);
+                        final filteredSnacks = filterMealsByType(
+                            groupedMeals['snacks'] ?? [], selectedMealTypes);
+
+                        final filteredMealsCount = filteredBreakfast.length +
+                            filteredLunch.length +
+                            filteredDinner.length +
+                            filteredSnacks.length;
+
+                        final hasAnyFilteredMeals = filteredMealsCount > 0;
+
+                        return Column(
+                          children: [
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                            // Show filter status
+                            if (selectedMealTypes.isNotEmpty && totalMeals > 0)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(4, context)),
+                                child: Text(
+                                  'Showing $filteredMealsCount of $totalMeals meals',
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            // Meal lists
+                            if (filteredBreakfast.isNotEmpty)
+                              _buildMealsList(
+                                  filteredBreakfast, 'Breakfast', context),
+                            if (filteredLunch.isNotEmpty)
+                              _buildMealsList(filteredLunch, 'Lunch', context),
+                            if (filteredDinner.isNotEmpty)
+                              _buildMealsList(
+                                  filteredDinner, 'Dinner', context),
+                            if (filteredSnacks.isNotEmpty)
+                              _buildMealsList(
+                                  filteredSnacks, 'Snacks', context),
+                            // Show message when no meals match the filter
+                            if (!hasAnyFilteredMeals &&
+                                selectedMealTypes.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(4, context)),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                          height:
+                                              getPercentageHeight(2, context)),
+                                      Text(
+                                        'No meals match the current filter',
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          height: getPercentageHeight(
+                                              0.5, context)),
+                                      Text(
+                                        'Try selecting different meal types above',
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                     SizedBox(height: getPercentageHeight(13, context)),
                   ],
                 ),

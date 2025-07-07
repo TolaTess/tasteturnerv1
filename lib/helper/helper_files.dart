@@ -6,20 +6,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'utils.dart';
 
-  String calculateRecommendedGoals(String goal) {
-    final userCalories =
-        userService.currentUser.value?.settings['foodGoals'] ?? 2000;
+String calculateRecommendedGoals(String goal) {
+  final userCalories =
+      userService.currentUser.value?.settings['foodGoals'] ?? 2000;
 
-    if (goal == 'Healthy Eating') {
-      return userCalories.toString();
-    } else if (goal == 'Lose Weight') {
-      return 1500 > userCalories ? '1500' : userCalories.toString();
-    } else if (goal == 'Gain Muscle') {
-      return 2500 < userCalories ? '2500' : userCalories.toString();
-    } else {
-      return userCalories.toString(); // Default to user's calories
-    }
+  if (goal == 'Healthy Eating') {
+    return userCalories.toString();
+  } else if (goal == 'Lose Weight') {
+    return 1500 > userCalories ? '1500' : userCalories.toString();
+  } else if (goal == 'Gain Muscle') {
+    return 2500 < userCalories ? '2500' : userCalories.toString();
+  } else {
+    return userCalories.toString(); // Default to user's calories
   }
+}
 
 Future<bool> checkMealPlanGenerationLimit(BuildContext context) async {
   try {
@@ -116,7 +116,7 @@ Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
 Color getMealTypeColor(String type) {
   switch (type.toLowerCase()) {
     case 'protein':
-      return kAccent.withValues(alpha: 0.5);  
+      return kAccent.withValues(alpha: 0.5);
     case 'grain':
       return kBlue.withValues(alpha: 0.5);
     case 'vegetable':
@@ -142,34 +142,34 @@ String getMealTypeImage(String type) {
 }
 
 Widget buildAddMealTypeLegend(BuildContext context, String mealType,
-    {bool isSelected = false}) {
-    final textTheme = Theme.of(context).textTheme;
+    {bool isSelected = false, bool isColored = false}) {
+  final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      decoration: BoxDecoration(
+  return Container(
+    decoration: BoxDecoration(
       color: isSelected
-            ? kAccentLight.withValues(alpha: 0.3)
+          ? kAccentLight.withValues(alpha: 0.3)
           : kAccent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(10),
       border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: getPercentageWidth(4, context),
-        vertical: getPercentageHeight(1, context),
-      ),
-      child: Column(
-        children: [
+    ),
+    padding: EdgeInsets.symmetric(
+      horizontal: getPercentageWidth(4, context),
+      vertical: getPercentageHeight(1, context),
+    ),
+    child: Column(
+      children: [
         Icon(Icons.square_rounded,
             color: isSelected ? kAccentLight : getMealTypeColor(mealType)),
-          SizedBox(width: getPercentageWidth(2, context)),
+        SizedBox(width: getPercentageWidth(2, context)),
         Text(
           capitalizeFirstLetter(mealType),
           style: textTheme.bodyMedium?.copyWith(
-            color: isSelected ? kAccentLight : kAccent,
+            color: isSelected ? kAccentLight : getMealTypeColor(mealType),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}

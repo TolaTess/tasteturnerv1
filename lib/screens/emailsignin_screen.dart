@@ -3,7 +3,6 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../widgets/form.dart';
-import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 
 class EmailSigninScreen extends StatelessWidget {
@@ -116,6 +115,7 @@ class _SigninFormState extends State<SigninForm> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
+                    backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                     title: Text(
                       'Reset Password',
                       style: textTheme.bodyMedium?.copyWith(
@@ -127,7 +127,9 @@ class _SigninFormState extends State<SigninForm> {
                       children: [
                         Text(
                           'Enter your email address and we\'ll send you a link to reset your password.',
-                          style: textTheme.bodyMedium?.copyWith(),
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),
                         SafeTextField(

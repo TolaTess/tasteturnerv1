@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +12,7 @@ import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../screens/food_analysis_results_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../service/battle_service.dart';
 import '../widgets/category_selector.dart';
@@ -86,70 +89,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     return tempPath;
   }
 
-  Future<String?> _showMediaSelectionDialog({required bool isCamera}) async {
-    return await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        final isDarkMode = getThemeProvider(context).isDarkMode;
-        final textTheme = Theme.of(context).textTheme;
 
-        final title = isCamera ? 'Choose capture mode' : 'Choose media type';
-        final options = isCamera
-            ? [
-                {
-                  'icon': Icons.photo_camera,
-                  'title': 'Take Photo',
-                  'value': 'photo'
-                },
-                {
-                  'icon': Icons.videocam,
-                  'title': 'Record Video',
-                  'value': 'video'
-                },
-              ]
-            : [
-                {'icon': Icons.photo, 'title': 'Photos', 'value': 'photos'},
-                {
-                  'icon': Icons.video_library,
-                  'title': 'Video',
-                  'value': 'video'
-                },
-              ];
-
-        return AlertDialog(
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          title: Text(
-            title,
-            style: textTheme.titleLarge?.copyWith(color: kAccentLight),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: options
-                .map((option) => ListTile(
-                      leading: Icon(
-                        option['icon'] as IconData,
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                      ),
-                      title: Text(
-                        option['title'] as String,
-                        style: textTheme.titleMedium?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                        ),
-                      ),
-                      onTap: () =>
-                          Navigator.pop(context, option['value'] as String),
-                    ))
-                .toList(),
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _pickMedia({bool fromCamera = false}) async {
     final ImagePicker picker = ImagePicker();
 
-    final choice = await _showMediaSelectionDialog(isCamera: fromCamera);
+    final choice = await showMediaSelectionDialog(
+        isCamera: fromCamera, context: context);
     if (choice == null) return;
 
     if (fromCamera) {
@@ -205,7 +151,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     }
   }
 
-  Future<void> _uploadMedia() async {
+  Future<void> _uploadMedia(String postId) async {
     if (_selectedMedia.isEmpty) {
       if (mounted) {
         showTastySnackbar(
@@ -259,7 +205,11 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       }
 
       final post = Post(
-        id: widget.isMainPost ? '' : widget.battleId,
+        id: widget.isMainPost
+            ? postId.isEmpty
+                ? ''
+                : postId
+            : widget.battleId,
         userId: userService.userId ?? '',
         mediaPaths: uploadedUrls,
         name: userService.currentUser.value?.displayName ?? '',
@@ -274,6 +224,38 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             post, userService.userId ?? '', uploadedUrls);
       } else {
         await BattleService.instance.uploadBattleImages(post: post);
+      }
+
+      if (postId.isNotEmpty) {
+        // Analyze the image with AI
+        final imageUrl = uploadedUrls.first;
+
+        // Download the image to create a File object
+        final response = await http.get(Uri.parse(imageUrl));
+        final bytes = response.bodyBytes;
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/temp_analysis_image.jpg');
+        await tempFile.writeAsBytes(bytes);
+
+        // Analyze the image with AI
+        final analysisResult = await geminiService.analyzeFoodImageWithContext(
+          imageFile: tempFile,
+          mealType: getMealTimeOfDay(), // Default meal type
+        );
+
+        Navigator.pop(context); // Close loading dialog
+
+        // Navigate to food analysis results screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FoodAnalysisResultsScreen(
+              imageFile: tempFile,
+              analysisResult: analysisResult,
+              postId: postId,
+            ),
+          ),
+        );
       }
 
       if (mounted) {
@@ -386,7 +368,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
         child: Column(
           children: [
-            SizedBox(height: getPercentageHeight(1, context)),
+            SizedBox(height: getPercentageHeight(3, context)),
             _buildMediaPreview(),
             SizedBox(height: getPercentageHeight(2, context)),
 
@@ -427,10 +409,33 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                   },
                 ),
               ),
+            SizedBox(height: getPercentageHeight(3, context)),
+
+            // Description
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: getThemeProvider(context).isDarkMode
+                    ? kDarkGrey.withOpacity(0.5)
+                    : kWhite.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: TextButton(
+                onPressed: () {
+                  final postId = Random().nextInt(1000000).toString();
+                  _uploadMedia(postId);
+                  Get.back();
+                },
+                child: Text(
+                  'Analyze and Upload',
+                  style: textTheme.titleMedium?.copyWith(color: kAccentLight),
+                ),
+              ),
+            ),
 
             SizedBox(height: getPercentageHeight(3, context)),
             AppButton(
-              onPressed: isUploading ? () {} : () => _uploadMedia(),
+              onPressed: isUploading ? () {} : () => _uploadMedia(''),
               text: isUploading ? "Uploading..." : "Upload",
               isLoading: isUploading,
             ),

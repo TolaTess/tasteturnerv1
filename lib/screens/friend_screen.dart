@@ -38,27 +38,27 @@ class _FriendScreenState extends State<FriendScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         leading: InkWell(
           onTap: () => Navigator.pop(context),
           child: const IconCircleButton(
             isRemoveContainer: true,
           ),
         ),
-        title: Center(
-          child: Text(
-            textAlign: TextAlign.center,
-            'Friends',
-            style: TextStyle(
-                fontSize: getTextScale(4, context),
-                fontWeight: FontWeight.w500),
+        title: Text(
+          textAlign: TextAlign.center,
+          'Friends',
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getPercentageHeight(5, context),
           ),
         ),
       ),
       body: Column(
         children: [
-          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(2, context)),
           Padding(
             padding: EdgeInsets.symmetric(
                 horizontal: getPercentageWidth(2, context)),
@@ -68,7 +68,7 @@ class _FriendScreenState extends State<FriendScreen> {
               kText: searchFriendHint,
             ),
           ),
-          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(2, context)),
           Obx(() {
             // If searching, use all users; otherwise, use only friends
             final isSearching = searchQuery.trim().isNotEmpty;
@@ -110,11 +110,11 @@ class _FriendScreenState extends State<FriendScreen> {
             return Expanded(
               child: GridView.builder(
                 padding: EdgeInsets.all(getPercentageWidth(1, context)),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
-                  crossAxisSpacing: getPercentageWidth(1, context),
-                  mainAxisSpacing: getPercentageWidth(1, context),
-                  childAspectRatio: 0.5,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
+                  childAspectRatio: 0.85,
                 ),
                 itemCount: filteredFriends.length,
                 itemBuilder: (context, index) {
@@ -170,14 +170,13 @@ class _FriendScreenState extends State<FriendScreen> {
                         SizedBox(height: getPercentageHeight(0.5, context)),
                         Flexible(
                           child: Text(
-                            friend.displayName ?? '',
-                            style: TextStyle(
+                            capitalizeFirstLetter(friend.displayName ?? ''),
+                            style: textTheme.displayMedium?.copyWith(
                               color: themeProvider.isDarkMode ? kWhite : kBlack,
-                              fontWeight: FontWeight.w500,
-                              fontSize: getTextScale(3, context),
+                              fontWeight: FontWeight.w200,
+                              fontSize: getPercentageHeight(1.5, context),
                             ),
                             textAlign: TextAlign.center,
-                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

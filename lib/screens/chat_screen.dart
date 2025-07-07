@@ -643,7 +643,7 @@ class ChatItem extends StatelessWidget {
       String chatId, String messageId, TextTheme textTheme) {
     final friendRequest = dataSrc.friendRequest!;
     final status = friendRequest['status'] as String? ?? 'pending';
-    final friendName = friendRequest['friendName'] as String? ?? 'Friend';
+    final friendName = userService.currentUser.value?.displayName ?? 'Friend';
     final date = friendRequest['date'] as String?;
     final formattedDate =
         DateFormat('MMM d, yyyy').format(DateTime.parse(date!));

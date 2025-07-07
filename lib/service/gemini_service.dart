@@ -165,8 +165,6 @@ class GeminiService {
           if (programDoc.exists) {
             final programData = programDoc.data()!;
 
-            print('programData: $programData');
-
             context.addAll({
               'hasProgram': true,
               'encourageProgram': false,

@@ -413,8 +413,8 @@ class _MessageScreenState extends State<MessageScreen>
         ),
       ),
       floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-         verticalOffset: getPercentageHeight(5, context),
-          horizontalOffset: getPercentageWidth(2, context),
+        verticalOffset: getPercentageHeight(5, context),
+        horizontalOffset: getPercentageWidth(2, context),
       ),
       floatingActionButton: buildTastyFloatingActionButton(
         context: context,
@@ -465,6 +465,8 @@ class _MessageItemState extends State<MessageItem> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
     final lastMessage = widget.dataSrc['lastMessage'] as String? ?? '';
     final lastMessageTime = (widget.dataSrc['lastMessageTime'] as Timestamp?)
         ?.toDate()
@@ -486,69 +488,53 @@ class _MessageItemState extends State<MessageItem> {
                 children: [
                   // Avatar
                   buildFriendAvatar(friend?.profileImage, context),
-                  SizedBox(width: getPercentageWidth(1, context)),
+                  SizedBox(width: getPercentageWidth(2, context)),
 
                   // Name and Last Message
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          friend?.displayName ?? 'Loading...',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: getTextScale(3, context),
-                          ),
-                        ),
-                        SizedBox(height: getPercentageHeight(0.5, context)),
-                        Text(
-                          lastMessage,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: getTextScale(3, context),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: getPercentageWidth(1, context)),
-
-                  // Time and Badge
                   Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        lastMessageTime ?? '',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          fontSize: getTextScale(3, context),
+                        capitalizeFirstLetter(friend?.displayName ?? 'Friend'),
+                        style: textTheme.displayMedium?.copyWith(
+                          fontWeight: FontWeight.w100,
+                          fontSize: getPercentageHeight(2, context),
                         ),
                       ),
-                      unreadCount > 0
-                          ? Container(
-                              height: getPercentageHeight(4, context),
-                              width: getPercentageWidth(4, context),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: kAccent,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  width: 1,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              child: Text(
-                                unreadCount.toString(),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: getTextScale(3, context),
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
+                      SizedBox(height: getPercentageHeight(0.5, context)),
+                      Text(
+                        lastMessageTime ?? '',
+                        style: textTheme.bodySmall?.copyWith(
+                          fontSize: getPercentageHeight(1, context),
+                        ),
+                      ),
                     ],
                   ),
+                  Spacer(),
+
+                  // Time and Badge
+                  unreadCount > 0
+                      ? Container(
+                          height: getPercentageHeight(6, context),
+                          width: getPercentageWidth(6, context),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: kAccent,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              width: 1,
+                              color: Colors.white,
+                            ),
+                          ),
+                          child: Text(
+                            unreadCount.toString(),
+                            style: textTheme.displaySmall?.copyWith(
+                              fontSize: getPercentageHeight(2.5, context),
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ],
               ),
               Divider(

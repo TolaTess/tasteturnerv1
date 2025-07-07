@@ -468,11 +468,21 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   Future<void> _handleCameraAction() async {
     // Check if user can use AI features
     if (!_canUseAI) {
-      _showPremiumRequiredDialog();
+      showPremiumRequiredDialog(context, getThemeProvider(context).isDarkMode);
       return;
     }
 
     try {
+         // Show media selection dialog first
+      final selectedOption = await showMediaSelectionDialog(
+        isCamera: true,
+        context: context,
+      );
+
+      if (selectedOption == null) {
+        return; // User cancelled the dialog
+      }
+
       // Show loading dialog
       showDialog(
         context: context,
@@ -482,9 +492,19 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
       );
 
-      // Pick image using the custom image picker
-      List<XFile> pickedImages =
-          await openMultiImagePickerModal(context: context);
+      List<XFile> pickedImages = [];
+
+      if (selectedOption == 'photo') {
+        // Take photo with camera
+        final ImagePicker picker = ImagePicker();
+        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+        if (photo != null) {
+          pickedImages = [photo];
+        }
+      } else if (selectedOption == 'gallery') {
+        // Pick image from gallery using the existing modal
+        pickedImages = await openMultiImagePickerModal(context: context);
+      }
 
       if (pickedImages.isEmpty) {
         Navigator.pop(context); // Close loading dialog
@@ -540,63 +560,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
-  // Show premium required dialog
-  void _showPremiumRequiredDialog() {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        title: Text(
-          'Premium Feature',
-          style: TextStyle(
-            color: isDarkMode ? kWhite : kBlack,
-            fontWeight: FontWeight.w600,
-            fontSize: getTextScale(4.5, context),
-          ),
-        ),
-        content: Text(
-          'AI food analysis is a premium feature. Subscribe to unlock this and many other features!',
-          style: TextStyle(
-            color:
-                isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
-            fontSize: getTextScale(3.5, context),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Maybe Later',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: getTextScale(3.5, context),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to premium screen
-              Navigator.pushNamed(context, '/premium');
-            },
-            child: Text(
-              'Subscribe',
-              style: TextStyle(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-                fontSize: getTextScale(3.5, context),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showDetailPopup(dynamic result, String? userId, String mealType) {
     int selectedNumber = 0;
