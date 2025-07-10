@@ -619,104 +619,103 @@ const proteins = [
 Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
     bool isLinked, String screen) {
   final themeProvider = getThemeProvider(context);
+  final textTheme = Theme.of(context).textTheme;
   return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: 1),
-          duration: const Duration(seconds: 15),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
-              child: CircleAvatar(
-                backgroundColor: kAccentLight.withOpacity(0.6),
-                radius: getResponsiveBoxSize(context, 18, 18),
-                backgroundImage: AssetImage(tastyImage),
+    child: GestureDetector(
+      onTap: () {
+        if (isLinked) {
+          if (screen == 'buddy') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(
+                  selectedIndex: 2,
+                ),
               ),
             );
-          },
-        ),
-        const SizedBox(height: 5),
-        Text(
-          message,
-          style: TextStyle(
-            fontSize: getTextScale(4, context),
-            fontWeight: FontWeight.w400,
-            color: kAccentLight,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        if (subtitle.isNotEmpty)
-          GestureDetector(
-            onTap: () {
-              if (isLinked) {
-                if (screen == 'buddy') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BottomNavSec(
-                        selectedIndex: 2,
-                      ),
-                    ),
-                  );
-                } else if (screen == 'recipe') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BottomNavSec(
-                        selectedIndex: 1,
-                        foodScreenTabIndex: 1,
-                      ),
-                    ),
-                  );
-                } else if (screen == 'spin') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BottomNavSec(
-                        selectedIndex: 3,
-                      ),
-                    ),
-                  );
-                } else if (screen == 'friend') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FriendScreen(),
-                    ),
-                  );
-                } else if (screen == 'calendar') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BottomNavSec(
-                        selectedIndex: 4,
-                      ),
-                    ),
-                  );
-                }
-              }
+          } else if (screen == 'recipe') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(
+                  selectedIndex: 1,
+                  foodScreenTabIndex: 1,
+                ),
+              ),
+            );
+          } else if (screen == 'spin') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(
+                  selectedIndex: 3,
+                ),
+              ),
+            );
+          } else if (screen == 'friend') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FriendScreen(),
+              ),
+            );
+          } else if (screen == 'calendar') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BottomNavSec(
+                  selectedIndex: 4,
+                ),
+              ),
+            );
+          }
+        }
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(height: getPercentageHeight(10, context)),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(seconds: 15),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
+                child: CircleAvatar(
+                  backgroundColor: kAccentLight.withOpacity(0.6),
+                  radius: getResponsiveBoxSize(context, 18, 18),
+                  backgroundImage: AssetImage(tastyImage),
+                ),
+              );
             },
-            child: Text(
+          ),
+          const SizedBox(height: 5),
+          Text(
+            message,
+            style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w400,
+              fontSize: getTextScale(6, context),
+              color: kAccentLight,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          if (subtitle.isNotEmpty)
+            Text(
               subtitle,
-              style: TextStyle(
-                fontSize: getTextScale(3, context),
+              style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: isLinked
                     ? kAccent
                     : themeProvider.isDarkMode
                         ? kWhite
                         : kBlack,
-                decoration:
-                    isLinked ? TextDecoration.underline : TextDecoration.none,
               ),
               textAlign: TextAlign.center,
             ),
-          ),
-      ],
+        ],
+      ),
     ),
   );
 }

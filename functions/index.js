@@ -18,9 +18,24 @@ const { startOfWeek, endOfWeek, format } = require("date-fns");
 
 admin.initializeApp();
 
-// Initialize the Gemini client with the API key from function configuration
+// Initialize the Gemini client with the API key from function configuration (needed for _generateAndSaveIngredient)
 const genAI = new GoogleGenerativeAI(functions.config().gemini.key);
 const firestore = getFirestore();
+
+// List of basic ingredients to exclude from battles (spices, herbs, condiments, etc.)
+const EXCLUDED_BATTLE_INGREDIENTS = [
+  'salt', 'pepper', 'onion', 'garlic', 'basil', 'oregano', 'thyme', 'rosemary', 'parsley',
+  'cilantro', 'cumin', 'paprika', 'cinnamon', 'turmeric', 'ginger', 'bay leaf', 'bay leaves',
+  'nutmeg', 'cloves', 'cardamom', 'chili powder', 'curry powder', 'allspice', 'sage', 'dill',
+  'mint', 'coriander', 'cayenne', 'black pepper', 'lemon', 'lime', 'lemon juice', 'olive oil',
+  'vegetable oil', 'oil', 'butter', 'ghee', 'margarine', 'broth', 'chicken broth', 'beef broth',
+  'vegetable broth', 'fish broth', 'chicken stock', 'beef stock', 'vegetable stock', 'vinegar',
+  'soy sauce', 'ketchup', 'mustard', 'mayonnaise', 'hot sauce', 'bbq sauce', 'barbecue sauce',
+  'cream', 'cheese', 'yogurt', 'sour cream', 'sauce', 'gravy', 'syrup', 'jam', 'avocado oil',
+  'sesame oil', 'peanut oil', 'coconut oil', 'peanut butter', 'almond butter', 'cashew butter',
+  'hazelnut butter', 'walnut butter', 'macadamia nut butter', 'peanut', 'spices', 'spice',
+  'herbs', 'herb', 'water', 'milk', 'juice', 'juices'
+];
 
 // Helper to get week number
 function _getWeek(date) {
@@ -36,7 +51,8 @@ function _getWeek(date) {
 /**
  * A scheduled Cloud Function that generates new ingredients for the weekly battle.
  * - Runs every Monday at 1:00 AM.
- * - Generates two ingredients using the Gemini API.
+ * - Randomly selects one carb and one protein ingredient from Firestore.
+ * - Ensures ingredients are not in the excluded list.
  * - Updates the 'general' battle document in Firestore with the new battle data.
  */
 exports.generateBattleIngredients = functions.pubsub
@@ -46,65 +62,21 @@ exports.generateBattleIngredients = functions.pubsub
     console.log("Running weekly ingredient generation job.");
 
     try {
-      // 1. Generate ingredients with Gemini. Retry logic added for robustness.
-      let ingredientsData = [];
-      let attempts = 0;
-      const maxAttempts = 3;
+      // 1. Get excluded ingredients from recent battles
+      const excludedIngredients = await getRecentBattleIngredients();
+      console.log("Excluded ingredients from recent battles:", excludedIngredients);
 
-      while (ingredientsData.length < 2 && attempts < maxAttempts) {
-        attempts++;
-        console.log(`Attempt ${attempts} to generate and find ingredients.`);
-        
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const prompt =
-          "Give me two common cooking ingredients that can be paired together for a cooking challenge. They should be relatively easy to find. Return them as a simple comma-separated list, for example: 'Chicken Breast, Broccoli'. Do not add any other text, formatting, or quotation marks.";
+      // 2. Get random carb and protein ingredients
+      const carbIngredient = await getRandomIngredientByType("carbs", excludedIngredients);
+      const proteinIngredient = await getRandomIngredientByType("protein", excludedIngredients);
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        const ingredientNames = text.split(",").map((item) => item.trim());
-
-        if (ingredientNames.length < 2) {
-          console.log(
-            `Gemini did not return two ingredients. Raw response: "${text}"`
-          );
-          continue; // Try again
-        }
-
-        // 2. Look up ingredients in Firestore
-        const ingredientsRef = firestore.collection("ingredients");
-        const foundIngredients = [];
-
-        for (const name of ingredientNames) {
-          // Use .toLowerCase() for case-insensitive matching
-          const snapshot = await ingredientsRef
-            .where("name", "==", name.toLowerCase())
-            .limit(1)
-            .get();
-          
-          if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            foundIngredients.push({
-              id: doc.id,
-              name: doc.data().name, // Use the canonical name from DB
-              image: doc.data().image,
-            });
-          } else {
-            console.log(`Ingredient "${name}" not found in Firestore.`);
-          }
-        }
-        
-        if(foundIngredients.length === 2) {
-            ingredientsData = foundIngredients;
-        }
+      if (!carbIngredient || !proteinIngredient) {
+        console.error("Failed to find suitable carb and protein ingredients.");
+        return null;
       }
 
-      if (ingredientsData.length < 2) {
-          console.error("Failed to find two valid ingredients after several attempts. Aborting.");
-          return null;
-      }
-
-      console.log(`Found ingredients in Firestore:`, ingredientsData);
+      const ingredientsData = [carbIngredient, proteinIngredient];
+      console.log("Selected ingredients for battle:", ingredientsData);
 
       // 3. Prepare data for Firestore update
       const battleRef = firestore.collection("battles").doc("general");
@@ -149,12 +121,132 @@ exports.generateBattleIngredients = functions.pubsub
       }, { merge: true });
 
       console.log(`Successfully created new battle for date: ${battleDateKey}`);
+      console.log("Battle ingredients:", ingredientsData.map(ing => `${ing.name} (${ing.type})`));
       return null;
     } catch (error) {
       console.error("Error generating battle ingredients:", error);
       return null;
     }
   });
+
+/**
+ * Helper function to get ingredient IDs from recent battles to avoid repetition
+ */
+async function getRecentBattleIngredients() {
+  try {
+    const battleRef = firestore.collection("battles").doc("general");
+    const battleDoc = await battleRef.get();
+    
+    if (!battleDoc.exists || !battleDoc.data().dates) {
+      return [];
+    }
+
+    const dates = battleDoc.data().dates;
+    const dateKeys = Object.keys(dates).sort().slice(-4); // Get last 4 battles
+    
+    const excludedIds = [];
+    dateKeys.forEach(dateKey => {
+      const battleData = dates[dateKey];
+      if (battleData.ingredients && Array.isArray(battleData.ingredients)) {
+        battleData.ingredients.forEach(ingredient => {
+          if (ingredient.id) {
+            excludedIds.push(ingredient.id);
+          }
+        });
+      }
+    });
+
+    return excludedIds;
+  } catch (error) {
+    console.error("Error getting recent battle ingredients:", error);
+    return [];
+  }
+}
+
+/**
+ * Helper function to get a random ingredient by type, excluding certain IDs and basic ingredients
+ */
+async function getRandomIngredientByType(type, excludedIds = []) {
+  try {
+    console.log(`Searching for random ${type} ingredient, excluding IDs:`, excludedIds);
+    
+    // Query ingredients by type
+    const snapshot = await firestore
+      .collection("ingredients")
+      .where("type", "==", type)
+      .get();
+
+    if (snapshot.empty) {
+      console.log(`No ingredients found for type: ${type}`);
+      return null;
+    }
+
+    // Filter out excluded ingredients (both by ID and by basic ingredient names)
+    const availableIngredients = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      const title = (data.title || '').toLowerCase().trim();
+      
+      // Skip if ingredient ID is in excluded list
+      if (excludedIds.includes(doc.id)) {
+        console.log(`Skipping ${title} - recently used ingredient`);
+        return false;
+      }
+      
+      // Skip if ingredient title is in basic ingredients list
+      if (EXCLUDED_BATTLE_INGREDIENTS.includes(title)) {
+        console.log(`Skipping ${title} - basic ingredient`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    if (availableIngredients.length === 0) {
+      console.log(`No available ${type} ingredients after filtering`);
+      // If all are excluded, try to find at least non-basic ingredients
+      const nonBasicIngredients = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        const title = (data.title || '').toLowerCase().trim();
+        return !EXCLUDED_BATTLE_INGREDIENTS.includes(title);
+      });
+      
+      if (nonBasicIngredients.length > 0) {
+        const randomIndex = Math.floor(Math.random() * nonBasicIngredients.length);
+        const doc = nonBasicIngredients[randomIndex];
+        const data = doc.data();
+        const ingredient = {
+          id: doc.id,
+          name: data.title || 'Unknown',
+          type: data.type || type,
+          image: data.image || data.mediaPaths?.[0] || '',
+        };
+        console.log(`Selected ${type} ingredient (fallback):`, ingredient.name);
+        return ingredient;
+      }
+      
+      return null;
+    }
+
+    // Randomly select one ingredient from available options
+    const randomIndex = Math.floor(Math.random() * availableIngredients.length);
+    const selectedDoc = availableIngredients[randomIndex];
+    const data = selectedDoc.data();
+
+    const ingredient = {
+      id: selectedDoc.id,
+      name: data.title || 'Unknown',
+      type: data.type || type,
+      image: data.image || data.mediaPaths?.[0] || '',
+    };
+
+    console.log(`Selected ${type} ingredient:`, ingredient.name);
+    return ingredient;
+
+  } catch (error) {
+    console.error(`Error getting random ${type} ingredient:`, error);
+    return null;
+  }
+}
 
 /**
  * A scheduled Cloud Function that processes the end of a battle.
@@ -589,7 +681,7 @@ exports.generateAndSaveWeeklyShoppingList = functions.firestore
  */
 async function _generateAndSaveIngredient(ingredientName) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `
       Generate a detailed JSON object for the ingredient "${ingredientName}".
       The JSON object must match this structure:
@@ -761,6 +853,7 @@ exports.getPostsFeed = functions.https.onCall(async (data, context) => {
       // Only include essential data for grid view (optimization)
       const optimizedPost = {
         id: doc.id,
+        mealId: data.mealId || '', // Add mealId for proper meal-post association
         mediaPaths: data.mediaPaths || [],
         isVideo: data.isVideo || false,
         category: data.category || 'general',
@@ -879,6 +972,7 @@ exports.getUserPosts = functions.https.onCall(async (data, context) => {
       
       const optimizedPost = {
         id: doc.id,
+        mealId: data.mealId || '', // Add mealId for proper meal-post association
         userId: data.userId || '',
         mediaPaths: data.mediaPaths || [],
         isVideo: data.isVideo || false,

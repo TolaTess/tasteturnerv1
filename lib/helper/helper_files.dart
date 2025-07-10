@@ -154,7 +154,7 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
       border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
     ),
     padding: EdgeInsets.symmetric(
-      horizontal: getPercentageWidth(4, context),
+      horizontal: getPercentageWidth(2, context),
       vertical: getPercentageHeight(1, context),
     ),
     child: Column(

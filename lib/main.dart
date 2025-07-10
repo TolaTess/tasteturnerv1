@@ -14,6 +14,7 @@ import 'themes/dark_mode.dart';
 import 'themes/light_mode.dart';
 import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
+import 'service/badge_service.dart';
 import 'service/calendar_sharing_service.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
@@ -58,6 +59,7 @@ void main() async {
   Get.put(FirebaseService());
   Get.put(BattleService());
   Get.put(CalendarSharingService());
+  Get.put(BadgeService());
   Get.lazyPut(() => MealManager());
   Get.lazyPut(() => MealPlanController());
   Get.lazyPut(() => PostController());
@@ -65,7 +67,6 @@ void main() async {
   Get.lazyPut(() => NutritionController());
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());
-  Get.lazyPut(() => BadgeController());
   Get.lazyPut(() => FriendController());
   Get.put(MacroManager(), permanent: true);
   Get.put(UserService(), permanent: true);

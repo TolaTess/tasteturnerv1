@@ -727,6 +727,7 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
     context: context,
     barrierDismissible: false,
     builder: (context) {
+      final textTheme = Theme.of(context).textTheme;
       return AlertDialog(
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
@@ -751,7 +752,7 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
             cornerDotBuilder: (size, edgeAlignment) => Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
@@ -761,11 +762,12 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text('Cancel', style: textTheme.bodyMedium),
           ),
           TextButton(
             onPressed: () => controller.crop(),
-            child: const Text('Crop'),
+            child: Text('Crop',
+                style: textTheme.bodyMedium?.copyWith(color: kAccent)),
           ),
         ],
       );
@@ -871,6 +873,7 @@ final colors = [
 
 Widget buildFullWidthHomeButton({
   required BuildContext context,
+  required GlobalKey key,
   VoidCallback? onSuccess,
   VoidCallback? onError,
 }) {
@@ -993,7 +996,7 @@ Widget buildFullWidthHomeButton({
   }
 
   return Container(
-    width: double.infinity,
+    width: getPercentageWidth(100, context) - getPercentageWidth(8, context),
     height: getPercentageHeight(7, context),
     decoration: BoxDecoration(
       color: isDarkMode ? kDarkGrey : kWhite,
@@ -1017,6 +1020,7 @@ Widget buildFullWidthHomeButton({
                 topLeft: Radius.circular(16),
                 bottomLeft: Radius.circular(16),
               ),
+              key: key,
               onTap: handleCameraAction,
               child: Container(
                 height: double.infinity,
@@ -1052,11 +1056,11 @@ Widget buildFullWidthHomeButton({
                     ),
                     Expanded(
                       child: Text(
-                        'Analyse\nMeal',
+                        'Analyse\n Your Meal',
                         style: textTheme.displaySmall?.copyWith(
                           color: canUseAI() ? kAccentLight : Colors.grey,
                           fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(3.5, context),
+                          fontSize: getTextScale(3.8, context),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -1127,7 +1131,7 @@ Widget buildFullWidthHomeButton({
                         style: textTheme.displaySmall?.copyWith(
                           color: canUseAI() ? kAccentLight : Colors.grey,
                           fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(3.5, context),
+                          fontSize: getTextScale(3.8, context),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -1171,6 +1175,9 @@ Future<String?> showMediaSelectionDialog(
             ];
 
       return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         title: Text(
           title,
