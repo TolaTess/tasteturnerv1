@@ -312,7 +312,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        backgroundColor: kAccentLight,
+        backgroundColor: kWhite,
         child: Image.asset(
           'assets/images/tasty/tasty.png',
           width: getPercentageWidth(6, context),
@@ -840,6 +840,9 @@ class _BuddyTabState extends State<BuddyTab> {
       final mealType = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           title: Text(
             'Select Meal Type',

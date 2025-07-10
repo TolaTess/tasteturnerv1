@@ -7,7 +7,6 @@ import '../helper/utils.dart';
 import 'edit_goal.dart';
 import 'profile_edit_screen.dart';
 import '../themes/theme_provider.dart';
-import '../widgets/icon_widget.dart';
 import '../screens/help_screen.dart';
 import '../screens/premium_screen.dart';
 
@@ -53,7 +52,7 @@ class SettingsScreen extends StatelessWidget {
                                 setting: demoSetting[index],
                                 press: () {
                                   switch (demoSetting[index].category) {
-                                    case 'Edit':
+                                    case 'Edit Profile':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -61,7 +60,7 @@ class SettingsScreen extends StatelessWidget {
                                                 const ProfileEditScreen()),
                                       );
                                       break;
-                                    case 'Nutrition & Goals':
+                                    case 'Edit Goals':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(

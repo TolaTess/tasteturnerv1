@@ -7,12 +7,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/program_service.dart';
+import 'package:intl/intl.dart';
 
 class ProgramProgressScreen extends StatefulWidget {
   final String? programId;
   final String? programName;
   final String? programDescription;
   final List<String>? benefits;
+  final String? duration;
 
   const ProgramProgressScreen({
     super.key,
@@ -20,6 +22,7 @@ class ProgramProgressScreen extends StatefulWidget {
     this.programName,
     this.programDescription,
     this.benefits,
+    this.duration,
   });
 
   @override
@@ -54,6 +57,11 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
   // Scroll controllers for description text
   Map<String, ScrollController> _scrollControllers = {};
+
+  // Program completion tracking
+  bool isProgramCompleted = false;
+  DateTime? programStartDate;
+  DateTime? programEndDate;
 
   @override
   void initState() {
@@ -255,6 +263,14 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         // Load the last tracked date
         lastTrackedDate = data['lastTrackedDate'] as String?;
 
+        // Extract program start date
+        final programDetails =
+            data['programDetails'] as Map<String, dynamic>? ?? {};
+        final startDateTimestamp = programDetails['startDate'] as Timestamp?;
+        if (startDateTimestamp != null) {
+          programStartDate = startDateTimestamp.toDate();
+        }
+
         setState(() {
           // Load completion status
           final components = data['components'] as Map<String, dynamic>? ?? {};
@@ -271,17 +287,25 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
           // Load weekly progress
           _loadWeeklyProgress(data);
+
+          // Check program completion
+          _checkProgramCompletion();
+
           isLoading = false;
         });
 
-        // Check if it's a new day and handle transition
-        await _handleDayTransition();
+        // Check if it's a new day and handle transition (only if program not completed)
+        if (!isProgramCompleted) {
+          await _handleDayTransition();
+        }
       } else {
         // Initialize tracking document
         await _initializeTracking();
         setState(() {
           // Start with empty previous days so we show today's progress UI
           previousDaysProgress = [];
+          programStartDate = DateTime.now();
+          _checkProgramCompletion();
           isLoading = false;
         });
       }
@@ -446,14 +470,148 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     return weekdays[DateTime.now().weekday - 1];
   }
 
+  // Parse duration string to get number of days
+  int _parseDurationToDays(String duration) {
+    final cleanDuration = duration.toLowerCase().trim();
+
+    // Extract number from duration string
+    final RegExp numberRegex = RegExp(r'\d+');
+    final match = numberRegex.firstMatch(cleanDuration);
+    if (match == null) return 7; // Default to 7 days if parsing fails
+
+    final number = int.tryParse(match.group(0)!) ?? 1;
+
+    // Determine if it's days, weeks, months
+    if (cleanDuration.contains('week')) {
+      return number * 7;
+    } else if (cleanDuration.contains('month')) {
+      return number * 30;
+    } else if (cleanDuration.contains('year')) {
+      return number * 365;
+    } else {
+      return number; // Assume days if no unit specified
+    }
+  }
+
+  // Check if program is completed based on start date and duration
+  void _checkProgramCompletion() {
+    if (programStartDate == null || programData == null) {
+      isProgramCompleted = false;
+      return;
+    }
+
+    final duration = programData!['duration'] as String? ?? '7 days';
+    final durationInDays = _parseDurationToDays(duration);
+    programEndDate = programStartDate!.add(Duration(days: durationInDays));
+
+    final now = DateTime.now();
+    isProgramCompleted = now.isAfter(programEndDate!);
+  }
+
+  // Restart the current program
+  Future<void> _restartProgram() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      // Reset start date to today
+      await firestore
+          .collection('programTracking')
+          .doc(currentUserId)
+          .collection('programs')
+          .doc(currentProgramId!)
+          .update({
+        'programDetails.startDate': FieldValue.serverTimestamp(),
+        'lastTrackedDate': _getCurrentDateKey(),
+      });
+
+      // Reset all completion status
+      await _resetDailyProgress();
+
+      // Reload data
+      await _loadProgressData();
+
+      if (mounted) {
+        showTastySnackbar(
+          'Program Restarted!',
+          'Your program has been restarted. Good luck!',
+          context,
+          backgroundColor: kAccent,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to restart program: $e',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // Remove the current program
+  Future<void> _removeProgram() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      // Remove from user's enrolled programs
+      await programService.leaveProgram(currentProgramId!);
+
+      // Delete tracking data
+      await firestore
+          .collection('programTracking')
+          .doc(currentUserId)
+          .collection('programs')
+          .doc(currentProgramId!)
+          .delete();
+
+      if (mounted) {
+        showTastySnackbar(
+          'Program Removed',
+          'Program has been removed from your list',
+          context,
+          backgroundColor: kAccent,
+        );
+
+        // Navigate back after removal
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to remove program: $e',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   Future<void> _initializeTracking() async {
     lastTrackedDate = _getCurrentDateKey();
+
+    // Set local start date for immediate use
+    programStartDate = DateTime.now();
 
     final trackingData = {
       'programDetails': {
         'name': widget.programName ?? programData?['name'] ?? 'Program',
         'startDate': FieldValue.serverTimestamp(),
-        'duration': programData?['duration'] ?? '',
+        'duration': widget.duration ?? '7 days',
       },
       'components': {},
       'weeklyProgress': {},
@@ -645,7 +803,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             child: Container(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color: kAccent.withValues(alpha: 0.1),  
+                color: kAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -751,6 +909,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         final isShowingFront = flipAnimation.value < 0.5;
         return GestureDetector(
           onTap: () {
+            // Disable interactions if program is completed
+            if (isProgramCompleted) return;
+
             if (flipController.isCompleted) {
               flipController.reverse();
             } else {
@@ -790,7 +951,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -888,7 +1049,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Tap to view complete',
+                      isProgramCompleted
+                          ? 'Program Completed'
+                          : 'Tap to view complete',
                       style: textTheme.bodySmall?.copyWith(
                         fontSize: getTextScale(2.5, context),
                         color: Colors.white,
@@ -899,6 +1062,37 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                 ],
               ),
             ),
+            // Program completed overlay
+            if (isProgramCompleted)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.green.withValues(alpha: 0.8),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.white,
+                          size: getIconScale(12, context),
+                        ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        Text(
+                          'COMPLETED',
+                          style: textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontSize: getTextScale(4, context),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -956,7 +1150,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     style: textTheme.bodyMedium?.copyWith(
                       fontSize: getTextScale(3.2, context),
                       color: isDarkMode
-                            ? kWhite.withValues(alpha: 0.8)
+                          ? kWhite.withValues(alpha: 0.8)
                           : kDarkGrey.withValues(alpha: 0.8),
                       height: 1.4,
                     ),
@@ -969,13 +1163,16 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _completeComponent(
-                    component['id'],
-                    component['title']),
+                onPressed: isProgramCompleted
+                    ? null
+                    : () =>
+                        _completeComponent(component['id'], component['title']),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isCompleted ? Colors.green : kAccent,
+                  backgroundColor: isProgramCompleted
+                      ? Colors.grey[400]
+                      : (isCompleted ? Colors.green : kAccent),
                   foregroundColor: Colors.white,
-                  elevation: 2,
+                  elevation: isProgramCompleted ? 0 : 2,
                   padding: EdgeInsets.symmetric(
                       vertical: getPercentageHeight(0.5, context)),
                   shape: RoundedRectangleBorder(
@@ -986,7 +1183,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      isCompleted ? 'Completed' : 'Done',
+                      isProgramCompleted
+                          ? 'Program Completed'
+                          : (isCompleted ? 'Completed' : 'Done'),
                       style: textTheme.labelMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -1225,7 +1424,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                  border:
+                      Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   benefit,
@@ -1239,6 +1439,221 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProgramCompletionCard() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    if (!isProgramCompleted) return const SizedBox.shrink();
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(4, context),
+        vertical: getPercentageHeight(2, context),
+      ),
+      padding: EdgeInsets.all(getPercentageWidth(5, context)),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4CAF50), Color(0xFF45A049)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Congratulations Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.celebration,
+                color: Colors.white,
+                size: getIconScale(8, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Icon(
+                Icons.emoji_events,
+                color: Colors.yellow[300],
+                size: getIconScale(10, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Icon(
+                Icons.celebration,
+                color: Colors.white,
+                size: getIconScale(8, context),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1.5, context)),
+
+          // Congratulations Text
+          Text(
+            '🎉 CONGRATULATIONS! 🎉',
+            style: textTheme.displaySmall?.copyWith(
+              color: Colors.white,
+              fontSize: getTextScale(6, context),
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+
+          Text(
+            'Program Completed Successfully!',
+            style: textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontSize: getTextScale(4.5, context),
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+
+          Text(
+            'You have successfully completed the ${programData?['name'] ?? 'program'}. Great job on your dedication!',
+            style: textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: getTextScale(3.5, context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          if (programEndDate != null) ...[
+            SizedBox(height: getPercentageHeight(1.5, context)),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(3, context),
+                vertical: getPercentageHeight(0.8, context),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Text(
+                'Completed on: ${DateFormat('MMM dd, yyyy').format(programEndDate!)}',
+                style: textTheme.bodySmall?.copyWith(
+                  color: Colors.white,
+                  fontSize: getTextScale(3, context),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+
+          SizedBox(height: getPercentageHeight(2.5, context)),
+
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _restartProgram,
+                  icon: const Icon(Icons.refresh, color: Colors.green),
+                  label: Text(
+                    'Restart',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    elevation: 2,
+                    padding: EdgeInsets.symmetric(
+                      vertical: getPercentageHeight(1.2, context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: getPercentageWidth(3, context)),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Show confirmation dialog
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        backgroundColor: isDarkMode ? kDarkGrey : Colors.white,
+                        title: Text(
+                          'Remove Program',
+                          style: textTheme.titleLarge?.copyWith(
+                            color: isDarkMode ? kWhite : kDarkGrey,
+                          ),
+                        ),
+                        content: Text(
+                          'Are you sure you want to remove this program? This action cannot be undone.',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isDarkMode
+                                ? kWhite.withValues(alpha: 0.8)
+                                : kDarkGrey.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                  color: isDarkMode ? kWhite : kDarkGrey),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _removeProgram();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text(
+                              'Remove',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  label: Text(
+                    'Remove',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    elevation: 2,
+                    padding: EdgeInsets.symmetric(
+                      vertical: getPercentageHeight(1.2, context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1317,6 +1732,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             if (userPrograms.length > 1)
               SizedBox(height: getPercentageHeight(1, context)),
 
+            // Program Completion Card (if completed)
+            _buildProgramCompletionCard(),
+
             // Program Name
             Center(
               child: Column(
@@ -1359,8 +1777,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
             SizedBox(height: getPercentageHeight(1.5, context)),
 
-            // Progress Summary
-            _buildProgressSummary(),
+            // Progress Summary (only show if not completed)
+            if (!isProgramCompleted) _buildProgressSummary(),
 
             //Benefits
             _buildBenefits(context, textTheme, isDarkMode),
@@ -1368,7 +1786,9 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             SizedBox(height: getPercentageHeight(2, context)),
 
             // Section Header
-            _buildSectionHeader(title: 'Program Details'),
+            _buildSectionHeader(
+                title:
+                    isProgramCompleted ? 'Program Summary' : 'Program Details'),
 
             SizedBox(height: getPercentageHeight(2, context)),
 
@@ -1399,7 +1819,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                               'No program components available',
                               style: textTheme.bodyLarge?.copyWith(
                                 color: isDarkMode
-                                      ? kWhite.withValues(alpha: 0.7)
+                                    ? kWhite.withValues(alpha: 0.7)
                                     : kDarkGrey.withValues(alpha: 0.7),
                               ),
                               textAlign: TextAlign.center,

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Post {
   final String id;
+  final String? mealId;
   final String userId;
   final String? name;
   String? avatar;
@@ -17,6 +18,7 @@ class Post {
 
   Post({
     required this.id,
+    this.mealId,
     required this.userId,
     this.avatar,
     this.username,
@@ -36,6 +38,7 @@ class Post {
     final data = doc.data() as Map<String, dynamic>;
     return Post(
       id: doc.id,
+      mealId: data['mealId'] ?? '',
       userId: data['userId'] ?? '',
       mediaPaths: List<String>.from(data['mediaPaths'] ?? []),
       name: data['name'] ?? '',
@@ -56,6 +59,7 @@ class Post {
   factory Post.fromMap(Map<String, dynamic> data, String docid) {
     return Post(
       id: docid,
+      mealId: data['mealId'] ?? '',
       userId: data['userId'] ?? '',
       mediaPaths: List<String>.from(data['mediaPaths'] ?? []),
       name: data['name'] ?? '',
@@ -73,6 +77,7 @@ class Post {
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
+      'mealId': mealId,
       'userId': userId,
       'mediaPaths': mediaPaths,
       'name': name,
@@ -87,6 +92,7 @@ class Post {
 
   Post copyWith({
     String? id,
+    String? mealId,
     String? userId,
     String? name,
     List<String>? mediaPaths,
@@ -99,6 +105,7 @@ class Post {
   }) {
     return Post(
       id: id ?? this.id,
+      mealId: mealId ?? this.mealId,
       userId: userId ?? this.userId,
       mediaPaths: mediaPaths ?? this.mediaPaths,
       name: name ?? this.name,

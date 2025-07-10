@@ -292,6 +292,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                   padding: EdgeInsets.symmetric(
                       horizontal: getPercentageWidth(10, context)),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         capitalizeFirstLetter(widget.meal.title),
@@ -321,30 +322,33 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           ),
                         ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "$serves: ${widget.meal.serveQty}",
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          if (widget.meal.cookingTime != null &&
-                              widget.meal.cookingTime!.isNotEmpty) ...[
+                      Text(
+                        "$serves: ${widget.meal.serveQty}",
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      if (widget.meal.cookingTime != null &&
+                          widget.meal.cookingTime!.isNotEmpty) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                             SizedBox(width: getPercentageWidth(4, context)),
                             Icon(Icons.access_time,
                                 size: getIconScale(4, context), color: kAccent),
-                            SizedBox(width: getPercentageWidth(1, context)),
+                            SizedBox(width: getPercentageWidth(2, context)),
                             Text(
                               widget.meal.cookingTime!,
+                              textAlign: TextAlign.center,
                               style: textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
-                        ],
-                      ),
+                        ),
+                      ],
+                      SizedBox(height: getPercentageHeight(1, context)),
                       if (widget.meal.cookingMethod != null &&
                           widget.meal.cookingMethod!.isNotEmpty)
                         Padding(
@@ -359,9 +363,11 @@ class _RecipeTittleState extends State<RecipeTittle> {
                               SizedBox(width: getPercentageWidth(1, context)),
                               Text(
                                 "Method: ${capitalizeFirstLetter(widget.meal.cookingMethod!)}",
+                                maxLines: 1,
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w400,
                                   fontStyle: FontStyle.italic,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -414,12 +420,12 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: kRed,
-                            size: getResponsiveBoxSize(context, 17, 17),
+                            size: getResponsiveBoxSize(context, 20, 20),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: getPercentageWidth(1.5, context)),
+                    SizedBox(width: getPercentageWidth(2.5, context)),
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
@@ -442,20 +448,20 @@ class _RecipeTittleState extends State<RecipeTittle> {
                           child: Icon(
                             Icons.ios_share,
                             color: kAccent,
-                            size: getResponsiveBoxSize(context, 17, 17),
+                            size: getResponsiveBoxSize(context, 20, 20),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: getPercentageWidth(1.5, context)),
+                    SizedBox(width: getPercentageWidth(2, context)),
 
                     // Edit button if user is the owner
                     if (userService.userId == widget.meal.userId) ...[
                       TextButton.icon(
                         onPressed: widget.onEdit,
                         icon: Icon(Icons.edit,
-                            size: getResponsiveBoxSize(context, 15, 15)),
-                        label: Text('Edit Meal',
+                            size: getResponsiveBoxSize(context, 17, 17)),
+                        label: Text('Edit',
                             style: textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w400,
                             )),
@@ -465,9 +471,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                               horizontal: getPercentageWidth(1.5, context)),
                         ),
                       ),
+                      SizedBox(width: getPercentageWidth(1.5, context)),
                       IconButton(
-                        icon: Icon(Icons.delete_outline, color: kRed),
-                        iconSize: getIconScale(7, context),
+                        icon: const Icon(Icons.delete_outline, color: kRed),
+                        iconSize: getResponsiveBoxSize(context, 20, 20),
                         tooltip: 'Delete Meal',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
@@ -704,10 +711,14 @@ class NutritionFacts extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     Map<String, String> nutritionMap = {};
+
     if (meal.nutrition.isNotEmpty) {
       nutritionMap = meal.nutrition;
     } else if (meal.nutritionalInfo.isNotEmpty) {
       nutritionMap = meal.nutritionalInfo;
+      if (meal.calories != null && nutritionMap['calories'] == null) {
+        nutritionMap['calories'] = meal.calories.toString().toLowerCase();
+      }
     } else {
       nutritionMap = {...meal.macros};
       nutritionMap['calories'] = meal.calories.toString().toLowerCase();

@@ -31,7 +31,7 @@ class PostService extends GetxService {
           _feedCache.remove(cacheKey);
         }
       }
-
+      //from cloud function
       final HttpsCallable callable = _functions.httpsCallable('getPostsFeed');
       final HttpsCallableResult result = await callable.call({
         'category': category,

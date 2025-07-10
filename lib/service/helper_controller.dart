@@ -225,6 +225,7 @@ class HelperController extends GetxController {
                 'id': doc.id,
                 'name': name,
                 'description': description,
+                'facts': data['facts'] as List<dynamic>? ?? [],
                 'kidsFriendly': data['kidsFriendly'] as bool? ?? false,
               };
             } catch (e) {

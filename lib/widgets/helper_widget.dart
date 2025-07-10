@@ -5,11 +5,10 @@ import '../data_models/post_model.dart';
 import '../data_models/profilescreen_data.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
 import '../service/post_service.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
-import 'dart:typed_data';
 
 import 'loading_screen.dart';
 import 'optimized_image.dart';
@@ -416,8 +415,8 @@ class StorySlider extends StatelessWidget {
     super.key,
     required this.dataSrc,
     required this.press,
-    this.mHeight = 23.5,
-    this.mWidth = 23.5,
+    this.mHeight = 100,
+    this.mWidth = 100,
   });
 
   final BadgeAchievementData dataSrc;
@@ -426,45 +425,59 @@ class StorySlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return GestureDetector(
       onTap: press,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Flexible(
-            child: Padding(
-              padding: EdgeInsets.all(getPercentageWidth(2, context)),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Background Image
-                  Opacity(
-                    opacity: kMidOpacity,
-                    child: CircleAvatar(
-                      radius: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageWidth(mWidth - 5, context) / 2
-                          : getPercentageWidth(mWidth, context) / 2,
-                      backgroundImage: const AssetImage(
-                        'assets/images/vegetable_stamp.jpg',
-                      ),
+          // Base circle with gradient
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipOval(
+                child: Container(
+                  width: getResponsiveBoxSize(context, mWidth, mWidth),
+                  height: getResponsiveBoxSize(context, mHeight, mHeight),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        getMealTypeColor('protein').withValues(alpha: 0.1),
+                        getMealTypeColor('protein').withValues(alpha: 0.3),
+                      ],
+                    ),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/images/vegetable_stamp.jpg'),
+                      fit: BoxFit.cover,
+                      opacity: 0.5,
                     ),
                   ),
-
-                  // Title Text on top of the image
-                  SizedBox(
-                    width: getPercentageWidth(mWidth, context),
-                    child: Text(
-                      dataSrc.title,
-                      style: TextStyle(
-                        fontSize: getTextScale(2.5, context),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                ),
+              ),
+            ],
+          ),
+          // Text centered in circle
+          Positioned.fill(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                child: Transform.rotate(
+                  angle:
+                      -0.3, // Negative angle for slight counter-clockwise rotation
+                  child: Text(
+                    dataSrc.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getPercentageWidth(3, context),
+                        ),
                   ),
-                ],
+                ),
               ),
             ),
           ),

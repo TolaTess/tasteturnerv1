@@ -780,6 +780,7 @@ Greet the user warmly and offer guidance based on:
   Future<void> checkAndPromptAIPayment(BuildContext context) async {
     final preference = await SharedPreferences.getInstance();
     final startDateStr = preference.getString('ai_trial_start_date');
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     if (startDateStr != null) {
       final startDate = DateTime.parse(startDateStr);
@@ -789,22 +790,31 @@ Greet the user warmly and offer guidance based on:
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
             title: Text('AI Assistant Trial Ended',
                 style: textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 )),
             content: Text(
-              'Your free trial has ended. Subscribe to continue using the AI Assistant.',
+              'Your free trial has ended. Go Premium to continue using the AI Assistant.',
               style: textTheme.bodySmall?.copyWith(),
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // Trigger payment flow here
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PremiumScreen(),
+                    ),
+                  );
                 },
                 child:
-                    Text('Subscribe', style: textTheme.bodySmall?.copyWith()),
+                    Text('Premium', style: textTheme.bodySmall?.copyWith()),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),

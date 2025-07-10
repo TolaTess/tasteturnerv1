@@ -115,6 +115,9 @@ class _SigninFormState extends State<SigninForm> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                     backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                     title: Text(
                       'Reset Password',

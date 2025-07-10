@@ -7,6 +7,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
+import '../constants.dart'; // Added import for helperController global instance
 
 class GoalDietWidget extends StatefulWidget {
   final String diet;
@@ -91,22 +92,63 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
 
   String _getDietFact() {
     final diet = widget.diet.toLowerCase();
-    switch (diet) {
-      case 'low carb':
-        return 'Did you know? Low carb diets can help reduce appetite and promote faster initial weight loss by reducing water retention.';
-      case 'keto':
-        return 'Did you know? The ketogenic diet can improve brain function and mental clarity by providing ketones as an alternative fuel source.';
-      case 'paleo':
-        return 'Did you know? The paleo diet emphasizes whole foods and can help reduce inflammation in the body.';
-      case 'vegan':
-        return 'Did you know? Vegan diets are rich in fiber and antioxidants, which can support heart health and longevity.';
-      case 'vegetarian':
-        return 'Did you know? Vegetarian diets have been linked to lower risks of heart disease and certain types of cancer.';
-      case 'pescatarian':
-        return 'Did you know? Pescatarian diets provide omega-3 fatty acids from fish, which support brain and heart health.';
-      default:
-        return 'Did you know? A balanced diet with variety from all food groups provides the nutrients your body needs to thrive.';
+
+    // Try to find matching category in helperController
+    try {
+      final matchingCategory = helperController.category.firstWhere(
+        (category) => category['name'].toString().toLowerCase() == diet,
+        orElse: () => <String, dynamic>{},
+      );
+
+      if (matchingCategory.isNotEmpty) {
+        // First, try to use fact array if it exists and is not empty
+        if (matchingCategory['facts'] != null) {
+          final factData = matchingCategory['facts'];
+          List<String> facts = [];
+
+          if (factData is List && factData.isNotEmpty) {
+            facts = factData
+                .map((fact) => fact.toString())
+                .where((fact) => fact.isNotEmpty)
+                .toList();
+          } else if (factData is String && factData.isNotEmpty) {
+            facts = [factData];
+          }
+
+          if (facts.isNotEmpty) {
+            // Randomly select a fact from the array
+            facts.shuffle();
+            final selectedFact = facts.first;
+            return selectedFact;
+          }
+        }
+
+        // If no fact array or it's empty, use description and split by periods
+        if (matchingCategory['description'] != null) {
+          final description = matchingCategory['description'].toString();
+          if (description.isNotEmpty) {
+            // Split description by periods and filter out empty parts
+            final descriptionParts = description
+                .split('.')
+                .map((part) => part.trim())
+                .where((part) => part.isNotEmpty)
+                .toList();
+
+            if (descriptionParts.isNotEmpty) {
+              // Randomly select a part from the description
+              descriptionParts.shuffle();
+              final selectedPart = descriptionParts.first;
+              return selectedPart;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error fetching diet fact from helper controller: $e');
     }
+
+    // Fallback to default fact if no match found
+    return 'Did you know? A balanced diet with variety from all food groups provides the nutrients your body needs to thrive.';
   }
 
   void _flipCard() {
@@ -252,10 +294,12 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.lightbulb_outline,
-            color: kAccent,
-            size: getIconScale(10, context),
+          Text(
+            '${capitalizeFirstLetter(widget.diet)} Facts',
+            style: textTheme.bodyLarge?.copyWith(
+              color: kAccent,
+              fontSize: getTextScale(5, context),
+            ),
           ),
           SizedBox(height: getPercentageHeight(2, context)),
           Text(
@@ -335,7 +379,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                 : null,
             child: Container(
               decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.1),
+                color: kAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: EdgeInsets.all(getPercentageWidth(3, context)),

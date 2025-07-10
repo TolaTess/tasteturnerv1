@@ -14,6 +14,8 @@ import '../widgets/loading_screen.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/title_section.dart';
 import '../service/post_service.dart';
+import '../service/badge_service.dart';
+import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'badges_screen.dart';
 import 'chat_screen.dart';
 
@@ -52,7 +54,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _scrollController.addListener(_scrollListener);
     friendController.updateUserData(widget.userId);
     friendController.fetchFollowing(userService.userId ?? '');
-    badgeController.fetchBadges();
+    // Load badges for the viewed user
+    BadgeService.instance.loadUserProgress(widget.userId);
     _fetchContent(widget.userId);
     super.initState();
   }
@@ -105,6 +108,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  // Helper function to convert Badge to BadgeAchievementData for compatibility
+  BadgeAchievementData _convertBadgeToLegacyFormat(BadgeModel.Badge badge) {
+    return BadgeAchievementData(
+      title: badge.title,
+      description: badge.description,
+      userids: [widget.userId], // Single user for this context
+      image: tastyImage, // Use default image
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -128,9 +141,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         String newUserid = widget.userId;
 
         // Move computation outside to avoid rebuilds during build
-        final userBadges = badgeController.badgeAchievements
-            .where((badge) => badge.userids.contains(newUserid))
-            .toList();
+        final earnedBadges = BadgeService.instance.earnedBadges;
+        final userBadges = earnedBadges.isNotEmpty
+            ? earnedBadges.map(_convertBadgeToLegacyFormat).toList()
+            : <BadgeAchievementData>[];
 
         return SafeArea(
           key: ValueKey('safe_area_${widget.userId}'),
@@ -349,22 +363,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ? 5
                                 : userBadges.length, // Limit to 5 items
                             padding: EdgeInsets.only(
-                                right: getPercentageWidth(2, context)),
+                                left: getPercentageWidth(1, context)),
                             scrollDirection: Axis.horizontal,
                             itemBuilder: (context, index) {
                               if (index < userBadges.length) {
                                 // Display badges for non-user
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                      left: getPercentageWidth(2, context)),
-                                  child: StorySlider(
-                                    key: ValueKey(
-                                        'badge_${userBadges[index].title}_$index'),
-                                    dataSrc: userBadges[index],
-                                    press: () {
-                                      // Handle badge click here
-                                    },
-                                  ),
+                                return StorySlider(
+                                  key: ValueKey(
+                                      'badge_${userBadges[index].title}_$index'),
+                                  dataSrc: userBadges[index],
+                                  press: () {
+                                    // Handle badge click here
+                                  },
                                 );
                               }
                               return const SizedBox

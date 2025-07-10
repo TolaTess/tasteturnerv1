@@ -137,7 +137,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
   Future<void> _loadMeal() async {
     try {
-      final mealId = _currentPostData['id'];
+      final mealId = _currentPostData['mealId'];
       if (mealId != null && mealId.toString().isNotEmpty) {
         final meal = await mealManager.getMealbyMealID(mealId);
         if (mounted) {
@@ -712,11 +712,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           content: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.favorite, color: kWhite),
+                              Icon(
+                                isLiked
+                                    ? Icons.favorite_border
+                                    : Icons.favorite,
+                                color: kWhite,
+                                size: getResponsiveBoxSize(context, 23, 23),
+                              ),
                               const SizedBox(width: 8),
-                              Text(isLiked
-                                  ? 'Added to favorites'
-                                  : 'Removed from favorites'),
+                              Text(isLiked ? 'Unliked' : 'Liked'),
                             ],
                           ),
                           backgroundColor: kAccent,
@@ -753,7 +757,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: getPercentageWidth(4, context)),
+                      if (postUserId != userService.userId)
+                        SizedBox(width: getPercentageWidth(5.5, context)),
                       if (postUserId != userService.userId)
                         GestureDetector(
                           onTap: () => Navigator.push(
@@ -768,7 +773,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             ),
                           ),
                           child: CircleAvatar(
-                            radius: getResponsiveBoxSize(context, 17, 17),
+                            radius: getResponsiveBoxSize(context, 19, 19),
                             backgroundColor:
                                 kAccent.withValues(alpha: kOpacity),
                             child: CircleAvatar(
@@ -785,11 +790,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                               .toString())
                                       : const AssetImage(intPlaceholderImage)
                                           as ImageProvider,
-                              radius: getResponsiveBoxSize(context, 15, 15),
+                              radius: getResponsiveBoxSize(context, 17, 17),
                             ),
                           ),
                         ),
-                      SizedBox(width: getPercentageWidth(4, context)),
+                      if (postUserId == userService.userId)
+                        SizedBox(width: getPercentageWidth(7, context)),
+                      if (postUserId != userService.userId)
+                        SizedBox(width: getPercentageWidth(5.5, context)),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -815,18 +823,21 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           onTap: () {
                             _showRecipeChoiceDialog();
                           },
-                          child: CircleAvatar(
-                            radius: getResponsiveBoxSize(context, 17, 17),
-                            backgroundColor:
-                                kAccent.withValues(alpha: kOpacity),
+                          child: Container(
+                            padding: EdgeInsets.all(
+                                getPercentageWidth(1.5, context)),
+                            decoration: BoxDecoration(
+                              color: kWhite.withValues(alpha: kOpacity),
+                              shape: BoxShape.circle,
+                            ),
                             child: Icon(
-                              Icons.camera_alt,
-                              color: kWhite,
-                              size: getResponsiveBoxSize(context, 17, 17),
+                              Icons.auto_awesome,
+                              color: kAccent,
+                              size: getResponsiveBoxSize(context, 23, 23),
                             ),
                           ),
                         ),
-                      SizedBox(width: getPercentageWidth(4, context)),
+                      SizedBox(width: getPercentageWidth(5.5, context)),
                       if (hasMeal)
                         GestureDetector(
                           onTap: () {
@@ -835,7 +846,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                               MaterialPageRoute(
                                 builder: (context) => RecipeDetailScreen(
                                   mealData: Meal(
-                                    mealId: _currentPostData['id'],
+                                    mealId: _currentPostData['mealId'],
                                     userId: _currentPostData['userId'],
                                     title: _currentPostData['category'],
                                     createdAt: DateTime.now(),
@@ -856,7 +867,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           ),
                         ),
                       if (hasMeal)
-                        SizedBox(width: getPercentageWidth(7, context)),
+                        SizedBox(width: getPercentageWidth(5.5, context)),
                       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                         stream: postStream(),
                         builder: (context, snapshot) {
@@ -891,7 +902,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           );
                         },
                       ),
-                      SizedBox(width: getPercentageWidth(7, context)),
+                      SizedBox(width: getPercentageWidth(5.5, context)),
                       if (postUserId != userService.userId)
                         Obx(() {
                           final targetUserId = _currentPostData['userId'] ??
@@ -917,7 +928,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           );
                         }),
                       if (postUserId != userService.userId)
-                        SizedBox(width: getPercentageWidth(7, context)),
+                        SizedBox(width: getPercentageWidth(5.5, context)),
                       if ((postUserId ??
                               (extractedItems.isNotEmpty
                                   ? extractedItems.first

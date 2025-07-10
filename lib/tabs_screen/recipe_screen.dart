@@ -91,160 +91,166 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final filteredTechniques = _categoryDatasIngredient..shuffle();
     final limitedTechniques = filteredTechniques.take(5).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        backgroundColor: kAccent,
-        automaticallyImplyLeading: true,
-        toolbarHeight: getPercentageHeight(10, context),
-        title: Text(
-          'Recipes',
-          style: textTheme.displaySmall?.copyWith(
-            fontSize: getTextScale(7, context),
+    return RefreshIndicator(
+      color: kAccent,
+      onRefresh: () async {
+        await _fetchFavouriteMeals();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          backgroundColor: kAccent,
+          automaticallyImplyLeading: true,
+          toolbarHeight: getPercentageHeight(10, context),
+          title: Text(
+            'Recipes',
+            style: textTheme.displaySmall?.copyWith(
+              fontSize: getTextScale(7, context),
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: getPercentageHeight(2, context)),
-
-              // Cooking Techniques Section
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(5, context),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (dietPreference != 'balanced')
-                          Text(
-                            dietPreference ?? '',
-                            style: textTheme.displayMedium?.copyWith(),
-                          ),
-                        if (dietPreference != 'balanced')
-                          SizedBox(height: getPercentageHeight(0.5, context)),
-                        Center(
-                          child: Text(
-                            'Cooking Techniques',
-                            style: textTheme.displaySmall?.copyWith(
-                              color: kAccent,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: getPercentageHeight(2, context)),
+      
+                // Cooking Techniques Section
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(5, context),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (dietPreference != 'balanced')
+                            Text(
+                              dietPreference ?? '',
+                              style: textTheme.displayMedium?.copyWith(),
+                            ),
+                          if (dietPreference != 'balanced')
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                          Center(
+                            child: Text(
+                              'Cooking Techniques',
+                              style: textTheme.displaySmall?.copyWith(
+                                color: kAccent,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: getPercentageHeight(2.5, context)),
-                    SizedBox(
-                      height: getPercentageHeight(
-                          25, context), // Adjust height as needed
-                      child: OverlappingCardsView(
-                        cardWidth: getPercentageWidth(50, context),
-                        cardHeight: getPercentageHeight(20, context),
-                        overlap: 50,
-                        isRecipe: false,
-                        isTechnique: true,
-                        children: List.generate(
-                          limitedTechniques.length,
-                          (index) {
-                            final technique = limitedTechniques[index];
-                            return OverlappingCard(
-                              title: technique['name'] ?? '',
-                              subtitle: technique['description'] ??
-                                  'No description available',
-                              color: colors[index % colors.length],
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => TechniqueDetailWidget(
-                                    technique: technique,
-                                  ),
-                                );
-                              },
-                              index: index,
-                              isSelected: false,
-                              isRecipe: false,
-                            );
-                          },
+                        ],
+                      ),
+                      SizedBox(height: getPercentageHeight(2.5, context)),
+                      SizedBox(
+                        height: getPercentageHeight(
+                            25, context), // Adjust height as needed
+                        child: OverlappingCardsView(
+                          cardWidth: getPercentageWidth(50, context),
+                          cardHeight: getPercentageHeight(20, context),
+                          overlap: 50,
+                          isRecipe: false,
+                          isTechnique: true,
+                          children: List.generate(
+                            limitedTechniques.length,
+                            (index) {
+                              final technique = limitedTechniques[index];
+                              return OverlappingCard(
+                                title: technique['name'] ?? '',
+                                subtitle: technique['description'] ??
+                                    'No description available',
+                                color: colors[index % colors.length],
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => TechniqueDetailWidget(
+                                      technique: technique,
+                                    ),
+                                  );
+                                },
+                                index: index,
+                                isSelected: false,
+                                isRecipe: false,
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ------------------------------------Premium / Ads------------------------------------
-
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : PremiumSection(
-                      isPremium:
-                          userService.currentUser.value?.isPremium ?? false,
-                      titleOne: joinChallenges,
-                      titleTwo: premium,
-                      isDiv: false,
-                    ),
-
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : SizedBox(height: getPercentageHeight(1, context)),
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : Divider(color: isDarkMode ? kWhite : kDarkGrey),
-              // ------------------------------------Premium / Ads-------------------------------------
-
-              SizedBox(height: getPercentageHeight(1, context)),
-
-              //Search by Meals
-              TitleSection(
-                title: searchMeal,
-                press: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RecipeListCategory(
-                      index: 1,
-                      searchIngredient: '',
-                      screen: 'ingredient',
-                    ),
+                    ],
                   ),
                 ),
-                more: seeAll,
-              ),
-              SizedBox(
-                height: getPercentageHeight(2, context),
-              ),
-
-              Padding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(5, context)),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: getPercentageWidth(45, context),
-                    childAspectRatio: 3 / 2,
-                    crossAxisSpacing: getPercentageWidth(2, context),
-                    mainAxisSpacing: getPercentageHeight(1, context),
+      
+                // ------------------------------------Premium / Ads------------------------------------
+      
+                userService.currentUser.value?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : PremiumSection(
+                        isPremium:
+                            userService.currentUser.value?.isPremium ?? false,
+                        titleOne: joinChallenges,
+                        titleTwo: premium,
+                        isDiv: false,
+                      ),
+      
+                userService.currentUser.value?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : SizedBox(height: getPercentageHeight(1, context)),
+                userService.currentUser.value?.isPremium ?? false
+                    ? const SizedBox.shrink()
+                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+                // ------------------------------------Premium / Ads-------------------------------------
+      
+                SizedBox(height: getPercentageHeight(1, context)),
+      
+                //Search by Meals
+                TitleSection(
+                  title: searchMeal,
+                  press: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RecipeListCategory(
+                        index: 1,
+                        searchIngredient: '',
+                        screen: 'ingredient',
+                      ),
+                    ),
                   ),
-                  itemCount: demoMealsData.length,
-                  itemBuilder: (BuildContext ctx, index) {
-                    return MealsCard(
-                      dataSrc: demoMealsData[index],
-                      isMyMeal: myMealList.length >= 1,
-                      isFavourite: favouriteMealList.length >= 1,
-                    );
-                  },
+                  more: seeAll,
                 ),
-              ),
-              SizedBox(
-                height: getPercentageHeight(7, context),
-              ),
-            ],
+                SizedBox(
+                  height: getPercentageHeight(2, context),
+                ),
+      
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(5, context)),
+                  child: GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: getPercentageWidth(45, context),
+                      childAspectRatio: 3 / 2,
+                      crossAxisSpacing: getPercentageWidth(2, context),
+                      mainAxisSpacing: getPercentageHeight(1, context),
+                    ),
+                    itemCount: demoMealsData.length,
+                    itemBuilder: (BuildContext ctx, index) {
+                      return MealsCard(
+                        dataSrc: demoMealsData[index],
+                        isMyMeal: myMealList.length >= 1,
+                        isFavourite: favouriteMealList.length >= 1,
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(
+                  height: getPercentageHeight(7, context),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -16,12 +16,12 @@ class Setting {
 
 List<Setting> demoSetting = [
   Setting(
-    category: "Edit",
+    category: "Edit Profile",
     prefixicon: Icons.person,
     suffixicon: Icons.navigate_next,
   ),
   Setting(
-    category: "Nutrition & Goals",
+    category: "Edit Goals",
     prefixicon: Icons.check,
     suffixicon: Icons.navigate_next,
   ),

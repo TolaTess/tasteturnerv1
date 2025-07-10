@@ -161,7 +161,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
           listWidgets.add(
             noItemTastyWidget(
               'Your shopping list is empty!',
-              'Take a spin on the wheel to generate a list.',
+              'Click to spin the wheel and generate a list.',
               context,
               true,
               'spin',

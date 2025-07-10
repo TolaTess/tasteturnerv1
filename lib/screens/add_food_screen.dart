@@ -17,6 +17,7 @@ import '../service/meal_api_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
+import '../widgets/meal_detail_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
 import 'food_analysis_results_screen.dart';
@@ -275,7 +276,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         top: getPercentageHeight(4, context),
                         bottom: getPercentageHeight(2, context)),
                     child: Text(
-                      'Add to ${getMealTimeOfDay()}',
+                      'Add to ${capitalizeFirstLetter(foodType)}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: getPercentageWidth(4.5, context),
                             fontWeight: FontWeight.w400,
@@ -473,7 +474,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     }
 
     try {
-         // Show media selection dialog first
+      // Show media selection dialog first
       final selectedOption = await showMediaSelectionDialog(
         isCamera: true,
         context: context,
@@ -548,6 +549,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor:
+            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
         title: const Text('Error'),
         content: Text(message),
         actions: [
@@ -560,6 +566,31 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
+  void _showMealDetailModal(
+    BuildContext context,
+    String mealType,
+    List<UserMeal> meals,
+    int currentCalories,
+    String recommendedCalories,
+    IconData icon,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => MealDetailWidget(
+        mealType: mealType,
+        meals: meals,
+        currentCalories: currentCalories,
+        recommendedCalories: recommendedCalories,
+        icon: icon,
+        onAddMeal: () {
+          setState(() {
+            foodType = mealType;
+          });
+          _showSearchResults(context, mealType);
+        },
+      ),
+    );
+  }
 
   void _showDetailPopup(dynamic result, String? userId, String mealType) {
     int selectedNumber = 0;
@@ -704,6 +735,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           builder: (context, setModalState) {
             final isDarkMode = getThemeProvider(context).isDarkMode;
             return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
               backgroundColor: isDarkMode ? kDarkGrey : kWhite,
               title: Text(
                 'Add to $mealType',
@@ -743,7 +777,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     selectedNumber,
                                     (index) => setModalState(
                                         () => selectedNumber = index),
-                                    false),
+                                    true),
                               ),
                             ),
                             Flexible(
@@ -757,7 +791,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   selectedUnit,
                                   (index) =>
                                       setModalState(() => selectedUnit = index),
-                                  false,
+                                  true,
                                   unitOptions,
                                 ),
                               ),
@@ -1072,6 +1106,17 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             });
                             _showSearchResults(context, 'Breakfast');
                           },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Breakfast',
+                              dailyDataController.userMealList['Breakfast'] ??
+                                  [],
+                              dailyDataController.breakfastCalories.value,
+                              _getRecommendedCalories('Breakfast'),
+                              Icons.emoji_food_beverage_outlined,
+                            );
+                          },
                         ),
                         _buildMealCard(
                           context: context,
@@ -1087,6 +1132,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               foodType = 'Lunch';
                             });
                             _showSearchResults(context, 'Lunch');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Lunch',
+                              dailyDataController.userMealList['Lunch'] ?? [],
+                              dailyDataController.lunchCalories.value,
+                              _getRecommendedCalories('Lunch'),
+                              Icons.lunch_dining_outlined,
+                            );
                           },
                         ),
                         _buildMealCard(
@@ -1105,6 +1160,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             });
                             _showSearchResults(context, 'Dinner');
                           },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Dinner',
+                              dailyDataController.userMealList['Dinner'] ?? [],
+                              dailyDataController.dinnerCalories.value,
+                              _getRecommendedCalories('Dinner'),
+                              Icons.dinner_dining_outlined,
+                            );
+                          },
                         ),
                         _buildMealCard(
                           context: context,
@@ -1121,6 +1186,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               foodType = 'Snacks';
                             });
                             _showSearchResults(context, 'Snacks');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Snacks',
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                              dailyDataController.snacksCalories.value,
+                              _getRecommendedCalories('Snacks'),
+                              Icons.fastfood_outlined,
+                            );
                           },
                         ),
                       ],
@@ -1302,6 +1377,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     required List<UserMeal> meals,
     required IconData icon,
     required VoidCallback onAdd,
+    VoidCallback? onTap,
   }) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
@@ -1316,54 +1392,68 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
         child: Row(
           children: [
-            Icon(icon, size: getIconScale(10, context), color: kAccent),
-            SizedBox(width: getPercentageWidth(2, context)),
+            // Main clickable area
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mealType,
-                    style: textTheme.titleLarge?.copyWith(
-                      fontSize: getPercentageWidth(4.5, context),
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
-                  ),
-                  SizedBox(height: getPercentageHeight(0.5, context)),
-                  Text(
-                    recommendedCalories,
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                    ),
-                  ),
-                  if (currentCalories > 0)
-                    SizedBox(height: getPercentageHeight(1, context)),
-                  if (currentCalories > 0)
-                    Text(
-                      'Added: $currentCalories kcal',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: kAccent,
-                        fontWeight: FontWeight.w500,
+              child: GestureDetector(
+                onTap: onTap,
+                child: Row(
+                  children: [
+                    Icon(icon, size: getIconScale(10, context), color: kAccent),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mealType,
+                            style: textTheme.titleLarge?.copyWith(
+                              fontSize: getPercentageWidth(4.5, context),
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(0.5, context)),
+                          Text(
+                            recommendedCalories,
+                            style: textTheme.bodyLarge?.copyWith(
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                          if (currentCalories > 0)
+                            SizedBox(height: getPercentageHeight(1, context)),
+                          if (currentCalories > 0)
+                            Text(
+                              'Added: $currentCalories kcal',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: kAccent,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          if (meals.isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                  top: getPercentageHeight(1, context)),
+                              child: Text(
+                                meals.map((e) => e.name).join(', '),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  if (meals.isNotEmpty)
-                    Padding(
-                      padding:
-                          EdgeInsets.only(top: getPercentageHeight(1, context)),
-                      child: Text(
-                        meals.map((e) => e.name).join(', '),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
+            // Add button - separate from main clickable area
             GestureDetector(
               onTap: onAdd,
               child: Container(
