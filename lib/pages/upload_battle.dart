@@ -16,7 +16,6 @@ import '../screens/food_analysis_results_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../service/battle_service.dart';
 import '../widgets/category_selector.dart';
-import '../service/helper_controller.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/video_player_widget.dart';
 
@@ -89,13 +88,11 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     return tempPath;
   }
 
-
-
   Future<void> _pickMedia({bool fromCamera = false}) async {
     final ImagePicker picker = ImagePicker();
 
-    final choice = await showMediaSelectionDialog(
-        isCamera: fromCamera, context: context);
+    final choice =
+        await showMediaSelectionDialog(isCamera: fromCamera, context: context);
     if (choice == null) return;
 
     if (fromCamera) {
@@ -105,7 +102,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
 
       if (media != null) {
         if (choice == 'photo') {
-          final XFile? cropped = await cropImage(media, context);
+          XFile? cropped = await cropImage(media, context);
           if (cropped != null) {
             setState(() {
               _selectedMedia = [cropped];
@@ -177,6 +174,68 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     setState(() => isUploading = true);
 
     try {
+      // If this is for analysis (postId is 'analyze_and_upload') and not a video, do analysis FIRST
+      if (postId == 'analyze_and_upload' && !_isVideo) {
+        // Show loading dialog for analysis
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor:
+                  getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(color: kAccent),
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  Text(
+                    'Analyzing food image with AI...',
+                    style: TextStyle(
+                      color: getThemeProvider(context).isDarkMode
+                          ? kWhite
+                          : kBlack,
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Analyze the image with AI first
+        final analysisResult = await geminiService.analyzeFoodImageWithContext(
+          imageFile: File(_selectedMedia.first.path),
+          mealType: getMealTimeOfDay(),
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+        }
+
+        // Navigate to food analysis results screen for NEW analyze & upload flow
+        if (mounted) {
+          setState(() => isUploading = false);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FoodAnalysisResultsScreen(
+                imageFile: File(_selectedMedia.first.path),
+                analysisResult: analysisResult,
+                postId: null, // No existing post - meal will be created first
+                battleId: widget.battleId,
+                battleCategory: widget.battleCategory,
+                isMainPost: widget.isMainPost,
+                selectedCategory: selectedCategory,
+              ),
+            ),
+          );
+        }
+        return; // Early return - don't continue with upload here
+      }
+
+      // Regular upload flow (no analysis needed)
       final List<String> uploadedUrls = [];
 
       for (final media in _selectedMedia) {
@@ -224,38 +283,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             post, userService.userId ?? '', uploadedUrls);
       } else {
         await BattleService.instance.uploadBattleImages(post: post);
-      }
-
-      if (postId.isNotEmpty) {
-        // Analyze the image with AI
-        final imageUrl = uploadedUrls.first;
-
-        // Download the image to create a File object
-        final response = await http.get(Uri.parse(imageUrl));
-        final bytes = response.bodyBytes;
-        final tempDir = await getTemporaryDirectory();
-        final tempFile = File('${tempDir.path}/temp_analysis_image.jpg');
-        await tempFile.writeAsBytes(bytes);
-
-        // Analyze the image with AI
-        final analysisResult = await geminiService.analyzeFoodImageWithContext(
-          imageFile: tempFile,
-          mealType: getMealTimeOfDay(), // Default meal type
-        );
-
-        Navigator.pop(context); // Close loading dialog
-
-        // Navigate to food analysis results screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FoodAnalysisResultsScreen(
-              imageFile: tempFile,
-              analysisResult: analysisResult,
-              postId: postId,
-            ),
-          ),
-        );
       }
 
       if (mounted) {
@@ -422,13 +449,24 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ),
               child: TextButton(
                 onPressed: () {
-                  final postId = Random().nextInt(1000000).toString();
-                  _uploadMedia(postId);
-                  Get.back();
+                  if (!_isVideo) {
+                    // For analyze & upload: don't pass a postId, let meal be created first
+                    _uploadMedia('analyze_and_upload');
+                  } else {
+                    showTastySnackbar(
+                      'Info',
+                      'Video analysis not available! Please use photos.',
+                      context,
+                      backgroundColor: kRed,
+                    );
+                  }
                 },
                 child: Text(
-                  'Analyze and Upload',
-                  style: textTheme.titleMedium?.copyWith(color: kAccentLight),
+                  'Analyze Food & Upload',
+                  style: textTheme.displaySmall?.copyWith(
+                      color: _isVideo ? kLightGrey : kAccentLight,
+                      fontWeight: FontWeight.w200,
+                      fontSize: getTextScale(5.5, context)),
                 ),
               ),
             ),
@@ -436,8 +474,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             SizedBox(height: getPercentageHeight(3, context)),
             AppButton(
               onPressed: isUploading ? () {} : () => _uploadMedia(''),
-              text: isUploading ? "Uploading..." : "Upload",
+              text: isUploading ? "Uploading..." : "Upload Without Analysis",
               isLoading: isUploading,
+              type: AppButtonType.primary,
+              width: 100,
             ),
           ],
         ),

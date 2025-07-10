@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
-import '../data_models/profilescreen_data.dart';
 import '../screens/badges_screen.dart';
 import '../service/battle_service.dart';
+import '../service/badge_service.dart';
 
 class WeeklyIngredientBattle extends StatefulWidget {
   const WeeklyIngredientBattle({super.key});
@@ -24,7 +24,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
   final RxInt _count2 = 0.obs;
   final RxBool _showBadge = false.obs;
   final RxString _badgeTitle = ''.obs;
-  final BadgeController _badgeController = BadgeController.instance;
+  final BadgeService _badgeService = BadgeService.instance;
 
   // Add test mode flag
   final bool _isTestMode = false; // Set to true to use test data
@@ -145,7 +145,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         _count1.value = sortedIngredients[0].value;
         _count2.value = sortedIngredients[1].value;
 
-        // Check for badges and possibly award a new one
+        // Check for badges using the new badge service
         await _checkAndAwardBadges(sortedIngredients, userId);
 
         // If it's Friday, send the notification immediately
@@ -202,92 +202,51 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
     }
   }
 
-  // Helper function to create or update a badge
-  Future<void> _createOrUpdateBadge({
-    required String userId,
-    required String title,
-    required String description,
-    bool checkUserExists = true,
-  }) async {
-    final existingBadges = _badgeController.badgeAchievements
-        .where((badge) => badge.title == title)
-        .toList();
-
-    if (existingBadges.isEmpty) {
-      // Create new badge
-      final newBadge = BadgeAchievementData(
-        title: title,
-        description: description,
-        userids: [userId],
-        image: tastyImage,
-      );
-      await _badgeController.addBadge(newBadge);
-    } else if (checkUserExists) {
-      // Badge exists, check if user needs to be added
-      final badge = existingBadges.first;
-      if (!badge.userids.contains(userId)) {
-        // Add user to existing badge
-        final updatedUserIds = List<String>.from(badge.userids)..add(userId);
-        final updatedBadge = BadgeAchievementData(
-          title: badge.title,
-          description: badge.description,
-          userids: updatedUserIds,
-          image: tastyImage,
-        );
-        await _badgeController.addBadge(updatedBadge);
-      }
-    }
-
-    // Show badge notification
-    _showBadge.value = true;
-    _badgeTitle.value = title;
-  }
-
   Future<void> _checkAndAwardBadges(
       List<MapEntry<String, int>> sortedIngredients, String userId) async {
     try {
-      // Wait for badges to be loaded
-      await _badgeController.fetchBadgesByUserId(userId);
+      // Load user's current badge progress first
+      await _badgeService.loadUserProgress(userId);
 
-      // Top ingredient details
+      // Get top ingredient details
       final topIngredient = sortedIngredients[0].key.toLowerCase();
       final topIngredientCount = sortedIngredients[0].value;
 
-      // Check for vegetable badges
+      // Check for ingredient usage milestone badge
+      await _badgeService.checkBadgeProgress(
+        userId,
+        'unique_ingredients_logged',
+        actionData: {
+          'ingredients': sortedIngredients.map((e) => e.key).toList(),
+          'count': sortedIngredients.length,
+        },
+      );
+
+      // Check for vegetable category badge specifically
       if (vegetables.contains(topIngredient) && topIngredientCount >= 5) {
-        await _createOrUpdateBadge(
-          userId: userId,
-          title: 'Veggie Victor',
-          description:
-              'Used vegetables as your main ingredient 5+ times in a week',
+        await _badgeService.checkBadgeProgress(
+          userId,
+          'ingredient_category_logged',
+          actionData: {
+            'category': 'vegetable',
+            'ingredient': topIngredient,
+            'count': topIngredientCount,
+          },
         );
+        _showBadge.value = true;
+        _badgeTitle.value = 'Veggie Lover';
       }
 
-      // Check for protein badges
-      if (proteins.contains(topIngredient) && topIngredientCount >= 5) {
-        await _createOrUpdateBadge(
-          userId: userId,
-          title: 'Protein Pro',
-          description: 'Used protein-rich ingredients 5+ times in a week',
-        );
-      }
-
-      // Check for variety badge
+      // Check if we have a good variety (Food Explorer equivalent)
       if (sortedIngredients.length >= 5) {
-        await _createOrUpdateBadge(
-          userId: userId,
-          title: 'Food Explorer',
-          description: 'Used 5+ different ingredients in your meals this week',
-        );
+        _showBadge.value = true;
+        _badgeTitle.value = 'Food Explorer';
       }
 
-      // Check for streak badge
+      // Check for high usage (Ingredient Master equivalent)
       if (topIngredientCount >= 10) {
-        await _createOrUpdateBadge(
-          userId: userId,
-          title: 'Streak Master',
-          description: 'Used 10+ ingredients in a week',
-        );
+        _showBadge.value = true;
+        _badgeTitle.value = 'Ingredient Master';
       }
     } catch (e) {
       print('Error checking/awarding badges: $e');
@@ -364,8 +323,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
         decoration: BoxDecoration(
-          color:
-              isDarkMode ? kDarkGrey.withValues(alpha: 0.9) : kWhite.withValues(alpha: 0.9),    
+          color: isDarkMode
+              ? kDarkGrey.withValues(alpha: 0.9)
+              : kWhite.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -404,7 +364,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.2),
+                          color: kAccent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(

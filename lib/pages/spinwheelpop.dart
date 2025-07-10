@@ -2,17 +2,13 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_files.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../screens/buddy_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/premium_widget.dart';
@@ -57,7 +53,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   List<Map<String, dynamic>> _mealDietCategories = [];
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
-  final GlobalKey _spinWheelKey = GlobalKey();
+  final GlobalKey _addAudioButtonKey = GlobalKey();
   bool showDietCategories = false;
   bool isInFreeTrial = false;
   @override
@@ -105,20 +101,24 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       tutorials: [
         TutorialStep(
           tutorialId: 'add_switch_button',
-          message: 'Tap here to switch view from ingredient to meal spin!',
+          message: 'Tap here to switch view from ingredients to meal spin!',
           targetKey: _addSwitchButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.UP,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_audio_button',
+          message: 'Tap here to toggle the audio!',
+          targetKey: _addAudioButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
         ),
         TutorialStep(
           tutorialId: 'add_spin_button',
-          message: 'Double tap on the wheel for a spontaneous meal!',
+          message: 'Double tap the wheel for a spontaneous meal!',
           targetKey: _addSpinButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.DOWN,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
@@ -182,7 +182,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       selectedCategoryIdIngredient = categoryId;
       selectedCategoryIngredient = category;
     });
-    if (categoryId == 'custom') {
+    // Show snackbar notification
+    showTastySnackbar(
+      'Category Updated',
+      'Updated to $category',
+      context,
+    );
+
+    if (categoryId == 'custom' && category == 'custom') {
       final result = await showDialog<List<String>>(
         context: context,
         builder: (context) {
@@ -196,8 +203,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             backgroundColor: isDarkMode ? kDarkGrey : kWhite,
             title: Text(
               'Enter Ingredients',
-              style: textTheme.titleMedium
-                  ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+              style: textTheme.titleMedium?.copyWith(color: kAccent),
             ),
             content: SafeTextFormField(
               controller: modalController,
@@ -205,9 +211,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
               keyboardType: TextInputType.text,
               decoration: InputDecoration(
-                labelText: "Add your Ingredients (eggs, tuna, etc.)",
-                labelStyle: textTheme.bodyMedium
-                    ?.copyWith(color: isDarkMode ? kLightGrey : kDarkGrey),
+                labelText:
+                    "Enter your Ingredients \n(eggs, tuna, etc.) \nseparate by commas",
+                labelStyle: textTheme.bodySmall
+                    ?.copyWith(color: isDarkMode ? kLightGrey : kLightGrey),
                 enabledBorder: outlineInputBorder(10),
                 focusedBorder: outlineInputBorder(10),
                 border: outlineInputBorder(10),
@@ -374,16 +381,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             getPercentageHeight(10, context), // Control height with percentage
         title: Text('Don\'t Know What to Eat?', style: textTheme.displayMedium),
       ),
-      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-        verticalOffset: getPercentageHeight(5, context),
-        horizontalOffset: getPercentageWidth(2, context),
-      ),
-      floatingActionButton: buildTastyFloatingActionButton(
-        context: context,
-        buttonKey: _addSpinButtonKey,
-        themeProvider: getThemeProvider(context),
-        isInFreeTrial: isInFreeTrial,
-      ),
       body: SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -402,6 +399,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Container(
+                      key: _addSwitchButtonKey,
                       padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(2, context),
                       ),
@@ -420,7 +418,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                           });
                         },
                         child: Text(
-                          key: _addSwitchButtonKey,
                           showIngredientSpin
                               ? 'Switch to Meal Spin'
                               : 'Switch to Ingredient Spin',
@@ -430,6 +427,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                       ),
                     ),
                     IconButton(
+                      key: _addAudioButtonKey,
                       iconSize: getIconScale(6, context),
                       icon: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
@@ -498,6 +496,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 isSelected: selectedCategoryIngredient == 'fruit',
               ),
             ),
+            GestureDetector(
+              onTap: () => _updateCategoryIngredientData('custom', 'custom'),
+              child: buildAddMealTypeLegend(
+                context,
+                'custom',
+                isSelected: selectedCategoryIngredient == 'custom',
+              ),
+            ),
           ],
         ),
 
@@ -507,7 +513,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         // Spin wheel below macros
         Expanded(
           child: SpinWheelWidget(
-            key: _spinWheelKey,
+            key: _addSpinButtonKey,
             labels: widget.ingredientList,
             customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
             isMealSpin: false,

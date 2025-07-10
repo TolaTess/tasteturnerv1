@@ -1,21 +1,33 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/primary_button.dart';
+import '../data_models/post_model.dart';
+import '../service/battle_service.dart';
+import '../widgets/bottom_nav.dart';
 
 class FoodAnalysisResultsScreen extends StatefulWidget {
   final File imageFile;
   final Map<String, dynamic> analysisResult;
   final String? postId;
+  final String? battleId;
+  final String? battleCategory;
+  final bool? isMainPost;
+  final String? selectedCategory;
 
   const FoodAnalysisResultsScreen({
     super.key,
     required this.imageFile,
     required this.analysisResult,
     this.postId = '',
+    this.battleId,
+    this.battleCategory,
+    this.isMainPost,
+    this.selectedCategory,
   });
 
   @override
@@ -27,11 +39,17 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   late Map<String, dynamic> _editableAnalysis;
   bool _isSaving = false;
   bool _hasCreatedMeal = false;
+  bool _showNutritionWarning = false;
+  String _nutritionWarningMessage = '';
 
   @override
   void initState() {
     super.initState();
     _editableAnalysis = Map<String, dynamic>.from(widget.analysisResult);
+
+    // Recalculate totals on initial load to ensure consistency
+    _recalculateTotalNutrition();
+    _validateNutrition();
   }
 
   Color _getHealthScoreColor(int score) {
@@ -66,13 +84,18 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         imagePath: downloadUrl,
       );
 
+      // Determine mealId based on the flow type
+      final bool isExistingPostAnalysis =
+          widget.postId != null && widget.postId!.isNotEmpty;
+      final String? mealIdToUse = isExistingPostAnalysis ? widget.postId : null;
+
       // Create meal from analysis only
       await geminiService.createMealFromAnalysis(
         analysisResult: _editableAnalysis,
         userId: tastyId,
         mealType: mealType,
         imagePath: downloadUrl,
-        mealId: widget.postId?.isNotEmpty == true ? widget.postId : null,
+        mealId: mealIdToUse,
       );
 
       setState(() {
@@ -106,18 +129,37 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
       final mealType = getMealTimeOfDay();
 
-      // Create meal from analysis
-      final mealId = await geminiService.createMealFromAnalysis(
-        analysisResult: _editableAnalysis,
-        userId: tastyId,
-        mealType: mealType,
-        imagePath: downloadUrl,
-        mealId: widget.postId?.isNotEmpty == true ? widget.postId : null,
-      );
+      // Determine if this is for an existing post or a new analyze & upload flow
+      final bool isExistingPostAnalysis =
+          widget.postId != null && widget.postId!.isNotEmpty;
+      final bool isNewAnalyzeAndUpload =
+          widget.battleId != null && !isExistingPostAnalysis;
+
+      String finalMealId;
+
+      if (isExistingPostAnalysis) {
+        // Path 2: Existing post analysis - use existing postId as mealId for linking
+        finalMealId = await geminiService.createMealFromAnalysis(
+          analysisResult: _editableAnalysis,
+          userId: tastyId,
+          mealType: mealType,
+          imagePath: downloadUrl,
+          mealId: widget.postId!, // Use existing postId as mealId for linking
+        );
+      } else {
+        // Path 1: New analyze & upload - create meal first, then use mealId as postId
+        finalMealId = await geminiService.createMealFromAnalysis(
+          analysisResult: _editableAnalysis,
+          userId: tastyId,
+          mealType: mealType,
+          imagePath: downloadUrl,
+          mealId: null, // Let it generate a new ID
+        );
+      }
 
       // Add to daily meals
       await geminiService.addAnalyzedMealToDaily(
-        mealId: mealId,
+        mealId: finalMealId,
         userId: userService.userId ?? '',
         mealType: mealType,
         analysisResult: _editableAnalysis,
@@ -127,16 +169,82 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         _hasCreatedMeal = true;
       });
 
-      // Show success message
-      showTastySnackbar(
-        'Success!',
-        'Food analyzed and added to your ${mealType.toLowerCase()} meals.',
-        context,
-        backgroundColor: kAccent,
-      );
+      // Handle post creation for new analyze & upload flow
+      if (isNewAnalyzeAndUpload) {
+        try {
+          // Upload image to battle storage
+          String battleImageUrl;
+          if (widget.isMainPost == true) {
+            // For main posts, upload normally
+            battleImageUrl = downloadUrl; // Use the same uploaded image
+          } else {
+            // For battle posts, upload to battle storage
+            battleImageUrl = await BattleService.instance.uploadBattleImage(
+              battleId: widget.battleId!,
+              userId: userService.userId ?? '',
+              imageFile: widget.imageFile,
+            );
+          }
 
-      // Navigate back to the previous screen
-      Navigator.of(context).pop();
+          // Create the post using the mealId as the postId for proper linking
+          final post = Post(
+            id: finalMealId, // Use mealId as postId for proper linking
+            mealId: finalMealId, // Link the post to the meal
+            userId: userService.userId ?? '',
+            mediaPaths: [battleImageUrl],
+            name: userService.currentUser.value?.displayName ?? '',
+            category: widget.selectedCategory ?? 'general',
+            isBattle: widget.isMainPost == true ? false : true,
+            battleId: widget.isMainPost == true ? '' : widget.battleId!,
+            isVideo: false,
+          );
+
+          // Upload the post
+          if (widget.isMainPost == true) {
+            await postController
+                .uploadPost(post, userService.userId ?? '', [battleImageUrl]);
+          } else {
+            await BattleService.instance.uploadBattleImages(post: post);
+          }
+
+          // Show success message
+          showTastySnackbar(
+            'Success!',
+            'Food analyzed, meal added to your ${mealType.toLowerCase()}, and post uploaded!',
+            context,
+            backgroundColor: kAccent,
+          );
+
+          // Navigate to appropriate screen
+          if (widget.isMainPost == true) {
+            Get.to(() => const BottomNavSec(selectedIndex: 2));
+          } else {
+            // Go back to the previous screen
+            Navigator.of(context).pop();
+            Navigator.of(context).pop(); // Go back to battle screen
+          }
+        } catch (e) {
+          print('Failed to create post: $e');
+          showTastySnackbar(
+            'Warning',
+            'Meal saved successfully, but failed to upload post. Please try uploading manually.',
+            context,
+            backgroundColor: Colors.orange,
+          );
+          Navigator.of(context).pop();
+        }
+      } else {
+        // Regular analysis save without post creation
+        showTastySnackbar(
+          'Success!',
+          'Food analyzed and added to your ${mealType.toLowerCase()} meals.',
+          context,
+          backgroundColor: kAccent,
+        );
+
+        // Navigate back to the previous screen
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       print('Failed to save analysis: $e');
       showTastySnackbar(
@@ -160,22 +268,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return true; // Allow navigation back
   }
 
-  // void _showErrorDialog(String message) {
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('Error'),
-  //       content: Text(message),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.of(context).pop(),
-  //           child: const Text('OK'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
   void _editFoodItem(int index) {
     final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
     final foodItem = foodItems[index] as Map<String, dynamic>;
@@ -188,6 +280,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           setState(() {
             foodItems[index] = updatedItem;
             _recalculateTotalNutrition();
+            _validateNutrition();
           });
         },
       ),
@@ -197,34 +290,77 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   void _recalculateTotalNutrition() {
     final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
     final totalNutrition = <String, dynamic>{
-      'calories': 0,
-      'protein': 0,
-      'carbs': 0,
-      'fat': 0,
-      'fiber': 0,
-      'sugar': 0,
-      'sodium': 0,
+      'calories': 0.0,
+      'protein': 0.0,
+      'carbs': 0.0,
+      'fat': 0.0,
+      'fiber': 0.0,
+      'sugar': 0.0,
+      'sodium': 0.0,
     };
 
     for (final item in foodItems) {
       final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
-      totalNutrition['calories'] = (totalNutrition['calories'] as int) +
-          (nutrition['calories'] as int? ?? 0);
-      totalNutrition['protein'] = (totalNutrition['protein'] as int) +
-          (nutrition['protein'] as int? ?? 0);
-      totalNutrition['carbs'] =
-          (totalNutrition['carbs'] as int) + (nutrition['carbs'] as int? ?? 0);
+
+      // Handle both int and double values safely
+      totalNutrition['calories'] = (totalNutrition['calories'] as double) +
+          _parseNumeric(nutrition['calories']);
+      totalNutrition['protein'] = (totalNutrition['protein'] as double) +
+          _parseNumeric(nutrition['protein']);
+      totalNutrition['carbs'] = (totalNutrition['carbs'] as double) +
+          _parseNumeric(nutrition['carbs']);
       totalNutrition['fat'] =
-          (totalNutrition['fat'] as int) + (nutrition['fat'] as int? ?? 0);
-      totalNutrition['fiber'] =
-          (totalNutrition['fiber'] as int) + (nutrition['fiber'] as int? ?? 0);
-      totalNutrition['sugar'] =
-          (totalNutrition['sugar'] as int) + (nutrition['sugar'] as int? ?? 0);
-      totalNutrition['sodium'] = (totalNutrition['sodium'] as int) +
-          (nutrition['sodium'] as int? ?? 0);
+          (totalNutrition['fat'] as double) + _parseNumeric(nutrition['fat']);
+      totalNutrition['fiber'] = (totalNutrition['fiber'] as double) +
+          _parseNumeric(nutrition['fiber']);
+      totalNutrition['sugar'] = (totalNutrition['sugar'] as double) +
+          _parseNumeric(nutrition['sugar']);
+      totalNutrition['sodium'] = (totalNutrition['sodium'] as double) +
+          _parseNumeric(nutrition['sodium']);
     }
 
+    // Convert back to integers for consistency with UI display
+    totalNutrition.forEach((key, value) {
+      totalNutrition[key] = (value as double).round();
+    });
+
     _editableAnalysis['totalNutrition'] = totalNutrition;
+  }
+
+  /// Safely parse numeric values that could be int, double, or string
+  double _parseNumeric(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  /// Validate nutrition consistency and macro calculations
+  void _validateNutrition() {
+    final totalNutrition =
+        _editableAnalysis['totalNutrition'] as Map<String, dynamic>;
+    final calories = _parseNumeric(totalNutrition['calories']);
+    final protein = _parseNumeric(totalNutrition['protein']);
+    final carbs = _parseNumeric(totalNutrition['carbs']);
+    final fat = _parseNumeric(totalNutrition['fat']);
+
+    // Calculate calories from macros (protein: 4 cal/g, carbs: 4 cal/g, fat: 9 cal/g)
+    final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+    final caloriesDifference = (calories - calculatedCalories).abs();
+
+    // Allow 10% tolerance for rounding and estimation errors
+    final tolerance = calories * 0.1;
+
+    setState(() {
+      if (caloriesDifference > tolerance && caloriesDifference > 50) {
+        _showNutritionWarning = true;
+        _nutritionWarningMessage =
+            'Calories (${calories.round()}) don\'t match macros (${calculatedCalories.round()}). This may affect accuracy.';
+      } else {
+        _showNutritionWarning = false;
+        _nutritionWarningMessage = '';
+      }
+    });
   }
 
   Widget _buildNutritionCard({
@@ -345,6 +481,42 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
                     const SizedBox(height: 20),
 
+                    // Nutrition Warning (if any)
+                    if (_showNutritionWarning)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: getIconScale(5, context),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _nutritionWarningMessage,
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: getTextScale(3, context),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Health Score
                     Container(
                       width: double.infinity,
@@ -462,6 +634,40 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                       ],
                     ),
 
+                    // Macro-based calories calculation for transparency
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? kDarkGrey.withValues(alpha: 0.3)
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Calculated from macros:',
+                            style: TextStyle(
+                              fontSize: getTextScale(3, context),
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.7)
+                                  : kDarkGrey,
+                            ),
+                          ),
+                          Text(
+                            '${((totalNutrition['protein'] ?? 0) * 4 + (totalNutrition['carbs'] ?? 0) * 4 + (totalNutrition['fat'] ?? 0) * 9).round()} kcal',
+                            style: TextStyle(
+                              fontSize: getTextScale(3, context),
+                              color: isDarkMode ? kWhite : kBlack,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     // Detected Food Items
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -496,6 +702,10 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                             foodItems[index] as Map<String, dynamic>;
                         final nutrition =
                             foodItem['nutritionalInfo'] as Map<String, dynamic>;
+
+                        final weight = foodItem['estimatedWeight'] ?? 'Unknown';
+                        final weightValue =
+                            weight.contains('g') ? weight : '${weight}g';
 
                         return GestureDetector(
                           onTap: () => _editFoodItem(index),
@@ -537,7 +747,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Weight: ${foodItem['estimatedWeight'] ?? 'Unknown'}g',
+                                  'Weight: $weightValue',
                                   style: textTheme.bodyMedium?.copyWith(
                                     fontSize: getTextScale(3, context),
                                     color: isDarkMode
@@ -660,10 +870,62 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     updatedItem['estimatedWeight'] = _weightController.text;
 
     final nutrition = updatedItem['nutritionalInfo'] as Map<String, dynamic>;
-    nutrition['calories'] = int.tryParse(_caloriesController.text) ?? 0;
-    nutrition['protein'] = int.tryParse(_proteinController.text) ?? 0;
-    nutrition['carbs'] = int.tryParse(_carbsController.text) ?? 0;
-    nutrition['fat'] = int.tryParse(_fatController.text) ?? 0;
+
+    // Use double parsing for better precision, then convert to int for storage
+    final calories = double.tryParse(_caloriesController.text) ?? 0.0;
+    final protein = double.tryParse(_proteinController.text) ?? 0.0;
+    final carbs = double.tryParse(_carbsController.text) ?? 0.0;
+    final fat = double.tryParse(_fatController.text) ?? 0.0;
+
+    // Validate macros vs calories
+    final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+    final difference = (calories - calculatedCalories).abs();
+
+    if (difference > calories * 0.15 && difference > 30) {
+      // Show warning dialog for significant discrepancies
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor:
+              getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+          title: const Text('Nutrition Warning'),
+          content: Text(
+              'The calories (${calories.round()}) don\'t match the calculated calories from macros (${calculatedCalories.round()}). This may affect nutrition accuracy. Do you want to continue?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Edit Again'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveValues(
+                    updatedItem, nutrition, calories, protein, carbs, fat);
+              },
+              child: const Text('Save Anyway'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _saveValues(updatedItem, nutrition, calories, protein, carbs, fat);
+    }
+  }
+
+  void _saveValues(
+      Map<String, dynamic> updatedItem,
+      Map<String, dynamic> nutrition,
+      double calories,
+      double protein,
+      double carbs,
+      double fat) {
+    nutrition['calories'] = calories.round();
+    nutrition['protein'] = protein.round();
+    nutrition['carbs'] = carbs.round();
+    nutrition['fat'] = fat.round();
 
     widget.onSave(updatedItem);
     Navigator.of(context).pop();
@@ -714,6 +976,9 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
       title: Text(
         'Edit Food Item',

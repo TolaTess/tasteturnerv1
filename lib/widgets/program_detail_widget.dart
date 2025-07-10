@@ -36,7 +36,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -170,7 +170,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
           padding: EdgeInsets.all(getPercentageWidth(4, context)),
           decoration: BoxDecoration(
             color: isDarkMode
-                  ? kLightGrey.withValues(alpha: 0.1)
+                ? kLightGrey.withValues(alpha: 0.1)
                 : kLightGrey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -460,7 +460,6 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
             flex: 2,
             child: ElevatedButton(
               onPressed: () {
-                // Close dialog and return 'joined' to indicate successful join
                 Navigator.pop(context, 'joined');
               },
               style: ElevatedButton.styleFrom(

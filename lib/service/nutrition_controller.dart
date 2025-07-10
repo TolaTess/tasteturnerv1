@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
-import 'battle_service.dart';
+import 'badge_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -35,9 +35,6 @@ class NutritionController extends GetxController {
 
   var targetCalories = 0.0.obs;
   var totalCalories = 0.obs;
-
-  var streakDays = 0.obs;
-  var pointsAchieved = 0.obs;
 
   final RxInt eatenCalories = 0.obs;
   final ValueNotifier<double> dailyValueNotifier = ValueNotifier<double>(0);
@@ -87,6 +84,11 @@ class NutritionController extends GetxController {
         _updateMealTypeCalories('Dinner', mealTotals['Dinner'] as int? ?? 0);
         _updateMealTypeCalories('Snacks', mealTotals['Snacks'] as int? ?? 0);
         updateCalories(totalCalories.value.toDouble(), targetCalories.value);
+
+        // Check calorie goal achievement using BadgeService
+        BadgeService.instance.checkGoalAchievement(userId, 'calories',
+            currentValue: totalCalories.value.toDouble(),
+            targetValue: targetCalories.value);
       } else {
         // Reset all calorie values if no summary document exists
         totalCalories.value = 0;
@@ -166,56 +168,6 @@ class NutritionController extends GetxController {
       };
     } catch (e) {
       return {};
-    }
-  }
-
-  Future<void> fetchPointsAchieved(String userId) async {
-    if (userId.isEmpty) {
-      pointsAchieved.value = 0;
-      return;
-    }
-
-    final userMealsRef = firestore.collection('points').doc(userId);
-
-    final docSnapshot = await userMealsRef.get();
-
-    final data = docSnapshot.data();
-
-    pointsAchieved.value = data?['points'] ?? 0;
-  }
-
-  Future<void> fetchStreakDays(String userId) async {
-    if (userId.isEmpty) {
-      streakDays.value = 0;
-      return;
-    }
-
-    try {
-      final today = DateTime.now();
-      final dateFormat = DateFormat('yyyy-MM-dd');
-      int currentStreak = 0;
-
-      for (int i = 0; i < 7; i++) {
-        final dateToCheck = today.subtract(Duration(days: i));
-        final dateString = dateFormat.format(dateToCheck);
-
-        final summaryDoc = await firestore
-            .collection('users')
-            .doc(userId)
-            .collection('daily_summary')
-            .doc(dateString)
-            .get();
-
-        if (summaryDoc.exists && (summaryDoc.data()?['calories'] ?? 0) > 0) {
-          currentStreak++;
-        } else {
-          // Break the loop as soon as a day is missed
-          break;
-        }
-      }
-      streakDays.value = currentStreak;
-    } catch (e) {
-      streakDays.value = 0;
     }
   }
 
@@ -330,16 +282,13 @@ class NutritionController extends GetxController {
       // Update the local observable
       currentWater.value = newCurrentWater;
 
-      if (newCurrentWater >= targetWater.value) {
-        await notificationService.showNotification(
-          id: 101,
-          title: "Water Goal Achieved! 💧",
-          body:
-              "Congratulations! You've reached your daily water intake goal! Points awarded! ",
-        );
-      }
-      await BattleService.instance
-          .updateUserPoints(userService.userId ?? '', 10);
+      // Use BadgeService for goal achievement
+      await BadgeService.instance.checkGoalAchievement(
+        userId,
+        'water',
+        currentValue: newCurrentWater,
+        targetValue: targetWater.value,
+      );
     } catch (e) {
       throw Exception("Failed to update current water");
     }
@@ -364,18 +313,14 @@ class NutritionController extends GetxController {
 
       // Update the local observable
       currentSteps.value = newCurrentSteps;
-      final targetSteps = double.parse(
-          userService.currentUser.value?.settings['targetSteps'].toString() ??
-              '0');
 
-      if (newCurrentSteps >= targetSteps) {
-        await notificationService.showNotification(
-          id: 101,
-          title: "Steps Goal Achieved! 💧",
-          body:
-              "Congratulations! You've reached your daily steps goal! Points awarded!",
-        );
-      }
+      // Use BadgeService for goal achievement
+      await BadgeService.instance.checkGoalAchievement(
+        userId,
+        'steps',
+        currentValue: newCurrentSteps,
+        targetValue: targetSteps.value,
+      );
     } catch (e) {
       throw Exception("Failed to update current steps");
     }
@@ -576,9 +521,13 @@ class NutritionController extends GetxController {
           },
         });
       }
+
+      // Use BadgeService for meal logging
+      await BadgeService.instance.checkMealLogged(userId, foodType);
+
       fetchMealsForToday(userId, today);
     } catch (e) {
-        return;
+      return;
     }
   }
 
@@ -635,23 +584,24 @@ class NutritionController extends GetxController {
         userMealList.refresh();
       }
     } catch (e) {
-        return;   
+      return;
     }
   }
 
   // Fetch all meal types
   Future<void> fetchAllMealData(
-      String userId, Map<String, String> userSettings, DateTime date) async {
+      String userId, Map<String, dynamic>? userSettings, DateTime date) async {
     loadSettings(userSettings);
     listenToDailyData(userId, date);
     if (getCurrentDate(date)) {
-      fetchPointsAchieved(userId);
-      fetchStreakDays(userId);
+      // Load points and streak from BadgeService
+      await BadgeService.instance.loadUserPoints(userId);
+      await BadgeService.instance.loadUserStreak(userId);
     }
   }
 
   Future<void> fetchAllMealDataByDate(
-      String userId, Map<String, String> userSettings, DateTime date) async {
+      String userId, Map<String, dynamic>? userSettings, DateTime date) async {
     loadSettings(userSettings);
     listenToDailyData(userId, date);
   }
