@@ -398,6 +398,14 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     });
   }
 
+  bool canUseAI() {
+    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+    final isFreeTrial =
+        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
+    return isPremium || isFreeTrial;
+  }
+
   Future<void> _generateMealFromIngredients(displayedItems) async {
     try {
       showDialog(
@@ -775,7 +783,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 1.5),
+                                  horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
                                 color: kAccentLight.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
@@ -814,8 +822,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   style: textTheme.displaySmall?.copyWith(
                       color: isDarkMode ? kWhite : kBlack, fontSize: 25),
                 ),
-              GestureDetector(
-                onTap: () {
+              FloatingActionButton.extended(
+                onPressed: () {
                   if (widget.isMealSpin) {
                     // Convert the items to the appropriate type before passing to ShoppingListScreen
                     Get.to(
@@ -827,19 +835,11 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   } else {
                     if (displayedItems.isNotEmpty &&
                         widget.acceptedItems.length > 1) {
-                      if ((userService.currentUser.value?.isPremium ?? false) ||
-                          isInFreeTrial) {
+                      if (canUseAI()) {
                         _generateMealFromIngredients(displayedItems);
                         return;
                       } else {
-                        showDialog(
-                          context: context,
-                          builder: (context) => showPremiumDialog(
-                              context,
-                              isDarkMode,
-                              'Premium Feature',
-                              'Upgrade to premium to generate a meal with selected ingredients!'),
-                        );
+                        showPremiumRequiredDialog(context, isDarkMode);
                       }
                     } else {
                       showTastySnackbar(
@@ -850,28 +850,28 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     }
                   }
                 },
-                child: Center(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(1.2, context),
-                        horizontal: getPercentageWidth(3, context)),
-                    decoration: BoxDecoration(
-                      color:
-                          isDarkMode ? kLightGrey : kAccent.withOpacity(0.60),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      isMealSpin
-                          ? 'Save to Meal Plan'
-                          : (userService.currentUser.value?.isPremium ??
-                                      false) ||
-                                  isInFreeTrial
-                              ? 'Generate Meal with ingredients!'
-                              : 'Go Premium to generate a meal!',
-                      style: textTheme.labelLarge?.copyWith(
-                          color: isDarkMode ? kWhite : kBlack,
-                          fontWeight: FontWeight.w500),
-                    ),
+                backgroundColor:
+                    isDarkMode ? kLightGrey : kAccent.withOpacity(0.60),
+                foregroundColor: isDarkMode ? kWhite : kBlack,
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                label: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(0.5, context),
+                    horizontal: getPercentageWidth(1, context),
+                  ),
+                  child: Text(
+                    isMealSpin
+                        ? 'Save to Meal Plan'
+                        : (userService.currentUser.value?.isPremium ?? false) ||
+                                isInFreeTrial
+                            ? 'Generate Meal with ingredients!'
+                            : 'Go Premium to generate a meal!',
+                    style: textTheme.labelLarge?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
               ),

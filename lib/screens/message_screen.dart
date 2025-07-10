@@ -28,6 +28,7 @@ class _MessageScreenState extends State<MessageScreen>
   late ScrollController _scrollController;
   final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addFriendButtonKey = GlobalKey();
+  final GlobalKey _addArchiveButtonKey = GlobalKey();
   bool isInFreeTrial = false;
 
   bool lastStatus = true;
@@ -79,19 +80,21 @@ class _MessageScreenState extends State<MessageScreen>
       sequenceKey: 'message_screen_tutorial',
       tutorials: [
         TutorialStep(
-          tutorialId: 'add_buddy_button',
-          message: 'Tap here to speak to your AI buddy Tasty!',
-          targetKey: _addBuddyKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.RIGHT,
+          tutorialId: 'add_archive_button',
+          message:
+              'When you swipe left on a friend\'s message, it will be archived here!',
+          targetKey: _addArchiveButtonKey,
         ),
         TutorialStep(
           tutorialId: 'add_friend_button',
           message:
-              'Tap here to add friends and start sharing your food journey together!',
+              'Tap here to view your friends and start sharing your food journey together!',
           targetKey: _addFriendButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.RIGHT,
+        ),
+        TutorialStep(
+          tutorialId: 'add_buddy_button',
+          message: 'Tap here to speak to your AI buddy Tasty!',
+          targetKey: _addBuddyKey,
         ),
       ],
     );
@@ -255,6 +258,7 @@ class _MessageScreenState extends State<MessageScreen>
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
+                      key: _addArchiveButtonKey,
                       icon: Icon(
                         Icons.archive_outlined,
                         size: getIconScale(7, context),

@@ -14,6 +14,8 @@ class CachedVideoPlayer extends StatefulWidget {
   final bool autoPlay;
   final bool showControls;
   final bool allowFullScreen;
+  final bool enableAutoReplay;
+  final bool showAutoReplayToggle;
 
   const CachedVideoPlayer({
     Key? key,
@@ -21,6 +23,8 @@ class CachedVideoPlayer extends StatefulWidget {
     this.autoPlay = false,
     this.showControls = true,
     this.allowFullScreen = true,
+    this.enableAutoReplay = true,
+    this.showAutoReplayToggle = true,
   }) : super(key: key);
 
   @override
@@ -33,10 +37,12 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
   bool _isInitialized = false;
   bool _isLoading = true;
   String? _error;
+  late bool _autoReplay; // Auto-replay state
 
   @override
   void initState() {
     super.initState();
+    _autoReplay = widget.enableAutoReplay; // Initialize from widget parameter
     _initializeVideoPlayer();
   }
 
@@ -91,14 +97,23 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
 
       await _videoPlayerController!.initialize();
 
+      // Listen for video completion to handle replay
+      _videoPlayerController!.addListener(_videoListener);
+
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
         autoPlay: widget.autoPlay,
-        looping: false,
+        looping: _autoReplay, // Enable looping for auto-replay
         aspectRatio: _videoPlayerController!.value.aspectRatio,
         allowFullScreen: widget.allowFullScreen,
         allowMuting: true,
         showControls: widget.showControls,
+
+        // Improved control visibility settings
+        hideControlsTimer:
+            const Duration(seconds: 2), // Hide controls after 2 seconds
+        showControlsOnInitialize: false, // Don't show controls initially
+
         cupertinoProgressColors: ChewieProgressColors(
           playedColor: kAccent,
           handleColor: kAccent,
@@ -159,6 +174,15 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => _retryVideoLoad(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: kWhite,
+                    ),
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
             ),
@@ -179,10 +203,69 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
     }
   }
 
-  @override
-  void dispose() {
+  void _videoListener() {
+    if (_videoPlayerController != null &&
+        _videoPlayerController!.value.hasError) {
+      setState(() {
+        _error = _videoPlayerController!.value.errorDescription ??
+            'Unknown video error';
+      });
+    }
+  }
+
+  void _retryVideoLoad() {
+    setState(() {
+      _error = null;
+      _isInitialized = false;
+    });
+    _disposeControllers();
+    _initializeVideoPlayer();
+  }
+
+  void _disposeControllers() {
+    _videoPlayerController?.removeListener(_videoListener);
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
+    _videoPlayerController = null;
+    _chewieController = null;
+  }
+
+  void toggleAutoReplay() {
+    setState(() {
+      _autoReplay = !_autoReplay;
+      if (_chewieController != null) {
+        // Recreate the chewie controller with new looping setting
+        _chewieController!.dispose();
+        _chewieController = ChewieController(
+          videoPlayerController: _videoPlayerController!,
+          autoPlay: false, // Don't auto-play when toggling
+          looping: _autoReplay,
+          aspectRatio: _videoPlayerController!.value.aspectRatio,
+          allowFullScreen: widget.allowFullScreen,
+          allowMuting: true,
+          showControls: widget.showControls,
+          hideControlsTimer: const Duration(seconds: 2),
+          showControlsOnInitialize: false,
+          cupertinoProgressColors: ChewieProgressColors(
+            playedColor: kAccent,
+            handleColor: kAccent,
+            backgroundColor: kWhite.withValues(alpha: 0.3),
+            bufferedColor: kWhite.withValues(alpha: 0.5),
+          ),
+          materialProgressColors: ChewieProgressColors(
+            playedColor: kAccent,
+            handleColor: kAccent,
+            backgroundColor: kWhite.withValues(alpha: 0.3),
+            bufferedColor: kWhite.withValues(alpha: 0.5),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposeControllers();
     super.dispose();
   }
 
@@ -190,7 +273,9 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Container(
-        color: Colors.black.withValues(alpha: 0.5),
+        color: getThemeProvider(context).isDarkMode
+            ? kDarkGrey.withValues(alpha: 0.2)
+            : kWhite.withValues(alpha: 0.2),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -200,7 +285,8 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
               Text(
                 'Loading video...',
                 style: TextStyle(
-                  color: kWhite,
+                  color:
+                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
                   fontSize: getTextScale(3, context),
                 ),
               ),
@@ -241,6 +327,15 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
                   textAlign: TextAlign.center,
                 ),
               ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _retryVideoLoad,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  foregroundColor: kWhite,
+                ),
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
@@ -266,6 +361,82 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
               borderRadius: BorderRadius.circular(10),
               child: Chewie(
                 controller: _chewieController!,
+              ),
+            ),
+          ),
+        ),
+        // Auto-replay toggle button (top-right corner)
+        if (widget.showAutoReplayToggle)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IconButton(
+                onPressed: toggleAutoReplay,
+                icon: Icon(
+                  _autoReplay ? Icons.repeat : Icons.repeat_outlined,
+                  color: _autoReplay ? kAccent : kWhite,
+                  size: 24,
+                ),
+                tooltip: _autoReplay ? 'Auto-replay ON' : 'Auto-replay OFF',
+              ),
+            ),
+          ),
+        // Manual replay button (when video ends and auto-replay is off)
+        if (_videoPlayerController != null &&
+            _videoPlayerController!.value.isInitialized &&
+            _videoPlayerController!.value.position >=
+                _videoPlayerController!.value.duration &&
+            !_autoReplay)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.replay,
+                        color: kWhite,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Video ended',
+                        style: TextStyle(
+                          color: kWhite,
+                          fontSize: getTextScale(4, context),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _videoPlayerController?.seekTo(Duration.zero);
+                          _videoPlayerController?.play();
+                        },
+                        icon: const Icon(Icons.replay),
+                        label: const Text('Replay'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kAccent,
+                          foregroundColor: kWhite,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
               ),
             ),
           ),

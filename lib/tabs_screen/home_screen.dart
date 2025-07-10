@@ -6,25 +6,23 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
-import '../screens/buddy_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
 import '../widgets/announcement.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/second_nav_widget.dart';
 import 'food_challenge_screen.dart';
-import 'program_screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 
@@ -46,7 +44,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   DateTime currentDate = DateTime.now();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
-  final GlobalKey _addHomeButtonKey = GlobalKey();
+  final GlobalKey _addAnalyseButtonKey = GlobalKey();
+  final GlobalKey _addDineInButtonKey = GlobalKey();
+  final GlobalKey _addShoppingButtonKey = GlobalKey();
+  final GlobalKey _addRecipeButtonKey = GlobalKey();
+  final GlobalKey _addMessageButtonKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> familyList = [];
@@ -91,6 +93,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       sequenceKey: 'home_screen_tutorial',
       tutorials: [
         TutorialStep(
+          tutorialId: 'add_profile_button',
+          message: 'Tap here to view your profile!',
+          targetKey: _addProfileButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
           tutorialId: 'add_meal_button',
           message: 'Tap here to add your meal!',
           targetKey: _addMealButtonKey,
@@ -99,9 +109,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           },
         ),
         TutorialStep(
-          tutorialId: 'add_profile_button',
-          message: 'Tap here to view your profile!',
-          targetKey: _addProfileButtonKey,
+          tutorialId: 'add_dine_in_button',
+          message: 'Tap here to view your dine-in challenge!',
+          targetKey: _addDineInButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_shopping_button',
+          message: 'Tap here to view your shopping list!',
+          targetKey: _addShoppingButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_recipe_button',
+          message: 'Tap here to view your recipes!',
+          targetKey: _addRecipeButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_message_button',
+          message: 'Tap here to view your messages!',
+          targetKey: _addMessageButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_analyse_button',
+          message: 'Tap here to analyse your meal!',
+          targetKey: _addAnalyseButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
@@ -433,6 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                               );
                             },
+                            key: _addMessageButtonKey,
                             child: SvgPicture.asset(
                               'assets/images/svg/message.svg',
                               height: getIconScale(8, context),
@@ -496,10 +539,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
-        floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-          verticalOffset: getPercentageHeight(2, context),
-        ),
         floatingActionButton: buildFullWidthHomeButton(
+          key: _addAnalyseButtonKey,
           context: context,
           onSuccess: () {},
           onError: () {},
@@ -677,8 +718,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        //challenge
+                        //diary
                         SecondNavWidget(
+                          key: _addMealButtonKey,
                           label: 'Diary',
                           icon: 'assets/images/svg/diary.svg',
                           color: isDarkMode
@@ -689,7 +731,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         //shopping
                         SecondNavWidget(
-                          label: 'Challenge',
+                          key: _addDineInButtonKey,
+                          label: 'Dine In',
                           icon: 'assets/images/svg/target.svg',
                           color:
                               isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
@@ -698,6 +741,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         //Planner
                         SecondNavWidget(
+                          key: _addShoppingButtonKey,
                           label: 'Shopping',
                           icon: 'assets/images/svg/shopping.svg',
                           color: isDarkMode
@@ -708,6 +752,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         //spin
                         SecondNavWidget(
+                          key: _addRecipeButtonKey,
                           label: 'Recipes',
                           icon: 'assets/images/svg/book-outline.svg',
                           color: isDarkMode

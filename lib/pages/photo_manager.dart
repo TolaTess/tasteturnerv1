@@ -382,8 +382,9 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                   label: Text('Send',
                       style: TextStyle(fontSize: getTextScale(4, context))),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDarkMode ? kLightGrey.withValues(alpha: 0.5) : kAccent,
+                    backgroundColor: isDarkMode
+                        ? kLightGrey.withValues(alpha: 0.5)
+                        : kAccent,
                     foregroundColor: isDarkMode ? kWhite : kLightGrey,
                   ),
                   onPressed: _sendImages,
@@ -432,12 +433,62 @@ class MultiImagePickerModal extends StatefulWidget {
 
 class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
   List<AssetEntity> _galleryImages = [];
+  List<AssetEntity> _loadedImages = [];
   final List<AssetEntity> _selectedImages = [];
+  bool _isLoading = false;
+  final ScrollController _scrollController = ScrollController();
+  static const int _batchSize = 30;
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     _loadGalleryImages();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _loadMoreImages();
+    }
+  }
+
+  Future<void> _loadMoreImages() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+        onlyAll: true,
+      );
+
+      if (albums.isNotEmpty) {
+        _currentPage++;
+        final List<AssetEntity> moreImages = await albums[0]
+            .getAssetListPaged(page: _currentPage, size: _batchSize);
+
+        if (moreImages.isNotEmpty) {
+          setState(() {
+            _galleryImages.addAll(moreImages);
+            _loadedImages.addAll(moreImages);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading more images: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadGalleryImages() async {
@@ -461,10 +512,11 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
       }
 
       final List<AssetEntity> recentImages =
-          await albums[0].getAssetListPaged(page: 0, size: 50);
+          await albums[0].getAssetListPaged(page: 0, size: _batchSize);
 
       setState(() {
         _galleryImages = recentImages;
+        _loadedImages = recentImages;
       });
     } catch (e) {
       print('Error loading gallery images: $e');
@@ -575,13 +627,14 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _galleryImages.isEmpty
+            child: _loadedImages.isEmpty
                 ? const Center(
                     child: CircularProgressIndicator(
                     color: kAccent,
                   ))
                 : GridView.builder(
-                    itemCount: _galleryImages.length,
+                    controller: _scrollController,
+                    itemCount: _loadedImages.length + (_isLoading ? 1 : 0),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
@@ -589,7 +642,13 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
                       mainAxisSpacing: 4,
                     ),
                     itemBuilder: (context, index) {
-                      final asset = _galleryImages[index];
+                      if (index >= _loadedImages.length) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: kAccent),
+                        );
+                      }
+
+                      final asset = _loadedImages[index];
                       final isSelected = _selectedImages.contains(asset);
 
                       return GestureDetector(

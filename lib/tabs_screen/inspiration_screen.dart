@@ -7,6 +7,7 @@ import 'package:tasteturner/service/post_service.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
+import '../service/tasty_popup_service.dart';
 
 class InspirationScreen extends StatefulWidget {
   const InspirationScreen({super.key});
@@ -18,7 +19,8 @@ class InspirationScreen extends StatefulWidget {
 class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey<SearchContentGridState> _gridKey =
       GlobalKey<SearchContentGridState>();
-
+  final GlobalKey _addDietButtonKey = GlobalKey();
+  final GlobalKey _addUploadButtonKey = GlobalKey();
   String selectedGoal = 'general';
 
   Future<void> _refreshPosts() async {
@@ -56,6 +58,39 @@ class _InspirationScreenState extends State<InspirationScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddMealTutorial();
+    });
+  }
+
+  void _showAddMealTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      sequenceKey: 'inspiration_screen_tutorial',
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_diet_button',
+          message: 'This icon on a post means it matches your diet!',
+          targetKey: _addDietButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_upload_button',
+          message: 'Tap here to upload your post!',
+          targetKey: _addUploadButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -73,6 +108,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
               style: textTheme.displayMedium?.copyWith(),
             ),
             Row(
+              key: _addDietButtonKey,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.check_circle,
@@ -89,10 +125,11 @@ class _InspirationScreenState extends State<InspirationScreen> {
         ),
       ),
       floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-         verticalOffset: getPercentageHeight(5, context),
-          horizontalOffset: getPercentageWidth(2, context),
+        verticalOffset: getPercentageHeight(5, context),
+        horizontalOffset: getPercentageWidth(2, context),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton( 
+        key: _addUploadButtonKey,
         onPressed: () {
           Get.to(
             () => const UploadBattleImageScreen(

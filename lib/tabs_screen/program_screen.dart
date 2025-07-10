@@ -12,6 +12,7 @@ import '../pages/dietary_choose_screen.dart';
 import '../pages/program_progress_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/program_service.dart';
+import '../service/tasty_popup_service.dart';
 import '../widgets/goal_diet_widget.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/program_detail_widget.dart';
@@ -38,7 +39,9 @@ class _ProgramScreenState extends State<ProgramScreen>
   Meal? _featuredMeal;
   DateTime? _lastPickDate;
   RxList<Map<String, dynamic>> programTypes = <Map<String, dynamic>>[].obs;
-
+  final GlobalKey _addFeaturedButtonKey = GlobalKey();
+  final GlobalKey _addTastyAIButtonKey = GlobalKey();
+  final GlobalKey _addProgramButtonKey = GlobalKey();
   late final AnimationController _rotationController;
 
   @override
@@ -57,6 +60,42 @@ class _ProgramScreenState extends State<ProgramScreen>
     _loadProgramTypes();
     // Load user's enrolled programs
     _programService.loadUserPrograms();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddMealTutorial();
+    });
+  }
+
+  void _showAddMealTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      sequenceKey: 'program_screen_tutorial',
+      tutorials: [
+        TutorialStep(
+          tutorialId: 'add_featured_button',
+          message: 'Tap here to view your featured meal!',
+          targetKey: _addFeaturedButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_tasty_ai_button',
+          message: 'Tap here to view your Tasty AI!',
+          targetKey: _addTastyAIButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_program_button',
+          message: 'Tap here to view your programs!',
+          targetKey: _addProgramButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -363,6 +402,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                           'guidelines': [],
                           'tips': [],
                           'options': [],
+                          'duration': program.duration,
                         };
                         Get.to(() => ProgramDetailWidget(program: programData));
                       }
@@ -375,6 +415,9 @@ class _ProgramScreenState extends State<ProgramScreen>
                       );
                     }
                   },
+                  key: index == 0
+                      ? _addProgramButtonKey
+                      : null, // Only apply key to first program to avoid GlobalKey conflicts
                   child: Container(
                     width: double.infinity,
                     margin: EdgeInsets.only(
@@ -384,12 +427,12 @@ class _ProgramScreenState extends State<ProgramScreen>
                       color: isDarkMode ? kDarkGrey : kWhite,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: kAccent.withValues(alpha: 0.3),    
+                        color: kAccent.withValues(alpha: 0.3),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),    
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -481,13 +524,15 @@ class _ProgramScreenState extends State<ProgramScreen>
                                             programDescription:
                                                 program.description,
                                             benefits: program.benefits,
+                                            duration: program.duration,
                                           ));
                                     },
                                     child: Container(
                                       padding: EdgeInsets.all(
                                           getPercentageWidth(1.5, context)),
                                       decoration: BoxDecoration(
-                                        color: Colors.purple.withValues(alpha: 0.1),
+                                        color: Colors.purple
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -596,6 +641,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                       ),
                     ))
                   : GoalDietWidget(
+                      key: _addFeaturedButtonKey,
                       diet: userDiet,
                       goal: userGoal,
                       topIngredients: _recommendedIngredients,
@@ -636,8 +682,9 @@ class _ProgramScreenState extends State<ProgramScreen>
                   fontWeight: FontWeight.w200,
                 ),
               ),
-              SizedBox(height: getPercentageHeight(1, context)),
+              SizedBox(height: getPercentageHeight(1.5, context)),
               ElevatedButton.icon(
+                key: _addTastyAIButtonKey,
                 icon: const Icon(Icons.lightbulb, color: kWhite),
                 label: Text(
                   'Get Meal Plan Guidance',
@@ -662,7 +709,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                       width: double.infinity,
                       padding: EdgeInsets.all(getPercentageWidth(3, context)),
                       decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.08),
+                        color: accent.withValues(alpha: 0.08),
                       ),
                       child: Text(
                         aiCoachResponse,
@@ -712,14 +759,14 @@ class _ProgramScreenState extends State<ProgramScreen>
                   ],
                 ),
               ],
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(2.5, context)),
 
               // Current enrolled programs section
               _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
 
               Text(
                 _programService.userPrograms.length > 1
-                    ? 'Explore Programs'
+                    ? 'Explore More Programs'
                     : 'Customize Your Program',
                 style: textTheme.headlineMedium?.copyWith(
                   color: accent,

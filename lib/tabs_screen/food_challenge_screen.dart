@@ -53,14 +53,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
           message: 'Check weekly battles and join in to win!',
           targetKey: _addJoinButtonKey,
           autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.UP,
         ),
         TutorialStep(
           tutorialId: 'add_inspiration_button',
           message: 'Add visuals to inspire others!',
           targetKey: _addInspirationButtonKey,
           autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.DOWN,
         ),
       ],
     );
@@ -169,7 +167,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
         title: Text(
-          'Food Challenge',
+          'Dine In',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
           ),
@@ -182,6 +180,19 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(
+                  height: getPercentageHeight(1, context),
+                ),
+                Center(
+                  child: Text(
+                    'Join the battle to create a masterpiece!',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: kAccent,
+                        ),
+                  ),
+                ),
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),

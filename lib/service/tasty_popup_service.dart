@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
-import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 
 class TutorialPopupService {
@@ -60,7 +59,7 @@ class TutorialPopupService {
     required BuildContext context,
     required List<TutorialStep> tutorials,
     required String sequenceKey,
-    Duration delayBetween = const Duration(seconds: 3),
+    Duration delayBetween = const Duration(seconds: 5),
   }) async {
     if (_isShowingSequence) return;
     if (!await isFirstTimeUser()) return;
@@ -73,9 +72,11 @@ class TutorialPopupService {
       if (!await hasShownTutorial(tutorial.tutorialId)) {
         if (i > 0) await Future.delayed(delayBetween);
         if (!_isShowingSequence) break;
+
         await showTutorialPopup(
           context: context,
           tutorialId: tutorial.tutorialId,
+          title: tutorial.title,
           message: tutorial.message,
           targetKey: tutorial.targetKey,
           onComplete: () async {
@@ -88,10 +89,11 @@ class TutorialPopupService {
               }
             }
           },
+          onSkip: tutorial.onSkip,
+          stepNumber: i + 1,
+          totalSteps: tutorials.length,
+          showProgress: tutorial.showProgress,
           autoCloseDuration: tutorial.autoCloseDuration,
-          padding: tutorial.padding,
-          showArrow: tutorial.showArrow,
-          arrowDirection: tutorial.arrowDirection,
         );
       }
     }
@@ -109,10 +111,12 @@ class TutorialPopupService {
     required String message,
     required GlobalKey targetKey,
     required VoidCallback onComplete,
-    EdgeInsets padding = const EdgeInsets.all(4.0),
-    bool showArrow = true,
-    Duration autoCloseDuration = const Duration(seconds: 5),
-    ArrowDirection arrowDirection = ArrowDirection.UP,
+    String? title,
+    VoidCallback? onSkip,
+    int? stepNumber,
+    int? totalSteps,
+    bool showProgress = false,
+    Duration autoCloseDuration = Duration.zero,
   }) async {
     if (await hasShownTutorial(tutorialId)) {
       return;
@@ -121,7 +125,7 @@ class TutorialPopupService {
     // Remove any existing overlay
     removeCurrentOverlay();
 
-    // Get the target widget's position
+    // Get the target widget's position and size
     final RenderBox? renderBox =
         targetKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
@@ -130,37 +134,84 @@ class TutorialPopupService {
     final targetSize = renderBox.size;
     final screenSize = MediaQuery.of(context).size;
 
+    // Calculate optimal popup position
+    final popupInfo = _calculateOptimalPosition(
+      targetPosition,
+      targetSize,
+      screenSize,
+    );
+
     OverlayEntry overlayEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
-          // Semi-transparent background
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () {
-                removeCurrentOverlay();
-                onComplete();
+          // Animated background
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 300),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Container(
+                color: Colors.black.withValues(alpha: 0.6 * value),
+              );
+            },
+          ),
+
+          // Highlight target widget
+          Positioned(
+            left: targetPosition.dx - 8,
+            top: targetPosition.dy - 8,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 400),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Container(
+                  width: targetSize.width + 16,
+                  height: targetSize.height + 16,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: kAccent.withValues(alpha: value),
+                      width: 3,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kAccent.withValues(alpha: 0.3 * value),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                );
               },
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.5),
-              ),
             ),
           ),
+
           // Tutorial popup
           Positioned(
-            left: _calculateLeftPosition(targetPosition.dx, targetSize.width,
-                screenSize.width, arrowDirection),
-            top: _calculateTopPosition(targetPosition.dy, targetSize.height,
-                screenSize.height, arrowDirection),
-            child: Material(
-              color: Colors.transparent,
-              child: _buildPopupContent(
-                context,
-                message,
-                padding,
-                showArrow,
-                arrowDirection,
-                onComplete,
-              ),
+            left: popupInfo.position.dx,
+            top: popupInfo.position.dy,
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 400),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: _buildModernPopup(
+                      context,
+                      title,
+                      message,
+                      stepNumber,
+                      totalSteps,
+                      showProgress,
+                      popupInfo.arrowDirection,
+                      onComplete,
+                      onSkip,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -182,195 +233,304 @@ class TutorialPopupService {
     }
   }
 
-  Widget _buildPopupContent(
-    BuildContext context,
-    String message,
-    EdgeInsets padding,
-    bool showArrow,
-    ArrowDirection arrowDirection,
-    VoidCallback onComplete,
+  PopupPositionInfo _calculateOptimalPosition(
+    Offset targetPosition,
+    Size targetSize,
+    Size screenSize,
   ) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    final arrowSize =
-        Size(getPercentageWidth(5, context), getPercentageHeight(2.5, context));
+    const double popupWidth = 280.0;
+    const double popupHeight = 120.0;
+    const double margin = 16.0;
+    const double arrowSize = 12.0;
 
-    return Column(
-      crossAxisAlignment: _getCrossAxisAlignment(arrowDirection),
-      children: [
-        if (showArrow && arrowDirection == ArrowDirection.UP)
-          CustomPaint(
-            size: arrowSize,
-            painter: ArrowPainter(
-              color: isDarkMode ? kDarkGrey : kWhite,
-              direction: arrowDirection,
-            ),
-          ),
-        if (showArrow && arrowDirection == ArrowDirection.LEFT)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CustomPaint(
-                size: Size(getPercentageWidth(2.5, context),
-                    getPercentageHeight(5, context)),
-                painter: ArrowPainter(
-                  color: isDarkMode ? kDarkGrey : kWhite,
-                  direction: arrowDirection,
-                ),
-              ),
-              _buildPopupContainer(context, message, padding, onComplete),
-            ],
-          ),
-        if (arrowDirection == ArrowDirection.UP ||
-            arrowDirection == ArrowDirection.DOWN)
-          _buildPopupContainer(context, message, padding, onComplete),
-        if (showArrow && arrowDirection == ArrowDirection.RIGHT)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildPopupContainer(context, message, padding, onComplete),
-              CustomPaint(
-                size: Size(getPercentageWidth(2.5, context),
-                    getPercentageHeight(5, context)),
-                painter: ArrowPainter(
-                  color: isDarkMode ? kDarkGrey : kWhite,
-                  direction: arrowDirection,
-                ),
-              ),
-            ],
-          ),
-        if (showArrow && arrowDirection == ArrowDirection.DOWN)
-          CustomPaint(
-            size: arrowSize,
-            painter: ArrowPainter(
-              color: isDarkMode ? kDarkGrey : kWhite,
-              direction: arrowDirection,
-            ),
-          ),
-      ],
+    // Calculate center of target
+    final targetCenter = Offset(
+      targetPosition.dx + targetSize.width / 2,
+      targetPosition.dy + targetSize.height / 2,
+    );
+
+    // Try different positions in order of preference
+    final positions = [
+      // Bottom (preferred)
+      _PositionCandidate(
+        position: Offset(
+          (targetCenter.dx - popupWidth / 2)
+              .clamp(margin, screenSize.width - popupWidth - margin),
+          targetPosition.dy + targetSize.height + arrowSize + margin,
+        ),
+        arrowDirection: ArrowDirection.UP,
+        score: _calculatePositionScore(
+          Offset(targetCenter.dx - popupWidth / 2,
+              targetPosition.dy + targetSize.height + arrowSize + margin),
+          Size(popupWidth, popupHeight),
+          screenSize,
+          margin,
+        ),
+      ),
+
+      // Top
+      _PositionCandidate(
+        position: Offset(
+          (targetCenter.dx - popupWidth / 2)
+              .clamp(margin, screenSize.width - popupWidth - margin),
+          targetPosition.dy - popupHeight - arrowSize - margin,
+        ),
+        arrowDirection: ArrowDirection.DOWN,
+        score: _calculatePositionScore(
+          Offset(targetCenter.dx - popupWidth / 2,
+              targetPosition.dy - popupHeight - arrowSize - margin),
+          Size(popupWidth, popupHeight),
+          screenSize,
+          margin,
+        ),
+      ),
+
+      // Right
+      _PositionCandidate(
+        position: Offset(
+          targetPosition.dx + targetSize.width + arrowSize + margin,
+          (targetCenter.dy - popupHeight / 2)
+              .clamp(margin, screenSize.height - popupHeight - margin),
+        ),
+        arrowDirection: ArrowDirection.LEFT,
+        score: _calculatePositionScore(
+          Offset(targetPosition.dx + targetSize.width + arrowSize + margin,
+              targetCenter.dy - popupHeight / 2),
+          Size(popupWidth, popupHeight),
+          screenSize,
+          margin,
+        ),
+      ),
+
+      // Left
+      _PositionCandidate(
+        position: Offset(
+          targetPosition.dx - popupWidth - arrowSize - margin,
+          (targetCenter.dy - popupHeight / 2)
+              .clamp(margin, screenSize.height - popupHeight - margin),
+        ),
+        arrowDirection: ArrowDirection.RIGHT,
+        score: _calculatePositionScore(
+          Offset(targetPosition.dx - popupWidth - arrowSize - margin,
+              targetCenter.dy - popupHeight / 2),
+          Size(popupWidth, popupHeight),
+          screenSize,
+          margin,
+        ),
+      ),
+    ];
+
+    // Find the best position
+    positions.sort((a, b) => b.score.compareTo(a.score));
+    final bestPosition = positions.first;
+
+    return PopupPositionInfo(
+      position: bestPosition.position,
+      arrowDirection: bestPosition.arrowDirection,
     );
   }
 
-  Widget _buildPopupContainer(
+  double _calculatePositionScore(
+      Offset position, Size popupSize, Size screenSize, double margin) {
+    double score = 100.0;
+
+    // Penalize if popup goes off screen
+    if (position.dx < margin) score -= (margin - position.dx) * 2;
+    if (position.dy < margin) score -= (margin - position.dy) * 2;
+    if (position.dx + popupSize.width > screenSize.width - margin) {
+      score -= (position.dx + popupSize.width - screenSize.width + margin) * 2;
+    }
+    if (position.dy + popupSize.height > screenSize.height - margin) {
+      score -=
+          (position.dy + popupSize.height - screenSize.height + margin) * 2;
+    }
+
+    return score.clamp(0.0, 100.0);
+  }
+
+  Widget _buildModernPopup(
     BuildContext context,
+    String? title,
     String message,
-    EdgeInsets padding,
+    int? stepNumber,
+    int? totalSteps,
+    bool showProgress,
+    ArrowDirection arrowDirection,
     VoidCallback onComplete,
+    VoidCallback? onSkip,
   ) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+
     return Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.5,
-        minWidth: MediaQuery.of(context).size.width * 0.4,
-      ),
-      padding: padding,
+      width: 280,
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kWhite,
-        borderRadius: BorderRadius.circular(getPercentageWidth(3, context)),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: getPercentageWidth(2.5, context),
-            offset: Offset(0, getPercentageHeight(1.25, context)),
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 24,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  message,
-                  style: TextStyle(
-                    fontSize: MediaQuery.of(context).size.width > 1000
-                        ? getTextScale(2.5, context)
-                        : getTextScale(3, context),
-                    color: isDarkMode ? kWhite : kBlack,
-                  ),
+          // Header with progress
+          if (showProgress && stepNumber != null && totalSteps != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: kAccent.withValues(alpha: 0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
               ),
-            ],
-          ),
-          SizedBox(height: getPercentageHeight(1, context)),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onComplete,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(3, context),
-                    vertical: getPercentageHeight(1.5, context)),
-                minimumSize: Size(getPercentageWidth(15, context),
-                    getPercentageHeight(7.5, context)),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: kAccent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$stepNumber of $totalSteps',
+                      style: const TextStyle(
+                        color: kWhite,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: stepNumber / totalSteps,
+                      backgroundColor: kAccent.withValues(alpha: 0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(kAccent),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
               ),
-              child: Text(
-                '',
-                style: TextStyle(
-                    color: kAccent, fontSize: getTextScale(3, context)),
-              ),
+            ),
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                if (title != null)
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: kAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.lightbulb_outline,
+                              color: kAccent,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode ? kWhite : kBlack,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+
+                // Message
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDarkMode
+                        ? kWhite.withValues(alpha: 0.9)
+                        : kBlack.withValues(alpha: 0.8),
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (onSkip != null)
+                      TextButton(
+                        onPressed: () {
+                          removeCurrentOverlay();
+                          onSkip();
+                        },
+                        child: Text(
+                          'Skip',
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? kWhite.withValues(alpha: 0.6)
+                                : kBlack.withValues(alpha: 0.6),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        removeCurrentOverlay();
+                        onComplete();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kAccent,
+                        foregroundColor: kWhite,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        stepNumber != null &&
+                                totalSteps != null &&
+                                stepNumber < totalSteps
+                            ? 'Next'
+                            : 'Got it!',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  CrossAxisAlignment _getCrossAxisAlignment(ArrowDirection direction) {
-    switch (direction) {
-      case ArrowDirection.LEFT:
-        return CrossAxisAlignment.start;
-      case ArrowDirection.RIGHT:
-        return CrossAxisAlignment.end;
-      default:
-        return CrossAxisAlignment.start;
-    }
-  }
-
-  double _calculateLeftPosition(
-    double targetX,
-    double targetWidth,
-    double screenWidth,
-    ArrowDirection direction,
-  ) {
-    switch (direction) {
-      case ArrowDirection.LEFT:
-        return targetX + targetWidth + 10;
-      case ArrowDirection.RIGHT:
-        return targetX - 320;
-      default:
-        double left = targetX + targetWidth / 2;
-        if (left + 300 > screenWidth) {
-          left = screenWidth - 320;
-        }
-        if (left < 20) left = 20;
-        return left;
-    }
-  }
-
-  double _calculateTopPosition(
-    double targetY,
-    double targetHeight,
-    double screenHeight,
-    ArrowDirection direction,
-  ) {
-    switch (direction) {
-      case ArrowDirection.UP:
-        return targetY + targetHeight + 10;
-      case ArrowDirection.DOWN:
-        return targetY - 160;
-      case ArrowDirection.LEFT:
-      case ArrowDirection.RIGHT:
-        return targetY - targetHeight / 2;
-      default:
-        double top = targetY + targetHeight + 10;
-        if (top + 150 > screenHeight) {
-          top = targetY - 160;
-        }
-        if (top < 20) top = 20;
-        return top;
-    }
   }
 
   Future<bool> isSequenceComplete(String sequenceKey) async {
@@ -391,81 +551,48 @@ class TutorialPopupService {
   }
 }
 
-enum ArrowDirection { UP, DOWN, LEFT, RIGHT }
+class _PositionCandidate {
+  final Offset position;
+  final ArrowDirection arrowDirection;
+  final double score;
 
-class ArrowPainter extends CustomPainter {
-  final Color color;
-  final ArrowDirection direction;
-
-  ArrowPainter({
-    required this.color,
-    required this.direction,
+  _PositionCandidate({
+    required this.position,
+    required this.arrowDirection,
+    required this.score,
   });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-
-    switch (direction) {
-      case ArrowDirection.UP:
-        path
-          ..moveTo(0, size.height)
-          ..lineTo(size.width / 2, 0)
-          ..lineTo(size.width, size.height)
-          ..close();
-        break;
-      case ArrowDirection.DOWN:
-        path
-          ..moveTo(0, 0)
-          ..lineTo(size.width / 2, size.height)
-          ..lineTo(size.width, 0)
-          ..close();
-        break;
-      case ArrowDirection.LEFT:
-        path
-          ..moveTo(size.width, 0)
-          ..lineTo(0, size.height / 2)
-          ..lineTo(size.width, size.height)
-          ..close();
-        break;
-      case ArrowDirection.RIGHT:
-        path
-          ..moveTo(0, 0)
-          ..lineTo(size.width, size.height / 2)
-          ..lineTo(0, size.height)
-          ..close();
-        break;
-    }
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+class PopupPositionInfo {
+  final Offset position;
+  final ArrowDirection arrowDirection;
+
+  PopupPositionInfo({
+    required this.position,
+    required this.arrowDirection,
+  });
+}
+
+enum ArrowDirection { UP, DOWN, LEFT, RIGHT }
 
 class TutorialStep {
   final String tutorialId;
+  final String? title;
   final String message;
   final GlobalKey targetKey;
   final VoidCallback? onComplete;
-  final EdgeInsets padding;
-  final bool showArrow;
+  final VoidCallback? onSkip;
+  final bool showProgress;
   final Duration autoCloseDuration;
-  final ArrowDirection arrowDirection;
 
   TutorialStep({
     required this.tutorialId,
     required this.message,
     required this.targetKey,
+    this.title,
     this.onComplete,
-    this.padding = const EdgeInsets.all(8.0),
-    this.showArrow = true,
-    this.autoCloseDuration = const Duration(seconds: 5),
-    this.arrowDirection = ArrowDirection.UP,
+    this.onSkip,
+    this.showProgress = true,
+    this.autoCloseDuration = Duration.zero,
   });
 }

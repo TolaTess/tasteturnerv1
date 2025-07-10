@@ -53,7 +53,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   final GlobalKey _toggleCalendarButtonKey = GlobalKey();
   final GlobalKey _sharedCalendarButtonKey = GlobalKey();
-
+  final GlobalKey _addMealButtonKey = GlobalKey();
   // Get the MealPlanController instance
   late final MealPlanController _mealPlanController;
 
@@ -115,15 +115,16 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           tutorialId: 'toggle_calendar_button',
           message: 'Tap to toggle between personal and shared calendar!',
           targetKey: _toggleCalendarButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.UP,
         ),
         TutorialStep(
           tutorialId: 'shared_calendar_button',
           message: 'Tap to share your calendar with friends!',
           targetKey: _sharedCalendarButtonKey,
-          autoCloseDuration: const Duration(seconds: 5),
-          arrowDirection: ArrowDirection.UP,
+        ),
+        TutorialStep(
+          tutorialId: 'add_meal_button',
+          message: 'Tap here to add your meal!',
+          targetKey: _addMealButtonKey,
         ),
       ],
     );
@@ -224,7 +225,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     radius: MediaQuery.of(context).size.height > 1100
                         ? getResponsiveBoxSize(context, 14, 14)
                         : getResponsiveBoxSize(context, 18, 18),
-                    backgroundColor: kAccent.withValues(alpha: kOpacity), 
+                    backgroundColor: kAccent.withValues(alpha: kOpacity),
                     child: CircleAvatar(
                       backgroundImage: getAvatarImage(avatarUrl),
                       radius: MediaQuery.of(context).size.height > 1100
@@ -356,7 +357,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -621,9 +622,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                               '_', ' ') ??
                                                       'regular_day',
                                                   isDarkMode)
-                                                .withValues(alpha: 0.2)
+                                              .withValues(alpha: 0.2)
                                           : hasMeal
-                                              ? kLightGrey.withValues(alpha: 0.2)
+                                              ? kLightGrey.withValues(
+                                                  alpha: 0.2)
                                               : null,
                                       borderRadius: BorderRadius.circular(8),
                                       border: normalizedDate ==
@@ -1003,22 +1005,33 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         SizedBox(height: getPercentageHeight(1, context)),
 
         // Show personal meals section
+        if (_mealPlanController.showSharedCalendars.value) ...[
+          _buildDateHeader(
+              normalizedSelectedDate, birthdayName, isDarkMode, sharedPlans),
+        ] else ...[
+          _buildDateHeader(
+              normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
+        ],
 
-        _buildDateHeader(
-            normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
-
-        if (hasPersonalMeals) ...[
+        if (hasPersonalMeals &&
+            !_mealPlanController.showSharedCalendars.value) ...[
           SizedBox(height: getPercentageHeight(1, context)),
           _buildMealsRowContent(personalMeals, isDarkMode),
           SizedBox(height: getPercentageHeight(1, context)),
         ],
 
         // Show shared meals section
-        if (hasSharedMeals) ...[
+        if (hasSharedMeals &&
+            _mealPlanController.showSharedCalendars.value) ...[
           SizedBox(height: getPercentageHeight(1, context)),
           _buildMealsRowContent(sharedPlans, isDarkMode),
           SizedBox(height: getPercentageHeight(1, context)),
         ],
+
+        if (!hasAnyMeals)
+          _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode,
+              normalizedSelectedDate: normalizedSelectedDate,
+              isSpecialDay: isPersonalSpecialDay),
 
         SizedBox(height: getPercentageHeight(7.5, context)),
       ],
@@ -1406,7 +1419,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   child: ListTile(
                     selected: selectedDayType ==
                         type.toLowerCase().replaceAll(' ', '_'),
-                      selectedTileColor: kAccentLight.withValues(alpha: 0.1),
+                    selectedTileColor: kAccentLight.withValues(alpha: 0.1),
                     title: Text(
                       type,
                       style: textTheme.bodyMedium?.copyWith(
@@ -1553,8 +1566,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-  Widget _buildEmptyState(DateTime date, String birthdayName, bool isDarkMode) {
+  Widget _buildEmptyState(DateTime date, String birthdayName, bool isDarkMode,
+      {DateTime? normalizedSelectedDate, bool? isSpecialDay}) {
     final textTheme = Theme.of(context).textTheme;
+    final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
     return SizedBox(
       height: 200,
       child: Center(
@@ -1607,14 +1622,28 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   ),
                 ],
                 SizedBox(width: getPercentageWidth(1.5, context)),
-                Text(
-                  getRelativeDayString(selectedDate) == 'Today' ||
-                          getRelativeDayString(selectedDate) == 'Tomorrow'
-                      ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
-                      : 'No meals planned for this day',
-                  style: textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode ? kLightGrey : kDarkGrey,
-                      fontSize: getPercentageWidth(3.5, context)),
+                Column(
+                  children: [
+                    if (isSpecialDay == true) ...[
+                      Text(
+                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))}!',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: getDayTypeColor(
+                              currentDayType.replaceAll('_', ' '), isDarkMode),
+                        ),
+                      ),
+                    ],
+                    SizedBox(width: getPercentageWidth(1.5, context)),
+                    Text(
+                      getRelativeDayString(selectedDate) == 'Today' ||
+                              getRelativeDayString(selectedDate) == 'Tomorrow'
+                          ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                          : 'No meals planned for this day',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1626,7 +1655,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildDateHeader(DateTime date, String birthdayName, bool isDarkMode,
       List<MealWithType> meals) {
-    final isSpecialDay = _mealPlanController.specialMealDays[date] ?? false;
     final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
     final isUserBirthday = _isUserBirthday(date);
     final textTheme = Theme.of(context).textTheme;
@@ -1698,6 +1726,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       userService.currentUser.value?.displayName
                           ?.toLowerCase()) ...[
                 GestureDetector(
+                  key: _addMealButtonKey,
                   onTap: () => _addMealPlan(
                       context, isDarkMode, false, currentDayType,
                       goStraightToAddMeal: false),
