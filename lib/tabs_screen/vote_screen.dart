@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tasteturner/widgets/icon_widget.dart';
 
 import '../constants.dart';
@@ -296,7 +297,7 @@ class _VoteScreenState extends State<VoteScreen> {
       appBar: AppBar(
         leading: InkWell(
           onTap: () {
-            Navigator.pop(context);
+            Get.back();
           },
           child: const IconCircleButton(),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'dart:async';
 
@@ -318,7 +319,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(),
         ),
         title: Text(

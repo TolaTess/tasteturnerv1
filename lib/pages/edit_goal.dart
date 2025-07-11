@@ -127,7 +127,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       appBar: AppBar(
         centerTitle: true,
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(),
         ),
         title: Text(

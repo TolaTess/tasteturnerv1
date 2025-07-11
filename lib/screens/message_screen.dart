@@ -238,13 +238,7 @@ class _MessageScreenState extends State<MessageScreen>
                   left: getPercentageWidth(2.5, context),
                 ),
                 child: GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const BottomNavSec(
-                              selectedIndex: 0,
-                            )),
-                  ),
+                    onTap: () =>  Get.back(),
                   child: IconCircleButton(
                     isRemoveContainer: true,
                     size: getIconScale(6, context),

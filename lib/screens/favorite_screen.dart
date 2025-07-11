@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
@@ -54,7 +55,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
           padding: EdgeInsets.all(getPercentageWidth(1, context)),
           child: InkWell(
             onTap: () {
-              Navigator.pop(context);
+              Get.back();
             },
             child: const IconCircleButton(),
           ),

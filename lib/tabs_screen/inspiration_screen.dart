@@ -21,6 +21,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
       GlobalKey<SearchContentGridState>();
   final GlobalKey _addDietButtonKey = GlobalKey();
   final GlobalKey _addUploadButtonKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'general';
 
   Future<void> _refreshPosts() async {
@@ -63,6 +64,12 @@ class _InspirationScreenState extends State<InspirationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _showAddMealTutorial() {
@@ -128,7 +135,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
         verticalOffset: getPercentageHeight(5, context),
         horizontalOffset: getPercentageWidth(2, context),
       ),
-      floatingActionButton: FloatingActionButton( 
+      floatingActionButton: FloatingActionButton(
         key: _addUploadButtonKey,
         onPressed: () {
           Get.to(
@@ -144,6 +151,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
         color: kAccent,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: SingleChildScrollView(
+          controller: _scrollController,
           physics:
               AlwaysScrollableScrollPhysics(), // Enables pull-to-refresh even when content is short
           child: SearchContentGrid(

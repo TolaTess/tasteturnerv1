@@ -319,9 +319,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : kPrimaryColor,
             ),
             leading: InkWell(
-              onTap: () => Navigator.canPop(context)
-                  ? Navigator.pop(context)
-                  : Get.to(() => const BottomNavSec()),
+              onTap: () => Get.back(),
               child: const IconCircleButton(),
             ),
             actions: [

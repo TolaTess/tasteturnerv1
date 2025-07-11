@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -81,7 +82,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(),
         ),
         centerTitle: true,

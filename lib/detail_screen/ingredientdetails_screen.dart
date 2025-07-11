@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
@@ -91,7 +92,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(
             isRemoveContainer: true,
           ),

@@ -216,7 +216,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
                     final data = searchContentDatas[index];
                     return SearchContent(
                       dataSrc: data,
-                      press: () => Navigator.pushReplacement(
+                      press: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ChallengeDetailScreen(

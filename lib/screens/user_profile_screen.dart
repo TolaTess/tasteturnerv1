@@ -184,7 +184,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   leading: // Back arrow
                       InkWell(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => Get.back(),
                     child: const IconCircleButton(
                       isRemoveContainer: true,
                     ),

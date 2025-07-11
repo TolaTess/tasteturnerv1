@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/form.dart';
@@ -280,7 +281,7 @@ class TermsOfServiceScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(),
         ),
       ),

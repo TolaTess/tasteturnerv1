@@ -43,7 +43,7 @@ class _FriendScreenState extends State<FriendScreen> {
       appBar: AppBar(
         centerTitle: true,
         leading: InkWell(
-          onTap: () => Navigator.pop(context),
+          onTap: () => Get.back(),
           child: const IconCircleButton(
             isRemoveContainer: true,
           ),

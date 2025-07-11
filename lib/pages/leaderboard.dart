@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -188,7 +189,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ),
             ),
             leading: IconButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Get.back(),
               icon: Icon(
                 Icons.arrow_back_ios,
                 color: kWhite,

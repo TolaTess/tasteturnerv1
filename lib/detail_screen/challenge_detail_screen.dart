@@ -639,20 +639,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         centerTitle: true,
         leading: InkWell(
           onTap: () {
-            if (widget.screen == 'myPost' ||
-                widget.screen == 'share_recipe' ||
-                widget.isMessage) {
-              Get.back();
-              return;
-            }
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BottomNavSec(
-                  selectedIndex: 2,
-                ),
-              ),
-            );
+            Get.back();
           },
           child: Container(
             width: getPercentageWidth(6, context),
