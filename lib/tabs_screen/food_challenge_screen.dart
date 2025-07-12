@@ -734,7 +734,8 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               final participant = participantsWithImages[index];
               final imageUrl =
                   participant['image'] as String? ?? intPlaceholderImage;
-              final mediaPaths = participant['mediaPaths'] as List<dynamic>? ?? [];
+              final mediaPaths =
+                  participant['mediaPaths'] as List<dynamic>? ?? [];
 
               final hasMediaUploadedImages = mediaPaths.isNotEmpty;
 
@@ -758,19 +759,19 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: hasMediaUploadedImages
-                      ? Image.network(
-                          mediaPaths![0],
+                      ? buildOptimizedNetworkImage(
+                          imageUrl: mediaPaths![0],
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset(intPlaceholderImage,
-                                  fit: BoxFit.cover),
+                          borderRadius: BorderRadius.circular(12),
+                          errorWidget: Image.asset(intPlaceholderImage,
+                              fit: BoxFit.cover),
                         )
-                      : Image.network(
-                          imageUrl,
+                      : buildOptimizedNetworkImage(
+                          imageUrl: imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset(intPlaceholderImage,
-                                  fit: BoxFit.cover),
+                          borderRadius: BorderRadius.circular(12),
+                          errorWidget: Image.asset(intPlaceholderImage,
+                              fit: BoxFit.cover),
                         ),
                 ),
               );
@@ -809,11 +810,12 @@ class DetailItem extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: dataSrc['image'].startsWith('http')
-                    ? Image.network(
-                        dataSrc['image'],
+                    ? buildOptimizedNetworkImage(
+                        imageUrl: dataSrc['image'],
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        borderRadius: BorderRadius.circular(20),
                       )
                     : Image.asset(
                         getAssetImageForItem(dataSrc['image']),

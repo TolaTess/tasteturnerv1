@@ -5,6 +5,7 @@ import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/data_models/macro_data.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../service/macro_manager.dart';
 import '../widgets/ingredient_features.dart';
@@ -457,7 +458,7 @@ class ShoppingListItem extends StatelessWidget {
     ImageProvider<Object> backgroundImage;
     if (item.mediaPaths.isNotEmpty &&
         item.mediaPaths.first.startsWith('http')) {
-      backgroundImage = NetworkImage(item.mediaPaths.first);
+      backgroundImage = CachedNetworkImageProvider(item.mediaPaths.first);
     } else {
       backgroundImage = AssetImage(getAssetImageForItem(item.type));
     }

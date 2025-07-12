@@ -30,11 +30,12 @@ class DetailItem extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: dataSrc['image'].startsWith('http')
-                    ? Image.network(
-                        dataSrc['image'],
+                    ? buildOptimizedNetworkImage(
+                        imageUrl: dataSrc['image'],
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        borderRadius: BorderRadius.circular(20),
                       )
                     : Image.asset(
                         getAssetImageForItem(dataSrc['image']),

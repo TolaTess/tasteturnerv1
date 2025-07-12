@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -629,7 +630,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   ImageProvider _getImageProvider(String? imageUrl) {
     if (imageUrl != null && imageUrl.startsWith('http')) {
-      return NetworkImage(imageUrl);
+      return CachedNetworkImageProvider(imageUrl);
     }
     return AssetImage(intPlaceholderImage);
   }

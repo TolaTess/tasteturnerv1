@@ -22,6 +22,7 @@ import '../service/battle_service.dart';
 import '../service/post_service.dart';
 import '../service/badge_service.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -364,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         userService
                                             .currentUser.value!.profileImage!
                                             .contains('http')
-                                    ? NetworkImage(userService
+                                    ? CachedNetworkImageProvider(userService
                                         .currentUser.value!.profileImage!)
                                     : const AssetImage(intPlaceholderImage)
                                         as ImageProvider,
@@ -539,7 +540,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       .isNotEmpty &&
                                   userService.currentUser.value!.profileImage!
                                       .contains('http')
-                              ? NetworkImage(
+                              ? CachedNetworkImageProvider(
                                   userService.currentUser.value!.profileImage!)
                               : const AssetImage(intPlaceholderImage)
                                   as ImageProvider,

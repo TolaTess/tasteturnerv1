@@ -79,7 +79,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         });
       }
     });
-
   }
 
   Future<bool> _getAllDisabled() async {
@@ -375,16 +374,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                             .startsWith('http')
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(4),
-                                        child: Image.network(
-                                          result.mediaPaths.first,
+                                        child: buildOptimizedNetworkImage(
+                                          imageUrl: result.mediaPaths.first,
                                           width:
                                               getPercentageWidth(10, context),
                                           height:
                                               getPercentageWidth(10, context),
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Image.asset(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          errorWidget: Image.asset(
                                             getAssetImageForItem(
                                                 result.category ?? 'default'),
                                             width:

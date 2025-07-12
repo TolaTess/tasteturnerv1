@@ -396,8 +396,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               return DropdownMenuItem<String>(
                                 value: value,
                                 child: Text(value,
-                                    style: textTheme.bodyMedium?.copyWith(
-                                        color: kDarkGrey)),
+                                    style: textTheme.bodyMedium
+                                        ?.copyWith(color: kDarkGrey)),
                               );
                             }).toList(),
                             onChanged: (String? newValue) {
@@ -489,8 +489,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                 children: [
                                   Expanded(
                                     child: SafeTextFormField(
-                                      style: textTheme.titleLarge?.copyWith(
-                                          color: kLightGrey),
+                                      style: textTheme.titleLarge
+                                          ?.copyWith(color: kLightGrey),
                                       decoration: InputDecoration(
                                         labelText: "Ingredient",
                                         labelStyle: textTheme.titleLarge
@@ -622,8 +622,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                             fit: BoxFit.cover,
                           )
                         : (_recentNetworkImage != null
-                            ? Image.network(
-                                _recentNetworkImage!,
+                            ? buildOptimizedNetworkImage(
+                                imageUrl: _recentNetworkImage!,
                                 height:
                                     MediaQuery.of(context).size.height > 1100
                                         ? getPercentageHeight(20, context)

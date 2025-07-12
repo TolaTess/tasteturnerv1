@@ -270,7 +270,8 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                     child: Container(
                       padding: EdgeInsets.all(getPercentageWidth(4, context)),
                       child: isShowingFront
-                          ? _buildDietFactSide(context, textTheme, isDarkMode, fact)
+                          ? _buildDietFactSide(
+                              context, textTheme, isDarkMode, fact)
                           : Transform(
                               alignment: Alignment.center,
                               transform: Matrix4.identity()..rotateY(math.pi),

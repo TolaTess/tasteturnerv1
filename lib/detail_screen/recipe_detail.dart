@@ -11,6 +11,7 @@ import '../widgets/primary_button.dart';
 import '../constants.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen(
@@ -160,8 +161,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: getPercentageHeight(20, context),
+                  ),
                 ),
-              ),
             ],
           ),
         );
@@ -181,29 +182,19 @@ class SlvAppBar extends StatelessWidget {
     if (meal.mediaPaths.isNotEmpty &&
         meal.mediaPaths != 'null' &&
         meal.mediaPaths.first.startsWith('http')) {
-      return Image.network(
-        meal.mediaPaths.first,
+      return buildOptimizedNetworkImage(
+        imageUrl: meal.mediaPaths.first,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            getAssetImageForItem(meal.category ?? 'default'),
-            fit: BoxFit.cover,
-          );
-        },
+        placeholder: Container(
+          color: Colors.grey[200],
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: Image.asset(
+          getAssetImageForItem(meal.category ?? 'default'),
+          fit: BoxFit.cover,
+        ),
       );
     } else {
       return Image.asset(
@@ -674,7 +665,8 @@ class _RecipeProfileState extends State<RecipeProfile> {
                       backgroundImage: widget.mealUser?.profileImage != null &&
                               widget.mealUser!.profileImage!.isNotEmpty &&
                               widget.mealUser!.profileImage!.contains('http')
-                          ? NetworkImage(widget.mealUser!.profileImage!)
+                          ? CachedNetworkImageProvider(
+                              widget.mealUser!.profileImage!)
                           : const AssetImage(intPlaceholderImage)
                               as ImageProvider,
                       radius: getResponsiveBoxSize(context, 18, 18),

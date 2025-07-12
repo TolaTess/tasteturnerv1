@@ -14,6 +14,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 
 Widget buildTastyFloatingActionButton({
   required BuildContext context,
@@ -204,7 +205,7 @@ ImageProvider getAvatarImage(String? imageUrl) {
       imageUrl.isNotEmpty &&
       imageUrl.startsWith("http") &&
       imageUrl != "null") {
-    return NetworkImage(imageUrl);
+    return CachedNetworkImageProvider(imageUrl);
   }
   return const AssetImage(intPlaceholderImage);
 }
@@ -870,14 +871,14 @@ final colors = [
   kPink.withValues(alpha: kMidOpacity)
 ];
 
-  // Check if user can use AI features (premium or free trial)
-  bool canUseAI() {
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    final isPremium = userService.currentUser.value?.isPremium ?? false;
-    return isPremium || isFreeTrial;
-  }
+// Check if user can use AI features (premium or free trial)
+bool canUseAI() {
+  final freeTrialDate = userService.currentUser.value?.freeTrialDate;
+  final isFreeTrial =
+      freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
+  final isPremium = userService.currentUser.value?.isPremium ?? false;
+  return isPremium || isFreeTrial;
+}
 
 Widget buildFullWidthHomeButton({
   required BuildContext context,
@@ -1089,7 +1090,7 @@ Widget buildFullWidthHomeButton({
               child: Container(
                 height: double.infinity,
                 padding: EdgeInsets.symmetric(
-                  vertical: getPercentageHeight(1, context),
+                    vertical: getPercentageHeight(1, context),
                     horizontal: getPercentageWidth(15, context)),
                 child: Stack(
                   children: [

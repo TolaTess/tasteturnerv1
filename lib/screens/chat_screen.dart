@@ -249,17 +249,23 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.only(
                 right: getPercentageWidth(2, context),
               ),
-              child: CircleAvatar(
-                backgroundColor: kAccent,
-                radius: getResponsiveBoxSize(context, 16, 16),
-                child: CircleAvatar(
-                  backgroundImage: widget.friend?.profileImage != null &&
-                          widget.friend!.profileImage!.isNotEmpty &&
-                          widget.friend!.profileImage!.contains('http')
-                      ? NetworkImage(widget.friend!.profileImage!)
-                      : const AssetImage(intPlaceholderImage) as ImageProvider,
-                  radius: getResponsiveBoxSize(context, 14, 14),
-                ),
+              child: ClipOval(
+                child: widget.friend?.profileImage != null &&
+                        widget.friend!.profileImage!.isNotEmpty &&
+                        widget.friend!.profileImage!.contains('http')
+                    ? buildOptimizedNetworkImage(
+                        imageUrl: widget.friend!.profileImage!,
+                        width: getResponsiveBoxSize(context, 28, 28),
+                        height: getResponsiveBoxSize(context, 28, 28),
+                        fit: BoxFit.cover,
+                        isProfileImage: true,
+                      )
+                    : Image.asset(
+                        intPlaceholderImage,
+                        width: getResponsiveBoxSize(context, 28, 28),
+                        height: getResponsiveBoxSize(context, 28, 28),
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
           ),

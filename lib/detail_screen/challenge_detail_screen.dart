@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -152,7 +153,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       }
     }
   }
-
 
   bool get _isUserPost {
     return _currentPostData['userId'] == userService.userId;
@@ -567,11 +567,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         Positioned.fill(
           child: ImageFiltered(
             imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Image.network(
-              url,
+            child: buildOptimizedNetworkImage(
+              imageUrl: url,
               fit: BoxFit.cover,
-              opacity: const AlwaysStoppedAnimation(0.3),
-              errorBuilder: (context, error, stackTrace) => Image.asset(
+              errorWidget: Image.asset(
                 intPlaceholderImage,
                 fit: BoxFit.cover,
               ),
@@ -590,10 +589,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.network(
-                  url,
+                child: buildOptimizedNetworkImage(
+                  imageUrl: url,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                  errorWidget: Image.asset(
                     intPlaceholderImage,
                     fit: BoxFit.contain,
                   ),
@@ -758,7 +757,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                           _currentPostData['profileImage']
                                               .toString()
                                               .contains('http')
-                                      ? NetworkImage(
+                                      ? CachedNetworkImageProvider(
                                           _currentPostData['profileImage']
                                               .toString())
                                       : const AssetImage(intPlaceholderImage)

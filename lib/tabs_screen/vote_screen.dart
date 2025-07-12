@@ -473,11 +473,12 @@ class VoteCandidatePage extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: imageUrl.startsWith('http')
-                  ? Image.network(
-                      imageUrl,
+                  ? buildOptimizedNetworkImage(
+                      imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) =>
+                      borderRadius: BorderRadius.circular(20),
+                      errorWidget:
                           Image.asset(intPlaceholderImage, fit: BoxFit.cover),
                     )
                   : Image.asset(imageUrl, fit: BoxFit.cover),

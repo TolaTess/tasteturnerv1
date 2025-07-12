@@ -19,6 +19,7 @@ import '../screens/friend_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/optimized_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 int currentPage = 0;
 List<MacroData> fullLabelsList = [];
@@ -838,7 +839,7 @@ Widget buildFriendAvatar(String? profileImage, BuildContext context) {
           borderRadius: BorderRadius.circular(10),
           image: DecorationImage(
             image: profileImage?.contains('http') ?? false
-                ? NetworkImage(profileImage!)
+                ? CachedNetworkImageProvider(profileImage!)
                 : AssetImage(intPlaceholderImage) as ImageProvider,
             fit: BoxFit.cover,
           ),
@@ -881,7 +882,7 @@ bool isDateToday(DateTime date) {
 
 ImageProvider getImageProvider(String? imageUrl) {
   if (imageUrl != null && imageUrl.startsWith('http')) {
-    return NetworkImage(imageUrl);
+    return CachedNetworkImageProvider(imageUrl);
   }
   return const AssetImage(intPlaceholderImage);
 }
