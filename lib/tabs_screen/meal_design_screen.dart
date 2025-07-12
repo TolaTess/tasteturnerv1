@@ -23,6 +23,7 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../widgets/optimized_image.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
@@ -1098,24 +1099,35 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                   aspectRatio: 1,
                                   child: ClipOval(
                                     child: meal.mediaPaths.isNotEmpty
-                                        ? Image.asset(
-                                            getAssetImageForItem(
-                                                meal.mediaPaths.first),
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
+                                        ? meal.mediaPaths.first
+                                                .contains('https')
+                                            ? OptimizedImage(
+                                                imageUrl: meal.mediaPaths.first,
+                                                fit: BoxFit.cover,
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        getPercentageWidth(
+                                                            100, context)),
+                                                width: double.infinity,
+                                                height: double.infinity,)
+                                            : Image.asset(
+                                                getAssetImageForItem(
+                                                    meal.mediaPaths.first),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                        stackTrace) =>
                                                     Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[300],
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                Icons.restaurant,
-                                                size: getPercentageWidth(
-                                                    6, context),
-                                              ),
-                                            ),
-                                          )
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[300],
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.restaurant,
+                                                    size: getPercentageWidth(
+                                                        6, context),
+                                                  ),
+                                                ),
+                                              )
                                         : Image.asset(
                                             getAssetImageForItem(
                                                 meal.category ?? 'default'),

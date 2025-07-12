@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../themes/theme_provider.dart';
+import '../helper/utils.dart'; // Import for percentage functions
 
 class TutorialPopupService {
   static final TutorialPopupService _instance =
@@ -136,6 +137,7 @@ class TutorialPopupService {
 
     // Calculate optimal popup position
     final popupInfo = _calculateOptimalPosition(
+      context,
       targetPosition,
       targetSize,
       screenSize,
@@ -206,6 +208,7 @@ class TutorialPopupService {
                       totalSteps,
                       showProgress,
                       popupInfo.arrowDirection,
+                      popupInfo.popupSize,
                       onComplete,
                       onSkip,
                     ),
@@ -234,99 +237,99 @@ class TutorialPopupService {
   }
 
   PopupPositionInfo _calculateOptimalPosition(
+    BuildContext context,
     Offset targetPosition,
     Size targetSize,
     Size screenSize,
   ) {
-    const double popupWidth = 280.0;
-    const double popupHeight = 120.0;
-    const double margin = 16.0;
-    const double arrowSize = 12.0;
+    // Use responsive sizing based on screen size
+    final double popupWidth =
+        getPercentageWidth(75, context).clamp(250.0, 320.0);
+    final double popupHeight = getPercentageHeight(20, context)
+        .clamp(120.0, 200.0); // Reduced height to prevent overflow
+    final double margin = getPercentageWidth(4, context).clamp(12.0, 20.0);
+    final double arrowSize = getPercentageWidth(3, context).clamp(8.0, 12.0);
 
-    // Calculate center of target
-    final targetCenter = Offset(
-      targetPosition.dx + targetSize.width / 2,
-      targetPosition.dy + targetSize.height / 2,
-    );
+    // Calculate available space in all directions
+    final double spaceAbove = targetPosition.dy - margin;
+    final double spaceBelow =
+        screenSize.height - (targetPosition.dy + targetSize.height) - margin;
+    final double spaceLeft = targetPosition.dx - margin;
+    final double spaceRight =
+        screenSize.width - (targetPosition.dx + targetSize.width) - margin;
 
-    // Try different positions in order of preference
-    final positions = [
-      // Bottom (preferred)
-      _PositionCandidate(
-        position: Offset(
-          (targetCenter.dx - popupWidth / 2)
-              .clamp(margin, screenSize.width - popupWidth - margin),
-          targetPosition.dy + targetSize.height + arrowSize + margin,
-        ),
-        arrowDirection: ArrowDirection.UP,
-        score: _calculatePositionScore(
-          Offset(targetCenter.dx - popupWidth / 2,
-              targetPosition.dy + targetSize.height + arrowSize + margin),
-          Size(popupWidth, popupHeight),
-          screenSize,
-          margin,
-        ),
-      ),
+    // Determine the best position based on available space
+    ArrowDirection arrowDirection = ArrowDirection.DOWN;
+    Offset popupPosition;
 
-      // Top
-      _PositionCandidate(
-        position: Offset(
-          (targetCenter.dx - popupWidth / 2)
-              .clamp(margin, screenSize.width - popupWidth - margin),
-          targetPosition.dy - popupHeight - arrowSize - margin,
-        ),
-        arrowDirection: ArrowDirection.DOWN,
-        score: _calculatePositionScore(
-          Offset(targetCenter.dx - popupWidth / 2,
-              targetPosition.dy - popupHeight - arrowSize - margin),
-          Size(popupWidth, popupHeight),
-          screenSize,
-          margin,
-        ),
-      ),
+    // Try to position below first (most common case)
+    if (spaceBelow >= popupHeight) {
+      // Position below
+      arrowDirection = ArrowDirection.UP;
+      double left =
+          targetPosition.dx + (targetSize.width / 2) - (popupWidth / 2);
 
-      // Right
-      _PositionCandidate(
-        position: Offset(
-          targetPosition.dx + targetSize.width + arrowSize + margin,
-          (targetCenter.dy - popupHeight / 2)
-              .clamp(margin, screenSize.height - popupHeight - margin),
-        ),
-        arrowDirection: ArrowDirection.LEFT,
-        score: _calculatePositionScore(
-          Offset(targetPosition.dx + targetSize.width + arrowSize + margin,
-              targetCenter.dy - popupHeight / 2),
-          Size(popupWidth, popupHeight),
-          screenSize,
-          margin,
-        ),
-      ),
+      // Ensure popup doesn't go off-screen horizontally
+      left = left.clamp(margin, screenSize.width - popupWidth - margin);
 
-      // Left
-      _PositionCandidate(
-        position: Offset(
-          targetPosition.dx - popupWidth - arrowSize - margin,
-          (targetCenter.dy - popupHeight / 2)
-              .clamp(margin, screenSize.height - popupHeight - margin),
-        ),
-        arrowDirection: ArrowDirection.RIGHT,
-        score: _calculatePositionScore(
-          Offset(targetPosition.dx - popupWidth - arrowSize - margin,
-              targetCenter.dy - popupHeight / 2),
-          Size(popupWidth, popupHeight),
-          screenSize,
-          margin,
-        ),
-      ),
-    ];
+      popupPosition =
+          Offset(left, targetPosition.dy + targetSize.height + arrowSize);
+    } else if (spaceAbove >= popupHeight) {
+      // Position above
+      arrowDirection = ArrowDirection.DOWN;
+      double left =
+          targetPosition.dx + (targetSize.width / 2) - (popupWidth / 2);
 
-    // Find the best position
-    positions.sort((a, b) => b.score.compareTo(a.score));
-    final bestPosition = positions.first;
+      // Ensure popup doesn't go off-screen horizontally
+      left = left.clamp(margin, screenSize.width - popupWidth - margin);
+
+      popupPosition = Offset(left, targetPosition.dy - popupHeight - arrowSize);
+    } else if (spaceRight >= popupWidth) {
+      // Position to the right
+      arrowDirection = ArrowDirection.LEFT;
+      double top =
+          targetPosition.dy + (targetSize.height / 2) - (popupHeight / 2);
+
+      // Ensure popup doesn't go off-screen vertically
+      top = top.clamp(margin, screenSize.height - popupHeight - margin);
+
+      popupPosition =
+          Offset(targetPosition.dx + targetSize.width + arrowSize, top);
+    } else if (spaceLeft >= popupWidth) {
+      // Position to the left
+      arrowDirection = ArrowDirection.RIGHT;
+      double top =
+          targetPosition.dy + (targetSize.height / 2) - (popupHeight / 2);
+
+      // Ensure popup doesn't go off-screen vertically
+      top = top.clamp(margin, screenSize.height - popupHeight - margin);
+
+      popupPosition = Offset(targetPosition.dx - popupWidth - arrowSize, top);
+    } else {
+      // Fallback: center on screen with reduced size
+      final adjustedWidth =
+          (screenSize.width - 2 * margin).clamp(200.0, popupWidth);
+      final adjustedHeight =
+          (screenSize.height - 2 * margin).clamp(120.0, popupHeight);
+
+      popupPosition = Offset(
+        (screenSize.width - adjustedWidth) / 2,
+        (screenSize.height - adjustedHeight) / 2,
+      );
+
+      arrowDirection = ArrowDirection.UP; // Use UP as fallback
+
+      return PopupPositionInfo(
+        position: popupPosition,
+        popupSize: Size(adjustedWidth, adjustedHeight),
+        arrowDirection: arrowDirection,
+      );
+    }
 
     return PopupPositionInfo(
-      position: bestPosition.position,
-      arrowDirection: bestPosition.arrowDirection,
+      position: popupPosition,
+      popupSize: Size(popupWidth, popupHeight),
+      arrowDirection: arrowDirection,
     );
   }
 
@@ -356,22 +359,29 @@ class TutorialPopupService {
     int? totalSteps,
     bool showProgress,
     ArrowDirection arrowDirection,
+    Size popupSize,
     VoidCallback onComplete,
     VoidCallback? onSkip,
   ) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return Container(
-      width: 280,
+      width: popupSize.width,
+      constraints: BoxConstraints(
+        maxHeight: popupSize.height,
+        maxWidth: popupSize.width,
+        minHeight: getPercentageHeight(12, context),
+        minWidth: getPercentageWidth(60, context),
+      ),
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kWhite,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(getPercentageWidth(4, context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 24,
+            blurRadius: getPercentageWidth(6, context),
             spreadRadius: 0,
-            offset: const Offset(0, 8),
+            offset: Offset(0, getPercentageHeight(1, context)),
           ),
         ],
       ),
@@ -381,39 +391,43 @@ class TutorialPopupService {
           // Header with progress
           if (showProgress && stepNumber != null && totalSteps != null)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
                 color: kAccent.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(getPercentageWidth(4, context)),
+                  topRight: Radius.circular(getPercentageWidth(4, context)),
                 ),
               ),
               child: Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context),
+                      vertical: getPercentageHeight(0.5, context),
+                    ),
                     decoration: BoxDecoration(
                       color: kAccent,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius:
+                          BorderRadius.circular(getPercentageWidth(3, context)),
                     ),
                     child: Text(
                       '$stepNumber of $totalSteps',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: kWhite,
-                        fontSize: 12,
+                        fontSize: getTextScale(3, context),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: getPercentageWidth(3, context)),
                   Expanded(
                     child: LinearProgressIndicator(
                       value: stepNumber / totalSteps,
                       backgroundColor: kAccent.withValues(alpha: 0.2),
                       valueColor: const AlwaysStoppedAnimation<Color>(kAccent),
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.circular(
+                          getPercentageWidth(0.5, context)),
                     ),
                   ),
                 ],
@@ -421,111 +435,121 @@ class TutorialPopupService {
             ),
 
           // Content
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                if (title != null)
-                  Column(
-                    children: [
-                      Row(
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(getPercentageWidth(5, context)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    if (title != null)
+                      Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: kAccent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.lightbulb_outline,
-                              color: kAccent,
-                              size: 20,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(2, context)),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(
+                                      getPercentageWidth(2, context)),
+                                ),
+                                child: Icon(
+                                  Icons.lightbulb_outline,
+                                  color: kAccent,
+                                  size: getIconScale(5, context),
+                                ),
+                              ),
+                              SizedBox(width: getPercentageWidth(3, context)),
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: getTextScale(4, context),
+                                    fontWeight: FontWeight.w600,
+                                    color: isDarkMode ? kWhite : kBlack,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
+                          SizedBox(height: getPercentageHeight(1.5, context)),
+                        ],
+                      ),
+
+                    // Message
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: getTextScale(3.5, context),
+                        color: isDarkMode
+                            ? kWhite.withValues(alpha: 0.9)
+                            : kBlack.withValues(alpha: 0.8),
+                        height: 1.4,
+                      ),
+                    ),
+
+                    SizedBox(height: getPercentageHeight(2.5, context)),
+
+                    // Actions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (onSkip != null)
+                          TextButton(
+                            onPressed: () {
+                              removeCurrentOverlay();
+                              onSkip();
+                            },
                             child: Text(
-                              title,
+                              'Skip',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkMode ? kWhite : kBlack,
+                                color: isDarkMode
+                                    ? kWhite.withValues(alpha: 0.6)
+                                    : kBlack.withValues(alpha: 0.6),
+                                fontSize: getTextScale(3.5, context),
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
-
-                // Message
-                Text(
-                  message,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDarkMode
-                        ? kWhite.withValues(alpha: 0.9)
-                        : kBlack.withValues(alpha: 0.8),
-                    height: 1.4,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (onSkip != null)
-                      TextButton(
-                        onPressed: () {
-                          removeCurrentOverlay();
-                          onSkip();
-                        },
-                        child: Text(
-                          'Skip',
-                          style: TextStyle(
-                            color: isDarkMode
-                                ? kWhite.withValues(alpha: 0.6)
-                                : kBlack.withValues(alpha: 0.6),
-                            fontSize: 14,
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        ElevatedButton(
+                          onPressed: () {
+                            removeCurrentOverlay();
+                            onComplete();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: kWhite,
+                            elevation: 0,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(5, context),
+                              vertical: getPercentageHeight(1.2, context),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                  getPercentageWidth(2, context)),
+                            ),
+                          ),
+                          child: Text(
+                            stepNumber != null &&
+                                    totalSteps != null &&
+                                    stepNumber < totalSteps
+                                ? 'Next'
+                                : 'Got it!',
+                            style: TextStyle(
+                              fontSize: getTextScale(3.5, context),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                      ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        removeCurrentOverlay();
-                        onComplete();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kAccent,
-                        foregroundColor: kWhite,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        stepNumber != null &&
-                                totalSteps != null &&
-                                stepNumber < totalSteps
-                            ? 'Next'
-                            : 'Got it!',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -566,10 +590,12 @@ class _PositionCandidate {
 class PopupPositionInfo {
   final Offset position;
   final ArrowDirection arrowDirection;
+  final Size popupSize;
 
   PopupPositionInfo({
     required this.position,
     required this.arrowDirection,
+    required this.popupSize,
   });
 }
 

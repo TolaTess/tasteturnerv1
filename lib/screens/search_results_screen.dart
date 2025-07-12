@@ -17,6 +17,7 @@ class SearchResultGrid extends StatefulWidget {
   final String? searchIngredient; // For passing original technique context
   final Function(String mealId)? onMealToggle;
   final Function()? onSave;
+  final Function(Meal meal)? onRecipeTap; // New callback for recipe navigation
 
   const SearchResultGrid({
     super.key,
@@ -28,6 +29,7 @@ class SearchResultGrid extends StatefulWidget {
     this.screen = 'recipe',
     this.searchQuery,
     this.searchIngredient,
+    this.onRecipeTap,
   });
 
   @override
@@ -50,9 +52,12 @@ class _SearchResultGridState extends State<SearchResultGrid> {
     // Initialize with exactly 15 local meals
     _localMealsDisplayed.value = _localPageSize;
     _hasMore.value = mealManager.meals.length > _localPageSize;
+    _lastSearchQuery = widget.search;
 
-    // If there's an initial search query, perform search
-    if (widget.search.isNotEmpty) {
+    // Only perform search if there's a specific search query, not for initial load
+    if (widget.search.isNotEmpty &&
+        widget.search.toLowerCase() != 'general' &&
+        widget.search.toLowerCase() != 'all') {
       _performSearch();
     }
   }
@@ -60,10 +65,19 @@ class _SearchResultGridState extends State<SearchResultGrid> {
   @override
   void didUpdateWidget(SearchResultGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If search query changed, perform new search
-    if (widget.search != _lastSearchQuery) {
+    // Only perform search if search query actually changed and it's not empty
+    if (widget.search != _lastSearchQuery &&
+        widget.search.isNotEmpty &&
+        widget.search.toLowerCase() != 'general' &&
+        widget.search.toLowerCase() != 'all') {
       _lastSearchQuery = widget.search;
       _performSearch();
+    } else if (widget.search != _lastSearchQuery) {
+      // If search changed to empty/general/all, just reset without fetching
+      _lastSearchQuery = widget.search;
+      _apiMeals.clear();
+      _localMealsDisplayed.value = _localPageSize;
+      _hasMore.value = mealManager.meals.length > _localPageSize;
     }
   }
 
@@ -75,40 +89,33 @@ class _SearchResultGridState extends State<SearchResultGrid> {
     _hasMore.value = true;
     _localMealsDisplayed.value = _localPageSize;
 
-    final querySnapshot = await firestore
-        .collection('meals')
-        .orderBy('createdAt', descending: true)
-        .get();
-
-    final allMeals = querySnapshot.docs
-        .map((doc) => Meal.fromJson(doc.id, doc.data()))
-        .toList();
-
     try {
-      if (widget.search.isNotEmpty) {
-        // Special case: show only user's meals if search == 'myMeals'
-        if (widget.search == 'myMeals') {
-          final userId = userService.userId;
+      if (widget.search.isNotEmpty &&
+          widget.search.toLowerCase() != 'general' &&
+          widget.search.toLowerCase() != 'all') {
+        // Use existing meals data if available to avoid unnecessary Firestore calls
+        List<Meal> allMeals = mealManager.meals;
+
+        // Only fetch from Firestore if we don't have meals data
+        if (allMeals.isEmpty) {
           final querySnapshot = await firestore
               .collection('meals')
-              .where('userId', isEqualTo: userId)
               .orderBy('createdAt', descending: true)
               .get();
 
-          final myMeals = querySnapshot.docs
+          allMeals = querySnapshot.docs
               .map((doc) => Meal.fromJson(doc.id, doc.data()))
               .toList();
+        }
+
+        // Special case: show only user's meals if search == 'myMeals'
+        if (widget.search == 'myMeals') {
+          final userId = userService.userId;
+          final myMeals =
+              allMeals.where((meal) => meal.userId == userId).toList();
           _apiMeals.addAll(myMeals);
           _hasMore.value = false;
           _localMealsDisplayed.value = myMeals.length;
-        } else if (widget.search.toLowerCase() == 'all' ||
-            widget.search.toLowerCase() == 'general') {
-          // Treat as no search: use local meals, paginated
-          _apiMeals.clear();
-          _hasMore.value = mealManager.meals.length > _localPageSize;
-          _localMealsDisplayed.value = _localPageSize;
-          _isLoading.value = false;
-          return;
         } else {
           List<Meal> filteredMeals = [];
           if (widget.screen == 'ingredient') {
@@ -338,14 +345,21 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                           widget.onMealToggle!(meal.mealId);
                         }
                       }
-                    : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RecipeDetailScreen(
-                              mealData: meal,
+                    : () {
+                        // Use the callback if provided, otherwise fall back to direct navigation
+                        if (widget.onRecipeTap != null) {
+                          widget.onRecipeTap!(meal);
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipeDetailScreen(
+                                mealData: meal,
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        }
+                      },
                 height: getPercentageHeight(22, context),
               );
             },

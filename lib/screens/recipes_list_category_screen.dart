@@ -53,19 +53,83 @@ class RecipeListCategory extends StatefulWidget {
 
 class _RecipeListCategoryState extends State<RecipeListCategory> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String searchQuery = '';
   List<String> selectedMealIds = [];
   String selectedCategory = 'general';
   String selectedCategoryId = '';
   String selectedDietFilter = '';
   bool _isRefreshing = false;
+  double _savedScrollPosition = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _onRefresh();
+    // Remove automatic refresh call to prevent double loading
     _searchController.text = widget.searchIngredient;
+
+    // Only refresh if we don't have data yet
+    if (mealManager.meals.isEmpty) {
+      _onRefresh();
+    }
+
+    // Restore scroll position after the widget is built with a delay for smoother UX
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          _restoreScrollPosition();
+        }
+      });
+    });
   }
+
+  @override
+  void dispose() {
+    _saveScrollPosition();
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _saveScrollPosition() {
+    if (_scrollController.hasClients) {
+      _savedScrollPosition = _scrollController.offset;
+      // Store in a global map or shared preferences for persistence across app sessions
+      // For now, we'll use a simple static map
+      _scrollPositions[_getScrollKey()] = _savedScrollPosition;
+    }
+  }
+
+  void _restoreScrollPosition() {
+    final key = _getScrollKey();
+    final savedPosition = _scrollPositions[key];
+    if (savedPosition != null && _scrollController.hasClients) {
+      final currentPosition = _scrollController.offset;
+      final scrollDistance = (savedPosition - currentPosition).abs();
+
+      // If the scroll distance is very large (more than 2 screen heights),
+      // jump instantly to avoid very long animations
+      if (scrollDistance > MediaQuery.of(context).size.height * 2) {
+        _scrollController.jumpTo(savedPosition);
+      } else {
+        // Use smooth animation for shorter distances
+        _scrollController.animateTo(
+          savedPosition,
+          duration: Duration(
+              milliseconds: (scrollDistance / 2).clamp(400, 1000).round()),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  String _getScrollKey() {
+    // Create a unique key based on the screen parameters
+    return 'recipes_${widget.searchIngredient}_${widget.screen}_${widget.index}';
+  }
+
+  // Static map to store scroll positions
+  static final Map<String, double> _scrollPositions = {};
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return; // Prevent multiple simultaneous refreshes
@@ -75,33 +139,25 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     });
 
     try {
-      // Clear any cached data first
-      await _clearCachedData();
-
-      // Fetch fresh general data
-      await firebaseService.fetchGeneralData();
+      // Only fetch general data if we don't have any meals yet
+      if (mealManager.meals.isEmpty) {
+        await firebaseService.fetchGeneralData();
+      }
 
       // Determine what category/search to refresh based on current state
       String refreshTarget = _determineRefreshTarget();
 
-      // Fetch fresh meals for the current view
-      await mealManager.fetchMealsByCategory(refreshTarget);
+      // Only fetch meals if we have a specific target
+      if (refreshTarget != 'general' && refreshTarget != 'all') {
+        await mealManager.fetchMealsByCategory(refreshTarget);
+      }
 
       // If there's a search query, also refresh search results
       if (searchQuery.isNotEmpty) {
         await mealManager.searchMeals(searchQuery);
-      } else if (widget.searchIngredient.isNotEmpty) {
+      } else if (widget.searchIngredient.isNotEmpty &&
+          widget.searchIngredient != 'general') {
         await mealManager.searchMeals(widget.searchIngredient);
-      }
-
-      // Refresh curated meals if user has diet preference
-      final dietPreference =
-          userService.currentUser.value?.settings['dietPreference'];
-      if (dietPreference != null &&
-          !widget.isNoTechnique &&
-          searchQuery.isEmpty) {
-        await mealManager
-            .fetchMealsByCategory(dietPreference.toString().toLowerCase());
       }
     } catch (e) {
       print('Error refreshing recipes: $e');
@@ -123,12 +179,6 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     }
   }
 
-  Future<void> _clearCachedData() async {
-    // Force fresh data by clearing any internal state
-    // The fetchMealsByCategory and searchMeals calls will get fresh data
-    await Future.delayed(Duration.zero); // Placeholder for any cleanup needed
-  }
-
   String _determineRefreshTarget() {
     // Determine what to refresh based on current screen state
     if (searchQuery.isNotEmpty) {
@@ -138,12 +188,6 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     } else {
       return selectedCategory;
     }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void toggleMealSelection(String mealId) {
@@ -170,6 +214,29 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         }
       });
     }
+  }
+
+  // Helper method to navigate to recipe detail with scroll position saving
+  void _navigateToRecipeDetail(Meal meal) {
+    // Save scroll position before navigating
+    _saveScrollPosition();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecipeDetailScreen(
+          mealData: meal,
+        ),
+      ),
+    ).then((_) {
+      // When returning from recipe detail, restore scroll position with a slight delay
+      // This allows the UI to settle before scrolling
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _restoreScrollPosition();
+        }
+      });
+    });
   }
 
   Future<void> addMealsToMealPlan(
@@ -283,6 +350,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
             strokeWidth: 3,
             onRefresh: _onRefresh,
             child: CustomScrollView(
+              controller: _scrollController,
               slivers: [
                 SliverToBoxAdapter(
                   child: Column(
@@ -316,7 +384,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               final dietPreference = userService.currentUser
                                   .value?.settings['dietPreference'];
                               if (dietPreference != null &&
-                                  !widget.isNoTechnique) {
+                                  !widget.isNoTechnique &&
+                                  searchQuery.isEmpty) {
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -382,7 +451,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                     ),
                                     FutureBuilder<List<Meal>>(
                                       key: ValueKey(
-                                          'curated_${dietPreference}_${_isRefreshing ? DateTime.now().millisecondsSinceEpoch : ''}'),
+                                          'curated_${dietPreference}_${widget.searchIngredient}_${searchQuery.isEmpty ? 'no_search' : 'searching'}'),
                                       future: mealManager.fetchMealsByCategory(
                                         dietPreference.toString().toLowerCase(),
                                       ),
@@ -459,16 +528,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                                   index: index,
                                                   isRecipe: true,
                                                   onTap: () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            RecipeDetailScreen(
-                                                          mealData: meal,
-                                                          screen: 'recipe',
-                                                        ),
-                                                      ),
-                                                    );
+                                                    _navigateToRecipeDetail(
+                                                        meal);
                                                   },
                                                 );
                                               },
@@ -535,6 +596,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
                 // Recipes list per category
                 SearchResultGrid(
+                  key: ValueKey(
+                      'search_grid_${widget.screen}_${widget.searchIngredient}_${searchQuery}_${_isRefreshing ? 'refreshing' : 'stable'}'),
                   search: searchQuery.isEmpty && widget.searchIngredient.isEmpty
                       ? selectedCategory
                       : (searchQuery.isEmpty
@@ -548,6 +611,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   selectedMealIds: selectedMealIds,
                   onMealToggle: toggleMealSelection,
                   screen: widget.screen,
+                  onRecipeTap: _navigateToRecipeDetail,
                 ),
               ],
             ),
@@ -555,41 +619,10 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
           // Loading overlay when refreshing
           if (_isRefreshing)
-            Positioned.fill(
-              child: Container(
-                color: isDarkMode
-                    ? Colors.black.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.3),
-                child: Center(
-                  child: Container(
-                    padding: EdgeInsets.all(getPercentageWidth(4, context)),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? kDarkGrey : kWhite,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(color: kAccent),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        Text(
-                          'Refreshing recipes...',
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kBlack,
-                            fontSize: getTextScale(3.5, context),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            const Positioned.fill(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: kAccent,
                 ),
               ),
             ),

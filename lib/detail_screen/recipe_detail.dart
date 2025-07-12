@@ -188,7 +188,7 @@ class SlvAppBar extends StatelessWidget {
         placeholder: Container(
           color: Colors.grey[200],
           child: const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: kAccent),
           ),
         ),
         errorWidget: Image.asset(
@@ -226,7 +226,7 @@ class SlvAppBar extends StatelessWidget {
                 : kWhite.withValues(alpha: 0.4),
             child: IconButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Get.back();
               },
               icon: Icon(
                 Icons.arrow_back_ios_new,

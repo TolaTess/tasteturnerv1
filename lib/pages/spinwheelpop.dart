@@ -12,7 +12,6 @@ import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
-import '../widgets/premium_widget.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
 
@@ -286,7 +285,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       setState(() {
         _ingredientList = widget.ingredientList
             .map((ingredient) => ingredient.title)
-            .take(10)
+            .take(20)
             .toList();
       });
     } else {
@@ -540,30 +539,37 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             if (dietPreference != null)
               Expanded(
                 flex: 1,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context),
-                    vertical: getPercentageHeight(1.3, context),
-                  ),
-                  decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: GestureDetector(
-                    onTap: () {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() {
-                            selectedCategoryIdMeal = dietPreference;
-                            selectedCategoryMeal = dietPreference;
-                          });
-                          _updateMealListByType();
-                        }
+                child: GestureDetector(
+                  onTap: () {
+                    if (mounted) {
+                      setState(() {
+                        selectedCategoryIdMeal = dietPreference;
+                        selectedCategoryMeal = dietPreference;
                       });
-                    },
-                    child: Text(
-                      dietPreference,
-                      style: textTheme.titleMedium?.copyWith(color: kAccent),
+                      _updateMealListByType();
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context),
+                      vertical: getPercentageHeight(1.3, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedCategoryMeal.toLowerCase() ==
+                              dietPreference.toLowerCase()
+                          ? kAccent.withValues(alpha: 0.2)
+                          : kLightGrey.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        dietPreference,
+                        style: textTheme.titleMedium?.copyWith(
+                            color: selectedCategoryMeal.toLowerCase() ==
+                                    dietPreference.toLowerCase()
+                                ? kAccent
+                                : kLightGrey),
+                      ),
                     ),
                   ),
                 ),

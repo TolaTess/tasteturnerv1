@@ -398,7 +398,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     });
   }
 
-
   Future<void> _generateMealFromIngredients(displayedItems) async {
     try {
       showDialog(

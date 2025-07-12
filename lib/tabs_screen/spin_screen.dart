@@ -30,15 +30,28 @@ class _SpinScreenState extends State<SpinScreen>
   }
 
   Future<void> _fetchData() async {
-    final ingredients = await macroManager.getIngredientsByCategory('all');
-    final uniqueTypes = await macroManager.getUniqueTypes(ingredients);
-    final mealListData = await mealManager.fetchMealsByCategory('all');
-    if (mounted) {
-      setState(() {
-        ingredientList = ingredients;
-        macroList = uniqueTypes;
-        mealList = mealListData;
-      });
+    try {
+      final ingredients = await macroManager.getFirstNIngredients(100);
+
+      final uniqueTypes = await macroManager.getUniqueTypes(ingredients);
+
+      final mealListData = await mealManager.fetchMealsByCategory('all');
+
+      if (mounted) {
+        setState(() {
+          ingredientList = ingredients;
+          macroList = uniqueTypes;
+          mealList = mealListData;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          ingredientList = [];
+          macroList = [];
+          mealList = [];
+        });
+      }
     }
   }
 

@@ -12,6 +12,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 class MacroManager extends GetxController {
   static final MacroManager instance = Get.put(MacroManager());
+  static int _instanceCount = 0;
   final BattleService _battleService = Get.find<BattleService>();
   final FirebaseFunctions functions = FirebaseFunctions.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -25,6 +26,12 @@ class MacroManager extends GetxController {
 
   StreamSubscription? _shoppingListSubscription;
 
+  MacroManager() {
+    _instanceCount++;
+    print(
+        'MacroManager constructor called. Instance count: $_instanceCount, hashCode: ${hashCode}');
+  }
+
   // Getter to retrieve ingredients
   List<MacroData> get ingredient => _demoIngredientData;
   List<Map<String, dynamic>> get ingredientBattle => _ingredientBattle;
@@ -35,9 +42,14 @@ class MacroManager extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
     if (userService.userId != null) {
       _listenToShoppingList(userService.userId!);
     }
+
+    // Initialize ingredients data on startup
+    _initializeIngredients();
+
     // Listen for auth changes to start/stop the listener
     auth.authStateChanges().listen((user) {
       _shoppingListSubscription?.cancel();
@@ -52,6 +64,14 @@ class MacroManager extends GetxController {
     });
   }
 
+  Future<void> _initializeIngredients() async {
+    try {
+      await fetchIngredients();
+    } catch (e) {
+      print('MacroManager _initializeIngredients error: $e');
+    }
+  }
+
   @override
   void onClose() {
     _shoppingListSubscription?.cancel();
@@ -61,14 +81,29 @@ class MacroManager extends GetxController {
   Future<void> fetchIngredients() async {
     try {
       final snapshot = await firestore.collection('ingredients').get();
+
       if (snapshot.docs.isEmpty) {
         _demoIngredientData = [];
         return;
       }
-      _demoIngredientData = snapshot.docs
-          .map((doc) => MacroData.fromJson(doc.data(), doc.id))
-          .whereType<MacroData>()
-          .toList();
+
+      List<MacroData> tempList = [];
+      int successCount = 0;
+      int errorCount = 0;
+
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          final macro = MacroData.fromJson(data, doc.id);
+          tempList.add(macro);
+          successCount++;
+        } catch (docError) {
+          print('Error parsing document ${doc.id}: $docError');
+          errorCount++;
+        }
+      }
+
+      _demoIngredientData = tempList;
     } catch (e) {
       _demoIngredientData = [];
     }
@@ -370,9 +405,29 @@ class MacroManager extends GetxController {
     return _getRandomMacroData(filteredData, 2);
   }
 
+  bool _isFetching = false;
+
   Future<void> _ensureDataFetched() async {
-    if (_demoIngredientData.isEmpty) {
+    if (_demoIngredientData.isNotEmpty) {
+      return;
+    }
+
+    if (_isFetching) {
+      // Wait for the current fetch to complete
+      while (_isFetching) {
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      return;
+    }
+
+    _isFetching = true;
+    try {
+      print('_ensureDataFetched: fetching ingredients');
+      print('Before fetch - ingredient.length: ${ingredient.length}');
       await fetchIngredients();
+      print('After fetch - ingredient.length: ${ingredient.length}');
+    } finally {
+      _isFetching = false;
     }
   }
 
@@ -380,6 +435,12 @@ class MacroManager extends GetxController {
     if (_ingredientBattle.isEmpty) {
       await fetchIngredientBattle();
     }
+  }
+
+  Future<List<MacroData>> getIngredients() async {
+    await _ensureDataFetched();
+
+    return ingredient;
   }
 
   Future<List<MacroData>> getIngredientsByCategory(String category) async {
@@ -599,8 +660,9 @@ class MacroManager extends GetxController {
   }
 
   Future<List<String>> getUniqueTypes(List<MacroData> macroDataList) async {
-    return ingredient
-        .map((macroDataList) => macroDataList.type)
+    return macroDataList
+        .map((macro) => macro.type)
+        .where((type) => type.isNotEmpty)
         .toSet()
         .toList();
   }
@@ -841,5 +903,54 @@ class MacroManager extends GetxController {
       }
     }
     return ingredientsMap;
+  }
+
+  /// Returns the first [n] ingredients after ensuring data is fetched.
+  /// Ensures at least one of each type (protein, grain, vegetable, fruit) is included.
+  Future<List<MacroData>> getFirstNIngredients(int n) async {
+    await _ensureDataFetched();
+    
+    if (ingredient.isEmpty) return [];
+    
+    // Define the required types
+    final requiredTypes = ['protein', 'grain', 'vegetable', 'fruit'];
+    
+    // Get one ingredient of each required type
+    List<MacroData> result = [];
+    for (String type in requiredTypes) {
+      final typeIngredients = ingredient
+          .where((item) => item.type.toLowerCase() == type.toLowerCase())
+          .toList();
+      
+      if (typeIngredients.isNotEmpty) {
+        result.add(typeIngredients.first);
+      }
+    }
+    
+    // Fill the remaining slots with other ingredients
+    final remainingIngredients = ingredient
+        .where((item) => !result.contains(item))
+        .take(n - result.length)
+        .toList();
+    
+    result.addAll(remainingIngredients);
+    
+    // If we still don't have enough ingredients, add more from the original list
+    if (result.length < n && ingredient.length > result.length) {
+      final additionalIngredients = ingredient
+          .where((item) => !result.contains(item))
+          .take(n - result.length)
+          .toList();
+      result.addAll(additionalIngredients);
+    }
+
+    return result;
+  }
+
+  /// Force refresh ingredients data
+  Future<void> forceRefreshIngredients() async {
+    _demoIngredientData.clear();
+    _isFetching = false;
+    await fetchIngredients();
   }
 }
