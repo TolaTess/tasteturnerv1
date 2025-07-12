@@ -109,7 +109,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
       width: double.infinity,
       padding: EdgeInsets.all(getPercentageWidth(5, context)),
       decoration: BoxDecoration(
-          color: kAccent.withValues(alpha: 0.1),
+        color: kAccent.withValues(alpha: 0.1),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -182,13 +182,13 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
                     builder: (context) => RecipeListCategory(
                       index: 0,
                       searchIngredient: searchIngredient,
-                      isFilter: true,
                       screen: 'technique',
+                      isNoTechnique: true,
                     ),
                   ),
                 );
               },
-              child: Container( 
+              child: Container(
                 padding: EdgeInsets.symmetric(
                   horizontal: getPercentageWidth(2, context),
                   vertical: getPercentageHeight(0.5, context),
@@ -214,7 +214,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
           padding: EdgeInsets.all(getPercentageWidth(4, context)),
           decoration: BoxDecoration(
             color: isDarkMode
-                  ? kLightGrey.withValues(alpha: 0.1)
+                ? kLightGrey.withValues(alpha: 0.1)
                 : kLightGrey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),

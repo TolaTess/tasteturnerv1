@@ -287,8 +287,6 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: getPercentageHeight(1, context)),
-
                       widget.isFilter
                           ? const SizedBox.shrink()
                           : SizedBox(height: getPercentageHeight(2, context)),
@@ -301,7 +299,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               child: SearchButton2(
                                 controller: _searchController,
                                 onChanged: _onSearchChanged,
-                                kText: searchMealHint,
+                                kText: capitalizeFirstLetter(searchMealHint),
                               ),
                             ),
                       widget.isFilter || searchQuery.isNotEmpty

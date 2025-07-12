@@ -135,7 +135,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
         verticalOffset: getPercentageHeight(5, context),
         horizontalOffset: getPercentageWidth(2, context),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton( 
         key: _addUploadButtonKey,
         onPressed: () {
           Get.to(

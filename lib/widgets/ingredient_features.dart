@@ -56,12 +56,32 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     }).toList();
   }
 
+  // Helper method to get technique-filtered items (only for initial display)
+  List<MacroData> get _techniqueFilteredItems {
+    if (widget.screen != 'technique' ||
+        widget.searchIngredient == null ||
+        widget.searchIngredient!.isEmpty) {
+      return widget.items;
+    }
+
+    return widget.items.where((item) {
+      return item.techniques.any((technique) => technique
+          .toLowerCase()
+          .contains(widget.searchIngredient!.toLowerCase()));
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
     _searchController.text = widget.searchIngredient ?? '';
     // Apply initial filtering based on searchIngredient
-    _filteredItems = _baseFilteredItems.take(10).toList();
+    // For technique screen, start with technique-filtered items
+    if (widget.screen == 'technique') {
+      _filteredItems = _techniqueFilteredItems.take(10).toList();
+    } else {
+      _filteredItems = _baseFilteredItems.take(10).toList();
+    }
 
     // Fetch user's shopping list and pre-select items
     _preselectShoppingList();
@@ -123,15 +143,20 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   void _filterItems(String query) {
     setState(() {
       if (query.isEmpty) {
-        // When search is empty, show base filtered items (considering searchIngredient)
-        _filteredItems = _baseFilteredItems.take(10).toList();
+        // When search is empty, show initial filtered items
+        if (widget.screen == 'technique') {
+          _filteredItems = _techniqueFilteredItems.take(10).toList();
+        } else {
+          _filteredItems = _baseFilteredItems.take(10).toList();
+        }
         _displayedItemCount = 10;
       } else {
-        // Apply search query on top of base filtered items
+        // When there's a search query, search through ALL items (not just technique-filtered)
         if (widget.screen == 'technique') {
-          _filteredItems = _baseFilteredItems
-              .where((item) => item.techniques.any((technique) =>
-                  technique.toLowerCase().contains(query.toLowerCase())))
+          // For technique screen, search through all items by title
+          _filteredItems = widget.items
+              .where((item) =>
+                  item.title.toLowerCase().contains(query.toLowerCase()))
               .toList();
         } else {
           _filteredItems = _baseFilteredItems
@@ -154,7 +179,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
     setState(() {
       if (widget.screen == 'technique') {
-        // For technique screen, reset the list to show all base items
+        // For technique screen, reset the list to show all items
         _searchController.clear();
         _filteredItems = widget.items.take(10).toList();
         _displayedItemCount = 10;
@@ -190,10 +215,10 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     // Update hasMoreItems condition to work with base filtered items
     final bool hasMoreItems;
     if (widget.screen == 'technique') {
-      // For technique screen, show button when there's a filter applied that can be reset
+      // For technique screen, show button when there's a technique filter applied that can be reset
       hasMoreItems = widget.searchIngredient != null &&
           widget.searchIngredient!.isNotEmpty &&
-          _baseFilteredItems.length < widget.items.length;
+          _techniqueFilteredItems.length < widget.items.length;
     } else {
       if (_searchController.text.isEmpty) {
         hasMoreItems = _baseFilteredItems.length > _filteredItems.length;

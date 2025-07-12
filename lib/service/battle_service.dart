@@ -209,8 +209,6 @@ class BattleService extends GetxController {
         });
       });
 
-      print(
-          'Found ${participantList.length} participants for battle: $battleId');
       return participantList;
     } catch (e) {
       print('Error getting battle participants: $e');

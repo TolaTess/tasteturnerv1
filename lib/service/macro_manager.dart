@@ -493,8 +493,6 @@ class MacroManager extends GetxController {
         });
       }
 
-      print(
-          'Found ${battleIngredients.length} ingredients for battle: $currentBattleKey');
       return battleIngredients;
     } catch (e) {
       print('Error getting ingredients battle: $e');

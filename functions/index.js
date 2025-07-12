@@ -103,12 +103,12 @@ exports.generateBattleIngredients = functions.pubsub
       const newBattlePayload = {
         dates: {
           [battleDateKey]: {
-            ingredients: ingredientsData,
-            participants: {},
-            voted: [],
-            status: "active",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            battleDeadline: admin.firestore.Timestamp.fromDate(deadline),
+          ingredients: ingredientsData,
+          participants: {},
+          voted: [],
+          status: "active",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          battleDeadline: admin.firestore.Timestamp.fromDate(deadline),
           },
         },
       };
