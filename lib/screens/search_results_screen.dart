@@ -12,6 +12,9 @@ class SearchResultGrid extends StatefulWidget {
   final List<String> selectedMealIds;
   final String search;
   final String screen;
+  final String?
+      searchQuery; // For distinguishing between initial filter and search
+  final String? searchIngredient; // For passing original technique context
   final Function(String mealId)? onMealToggle;
   final Function()? onSave;
 
@@ -23,6 +26,8 @@ class SearchResultGrid extends StatefulWidget {
     this.onMealToggle,
     this.onSave,
     this.screen = 'recipe',
+    this.searchQuery,
+    this.searchIngredient,
   });
 
   @override
@@ -117,20 +122,57 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                         .contains(widget.search.toLowerCase())))
                 .toList();
           } else if (widget.screen == 'technique') {
+            if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+              // User is searching - first filter by technique, then search within results
+
+              // Get the original technique from searchIngredient parameter
+              String originalTechnique =
+                  widget.searchIngredient ?? widget.search;
+
+              // First, get technique-filtered meals
+              final techniqueFilteredMeals = allMeals
+                  .where((meal) => originalTechnique.contains('&')
+                      ? originalTechnique.toLowerCase().split('&').every(
+                          (method) => meal.cookingMethod!
+                              .toLowerCase()
+                              .contains(method.trim()))
+                      : meal.cookingMethod!
+                          .toLowerCase()
+                          .contains(originalTechnique.toLowerCase()))
+                  .toList();
+
+              // Then search within technique-filtered meals
+              filteredMeals = techniqueFilteredMeals
+                  .where((meal) => meal.title
+                      .toLowerCase()
+                      .contains(widget.searchQuery!.toLowerCase()))
+                  .toList();
+            } else {
+              // No search query, show technique-filtered meals
+              filteredMeals = allMeals
+                  .where((meal) => widget.search.contains('&')
+                      ? widget.search.toLowerCase().split('&').every((method) =>
+                          meal.cookingMethod!
+                              .toLowerCase()
+                              .contains(method.trim()))
+                      : meal.cookingMethod!
+                          .toLowerCase()
+                          .contains(widget.search.toLowerCase()))
+                  .toList();
+            }
+          } else {
+            // Default search: search by title, ingredients, and categories
             filteredMeals = allMeals
                 .where((meal) =>
-                    widget.search.contains('&')
-                        ? widget.search
-                            .toLowerCase()
-                            .split('&')
-                            .every((method) => meal.cookingMethod!.toLowerCase().contains(method.trim()))
-                        : meal.cookingMethod!.toLowerCase().contains(widget.search.toLowerCase()))
-                .toList();
-          } else {
-            filteredMeals = allMeals
-                .where((meal) => (meal.categories).any((category) => category
-                    .toLowerCase()
-                    .contains(widget.search.toLowerCase())))
+                    meal.title
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase()) ||
+                    (meal.ingredients).keys.any((ingredient) => ingredient
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase())) ||
+                    (meal.categories).any((category) => category
+                        .toLowerCase()
+                        .contains(widget.search.toLowerCase())))
                 .toList();
           }
 
@@ -267,7 +309,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                               padding: EdgeInsets.symmetric(
                                   horizontal: getPercentageWidth(2, context),
                                   vertical: getPercentageHeight(1, context)),
-                                backgroundColor: kAccent.withValues(alpha: 0.1),
+                              backgroundColor: kAccent.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),

@@ -572,16 +572,13 @@ class ChatItem extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                               getPercentageWidth(1, context)),
                           child: url.contains('http')
-                              ? Image.network(
-                                  url,
+                              ? buildOptimizedNetworkImage(
+                                  imageUrl: url,
                                   height: getPercentageHeight(20, context),
                                   width: getPercentageWidth(60, context),
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Image.asset(
-                                    intPlaceholderImage,
-                                    fit: BoxFit.cover,
-                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                      getPercentageWidth(1, context)),
                                 )
                               : Image.asset(
                                   height: getPercentageHeight(30, context),

@@ -459,15 +459,13 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
           width: width, height: height, fit: BoxFit.cover);
     }
     if (imageUrl.startsWith('http')) {
-      return Image.network(
-        imageUrl,
+      return buildOptimizedNetworkImage(
+        imageUrl: imageUrl,
         width: width,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(intPlaceholderImage,
-              width: width, height: height, fit: BoxFit.cover);
-        },
+        errorWidget: Image.asset(intPlaceholderImage,
+            width: width, height: height, fit: BoxFit.cover),
       );
     } else {
       return Image.asset(getAssetImageForItem(imageUrl),

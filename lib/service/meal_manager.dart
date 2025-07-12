@@ -80,6 +80,62 @@ class MealManager extends GetxController {
     }
   }
 
+  // Fetch meals by technique (for technique screen)
+  Future<List<Meal>> fetchMealsByTechnique(String technique) async {
+    if (technique.isEmpty) {
+      return [];
+    }
+    try {
+      final snapshot = await firestore
+          .collection('meals')
+          .where('techniques', arrayContains: technique.toLowerCase())
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return [];
+      }
+
+      return snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              return Meal.fromJson(doc.id, data);
+            } catch (e) {
+              return null;
+            }
+          })
+          .whereType<Meal>()
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Fetch all meals (for searching when on technique screen)
+  Future<List<Meal>> fetchAllMeals() async {
+    try {
+      final snapshot = await firestore.collection('meals').get();
+
+      if (snapshot.docs.isEmpty) {
+        return [];
+      }
+
+      return snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              return Meal.fromJson(doc.id, data);
+            } catch (e) {
+              return null;
+            }
+          })
+          .whereType<Meal>()
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<List<Meal>> getMealsByTitles(List<String> names) async {
     if (names.isEmpty) {
       return [];
@@ -106,7 +162,7 @@ class MealManager extends GetxController {
           .whereType<Meal>()
           .toList();
     } catch (e) {
-      return [];  
+      return [];
     }
   }
 
@@ -263,8 +319,7 @@ class MealManager extends GetxController {
             }
             // Add a small delay to prevent rate limiting
             await Future.delayed(const Duration(milliseconds: 100));
-          } catch (e) {
-          }
+          } catch (e) {}
         }
       }
 

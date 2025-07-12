@@ -76,13 +76,13 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                   mediaPath != null &&
                           mediaPath.isNotEmpty &&
                           mediaPath.startsWith('http')
-                      ? Image.network(
-                          mediaPath,
+                      ? buildOptimizedNetworkImage(
+                          imageUrl: mediaPath,
                           width: double.infinity,
                           height: widget.height,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Image.asset(
+                          borderRadius: BorderRadius.circular(20),
+                          errorWidget: Image.asset(
                             getAssetImageForItem(
                                 widget.recipe.category ?? 'default'),
                             width: double.infinity,
@@ -113,14 +113,16 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                                 const Color(0xff343434).withValues(alpha: 0.1),
                                 const Color(0xff343434).withValues(alpha: 0.5),
                               ],
-                        stops: widget.isSelected ? [0.2, 0.9] : [0.0, 0.8], //todo: make this dynamic 
+                        stops: widget.isSelected
+                            ? [0.2, 0.9]
+                            : [0.0, 0.8], //todo: make this dynamic
                       ),
                     ),
                   ),
 
                   // Favorite button
                   Positioned(
-                      left: getPercentageWidth(1, context),
+                    left: getPercentageWidth(1, context),
                     top: getPercentageWidth(1, context),
                     child: GestureDetector(
                       onTap: widget.enableSelection ? null : _toggleFavorite,
@@ -130,7 +132,8 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Padding(
-                          padding: EdgeInsets.all(getPercentageWidth(0.4, context)),
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(0.4, context)),
                           child: Icon(
                             _isFavorited
                                 ? Icons.favorite
@@ -158,7 +161,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                         // Recipe title
                         Text(
                           widget.recipe.title,
-                            style: textTheme.bodyLarge?.copyWith(
+                          style: textTheme.bodyLarge?.copyWith(
                               fontSize: getPercentageWidth(4, context),
                               fontWeight: FontWeight.w500,
                               color: kWhite),

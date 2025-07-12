@@ -151,10 +151,10 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         }
         _displayedItemCount = 10;
       } else {
-        // When there's a search query, search through ALL items (not just technique-filtered)
+        // When there's a search query, search within the current context
         if (widget.screen == 'technique') {
-          // For technique screen, search through all items by title
-          _filteredItems = widget.items
+          // For technique screen, search only within technique-filtered items
+          _filteredItems = _techniqueFilteredItems
               .where((item) =>
                   item.title.toLowerCase().contains(query.toLowerCase()))
               .toList();
@@ -179,7 +179,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
 
     setState(() {
       if (widget.screen == 'technique') {
-        // For technique screen, reset the list to show all items
+        // For technique screen, "Show All" resets to show all items (not technique-filtered)
         _searchController.clear();
         _filteredItems = widget.items.take(10).toList();
         _displayedItemCount = 10;
@@ -257,7 +257,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             child: SearchButton2(
               controller: _searchController,
               onChanged: _filterItems,
-              kText: 'Search ingredients...',
+              kText: widget.screen == 'technique'
+                  ? 'Search ${capitalizeFirstLetter(widget.searchIngredient ?? '')} ingredients..'
+                  : 'Search ingredients...',
             ),
           ),
 

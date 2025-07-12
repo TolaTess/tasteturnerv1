@@ -242,6 +242,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: true,
@@ -299,7 +300,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               child: SearchButton2(
                                 controller: _searchController,
                                 onChanged: _onSearchChanged,
-                                kText: capitalizeFirstLetter(searchMealHint),
+                                kText: widget.screen == 'technique'
+                                    ? 'Search ${capitalizeFirstLetter(widget.searchIngredient)} meals..'
+                                    : searchMealHint,
                               ),
                             ),
                       widget.isFilter || searchQuery.isNotEmpty
@@ -537,6 +540,10 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                       : (searchQuery.isEmpty
                           ? widget.searchIngredient
                           : searchQuery),
+                  searchQuery: searchQuery.isNotEmpty ? searchQuery : null,
+                  searchIngredient: widget.searchIngredient.isNotEmpty
+                      ? widget.searchIngredient
+                      : null,
                   enableSelection: widget.isMealplan,
                   selectedMealIds: selectedMealIds,
                   onMealToggle: toggleMealSelection,

@@ -18,6 +18,7 @@ import '../pages/photo_manager.dart';
 import '../screens/friend_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/optimized_image.dart';
 
 int currentPage = 0;
 List<MacroData> fullLabelsList = [];
@@ -1001,4 +1002,108 @@ appendMealType(String mealId, String mealType) {
     return '${mealId}/sk';
   }
   return mealId;
+}
+
+/// Builds a network image with graceful error handling for 403 errors
+Widget buildNetworkImage({
+  required String imageUrl,
+  double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+  Widget? placeholder,
+  Widget? errorWidget,
+  BorderRadius? borderRadius,
+}) {
+  // Handle empty or invalid URLs
+  if (imageUrl.isEmpty || !imageUrl.startsWith('http')) {
+    return errorWidget ??
+        Image.asset(
+          intPlaceholderImage,
+          width: width,
+          height: height,
+          fit: fit,
+        );
+  }
+
+  Widget imageWidget = Image.network(
+    imageUrl,
+    width: width,
+    height: height,
+    fit: fit,
+    loadingBuilder: (context, child, loadingProgress) {
+      if (loadingProgress == null) return child;
+      return placeholder ??
+          Container(
+            width: width,
+            height: height,
+            color: Colors.grey[300],
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: kAccent,
+                strokeWidth: 2,
+              ),
+            ),
+          );
+    },
+    errorBuilder: (context, error, stackTrace) {
+      // Log the error for debugging but don't spam the console
+      if (error.toString().contains('403')) {
+        print('🚫 Image access denied (403): ${imageUrl.split('?').first}');
+      } else {
+        print('❌ Image load error: ${error.toString().split('\n').first}');
+      }
+
+      return errorWidget ??
+          Image.asset(
+            intPlaceholderImage,
+            width: width,
+            height: height,
+            fit: fit,
+          );
+    },
+  );
+
+  // Apply border radius if provided
+  if (borderRadius != null) {
+    imageWidget = ClipRRect(
+      borderRadius: borderRadius,
+      child: imageWidget,
+    );
+  }
+
+  return imageWidget;
+}
+
+/// Builds a network image with caching and better error handling
+Widget buildOptimizedNetworkImage({
+  required String imageUrl,
+  double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+  Widget? placeholder,
+  Widget? errorWidget,
+  BorderRadius? borderRadius,
+  bool isProfileImage = false,
+}) {
+  // Handle empty or invalid URLs
+  if (imageUrl.isEmpty || !imageUrl.startsWith('http')) {
+    return errorWidget ??
+        Image.asset(
+          intPlaceholderImage,
+          width: width,
+          height: height,
+          fit: fit,
+        );
+  }
+
+  return OptimizedImage(
+    imageUrl: imageUrl,
+    width: width,
+    height: height,
+    fit: fit,
+    borderRadius: borderRadius,
+    isProfileImage: isProfileImage,
+    placeholder: placeholder,
+    errorWidget: errorWidget,
+  );
 }

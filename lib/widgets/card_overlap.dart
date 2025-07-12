@@ -260,7 +260,8 @@ class _OverlappingCardState extends State<OverlappingCard>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: widget.isSelected ? 0.3 : 0.1),
+              color:
+                  Colors.black.withValues(alpha: widget.isSelected ? 0.3 : 0.1),
               blurRadius: widget.isSelected ? 16 : 8,
               offset: Offset(0, widget.isSelected ? 8 : 4),
               spreadRadius: widget.isSelected ? 3 : 0,
@@ -274,35 +275,19 @@ class _OverlappingCardState extends State<OverlappingCard>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: imageUrl.startsWith('http')
-                      ? Image.network(
-                          imageUrl,
+                      ? buildOptimizedNetworkImage(
+                          imageUrl: imageUrl,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: widget.color.withValues(alpha: 0.3),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes !=
-                                          null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                  color: widget.color,
-                                  strokeWidth: 2,
-                                ),
+                          borderRadius: BorderRadius.circular(16),
+                          placeholder: Container(
+                            color: widget.color.withValues(alpha: 0.3),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: widget.color,
+                                strokeWidth: 2,
                               ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            // Log the error for debugging
-                            print(
-                                'Failed to load image: $imageUrl, Error: $error');
-                            return Image.asset(
-                              getAssetImageForItem(imageUrl),
-                              fit: BoxFit.cover,
-                            );
-                          },
+                            ),
+                          ),
                         )
                       : Image.asset(
                           imageUrl,
@@ -389,7 +374,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                                   color: isDarkMode
                                       ? kWhite.withValues(alpha: 0.7)
                                       : kDarkGrey,
-                                  fontSize:  getTextScale(4, context),
+                                  fontSize: getTextScale(4, context),
                                 ),
                                 maxLines: widget.isRecipe ? 3 : 2,
                                 overflow: TextOverflow.ellipsis,

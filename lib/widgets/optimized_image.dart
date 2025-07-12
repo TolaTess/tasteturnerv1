@@ -55,11 +55,20 @@ class OptimizedImage extends StatelessWidget {
             Container(
               color: Colors.grey[300],
               child: const Center(
-                child: CircularProgressIndicator(color: kAccent,),
+                child: CircularProgressIndicator(
+                  color: kAccent,
+                ),
               ),
             ),
-        errorWidget: (context, url, error) =>
-            errorWidget ?? Image.asset(intPlaceholderImage, fit: fit),
+        errorWidget: (context, url, error) {
+          // Log the error for debugging but don't spam the console
+          if (error.toString().contains('403')) {
+            print('🚫 Image access denied (403): ${url.split('?').first}');
+          } else {
+            print('❌ Image load error: ${error.toString().split('\n').first}');
+          }
+          return errorWidget ?? Image.asset(intPlaceholderImage, fit: fit);
+        },
         memCacheWidth: isProfileImage ? 200 : 800, // Optimize memory cache size
         memCacheHeight: isProfileImage ? 200 : 800,
         maxWidthDiskCache:

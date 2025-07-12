@@ -23,11 +23,22 @@ class AvatarUpload extends StatelessWidget {
           //user avatar
           CircleAvatar(
             radius: getResponsiveBoxSize(context, 50, 50),
-            backgroundImage: avatarUrl != null &&
-                    avatarUrl.isNotEmpty &&
-                    avatarUrl.contains('http')
-                ? NetworkImage(avatarUrl)
-                : const AssetImage(intPlaceholderImage) as ImageProvider,
+            child: ClipOval(
+              child: avatarUrl.isNotEmpty && avatarUrl.contains('http')
+                  ? buildOptimizedNetworkImage(
+                      imageUrl: avatarUrl,
+                      width: getResponsiveBoxSize(context, 100, 100),
+                      height: getResponsiveBoxSize(context, 100, 100),
+                      fit: BoxFit.cover,
+                      isProfileImage: true,
+                    )
+                  : Image.asset(
+                      intPlaceholderImage,
+                      width: getResponsiveBoxSize(context, 100, 100),
+                      height: getResponsiveBoxSize(context, 100, 100),
+                      fit: BoxFit.cover,
+                    ),
+            ),
           ),
 
           //camera icon
@@ -41,7 +52,9 @@ class AvatarUpload extends StatelessWidget {
                   borderRadius: BorderRadius.circular(
                     30,
                   ),
-                  border: Border.all(color: Colors.white, width: getPercentageWidth(0.3, context))),
+                  border: Border.all(
+                      color: Colors.white,
+                      width: getPercentageWidth(0.3, context))),
               child: Icon(
                 Icons.photo_camera,
                 color: Colors.white,
