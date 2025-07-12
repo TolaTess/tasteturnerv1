@@ -294,7 +294,10 @@ class TermsOfServiceScreen extends StatelessWidget {
               child: Text(
                 "Terms of Service",
                 style: textTheme.displaySmall
-                    ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
+                    ?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: kAccent,
+                        fontSize: getTextScale(7, context)),
                 textAlign: TextAlign.center,
               ),
             ),

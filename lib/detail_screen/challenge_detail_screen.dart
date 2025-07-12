@@ -55,7 +55,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   bool isFollowing = false;
   int likesCount = 0;
   bool hasMeal = false;
-  bool isInFreeTrial = false;
   List<String> extractedItems = [];
   Map<String, dynamic> get _currentPostData => _posts[_currentIndex];
 
@@ -89,14 +88,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
     Future.delayed(const Duration(milliseconds: 100), () {
       _animationController.forward();
-    });
-
-    // Calculate free trial status
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
     });
 
     _loadCurrentPostData();
@@ -162,11 +153,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     }
   }
 
-  // Check if user can use AI features (premium or free trial)
-  bool get _canUseAI {
-    final isPremium = userService.currentUser.value?.isPremium ?? false;
-    return isPremium || isInFreeTrial;
-  }
 
   bool get _isUserPost {
     return _currentPostData['userId'] == userService.userId;
@@ -246,7 +232,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
               ListTile(
                 leading: Icon(
                   Icons.auto_awesome,
-                  color: _canUseAI ? kAccent : Colors.grey,
+                  color: canUseAI() ? kAccent : Colors.grey,
                   size: getResponsiveBoxSize(context, 24, 24),
                 ),
                 title: Row(
@@ -254,14 +240,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                     Text(
                       'AI Analysis',
                       style: TextStyle(
-                        color: _canUseAI
+                        color: canUseAI()
                             ? (isDarkMode ? kWhite : kBlack)
                             : Colors.grey,
                         fontWeight: FontWeight.w500,
                         fontSize: getTextScale(4, context),
                       ),
                     ),
-                    if (!_canUseAI) ...[
+                    if (!canUseAI()) ...[
                       SizedBox(width: getPercentageWidth(2, context)),
                       Icon(
                         Icons.lock,
@@ -272,11 +258,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                   ],
                 ),
                 subtitle: Text(
-                  _canUseAI
+                  canUseAI()
                       ? 'Let AI analyze the food image'
                       : 'Premium feature - Subscribe to unlock',
                   style: TextStyle(
-                    color: _canUseAI
+                    color: canUseAI()
                         ? (isDarkMode
                             ? kWhite.withValues(alpha: 0.6)
                             : kBlack.withValues(alpha: 0.6))
@@ -284,7 +270,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                     fontSize: getTextScale(3, context),
                   ),
                 ),
-                onTap: _canUseAI
+                onTap: canUseAI()
                     ? () {
                         Navigator.of(context).pop();
                         _analyzeWithAI(isDarkMode);

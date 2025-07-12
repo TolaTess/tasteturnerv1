@@ -921,6 +921,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     "alternatives": ["alternative1", "alternative2", ...],
     "additions": ["addition1", "addition2", ...]
   },
+  "instructions": ["instruction1", "instruction2", ...],
   "dietaryFlags": {
     "vegetarian": boolean,
     "vegan": boolean,
@@ -1127,7 +1128,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     required String imagePath,
   }) async {
     try {
-      final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final docId = firestore.collection('tastyanalysis').doc().id;
 
       final analysisData = {
@@ -1140,8 +1140,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       await firestore
           .collection('tastyanalysis')
           .doc(docId)
-          .collection(date)
-          .doc(userId)
           .set(analysisData, SetOptions(merge: true));
     } catch (e) {
       print('Error saving analysis to Firestore: $e');
@@ -1188,6 +1186,24 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
         title = foodItems.first['name'] ?? 'AI Analyzed Food';
       }
 
+      // Handle instructions properly - ensure it's a List<String>
+      List<String> instructions = [
+        'Food analyzed by AI \nNutrition and ingredients estimated from image analysis'
+      ];
+
+      final existingInstructions = analysisResult['instructions'];
+      if (existingInstructions != null) {
+        if (existingInstructions is List) {
+          // Convert each item to string
+          instructions
+              .addAll(existingInstructions.map((item) => item.toString()));
+        } else if (existingInstructions is String) {
+          instructions.add(existingInstructions);
+        }
+      }
+
+      analysisResult['instructions'] = instructions;
+
       final meal = Meal(
         mealId: finalMealId,
         userId: userId,
@@ -1202,12 +1218,10 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
           'carbs': (totalNutrition['carbs'] as num?)?.toString() ?? '0',
           'fat': (totalNutrition['fat'] as num?)?.toString() ?? '0',
         },
-        instructions: [
-          'Food analyzed by AI',
-          'Nutritional information estimated from image analysis',
-        ],
+        instructions: analysisResult['instructions'],
         categories: ['ai-analyzed', mealType.toLowerCase()],
         category: 'ai-analyzed',
+        suggestions: analysisResult['suggestions'],
       );
 
       await docRef.set(meal.toJson());

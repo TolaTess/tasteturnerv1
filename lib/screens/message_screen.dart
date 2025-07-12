@@ -29,7 +29,6 @@ class _MessageScreenState extends State<MessageScreen>
   final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addFriendButtonKey = GlobalKey();
   final GlobalKey _addArchiveButtonKey = GlobalKey();
-  bool isInFreeTrial = false;
 
   bool lastStatus = true;
 
@@ -60,12 +59,6 @@ class _MessageScreenState extends State<MessageScreen>
     }
 
     friendController.getAllFriendData(userService.userId ?? '');
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
     super.initState();
     // Show tutorial popup after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -238,7 +231,7 @@ class _MessageScreenState extends State<MessageScreen>
                   left: getPercentageWidth(2.5, context),
                 ),
                 child: GestureDetector(
-                    onTap: () =>  Get.back(),
+                  onTap: () => Get.back(),
                   child: IconCircleButton(
                     isRemoveContainer: true,
                     size: getIconScale(6, context),
@@ -418,7 +411,6 @@ class _MessageScreenState extends State<MessageScreen>
         context: context,
         buttonKey: _addBuddyKey,
         themeProvider: themeProvider,
-        isInFreeTrial: isInFreeTrial,
       ),
     );
   }

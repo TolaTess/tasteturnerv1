@@ -19,12 +19,11 @@ Widget buildTastyFloatingActionButton({
   required BuildContext context,
   required Key? buttonKey,
   required ThemeProvider themeProvider,
-  required bool isInFreeTrial,
 }) {
   return FloatingActionButton(
     key: buttonKey,
     onPressed: () {
-      if (isInFreeTrial || userService.currentUser.value!.isPremium) {
+      if (canUseAI()) {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -871,15 +870,6 @@ final colors = [
   kPink.withValues(alpha: kMidOpacity)
 ];
 
-Widget buildFullWidthHomeButton({
-  required BuildContext context,
-  required GlobalKey key,
-  VoidCallback? onSuccess,
-  VoidCallback? onError,
-}) {
-  final isDarkMode = getThemeProvider(context).isDarkMode;
-  final textTheme = Theme.of(context).textTheme;
-
   // Check if user can use AI features (premium or free trial)
   bool canUseAI() {
     final freeTrialDate = userService.currentUser.value?.freeTrialDate;
@@ -888,6 +878,15 @@ Widget buildFullWidthHomeButton({
     final isPremium = userService.currentUser.value?.isPremium ?? false;
     return isPremium || isFreeTrial;
   }
+
+Widget buildFullWidthHomeButton({
+  required BuildContext context,
+  required GlobalKey key,
+  VoidCallback? onSuccess,
+  VoidCallback? onError,
+}) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
 
   Future<void> handleCameraAction() async {
     // Check if user can use AI features
@@ -911,8 +910,18 @@ Widget buildFullWidthHomeButton({
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: kAccent),
+        builder: (context) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: kAccent),
+              SizedBox(height: getPercentageHeight(2, context)),
+              Text(
+                'Analyzing your meal...',
+                style: textTheme.bodyLarge?.copyWith(color: kAccent),
+              ),
+            ],
+          ),
         ),
       );
 
@@ -1024,47 +1033,37 @@ Widget buildFullWidthHomeButton({
               onTap: handleCameraAction,
               child: Container(
                 height: double.infinity,
-                padding: EdgeInsets.only(left: getPercentageWidth(4, context)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                padding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(1, context),
+                    horizontal: getPercentageWidth(15, context)),
+                child: Stack(
                   children: [
-                    Stack(
-                      children: [
-                        // Icon(
-                        //   Icons.camera_alt,
-                        //   color: canUseAI() ? kAccent : Colors.grey,
-                        //   size: getIconScale(5, context),
-                        // ),
-                        if (!canUseAI())
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.lock,
-                                color: Colors.white,
-                                size: getIconScale(2.5, context),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Analyse\n Your Meal',
-                        style: textTheme.displaySmall?.copyWith(
-                          color: canUseAI() ? kAccentLight : Colors.grey,
-                          fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(3.8, context),
-                        ),
-                        textAlign: TextAlign.center,
+                    Text(
+                      'Analyze\n Your Meal',
+                      style: textTheme.displaySmall?.copyWith(
+                        color: canUseAI() ? kAccentLight : Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.8, context),
                       ),
+                      textAlign: TextAlign.center,
                     ),
+                    if (!canUseAI())
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: kAccentLight.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.lock,
+                            color: Colors.grey,
+                            size: getIconScale(3, context),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1090,52 +1089,36 @@ Widget buildFullWidthHomeButton({
               child: Container(
                 height: double.infinity,
                 padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  vertical: getPercentageHeight(1, context),
+                    horizontal: getPercentageWidth(15, context)),
+                child: Stack(
                   children: [
-                    Stack(
-                      children: [
-                        // CircleAvatar(
-                        //   radius: getIconScale(2.5, context),
-                        //   backgroundColor: canUseAI() ? kAccent : Colors.grey,
-                        //   child: Image.asset(
-                        //     'assets/images/tasty/tasty.png',
-                        //     width: getIconScale(4, context),
-                        //     height: getIconScale(4, context),
-                        //   ),
-                        // ),
-                        if (!canUseAI())
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.lock,
-                                color: Colors.white,
-                                size: getIconScale(2.5, context),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    Expanded(
-                      child: Text(
-                        'Chat with\nTasty AI',
-                        style: textTheme.displaySmall?.copyWith(
-                          color: canUseAI() ? kAccentLight : Colors.grey,
-                          fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(3.8, context),
-                        ),
-                        textAlign: TextAlign.center,
+                    Text(
+                      'Chat with\nTasty AI',
+                      style: textTheme.displaySmall?.copyWith(
+                        color: canUseAI() ? kAccentLight : Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.8, context),
                       ),
+                      textAlign: TextAlign.center,
                     ),
+                    if (!canUseAI())
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: kAccentLight.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.lock,
+                            color: Colors.grey,
+                            size: getIconScale(3, context),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

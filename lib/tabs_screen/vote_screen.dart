@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:tasteturner/widgets/icon_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../service/battle_service.dart';
 
 class VoteScreen extends StatefulWidget {
@@ -34,7 +30,7 @@ class _VoteScreenState extends State<VoteScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchCandidates(widget.category);
+    _fetchCandidates();
   }
 
   @override
@@ -43,79 +39,112 @@ class _VoteScreenState extends State<VoteScreen> {
     super.dispose();
   }
 
-  /// **Fetch candidates based on `category` from Firestore**
-  void _fetchCandidates(String category) async {
+  /// **Fetch candidates based on current battle from Firestore**
+  void _fetchCandidates() async {
     setState(() {
       _isLoading = true;
     });
     try {
       await firebaseService.fetchGeneralData();
-      QuerySnapshot snapshot = await firestore
-          .collection('battles')
-          .where('category', isEqualTo: category.toLowerCase())
-          .get();
+      final currentBattleKey = firebaseService.generalData['currentBattle'];
+
+      if (currentBattleKey == null) {
+        print('No current battle found in general data');
+        if (mounted) {
+          setState(() {
+            candidates = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final snapshot =
+          await firestore.collection('battles').doc('general').get();
+
+      if (!snapshot.exists) {
+        print('General battle document not found');
+        if (mounted) {
+          setState(() {
+            candidates = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final data = snapshot.data() as Map<String, dynamic>;
+
+      if (!data.containsKey('dates') ||
+          data['dates'] is! Map<String, dynamic>) {
+        print('No dates structure found in battle document');
+        if (mounted) {
+          setState(() {
+            candidates = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final dates = data['dates'] as Map<String, dynamic>;
+
+      if (!dates.containsKey(currentBattleKey)) {
+        print('Current battle not found: $currentBattleKey');
+        if (mounted) {
+          setState(() {
+            candidates = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final currentBattle = dates[currentBattleKey] as Map<String, dynamic>;
+      final participants =
+          currentBattle['participants'] as Map<String, dynamic>? ?? {};
 
       List<Map<String, dynamic>> fetchedCandidates = [];
 
-      for (var doc in snapshot.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        // Get current date's battle data
-        final dates = data['dates'] as Map<String, dynamic>;
+      for (var entry in participants.entries) {
+        final userId = entry.key;
+        final user = entry.value as Map<String, dynamic>;
 
-        Map<String, dynamic>? currentBattle;
-        final now = DateTime.now();
+        // Check if user has uploaded media (has mediaPaths)
+        final mediaPaths = user['mediaPaths'] as List<dynamic>?;
+        if (mediaPaths != null && mediaPaths.isNotEmpty) {
+          final imageUrl = mediaPaths.first.toString().trim();
 
-        // Find the battle that is currently active by checking date ranges
-        for (var dateKey in dates.keys) {
-          try {
-            final startDate = DateTime.parse(dateKey);
-            final endDate = startDate.add(const Duration(days: 7));
-            if (now.isAfter(startDate) && now.isBefore(endDate)) {
-              currentBattle = dates[dateKey];
-              break; // Found the active battle
-            }
-          } catch (e) {
-            // Ignore keys that aren't valid dates
-          }
-        }
-
-        // Fallback to the first entry if no active battle is found
-        if (currentBattle == null && dates.isNotEmpty) {
-          currentBattle = dates[dates.keys.first];
-        }
-
-        if (currentBattle != null) {
-          final participants =
-              currentBattle['participants'] as Map<String, dynamic>;
-
-          for (var entry in participants.entries) {
-            final userId = entry.key;
-            final user = entry.value as Map<String, dynamic>;
-            final imageUrl = user['image']?.toString().trim() ?? '';
-
-            // Only add candidates with a valid, uploaded image
-            if (imageUrl.startsWith('http')) {
-              fetchedCandidates.add({
-                'id': doc.id,
-                'category': data['category'] ?? '',
-                'userid': userId,
-                'name': user['name'] ?? '',
-                'image': imageUrl,
-                'votes': List<String>.from(user['votes'] ?? []),
-              });
-            }
+          // Only add candidates with a valid, uploaded image
+          if (imageUrl.startsWith('http')) {
+            fetchedCandidates.add({
+              'id': currentBattleKey, // Use the battle date as ID
+              'category': 'general',
+              'userid': userId,
+              'name': user['name'] ?? '',
+              'image': imageUrl,
+              'votes': List<String>.from(user['votes'] ?? []),
+            });
           }
         }
       }
 
-      // Calculate vote percentages for all candidates
+      // Calculate vote percentages for all candidates based on current battle only
       List<Map<String, dynamic>> candidatesWithPercentages = [];
+
+      // Calculate total votes in current battle
+      int totalVotes = 0;
       for (var candidate in fetchedCandidates) {
+        final votes = List<String>.from(candidate['votes'] ?? []);
+        totalVotes += votes.length;
+      }
+
+      // Calculate percentage for each candidate
+      for (var candidate in fetchedCandidates) {
+        final votes = List<String>.from(candidate['votes'] ?? []);
         double votePercentage =
-            await BattleService.instance.calculateUserVotePercentage(
-          candidate['userid'],
-          category,
-        );
+            totalVotes > 0 ? (votes.length / totalVotes * 100) : 0.0;
+
         candidatesWithPercentages.add({
           ...candidate,
           'votePercentage': votePercentage,
@@ -202,7 +231,7 @@ class _VoteScreenState extends State<VoteScreen> {
                 await castVote(selectedCandidate['id'],
                     selectedCandidate['userid'], userService.userId, context);
                 // Refresh data after voting
-                _fetchCandidates(widget.category);
+                _fetchCandidates();
               },
               child: const Text('Confirm'),
             ),
@@ -216,6 +245,7 @@ class _VoteScreenState extends State<VoteScreen> {
     try {
       final userId = userService.userId;
       if (userId == null) return false;
+      // battleId is now the battle date (e.g., "2025-07-11")
       return await BattleService.instance.hasUserVoted(battleId, userId);
     } catch (e) {
       print("Error checking vote status: $e");
@@ -230,7 +260,7 @@ class _VoteScreenState extends State<VoteScreen> {
         if (mounted) {
           showTastySnackbar(
             'Please try again.',
-            '',
+            'Please log in to vote',
             context,
           );
         }
@@ -248,6 +278,7 @@ class _VoteScreenState extends State<VoteScreen> {
         return;
       }
 
+      // battleId is now the battle date (e.g., "2025-07-11")
       await BattleService.instance.castVote(
         battleId: battleId,
         voterId: userId,
@@ -266,7 +297,7 @@ class _VoteScreenState extends State<VoteScreen> {
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
-          'An error occurred while voting',
+          'An error occurred while voting: ${e.toString()}',
           context,
         );
       }
@@ -290,22 +321,38 @@ class _VoteScreenState extends State<VoteScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
-    final dateInPast = DateTime.now()
-        .isAfter(DateTime.parse(firebaseService.generalData['currentBattle']));
+    final textTheme = Theme.of(context).textTheme;
+
+    // Check if battle deadline has passed
+    bool dateInPast = false;
+    try {
+      final battleDeadline = firebaseService.generalData['battleDeadline'];
+      if (battleDeadline != null) {
+        DateTime deadline;
+        if (battleDeadline is Timestamp) {
+          deadline = battleDeadline.toDate();
+        } else if (battleDeadline is String) {
+          deadline = DateTime.parse(battleDeadline);
+        } else {
+          deadline = DateTime.now().add(const Duration(days: 7));
+        }
+        dateInPast = DateTime.now().isAfter(deadline);
+      }
+    } catch (e) {
+      print("Error checking battle deadline: $e");
+      dateInPast = false;
+    }
 
     return Scaffold(
       appBar: AppBar(
-        leading: InkWell(
-          onTap: () {
-            Get.back();
-          },
-          child: const IconCircleButton(),
-        ),
+        automaticallyImplyLeading: true,
+        centerTitle: true,
         title: Text(
-          'Vote',
-          style: TextStyle(
-            fontSize: getTextScale(5, context),
-            fontWeight: FontWeight.bold,
+          'Vote for your favorite dish',
+          style: textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: getTextScale(6.5, context),
+            color: kAccent,
           ),
         ),
       ),
@@ -363,7 +410,7 @@ class _VoteScreenState extends State<VoteScreen> {
                             return ElevatedButton(
                               onPressed: hasVoted ? null : _confirmSelection,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: kAccent,
+                                backgroundColor: kAccentLight,
                                 foregroundColor: kWhite,
                                 padding: EdgeInsets.symmetric(
                                     horizontal: getPercentageWidth(10, context),
@@ -373,7 +420,7 @@ class _VoteScreenState extends State<VoteScreen> {
                                 ),
                               ),
                               child: Text(
-                                hasVoted ? 'Voted' : 'Vote for this Dish',
+                                hasVoted ? 'Voted' : 'Vote',
                                 style: TextStyle(
                                   fontSize: getTextScale(5, context),
                                   fontWeight: FontWeight.bold,
@@ -409,6 +456,7 @@ class VoteCandidatePage extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        SizedBox(height: getPercentageHeight(1, context)),
         Text(
           '${votePercentage.toStringAsFixed(1)}%',
           style: TextStyle(
@@ -458,7 +506,9 @@ class VoteCandidatePage extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: getPercentageHeight(12, context)), // Space for the floating button
+        SizedBox(
+            height: getPercentageHeight(
+                12, context)), // Space for the floating button
       ],
     );
   }

@@ -1,37 +1,11 @@
 // Check if we've already sent a notification today for steps goal
 // and send one if we haven't
-import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
 import '../constants.dart';
-import '../service/battle_service.dart';
+import '../widgets/premium_widget.dart';
+import 'utils.dart';
 
-void checkAndSendStepGoalNotification(int currentSteps, int targetSteps) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final String stepNotificationKey = 'step_goal_notification_$today';
-
-    // Check if we've already sent a notification today
-    final bool alreadySentToday = prefs.getBool(stepNotificationKey) ?? false;
-    if (!alreadySentToday) {
-      // Send notification
-      await notificationService.showNotification(
-        id: 2002, // Unique ID for step goal notification
-        title: 'Daily Step Goal Achieved! 🏃‍♂️',
-        body:
-            'Congratulations! You reached your goal of $targetSteps steps today. Keep moving! 10 points awarded!',
-      );
-      await BattleService.instance
-          .updateUserPoints(userService.userId ?? '', 10);
-
-      // Mark that we've sent a notification today
-      await prefs.setBool(stepNotificationKey, true);
-    }
-  } catch (e) {
-    print('Error sending step goal notification: $e');
-  }
-}
 
 Future<void> deleteImagesFromStorage(List<String> imageUrls,
     {String? folder}) async {
@@ -67,4 +41,215 @@ String? extractStoragePathFromUrl(String url) {
       ? encodedFullPath
       : encodedFullPath.substring(0, questionMarkIndex);
   return Uri.decodeFull(encodedPath);
+}
+
+Widget getAdsWidget(bool isPremium, {bool isDiv = false}) {
+  return Container(
+    child: isPremium
+        ? const SizedBox.shrink()
+        : PremiumSection(
+            isPremium: isPremium,
+            titleOne: joinChallenges,
+            titleTwo: premium,
+            isDiv: isDiv,
+          ),
+  );
+}
+
+Widget buildSuggestionCard(BuildContext context, String title,
+    List<dynamic> items, IconData icon, Color color) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+
+  return GestureDetector(
+    onTap: () => _showSuggestionDialog(context, title, items, icon, color),
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: getIconScale(6, context),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: getTextScale(3, context),
+              fontWeight: FontWeight.w600,
+              color: isDarkMode ? kWhite : kDarkGrey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${items.length} ${items.length == 1 ? 'item' : 'items'}',
+            style: TextStyle(
+              fontSize: getTextScale(2.5, context),
+              color: isDarkMode
+                  ? kWhite.withValues(alpha: 0.7)
+                  : kDarkGrey.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showSuggestionDialog(BuildContext context, String title,
+    List<dynamic> items, IconData icon, Color color) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      final isDarkMode = getThemeProvider(context).isDarkMode;
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          children: [
+            Icon(icon, color: color, size: getIconScale(5, context)),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: kAccent,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: items
+                .map((item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(top: 6, right: 8),
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              item.toString(),
+                              style: TextStyle(
+                                fontSize: getTextScale(3.5, context),
+                                color: isDarkMode ? kWhite : kDarkGrey,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: kAccent,
+                fontSize: getTextScale(4, context),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Widget buildSuggestionsSection(BuildContext context,
+    Map<String, dynamic> _editableAnalysis, bool isRecipe) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final suggestions = _editableAnalysis['suggestions'] as Map<String, dynamic>?;
+
+  if (suggestions == null) return const SizedBox.shrink();
+
+  final additions = suggestions['additions'] as List<dynamic>? ?? [];
+  final alternatives = suggestions['alternatives'] as List<dynamic>? ?? [];
+  final improvements = suggestions['improvements'] as List<dynamic>? ?? [];
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'AI Suggestions',
+        style: isRecipe
+            ? Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontSize: getTextScale(4, context),
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                )
+            : Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: getTextScale(5, context),
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                ),
+      ),
+      SizedBox(height: getPercentageHeight(isRecipe ? 2 : 1, context)),
+      Row(
+        children: [
+          if (additions.isNotEmpty)
+            Expanded(
+              child: buildSuggestionCard(
+                context,
+                'Additions',
+                additions,
+                Icons.add_circle_outline,
+                Colors.green,
+              ),
+            ),
+          if (additions.isNotEmpty && alternatives.isNotEmpty)
+            const SizedBox(width: 8),
+          if (alternatives.isNotEmpty)
+            Expanded(
+              child: buildSuggestionCard(
+                context,
+                'Alternatives',
+                alternatives,
+                Icons.swap_horiz,
+                Colors.blue,
+              ),
+            ),
+          if ((additions.isNotEmpty || alternatives.isNotEmpty) &&
+              improvements.isNotEmpty)
+            const SizedBox(width: 8),
+          if (improvements.isNotEmpty)
+            Expanded(
+              child: buildSuggestionCard(
+                context,
+                'Improvements',
+                improvements,
+                Icons.trending_up,
+                Colors.orange,
+              ),
+            ),
+        ],
+      ),
+    ],
+  );
 }

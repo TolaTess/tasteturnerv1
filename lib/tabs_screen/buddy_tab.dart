@@ -5,11 +5,13 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_files.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/buddy_screen.dart';
 import '../screens/premium_screen.dart';
 import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
+import '../helper/helper_functions.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -183,30 +185,10 @@ class _BuddyTabState extends State<BuddyTab> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // ------------------------------------Premium / Ads------------------------------------
-              SizedBox(
-                height: getPercentageHeight(2, context),
-              ),
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : PremiumSection(
-                      isPremium:
-                          userService.currentUser.value?.isPremium ?? false,
-                      titleOne: joinChallenges,
-                      titleTwo: premium,
-                      isDiv: false,
-                    ),
 
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : SizedBox(height: getPercentageHeight(1, context)),
-
-              // ------------------------------------Premium / Ads-------------------------------------
-              userService.currentUser.value?.isPremium ?? false
-                  ? const SizedBox.shrink()
-                  : SizedBox(height: getPercentageHeight(0.5, context)),
-              SizedBox(
-                height: getPercentageHeight(2, context),
-              ),
+              getAdsWidget(userService.currentUser.value?.isPremium ?? false,
+                  isDiv: false),
+              // ------------------------------------Premium / Ads------------------------------------
 
               TweenAnimationBuilder(
                 tween: Tween<double>(
@@ -267,8 +249,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 ),
               ),
               SizedBox(height: getPercentageHeight(2, context)),
-              if ((userService.currentUser.value?.isPremium ?? false) ||
-                  isInFreeTrial)
+              if (canUseAI())
                 AppButton(
                     text: 'Get Meal Plan',
                     onPressed: () async {
@@ -436,17 +417,18 @@ class _BuddyTabState extends State<BuddyTab> {
                         ),
                       ),
                       onPressed: () async {
-                        final canGenerate =
-                            await checkMealPlanGenerationLimit(context);
-                        if (canGenerate) {
+                        // final canGenerate =
+                        //     await checkMealPlanGenerationLimit(context);
+                        if (canUseAI()) {
                           navigateToChooseDiet(context);
                         } else {
-                          showGenerationLimitDialog(context,
-                              isDarkMode: isDarkMode);
+                          // showGenerationLimitDialog(context,
+                          //     isDarkMode: isDarkMode);
+                          showPremiumRequiredDialog(context, isDarkMode);
                         }
                       },
                       child: Text(
-                        'Generate New Meals',
+                        canUseAI() ? 'Generate New Meals' : goPremium,
                         style: textTheme.labelLarge?.copyWith(
                           color: isDarkMode ? kWhite : kBlack,
                         ),
@@ -661,8 +643,8 @@ class _BuddyTabState extends State<BuddyTab> {
                                         color: Colors.grey,
                                       ),
                                       SizedBox(
-                                          height: getPercentageHeight(
-                                             1, context)),
+                                          height:
+                                              getPercentageHeight(1, context)),
                                       Text(
                                         'No meals match the current filter',
                                         textAlign: TextAlign.center,
@@ -671,8 +653,8 @@ class _BuddyTabState extends State<BuddyTab> {
                                         ),
                                       ),
                                       SizedBox(
-                                          height: getPercentageHeight(
-                                              1, context)),
+                                          height:
+                                              getPercentageHeight(1, context)),
                                       Text(
                                         'Try selecting different meal types above',
                                         textAlign: TextAlign.center,

@@ -14,7 +14,6 @@ import '../pages/profile_edit_screen.dart';
 import '../pages/upload_battle.dart';
 import '../service/tasty_popup_service.dart';
 import '../tabs_screen/food_challenge_screen.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
 import 'badges_screen.dart';
@@ -442,7 +441,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           child: Column(
                                             children: [
                                               Text(
-                                                badgeService.totalPoints.toString(),
+                                                badgeService.totalPoints
+                                                    .toString(),
                                                 style: textTheme.bodyLarge
                                                     ?.copyWith(
                                                   color: isDarkMode
@@ -732,7 +732,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     childrenPadding: EdgeInsets.zero,
                     children: [
                       SizedBox(
-                        height: getPercentageHeight(25, context),
                         child: isLoading
                             ? const Center(
                                 child: CircularProgressIndicator(
@@ -752,197 +751,183 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     )),
                                   )
-                                : ListView.builder(
-                                    itemCount: ongoingBattles.length,
-                                    padding: EdgeInsets.symmetric(
-                                        vertical:
-                                            getPercentageHeight(2, context),
+                                : Container(
+                                    margin: EdgeInsets.symmetric(
                                         horizontal:
-                                            getPercentageWidth(1, context)),
-                                    scrollDirection: Axis.horizontal,
-                                    itemBuilder: (context, index) {
-                                      final battle = ongoingBattles[index];
-
-                                      return SizedBox(
-                                        width: getPercentageWidth(45, context),
-                                        child: Card(
-                                          elevation: 2,
-                                          color:
-                                              isDarkMode ? kDarkGrey : kWhite,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                                getPercentageWidth(2, context)),
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              ListTile(
-                                                title: Text(
-                                                  capitalizeFirstLetter(
-                                                      battle['category']),
+                                            getPercentageWidth(3, context)),
+                                    padding: EdgeInsets.all(
+                                        getPercentageWidth(4, context)),
+                                    decoration: BoxDecoration(
+                                      color: kAccent.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: kAccent, width: 1.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              Get.to(
+                                                () => UploadBattleImageScreen(
+                                                  battleId: ongoingBattles[0]
+                                                      ['id'],
+                                                  battleCategory:
+                                                      ongoingBattles[0]
+                                                          ['category'],
+                                                ),
+                                              );
+                                            },
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Weekly Challenge',
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: textTheme.bodyMedium
+                                                  style: textTheme.displaySmall
                                                       ?.copyWith(
-                                                    color: isDarkMode
-                                                        ? kWhite
-                                                        : kBlack,
+                                                    color: kAccentLight,
+                                                    fontWeight: FontWeight.w200,
+                                                    fontSize: getTextScale(
+                                                        4.5, context),
                                                   ),
                                                 ),
-                                                subtitle: Text(
-                                                  capitalizeFirstLetter(
-                                                      battle['name']),
+                                                Text(
+                                                  'Show off your culinary skills!',
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  maxLines: 3,
-                                                  style: textTheme.bodyMedium
+                                                  maxLines: 2,
+                                                  style: textTheme.bodySmall
                                                       ?.copyWith(
                                                     color: isDarkMode
                                                         ? kLightGrey
                                                         : kDarkGrey,
                                                   ),
                                                 ),
-                                                onTap: () {
-                                                  Get.to(
-                                                    () =>
-                                                        UploadBattleImageScreen(
-                                                      battleId: battle['id'],
-                                                      battleCategory:
-                                                          battle['category'],
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceEvenly,
-                                                children: [
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              UploadBattleImageScreen(
-                                                            battleId:
-                                                                battle['id'],
-                                                            battleCategory:
-                                                                battle[
-                                                                    'category'],
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                    child: IconCircleButton(
-                                                      icon: Icons.camera,
-                                                    ),
-                                                  ),
-                                                  GestureDetector(
-                                                    onTap: () async {
-                                                      // Show confirmation dialog
-                                                      bool? confirm =
-                                                          await showDialog<
-                                                              bool>(
-                                                        context: context,
-                                                        builder: (BuildContext
-                                                            context) {
-                                                          return AlertDialog(
-                                                            shape:
-                                                                RoundedRectangleBorder(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          15),
-                                                            ),
-                                                            backgroundColor:
-                                                                isDarkMode
-                                                                    ? kDarkGrey
-                                                                    : kWhite,
-                                                            title: Text(
-                                                              'Leave Battle?',
-                                                              style: textTheme
-                                                                  .bodyMedium
-                                                                  ?.copyWith(
-                                                                color: kAccent,
-                                                              ),
-                                                            ),
-                                                            content: Text(
-                                                              'Are you sure you want to leave this battle?',
-                                                              style: textTheme
-                                                                  .bodyMedium
-                                                                  ?.copyWith(
-                                                                color: isDarkMode
-                                                                    ? kWhite
-                                                                    : kDarkGrey,
-                                                              ),
-                                                            ),
-                                                            actions: [
-                                                              TextButton(
-                                                                onPressed: () =>
-                                                                    Navigator.of(
-                                                                            context)
-                                                                        .pop(
-                                                                            false),
-                                                                child: Text(
-                                                                  'Cancel',
-                                                                  style: textTheme
-                                                                      .bodyMedium
-                                                                      ?.copyWith(
-                                                                    color:
-                                                                        kAccent,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              TextButton(
-                                                                onPressed: () =>
-                                                                    Navigator.of(
-                                                                            context)
-                                                                        .pop(
-                                                                            true),
-                                                                child: Text(
-                                                                  'Leave',
-                                                                  style: textTheme
-                                                                      .bodyMedium
-                                                                      ?.copyWith(
-                                                                    color: Colors
-                                                                        .red,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          );
-                                                        },
-                                                      );
-
-                                                      if (confirm == true) {
-                                                        await macroManager
-                                                            .removeUserFromBattle(
-                                                          userId,
-                                                          battle['id'],
-                                                        );
-                                                        // Refresh the battles list
-                                                        _fetchOngoingBattles(
-                                                            userId);
-                                                      }
-                                                    },
-                                                    child: IconCircleButton(
-                                                      icon: Icons.delete,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(
-                                                  height: getPercentageHeight(
-                                                      2, context)),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      );
-                                    },
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () {
+                                                Get.to(
+                                                  () => UploadBattleImageScreen(
+                                                    battleId: ongoingBattles[0]
+                                                        ['id'],
+                                                    battleCategory:
+                                                        ongoingBattles[0]
+                                                            ['category'],
+                                                  ),
+                                                );
+                                              },
+                                              child: IconCircleButton(
+                                                icon: Icons.camera,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                                width: getPercentageWidth(
+                                                    2, context)),
+                                            GestureDetector(
+                                              onTap: () async {
+                                                // Show confirmation dialog
+                                                bool? confirm =
+                                                    await showDialog<bool>(
+                                                  context: context,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return AlertDialog(
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(15),
+                                                      ),
+                                                      backgroundColor:
+                                                          isDarkMode
+                                                              ? kDarkGrey
+                                                              : kWhite,
+                                                      title: Text(
+                                                        'Leave Battle?',
+                                                        style: textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                          color: kAccent,
+                                                        ),
+                                                      ),
+                                                      content: Text(
+                                                        'Are you sure you want to leave this battle?',
+                                                        style: textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                          color: isDarkMode
+                                                              ? kWhite
+                                                              : kDarkGrey,
+                                                        ),
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(false),
+                                                          child: Text(
+                                                            'Cancel',
+                                                            style: textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
+                                                              color: kAccent,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(true),
+                                                          child: Text(
+                                                            'Leave',
+                                                            style: textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
+                                                              color: Colors.red,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+
+                                                if (confirm == true) {
+                                                  await macroManager
+                                                      .removeUserFromBattle(
+                                                    userId,
+                                                    ongoingBattles[0]['id'],
+                                                  );
+                                                  // Refresh the battles list
+                                                  _fetchOngoingBattles(userId);
+                                                }
+                                              },
+                                              child: IconCircleButton(
+                                                icon: Icons.delete,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                       ),
                     ],
                   ),
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                   // Search Content Section
                   Builder(
@@ -1019,6 +1004,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           dataSrc:
                                               data, // Use Map directly for ChallengeDetailScreen
                                           screen: 'myPost',
+                                          allPosts: searchContentDatas,
+                                          initialIndex: index,
                                         ),
                                       ),
                                     );

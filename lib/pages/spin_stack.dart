@@ -398,13 +398,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     });
   }
 
-  bool canUseAI() {
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    final isPremium = userService.currentUser.value?.isPremium ?? false;
-    return isPremium || isFreeTrial;
-  }
 
   Future<void> _generateMealFromIngredients(displayedItems) async {
     try {
@@ -867,8 +860,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                         ? 'Save to Meal Plan'
                         : (userService.currentUser.value?.isPremium ?? false) ||
                                 isInFreeTrial
-                            ? 'Generate Meal with ingredients!'
-                            : 'Go Premium to generate a meal!',
+                            ? 'Generate Meals with ingredients!'
+                            : 'Go Premium to generate a Meal!',
                     style: textTheme.labelLarge?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w500),

@@ -58,7 +58,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final Map<String, List<UserMeal>> dinnerList = {};
   final Map<String, List<UserMeal>> snacksList = {};
   bool allDisabled = false;
-  bool isInFreeTrial = false;
 
   // Add this as a class field at the top of the class
   List<UserMeal> _pendingMacroItems = [];
@@ -81,24 +80,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       }
     });
 
-    // Calculate free trial status
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
   }
 
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
-  }
-
-  // Check if user can use AI features (premium or free trial)
-  bool get _canUseAI {
-    final isPremium = userService.currentUser.value?.isPremium ?? false;
-    return isPremium || isInFreeTrial;
   }
 
   @override
@@ -296,18 +282,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             onPressed: () => _handleCameraAction(),
                             icon: Icon(
                               Icons.camera_alt,
-                              color: _canUseAI ? null : Colors.grey,
+                              color: canUseAI() ? null : Colors.grey,
                               size: getIconScale(7, context),
                             ),
                           ),
-                          if (!_canUseAI)
+                          if (!canUseAI())
                             Positioned(
                               right: 0,
                               top: 0,
                               child: Container(
                                 padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.orange,
+                                decoration: BoxDecoration(
+                                  color: kAccentLight.withValues(alpha: 0.5),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -468,7 +454,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   Future<void> _handleCameraAction() async {
     // Check if user can use AI features
-    if (!_canUseAI) {
+    if (!canUseAI()) {
       showPremiumRequiredDialog(context, getThemeProvider(context).isDarkMode);
       return;
     }

@@ -414,73 +414,90 @@ class MacroManager extends GetxController {
   Future<List<Map<String, dynamic>>> getIngredientsBattle(
       String category) async {
     try {
-      final currentBattle1 = firebaseService.generalData['currentBattle'];
-      final battles = await _battleService.getBattlesByCategory(category);
-      if (battles.isEmpty) return [];
+      // Get current battle date from general/data document
+      final currentBattleKey = firebaseService.generalData['currentBattle'];
+      final battleDeadline = firebaseService.generalData['battleDeadline'];
 
-      final activeBattles = battles.where((battle) {
-        final dates = battle['dates'] as Map<String, dynamic>;
-        // Check all dates in the battle for an active status
-        return dates.values.any((dateData) =>
-            dateData is Map<String, dynamic> &&
-            dateData['status'] == 'active' &&
-            !DateTime.now().isAfter(DateTime.parse(currentBattle1)));
-      }).toList();
-
-      if (activeBattles.isEmpty) return [];
-
-      // Find the battle with the earliest active date
-      final currentBattle = activeBattles.reduce((a, b) {
-        final aDates = a['dates'] as Map<String, dynamic>;
-        final bDates = b['dates'] as Map<String, dynamic>;
-
-        // Find earliest active date for each battle
-        final aActiveDate = aDates.entries
-            .where((entry) => entry.value['status'] == 'active')
-            .map((entry) => entry.key)
-            .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
-
-        final bActiveDate = bDates.entries
-            .where((entry) => entry.value['status'] == 'active')
-            .map((entry) => entry.key)
-            .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
-
-        return aActiveDate.compareTo(bActiveDate) < 0 ? a : b;
-      });
-
-      // Get the earliest active date for this battle
-      final dates = currentBattle['dates'] as Map<String, dynamic>;
-      final activeDate = dates.entries
-          .where((entry) => entry.value['status'] == 'active')
-          .map((entry) => entry.key)
-          .reduce((a, b) => a.compareTo(b) < 0 ? a : b);
-
-      final battleData = dates[activeDate];
-      if (battleData == null) return [];
-
-      // Check if battle has ended
-      final endDate = DateTime.parse(battleData['ended_at']);
-      if (DateTime.now().isAfter(endDate)) {
+      if (currentBattleKey == null) {
+        print('No current battle found in general data');
         return [];
       }
 
-      final List<Map<String, dynamic>> battleIngredients = [];
-      for (String ingredientId in battleData['ingredients']) {
-        final ingredient = await fetchIngredient(ingredientId);
-        if (ingredient != null) {
-          battleIngredients.add({
-            'id': ingredientId,
-            'name': ingredient.title,
-            'image': ingredient.mediaPaths.isNotEmpty
-                ? ingredient.mediaPaths.first
-                : '',
-            'categoryId': currentBattle['id'],
-            'dueDate': battleData['ended_at'],
-          });
+      // Get battle data from battles/general document (where dates are stored)
+      final battleRef = firestore.collection('battles').doc('general');
+      final battleDoc = await battleRef.get();
+
+      if (!battleDoc.exists) {
+        print('No general data document found');
+        return [];
+      }
+
+      final battleData = battleDoc.data() as Map<String, dynamic>;
+
+      // Use nested structure: dates.{battleId}
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        print('No dates structure found');
+        return [];
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(currentBattleKey)) {
+        print('No battle data found for: $currentBattleKey');
+        return [];
+      }
+
+      final currentBattle = datesMap[currentBattleKey] as Map<String, dynamic>;
+
+      // Check if battle is still active
+      if (currentBattle['status'] != 'active') {
+        print('Battle is not active, status: ${currentBattle['status']}');
+        return [];
+      }
+
+      // Check if battle deadline has passed
+      if (battleDeadline != null) {
+        DateTime deadline;
+        if (battleDeadline is Timestamp) {
+          deadline = battleDeadline.toDate();
+        } else if (battleDeadline is String) {
+          deadline = DateTime.parse(battleDeadline);
+        } else {
+          deadline = DateTime.now().add(const Duration(days: 7));
+        }
+
+        if (DateTime.now().isAfter(deadline)) {
+          print('Battle deadline has passed: $deadline');
+          return [];
         }
       }
+
+      // Get ingredients from the battle
+      final ingredients = currentBattle['ingredients'] as List<dynamic>?;
+      if (ingredients == null || ingredients.isEmpty) {
+        print('No ingredients found in current battle');
+        return [];
+      }
+
+      // Build the battle ingredients list
+      final List<Map<String, dynamic>> battleIngredients = [];
+
+      for (final ingredient in ingredients) {
+        final ingredientData = ingredient as Map<String, dynamic>;
+        battleIngredients.add({
+          'id': ingredientData['id'],
+          'name': ingredientData['name'],
+          'image': ingredientData['image'],
+          'categoryId':
+              currentBattleKey, // Use the battle date key as category ID
+        });
+      }
+
+      print(
+          'Found ${battleIngredients.length} ingredients for battle: $currentBattleKey');
       return battleIngredients;
     } catch (e) {
+      print('Error getting ingredients battle: $e');
       return [];
     }
   }
@@ -488,14 +505,46 @@ class MacroManager extends GetxController {
   Future<void> joinBattle(String userId, String battleId, String categoryName,
       String userName, String userImage) async {
     try {
-      await _battleService.joinBattle(
-        battleId: battleId,
-        userId: userId,
-        userName: userName,
-        userImage: userImage,
-      );
-      _ensureDataFetchedBattle();
+      // Using nested structure: battles/general/dates/{battleId}/participants
+      final battleRef = firestore.collection('battles').doc('general');
+
+      await firestore.runTransaction((transaction) async {
+        final battleDoc = await transaction.get(battleRef);
+
+        if (!battleDoc.exists) {
+          throw Exception('Battle document not found');
+        }
+
+        final battleData = battleDoc.data() as Map<String, dynamic>;
+
+        // Check if dates map exists and contains the battleId
+        if (!battleData.containsKey('dates') ||
+            !(battleData['dates'] as Map<String, dynamic>)
+                .containsKey(battleId)) {
+          throw Exception('Battle not found: $battleId');
+        }
+
+        // Update the user's entry in the nested dates structure
+        transaction.update(battleRef, {
+          'dates.$battleId.participants.$userId': {
+            'name': userName,
+            'image': userImage,
+            'votes': [], // Initialize empty votes array
+          }
+        });
+      });
+
+      await firestore.collection('userBattles').doc(userId).set({
+        'dates': {
+          battleId: {
+            'ongoing': FieldValue.arrayUnion([battleId])
+          }
+        }
+      }, SetOptions(merge: true));
+
+      await _ensureDataFetchedBattle();
     } catch (e) {
+      print('Error joining battle: $e');
       rethrow;
     }
   }
@@ -504,8 +553,33 @@ class MacroManager extends GetxController {
     if (userId.isEmpty || battleId.isEmpty) return false;
 
     try {
-      return await _battleService.hasUserJoinedBattle(battleId, userId);
+      // Use nested structure: battles/general/dates/{battleId}/participants
+      final battleRef = firestore.collection('battles').doc('general');
+      final battleDoc = await battleRef.get();
+
+      if (!battleDoc.exists) {
+        return false;
+      }
+
+      final battleData = battleDoc.data() as Map<String, dynamic>;
+
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        return false;
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        return false;
+      }
+
+      final currentBattle = datesMap[battleId] as Map<String, dynamic>;
+      final participants =
+          currentBattle['participants'] as Map<String, dynamic>? ?? {};
+
+      return participants.containsKey(userId);
     } catch (e) {
+      print('Error checking if user is in battle: $e');
       return false;
     }
   }
@@ -605,7 +679,7 @@ class MacroManager extends GetxController {
             'image': ingredient['image'],
             'measurement': entry.value,
           });
-        } 
+        }
       }
     } catch (e) {
       return [];

@@ -6,6 +6,7 @@ import '../data_models/ingredient_model.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
 import '../widgets/premium_widget.dart';
@@ -185,22 +186,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
       
                 // ------------------------------------Premium / Ads------------------------------------
       
-                userService.currentUser.value?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : PremiumSection(
-                        isPremium:
-                            userService.currentUser.value?.isPremium ?? false,
-                        titleOne: joinChallenges,
-                        titleTwo: premium,
-                        isDiv: false,
-                      ),
-      
-                userService.currentUser.value?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : SizedBox(height: getPercentageHeight(1, context)),
-                userService.currentUser.value?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : Divider(color: isDarkMode ? kWhite : kDarkGrey),
+               getAdsWidget(userService.currentUser.value?.isPremium ?? false, isDiv: false),
+               
                 // ------------------------------------Premium / Ads-------------------------------------
       
                 SizedBox(height: getPercentageHeight(1, context)),

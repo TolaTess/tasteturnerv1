@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_files.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/category_selector.dart';
@@ -55,16 +56,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   final GlobalKey _addSwitchButtonKey = GlobalKey();
   final GlobalKey _addAudioButtonKey = GlobalKey();
   bool showDietCategories = false;
-  bool isInFreeTrial = false;
+
   @override
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
     _loadMuteState();
-
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     // Set default for meal category
     final categoryDatasMeal = helperController.headers;
@@ -82,10 +79,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     } else {
       _mealDietCategories = [...helperController.category];
     }
-
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
 
     // Ensure meal list is populated for default category
     _updateMealListByType();
@@ -534,29 +527,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       String dietPreference) {
     return Column(
       children: [
-        userService.currentUser.value?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : SizedBox(height: getPercentageHeight(0.5, context)),
-
         // ------------------------------------Premium / Ads------------------------------------
-
-        userService.currentUser.value?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : PremiumSection(
-                isPremium: userService.currentUser.value?.isPremium ?? false,
-                titleOne: joinChallenges,
-                titleTwo: premium,
-                isDiv: false,
-              ),
-
-        userService.currentUser.value?.isPremium ?? false
-            ? const SizedBox.shrink()
-            : SizedBox(height: getPercentageHeight(1, context)),
-
-        // ------------------------------------Premium / Ads-------------------------------------
-        userService.currentUser.value?.isPremium ?? false
-            ? SizedBox(height: getPercentageHeight(2, context))
-            : const SizedBox.shrink(),
+        SizedBox(height: getPercentageHeight(1, context)),
+        getAdsWidget(userService.currentUser.value?.isPremium ?? false,
+            isDiv: false),
+        if (!(userService.currentUser.value?.isPremium ?? false))
+          SizedBox(height: getPercentageHeight(2, context)),
+        // ------------------------------------Premium / Ads------------------------------------
 
         Row(
           children: [

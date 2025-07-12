@@ -259,11 +259,11 @@ String getRandomBio(List<String> type) {
 String getRandomMealTypeBio(String mealType, String diet) {
   if (diet == mealType) {
     final List<String> mealTypeBios = [
-      "Feast Mode: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Bite the Day: Meals generated for your ${capitalizeFirstLetter(mealType)} Masterpiece",
-      "Dish It Up: Meals generated for your ${capitalizeFirstLetter(mealType)} Adventure",
-      "Chow Down Champion: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Savor the Win: Meals generated for your ${capitalizeFirstLetter(mealType)} Meal Plan"
+      "Feast Mode: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Bite the Day: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Masterpiece",
+      "Dish It Up: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Adventure",
+      "Chow Down Champion: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan",
+      "Savor the Win: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan"
     ];
     final random = Random();
     return mealTypeBios[random.nextInt(mealTypeBios.length)];
@@ -278,11 +278,11 @@ String getRandomMealTypeBio(String mealType, String diet) {
   }
 
   final List<String> mealTypeBios = [
-    "Feast Mode: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Meal Plan",
-    "Bite the Day: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Adventure",
-    "Dish It Up: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Masterpiece",
-    "Calorie Champion: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Plan",
-    "Savor the Win: Meals generated for your ${capitalizeFirstLetter(mealType)} ${capitalizeFirstLetter(diet)} Plan"
+    "Feast Mode: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Meal Plan",
+    "Bite the Day: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Adventure",
+    "Dish It Up: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Masterpiece",
+    "Calorie Champion: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Plan",
+    "Savor the Win: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Plan"
   ];
   final random = Random();
   return mealTypeBios[random.nextInt(mealTypeBios.length)];
@@ -620,6 +620,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
     bool isLinked, String screen) {
   final themeProvider = getThemeProvider(context);
   final textTheme = Theme.of(context).textTheme;
+  final isDarkMode = themeProvider.isDarkMode;
   return Center(
     child: GestureDetector(
       onTap: () {
@@ -683,7 +684,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
               return Transform.translate(
                 offset: Offset(value * 200 - 100, 0), // Moves from -100 to +100
                 child: CircleAvatar(
-                  backgroundColor: kAccentLight.withOpacity(0.6),
+                  backgroundColor: isDarkMode ? kWhite : kBlack,
                   radius: getResponsiveBoxSize(context, 18, 18),
                   backgroundImage: AssetImage(tastyImage),
                 ),

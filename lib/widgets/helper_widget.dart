@@ -352,6 +352,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
                   ),
               ],
             ),
+          SizedBox(height: getPercentageHeight(7, context)),
         ],
       ),
     );

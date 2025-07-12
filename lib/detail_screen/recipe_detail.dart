@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/friend_screen.dart';
 import '../screens/profile_screen.dart';
@@ -10,7 +11,6 @@ import '../widgets/primary_button.dart';
 import '../constants.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
-import '../data_models/user_meal.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen(
@@ -26,17 +26,10 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Meal? _meal;
   bool _loading = false;
-  final GlobalKey _addRecipeButtonKey = GlobalKey();
-  bool isInFreeTrial = false;
+
   @override
   void initState() {
     super.initState();
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
     if (widget.screen == 'share_recipe') {
       _getMeal();
     } else {
@@ -119,6 +112,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 meal: _meal!,
               ),
 
+              if (_meal!.suggestions != null && _meal!.suggestions!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3, context),
+                      vertical: getPercentageHeight(2, context),
+                    ),
+                    child: Builder(
+                      builder: (context) {
+                        final suggestionsWrapper = {
+                          'suggestions': _meal!.suggestions
+                        };
+                        return buildSuggestionsSection(
+                            context, suggestionsWrapper, true);
+                      },
+                    ),
+                  ),
+                ),
+
               // Ingredients title
               IngredientsTittle(
                 meal: _meal!,
@@ -130,13 +142,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ),
 
               // Directions title
-              DirectionsTittle(
-                meal: _meal!,
-              ),
+              if (_meal!.instructions.isNotEmpty &&
+                  _meal!.instructions.first.isNotEmpty)
+                DirectionsTittle(
+                  meal: _meal!,
+                ),
 
               // Directions detail
-              DirectionsDetail(
-                meal: _meal!,
+              if (_meal!.instructions.isNotEmpty &&
+                  _meal!.instructions.first.isNotEmpty)
+                DirectionsDetail(
+                  meal: _meal!,
+                ),
+
+              if (_meal!.instructions.isEmpty ||
+                  _meal!.instructions.first.isEmpty)
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: getPercentageHeight(20, context),
+                ),
               ),
             ],
           ),
@@ -153,6 +177,42 @@ class SlvAppBar extends StatelessWidget {
 
   final Meal meal;
 
+  Widget _buildRecipeImage(Meal meal) {
+    if (meal.mediaPaths.isNotEmpty &&
+        meal.mediaPaths != 'null' &&
+        meal.mediaPaths.first.startsWith('http')) {
+      return Image.network(
+        meal.mediaPaths.first,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey[200],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            getAssetImageForItem(meal.category ?? 'default'),
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    } else {
+      return Image.asset(
+        getAssetImageForItem(meal.category ?? 'default'),
+        fit: BoxFit.cover,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -162,21 +222,7 @@ class SlvAppBar extends StatelessWidget {
           ? getPercentageHeight(60, context)
           : getPercentageHeight(45, context),
       flexibleSpace: FlexibleSpaceBar(
-        background: (meal.mediaPaths.isNotEmpty &&
-                meal.mediaPaths != 'null' &&
-                meal.mediaPaths.first.startsWith('http'))
-            ? Image.network(
-                meal.mediaPaths.first,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Image.asset(
-                  getAssetImageForItem(meal.category ?? 'default'),
-                  fit: BoxFit.cover,
-                ),
-              )
-            : Image.asset(
-                getAssetImageForItem(meal.category ?? 'default'),
-                fit: BoxFit.cover,
-              ),
+        background: _buildRecipeImage(meal),
       ),
 
       //back button
@@ -987,7 +1033,7 @@ class DirectionsDetail extends StatelessWidget {
                 index: i,
               ),
             SizedBox(
-              height: getPercentageHeight(12, context),
+              height: getPercentageHeight(15, context),
             ),
           ],
         ),

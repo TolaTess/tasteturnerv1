@@ -203,13 +203,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             padding:
                                 EdgeInsets.all(getPercentageWidth(2, context)),
                             decoration: BoxDecoration(
-                              color: kLightGrey.withOpacity(0.4),
+                              color: kAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              user.displayName ?? '',
-                              style: textTheme.displayMedium?.copyWith(
-                                fontSize: getTextScale(4.5, context),
+                              capitalizeFirstLetter(user.displayName ?? ''),
+                              style: textTheme.displaySmall?.copyWith(
+                                fontSize: getTextScale(7, context),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -382,8 +382,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             },
                           ),
                         ),
-                      SizedBox(height: getPercentageHeight(2, context)),
-
+                      SizedBox(height: getPercentageHeight(1, context)),
                       // Search Content Section
                       Builder(
                         builder: (context) {
@@ -403,7 +402,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        CircularProgressIndicator(
+                                        const CircularProgressIndicator(
                                           color: kAccent,
                                           strokeWidth: 3,
                                         ),
@@ -488,6 +487,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                               dataSrc:
                                                   data, // Use Map directly for ChallengeDetailScreen
                                               screen: 'myPost',
+                                              allPosts: searchContentDatas,
+                                              initialIndex: index,
                                             ),
                                           ),
                                         );

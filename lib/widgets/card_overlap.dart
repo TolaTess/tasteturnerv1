@@ -242,6 +242,7 @@ class _OverlappingCardState extends State<OverlappingCard>
             : getAssetImageForItem(widget.title.toLowerCase());
 
     final isLongTitle = widget.title.length > 10;
+    final isLongSubtitle = (widget.subtitle?.length ?? 0) > 50;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -357,8 +358,9 @@ class _OverlappingCardState extends State<OverlappingCard>
                   if (widget.isSelected)
                     Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(4, context),
-                        vertical: getPercentageHeight(2, context),
+                        horizontal: getPercentageWidth(2, context),
+                        vertical: getPercentageHeight(
+                            isLongSubtitle ? 0 : 1, context),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -369,7 +371,9 @@ class _OverlappingCardState extends State<OverlappingCard>
                                 ? capitalizeFirstLetter(widget.title)
                                 : capitalizeFirstLetter(widget.type ?? ''),
                             style: textTheme.displayMedium?.copyWith(
-                              fontSize: isLongTitle ? 18 : 20,
+                              fontSize: isLongTitle
+                                  ? getTextScale(4, context)
+                                  : getTextScale(5, context),
                               fontWeight: FontWeight.w400,
                               color: isDarkMode ? kWhite : kDarkGrey,
                             ),
@@ -385,8 +389,9 @@ class _OverlappingCardState extends State<OverlappingCard>
                                   color: isDarkMode
                                       ? kWhite.withValues(alpha: 0.7)
                                       : kDarkGrey,
+                                  fontSize:  getTextScale(4, context),
                                 ),
-                                maxLines: widget.isRecipe ? 4 : 2,
+                                maxLines: widget.isRecipe ? 3 : 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -424,6 +429,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                                           : 'Join Program',
                                   style: textTheme.labelLarge?.copyWith(
                                     color: isDarkMode ? kDarkGrey : kWhite,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
@@ -25,9 +26,7 @@ class _TastyScreenState extends State<TastyScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController textController = TextEditingController();
   String? chatId;
-  bool get isPremium => userService.currentUser.value?.isPremium ?? false;
 
-  bool isInFreeTrial = false;
   late ChatController chatController;
 
   // List of welcome messages
@@ -49,14 +48,8 @@ class _TastyScreenState extends State<TastyScreen> {
       chatController = Get.put(ChatController());
     }
     chatId = userService.buddyId;
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
 
-    if (isPremium || isInFreeTrial) {
+    if (canUseAI()) {
       _initializeChatWithBuddy();
     }
 
@@ -114,8 +107,7 @@ class _TastyScreenState extends State<TastyScreen> {
   /// Summarize chat when screen is closed and update chat summary in Firestore
   Future<void> _saveChatSummary() async {
     if (chatId == null ||
-        !isPremium ||
-        !isInFreeTrial ||
+        !canUseAI() ||
         chatController.messages.last.senderId == 'buddy') return;
 
     final messages = chatController.messages;
@@ -142,20 +134,23 @@ class _TastyScreenState extends State<TastyScreen> {
     super.dispose();
   }
 
-  Widget _buildPremiumPrompt(ThemeProvider themeProvider) {
+  Widget _buildPremiumPrompt(ThemeProvider themeProvider, TextTheme textTheme) {
     return Stack(
       children: [
         if (widget.screen == 'message')
           Positioned(
-            top: 20,
-            left: 0,
+            top: getPercentageHeight(5, context),
+            left: getPercentageWidth(2, context),
             child: Padding(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               child: IconButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Get.back();
                 },
-                icon: const IconCircleButton(),
+                icon: IconCircleButton(
+                  isRemoveContainer: true,
+                  size: getIconScale(6.5, context),
+                ),
               ),
             ),
           ),
@@ -163,33 +158,30 @@ class _TastyScreenState extends State<TastyScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.workspace_premium,
-                size: 80,
+                size: getIconScale(15, context),
                 color: kAccent,
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: getPercentageHeight(1, context)),
               Text(
                 'Premium Feature',
-                style: TextStyle(
-                  fontSize: getTextScale(4.5, context),
+                style: textTheme.displaySmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: themeProvider.isDarkMode ? kWhite : kBlack,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: getPercentageHeight(1, context)),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
                   'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
+                  style: textTheme.bodyMedium?.copyWith(
                     color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: getPercentageHeight(3, context)),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kAccent,
@@ -209,8 +201,7 @@ class _TastyScreenState extends State<TastyScreen> {
                 },
                 child: Text(
                   'Go Premium',
-                  style: TextStyle(
-                    fontSize: getTextScale(3, context),
+                  style: textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: kWhite,
                   ),
@@ -227,7 +218,7 @@ class _TastyScreenState extends State<TastyScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final textTheme = Theme.of(context).textTheme;
-    if (isPremium || isInFreeTrial) {
+    if (canUseAI()) {
       if (chatId == null) {
         // Chat is still initializing
         return const Scaffold(
@@ -246,7 +237,7 @@ class _TastyScreenState extends State<TastyScreen> {
                 SizedBox(height: getPercentageHeight(2.5, context)),
                 Row(
                   children: [
-                    if (isPremium || isInFreeTrial)
+                    if (canUseAI())
                       Expanded(
                         child: Container(
                           margin:
@@ -372,7 +363,7 @@ class _TastyScreenState extends State<TastyScreen> {
       );
     } else {
       return Scaffold(
-        body: _buildPremiumPrompt(themeProvider),
+        body: _buildPremiumPrompt(themeProvider, textTheme),
       );
     }
   }
@@ -410,7 +401,7 @@ class _TastyScreenState extends State<TastyScreen> {
                   hintText: _getInputHintText(),
                   hintStyle: textTheme.bodyMedium?.copyWith(
                     color: isDarkMode
-                          ? kWhite.withValues(alpha: 0.5)
+                        ? kWhite.withValues(alpha: 0.5)
                         : kDarkGrey.withValues(alpha: 0.5),
                   ),
                 ),
@@ -500,7 +491,7 @@ Greet the user warmly and offer guidance based on:
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
-    if (chatId == null || !(isPremium || isInFreeTrial)) return;
+    if (chatId == null || !canUseAI()) return;
 
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
@@ -671,7 +662,7 @@ Greet the user warmly and offer guidance based on:
   }
 
   Future<void> _initializeChatWithBuddy() async {
-    if (!(isPremium || isInFreeTrial)) return;
+    if (!canUseAI()) return;
 
     if (chatId != null && chatId!.isNotEmpty) {
       // Existing chat - just listen to messages and mark as read
@@ -780,16 +771,19 @@ Greet the user warmly and offer guidance based on:
   Future<void> checkAndPromptAIPayment(BuildContext context) async {
     final preference = await SharedPreferences.getInstance();
     final startDateStr = preference.getString('ai_trial_start_date');
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    final textTheme = Theme.of(context).textTheme;
+
     if (startDateStr != null) {
       final startDate = DateTime.parse(startDateStr);
       final now = DateTime.now();
       if (now.difference(startDate).inDays >= 14) {
+        // Get theme values before showing dialog
+        final isDarkMode = getThemeProvider(context).isDarkMode;
+        final textTheme = Theme.of(context).textTheme;
+
         // Show payment dialog
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             backgroundColor: isDarkMode ? kDarkGrey : kWhite,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
@@ -805,7 +799,7 @@ Greet the user warmly and offer guidance based on:
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -813,11 +807,10 @@ Greet the user warmly and offer guidance based on:
                     ),
                   );
                 },
-                child:
-                    Text('Premium', style: textTheme.bodySmall?.copyWith()),
+                child: Text('Premium', style: textTheme.bodySmall?.copyWith()),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child:
                     Text('Maybe Later', style: textTheme.bodySmall?.copyWith()),
               ),

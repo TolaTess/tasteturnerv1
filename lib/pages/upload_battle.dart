@@ -151,11 +151,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   Future<void> _uploadMedia(String postId) async {
     if (_selectedMedia.isEmpty) {
       if (mounted) {
-        showTastySnackbar(
-          'Please try again.',
-          'Please select media first.',
-          context,
-        );
+        _pickMedia(fromCamera: false);
       }
       return;
     }
@@ -172,6 +168,14 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     }
 
     setState(() => isUploading = true);
+
+    print('Selected category: $selectedCategory');
+    print('Selected category id: $selectedCategoryId');
+    print('Is video: $_isVideo');
+    print('Selected media: ${_selectedMedia.first.path}');
+    print('Battle id: ${widget.battleId}');
+    print('Battle category: ${widget.battleCategory}');
+    print('Is main post: ${widget.isMainPost}');
 
     try {
       // If this is for analysis (postId is 'analyze_and_upload') and not a video, do analysis FIRST
@@ -256,6 +260,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             userId: userService.userId ?? '',
             imageFile: File(compressedPath),
           );
+
+          print('Download url: $downloadUrl');
           // Clean up temporary file
           await File(compressedPath).delete();
         }
@@ -274,7 +280,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         name: userService.currentUser.value?.displayName ?? '',
         category: selectedCategory,
         isBattle: widget.isMainPost ? false : true,
-        battleId: widget.isMainPost ? '' : widget.battleId,
+        battleId: widget.isMainPost ? '' : widget.battleCategory,
         isVideo: _isVideo,
       );
 
@@ -371,11 +377,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       appBar: AppBar(
         centerTitle: true,
         title: Text(
-          !widget.isMainPost
-              ? "Upload Battle Media - ${capitalizeFirstLetter(widget.battleCategory)}"
-              : "Upload Media",
-          style: textTheme.displaySmall
-              ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+          !widget.isMainPost ? "Upload Battle Media" : "Upload Media",
+          style: textTheme.displaySmall?.copyWith(
+              color: isDarkMode ? kWhite : kDarkGrey,
+              fontSize: getTextScale(7, context)),
         ),
         automaticallyImplyLeading: true,
         actions: [

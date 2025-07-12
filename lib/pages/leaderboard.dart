@@ -57,7 +57,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     try {
       final userId = userService.userId;
       final List<Map<String, dynamic>> data = [];
-      int userRank = 0;
+      int actualRank = 1; // Track actual rank excluding tastyId
 
       for (var i = 0; i < snapshot.docs.length; i++) {
         final pointsDoc = snapshot.docs[i];
@@ -77,15 +77,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   ? userData!['profileImage']
                   : intPlaceholderImage,
           'points': pointsData?['points'] ?? 0,
-          'rank': i + 1,
-          'subtitle': userData?['subtitle'] ?? 'TASTY FAN',
+          'rank': actualRank,
+          'subtitle': userData?['bio'] ?? 'TASTY FAN',
         };
 
-        data.add(userMap);
-
+        // Check if this is the current user (for "Your Ranking" section)
         if (docUserId == userId) {
-          userRank = i + 1;
           currentUserRank = userMap;
+        }
+
+        // Only add to main leaderboard if not tastyId
+        if (docUserId != tastyId) {
+          data.add(userMap);
+          actualRank++;
+        } else {
+          // If current user is tastyId, still set their rank for "Your Ranking"
+          if (docUserId == userId) {
+            currentUserRank = userMap;
+          }
         }
       }
 
@@ -396,7 +405,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      currentUserRank!['displayName'],
+                      capitalizeFirstLetter(currentUserRank!['displayName']),
                       style: TextStyle(
                         color: kWhite,
                         fontSize: getTextScale(4.5, context),
@@ -491,7 +500,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user['displayName'],
+                  capitalizeFirstLetter(user['displayName']),
                   style: TextStyle(
                     fontSize: getTextScale(4, context),
                     fontWeight: FontWeight.w600,

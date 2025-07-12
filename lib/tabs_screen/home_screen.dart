@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
@@ -56,16 +57,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
-  bool isInFreeTrial = false;
+
   @override
   void initState() {
     super.initState();
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
-    setState(() {
-      isInFreeTrial = isFreeTrial;
-    });
     // Initialize ProgramService
     _programService = Get.put(ProgramService());
 
@@ -142,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_analyse_button',
-          message: 'Tap here to analyse your meal!',
+          message: 'Tap here to analyze your meal!',
           targetKey: _addAnalyseButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -784,22 +779,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   if (winners.isNotEmpty && isAnnounceShow)
                     SizedBox(height: getPercentageHeight(1, context)),
 
-                  currentUser.isPremium ?? false
-                      ? const SizedBox.shrink()
-                      : SizedBox(height: getPercentageHeight(0.5, context)),
-
                   // ------------------------------------Premium / Ads------------------------------------
 
-                  currentUser.isPremium ?? false
-                      ? const SizedBox.shrink()
-                      : PremiumSection(
-                          isPremium: currentUser.isPremium ?? false,
-                          titleOne: joinChallenges,
-                          titleTwo: premium,
-                          isDiv: false,
-                        ),
+                  getAdsWidget(currentUser.isPremium, isDiv: false),
 
                   // ------------------------------------Premium / Ads-------------------------------------
+
                   SizedBox(height: getPercentageHeight(1, context)),
                   const Divider(
                     color: kAccentLight,

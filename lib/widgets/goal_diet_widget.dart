@@ -167,6 +167,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     double fontSize = getTextScale(4, context);
+    final fact = _getDietFact();
 
     return Column(
       children: [
@@ -269,7 +270,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
                     child: Container(
                       padding: EdgeInsets.all(getPercentageWidth(4, context)),
                       child: isShowingFront
-                          ? _buildDietFactSide(context, textTheme, isDarkMode)
+                          ? _buildDietFactSide(context, textTheme, isDarkMode, fact)
                           : Transform(
                               alignment: Alignment.center,
                               transform: Matrix4.identity()..rotateY(math.pi),
@@ -289,7 +290,7 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
   }
 
   Widget _buildDietFactSide(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+      BuildContext context, TextTheme textTheme, bool isDarkMode, String fact) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -302,12 +303,17 @@ class _GoalDietWidgetState extends State<GoalDietWidget>
             ),
           ),
           SizedBox(height: getPercentageHeight(2, context)),
-          Text(
-            _getDietFact(),
-            style: textTheme.bodyLarge?.copyWith(
-              height: 1.4,
+          Flexible(
+            child: Text(
+              fact,
+              style: textTheme.bodyLarge?.copyWith(
+                height: 1.4,
+                fontSize: getTextScale(fact.length > 70 ? 3.5 : 4, context),
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 3,
             ),
-            textAlign: TextAlign.center,
           ),
           SizedBox(height: getPercentageHeight(1, context)),
           const Divider(

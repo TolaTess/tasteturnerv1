@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:tasteturner/tabs_screen/vote_screen.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/profile_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/countdown.dart';
-import '../widgets/premium_widget.dart';
 import '../widgets/primary_button.dart';
 import '../service/battle_service.dart';
 
@@ -88,9 +89,11 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
     });
 
     try {
-      final battleId =
-          battleList.isNotEmpty ? battleList.first['categoryId'] : null;
-      if (battleId == null) {
+      // Get the current battle date key from general data
+      final currentBattleKey = firebaseService.generalData['currentBattle'];
+
+      if (currentBattleKey == null) {
+        print('No current battle key found in general data');
         if (mounted) {
           setState(() {
             participants = [];
@@ -100,12 +103,14 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
         return;
       }
 
+      // Use the current battle date key as the battleId
       var fetchedParticipants =
-          await BattleService.instance.getBattleParticipants(battleId);
+          await BattleService.instance.getBattleParticipants(currentBattleKey);
 
       if (fetchedParticipants.isEmpty) {
+        // Try to get previous battle participants if current is empty
         fetchedParticipants = await BattleService.instance
-            .getPreviousBattleParticipants(battleId);
+            .getPreviousBattleParticipants(currentBattleKey);
         if (mounted) {
           setState(() {
             _isPreviousBattle = true;
@@ -156,16 +161,24 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final battleDeadline = DateTime.parse(
-        firebaseService.generalData['battleDeadline'] ??
-            DateTime.now().toString());
+
+    // Handle battleDeadline which can be either Timestamp or String
+    final battleDeadlineData = firebaseService.generalData['battleDeadline'];
+    DateTime battleDeadline;
+    if (battleDeadlineData is Timestamp) {
+      battleDeadline = battleDeadlineData.toDate();
+    } else if (battleDeadlineData is String) {
+      battleDeadline = DateTime.parse(battleDeadlineData);
+    } else {
+      battleDeadline = DateTime.now().add(const Duration(days: 7));
+    }
+
     final isBattleDeadlineShow = isDateToday(battleDeadline);
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         automaticallyImplyLeading: true,
-        toolbarHeight: getPercentageHeight(10, context),
         title: Text(
           'Dine In',
           style: textTheme.displaySmall?.copyWith(
@@ -181,13 +194,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: getPercentageHeight(1, context),
+                  height: getPercentageHeight(2, context),
                 ),
                 Center(
                   child: Text(
                     'Join the battle to create a masterpiece!',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: kAccent,
                         ),
@@ -215,7 +228,14 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                       Text(
                         key: _addJoinButtonKey,
                         ingredientBattle,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style:
+                            Theme.of(context).textTheme.displayMedium?.copyWith(
+                                  fontWeight: FontWeight.w200,
+                                  fontSize: getTextScale(4.5, context),
+                                ),
+                      ),
+                      SizedBox(
+                        height: getPercentageHeight(0.5, context),
                       ),
                       Text(
                         showBattle
@@ -237,7 +257,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                           horizontal: getPercentageWidth(2, context)),
                       padding: EdgeInsets.all(getPercentageWidth(2, context)),
                       decoration: BoxDecoration(
-                        color: kAccent.withOpacity(kMidOpacity),
+                        color: kAccent.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Column(
@@ -266,7 +286,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                           // GridView for discount data
                           SizedBox(
-                            height: getPercentageHeight(22, context),
+                            height: getPercentageHeight(15, context),
                             child: battleList.isEmpty
                                 ? noItemTastyWidget(
                                     "No battles available yet",
@@ -282,7 +302,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                         SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       mainAxisExtent:
-                                          getPercentageHeight(21, context),
+                                          getPercentageHeight(14, context),
                                       crossAxisSpacing:
                                           getPercentageWidth(1, context),
                                       childAspectRatio: 0.1,
@@ -335,9 +355,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                             child: battleList.isEmpty
                                 ? null
                                 : FutureBuilder<bool>(
-                                    future: macroManager.isUserInBattle(
-                                        userService.userId ?? '',
-                                        battleList.first['categoryId']),
+                                    future: () async {
+                                      final currentBattleKey = firebaseService
+                                          .generalData['currentBattle'];
+                                      if (currentBattleKey == null)
+                                        return false;
+
+                                      return await macroManager.isUserInBattle(
+                                          userService.userId ?? '',
+                                          currentBattleKey);
+                                    }(),
                                     builder: (context, snapshot) {
                                       if (!snapshot.hasData) {
                                         return const CircularProgressIndicator(
@@ -349,12 +376,9 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
 
                                       return Builder(
                                         builder: (context) {
-                                          final DateTime deadline =
-                                              DateTime.parse(
-                                                  battleList.first['dueDate'] ??
-                                                      '');
                                           final bool isDeadlineOver =
-                                              deadline.isBefore(DateTime.now());
+                                              battleDeadline
+                                                  .isBefore(DateTime.now());
 
                                           // Case 1: Deadline is over
                                           if (isDeadlineOver) {
@@ -398,15 +422,17 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                               },
                                               child: Text(
                                                 !isBattleDeadlineShow
-                                                    ? 'Manage in profile screen'
+                                                    ? 'Manage in Profile Page'
                                                     : 'Vote for your favorite dish!',
                                                 style: Theme.of(context)
                                                     .textTheme
-                                                    .titleSmall
+                                                    .displaySmall
                                                     ?.copyWith(
                                                         color: kAccentLight,
                                                         fontWeight:
-                                                            FontWeight.w600),
+                                                            FontWeight.w600,
+                                                        fontSize: getTextScale(
+                                                            6, context)),
                                               ),
                                             );
                                           }
@@ -418,14 +444,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                             onPressed: () async {
                                               String userId =
                                                   userService.userId ?? '';
-                                              String battleId =
-                                                  battleList.isNotEmpty
-                                                      ? battleList
-                                                          .first['categoryId']
-                                                      : '';
+                                              final currentBattleKey =
+                                                  firebaseService.generalData[
+                                                      'currentBattle'];
 
                                               if (userId.isEmpty ||
-                                                  battleId.isEmpty) {
+                                                  currentBattleKey == null) {
                                                 if (!mounted) return;
                                                 showTastySnackbar(
                                                   'Please try again.',
@@ -452,12 +476,16 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                     backgroundColor: isDarkMode
                                                         ? kDarkGrey
                                                         : kWhite,
-                                                    title: const Text(
+                                                    title: Text(
                                                       'Food Battle Instructions',
-                                                      style: TextStyle(
+                                                      style: textTheme
+                                                          .displaySmall
+                                                          ?.copyWith(
                                                         fontWeight:
                                                             FontWeight.bold,
                                                         color: kAccent,
+                                                        fontSize: getTextScale(
+                                                            7, context),
                                                       ),
                                                     ),
                                                     content:
@@ -474,7 +502,7 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             style: Theme.of(
                                                                     context)
                                                                 .textTheme
-                                                                .titleSmall
+                                                                .titleMedium
                                                                 ?.copyWith(
                                                                   fontWeight:
                                                                       FontWeight
@@ -491,10 +519,12 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                                       context)),
                                                           Text(
                                                             'Rules of the Battle:',
-                                                            style: TextStyle(
+                                                            style: textTheme
+                                                                .titleMedium
+                                                                ?.copyWith(
                                                               fontWeight:
                                                                   FontWeight
-                                                                      .w600,
+                                                                      .w200,
                                                               color: isDarkMode
                                                                   ? kWhite
                                                                   : kBlack,
@@ -513,13 +543,13 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                             '• Create a visually stunning dish\n'
                                                             '• Take a high-quality photo\n'
                                                             '• Submit before the deadline\n\n'
-                                                            'Remember: Presentation is key! Users will vote based on appearance.',
-                                                            style: TextStyle(
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyMedium
-                                                                  ?.color,
+                                                            '🏆 Remember: Presentation is key! \n\n Users will vote based on appearance! 🏆',
+                                                            style: textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
+                                                              color: isDarkMode
+                                                                  ? kWhite
+                                                                  : kBlack,
                                                             ),
                                                           ),
                                                         ],
@@ -568,10 +598,10 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                                                       .currentUser.value;
                                                   await macroManager.joinBattle(
                                                     userId,
-                                                    battleId,
+                                                    currentBattleKey,
                                                     'general',
                                                     user!.displayName ?? '',
-                                                    '',
+                                                    user.profileImage ?? '',
                                                   );
                                                   await _fetchParticipants(
                                                       'general');
@@ -606,34 +636,15 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
                 SizedBox(
                   height: getPercentageHeight(1, context),
                 ),
-                userService.currentUser.value?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : const SizedBox(height: 5),
 
                 // ------------------------------------Premium / Ads------------------------------------
-
-                userService.currentUser.value?.isPremium ?? false
-                    ? const SizedBox.shrink()
-                    : PremiumSection(
-                        isPremium:
-                            userService.currentUser.value?.isPremium ?? false,
-                        titleOne: joinChallenges,
-                        titleTwo: premium,
-                        isDiv: false,
-                      ),
-
-                // ------------------------------------Premium / Ads-------------------------------------
-                userService.currentUser.value?.isPremium ?? false
-                    ? SizedBox(
-                        height: getPercentageHeight(0.5, context),
-                      )
-                    : SizedBox(
-                        height: getPercentageHeight(1.5, context),
-                      ),
-
-                SizedBox(
-                  height: getPercentageHeight(1, context),
-                ),
+                getAdsWidget(userService.currentUser.value?.isPremium ?? false,
+                    isDiv: false),
+                // ------------------------------------Premium / Ads------------------------------------
+                if (!(userService.currentUser.value?.isPremium ?? false))
+                  SizedBox(
+                    height: getPercentageHeight(2, context),
+                  ),
 
                 if (participants.isNotEmpty)
                   _buildChallengersSection(context, isDarkMode)
@@ -672,21 +683,23 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
       children: [
         Padding(
           padding:
-              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
           child: Text(
             _isPreviousBattle
                 ? 'Previous Battle Challengers'
                 : 'Current Challengers',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                color: isDarkMode ? kWhite : kDarkGrey,
+                fontWeight: FontWeight.w200,
+                fontSize: getTextScale(4.5, context)),
           ),
         ),
         SizedBox(height: getPercentageHeight(1, context)),
         SizedBox(
           height: getPercentageHeight(30, context),
           child: GridView.builder(
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context)),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               crossAxisSpacing: 8,
@@ -721,27 +734,44 @@ class _FoodChallengeScreenState extends State<FoodChallengeScreen> {
               final participant = participantsWithImages[index];
               final imageUrl =
                   participant['image'] as String? ?? intPlaceholderImage;
+              final mediaPaths = participant['mediaPaths'] as List<dynamic>? ?? [];
+
+              final hasMediaUploadedImages = mediaPaths.isNotEmpty;
+
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => VoteScreen(
-                        isDarkMode: isDarkMode,
-                        category: 'general',
-                        initialCandidateId: participant['userid'],
+                  final currentBattleKey =
+                      firebaseService.generalData['currentBattle'];
+                  if (currentBattleKey != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => VoteScreen(
+                          isDarkMode: isDarkMode,
+                          category: 'general',
+                          initialCandidateId: participant['userid'],
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Image.asset(intPlaceholderImage, fit: BoxFit.cover),
-                  ),
+                  child: hasMediaUploadedImages
+                      ? Image.network(
+                          mediaPaths![0],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset(intPlaceholderImage,
+                                  fit: BoxFit.cover),
+                        )
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset(intPlaceholderImage,
+                                  fit: BoxFit.cover),
+                        ),
                 ),
               );
             },

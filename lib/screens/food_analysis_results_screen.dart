@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../helper/helper_functions.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../widgets/primary_button.dart';
 import '../data_models/post_model.dart';
@@ -39,8 +40,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   late Map<String, dynamic> _editableAnalysis;
   bool _isSaving = false;
   bool _hasCreatedMeal = false;
-  bool _showNutritionWarning = false;
-  String _nutritionWarningMessage = '';
 
   @override
   void initState() {
@@ -49,7 +48,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
     // Recalculate totals on initial load to ensure consistency
     _recalculateTotalNutrition();
-    _validateNutrition();
   }
 
   Color _getHealthScoreColor(int score) {
@@ -280,7 +278,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           setState(() {
             foodItems[index] = updatedItem;
             _recalculateTotalNutrition();
-            _validateNutrition();
           });
         },
       ),
@@ -303,14 +300,26 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
 
       // Handle both int and double values safely
-      totalNutrition['calories'] = (totalNutrition['calories'] as double) +
-          _parseNumeric(nutrition['calories']);
-      totalNutrition['protein'] = (totalNutrition['protein'] as double) +
-          _parseNumeric(nutrition['protein']);
-      totalNutrition['carbs'] = (totalNutrition['carbs'] as double) +
-          _parseNumeric(nutrition['carbs']);
-      totalNutrition['fat'] =
-          (totalNutrition['fat'] as double) + _parseNumeric(nutrition['fat']);
+      final itemCalories = _parseNumeric(nutrition['calories']);
+      final itemProtein = _parseNumeric(nutrition['protein']);
+      final itemCarbs = _parseNumeric(nutrition['carbs']);
+      final itemFat = _parseNumeric(nutrition['fat']);
+
+      // Calculate calories from macros for this item
+      final calculatedCalories =
+          (itemProtein * 4) + (itemCarbs * 4) + (itemFat * 9);
+
+      // Use macro-based calories if they don't equal the provided calories
+      final finalCalories = calculatedCalories != itemCalories
+          ? calculatedCalories
+          : itemCalories;
+
+      totalNutrition['calories'] =
+          (totalNutrition['calories'] as double) + finalCalories;
+      totalNutrition['protein'] =
+          (totalNutrition['protein'] as double) + itemProtein;
+      totalNutrition['carbs'] = (totalNutrition['carbs'] as double) + itemCarbs;
+      totalNutrition['fat'] = (totalNutrition['fat'] as double) + itemFat;
       totalNutrition['fiber'] = (totalNutrition['fiber'] as double) +
           _parseNumeric(nutrition['fiber']);
       totalNutrition['sugar'] = (totalNutrition['sugar'] as double) +
@@ -335,34 +344,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return 0.0;
   }
 
-  /// Validate nutrition consistency and macro calculations
-  void _validateNutrition() {
-    final totalNutrition =
-        _editableAnalysis['totalNutrition'] as Map<String, dynamic>;
-    final calories = _parseNumeric(totalNutrition['calories']);
-    final protein = _parseNumeric(totalNutrition['protein']);
-    final carbs = _parseNumeric(totalNutrition['carbs']);
-    final fat = _parseNumeric(totalNutrition['fat']);
-
-    // Calculate calories from macros (protein: 4 cal/g, carbs: 4 cal/g, fat: 9 cal/g)
-    final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
-    final caloriesDifference = (calories - calculatedCalories).abs();
-
-    // Allow 10% tolerance for rounding and estimation errors
-    final tolerance = calories * 0.1;
-
-    setState(() {
-      if (caloriesDifference > tolerance && caloriesDifference > 50) {
-        _showNutritionWarning = true;
-        _nutritionWarningMessage =
-            'Calories (${calories.round()}) don\'t match macros (${calculatedCalories.round()}). This may affect accuracy.';
-      } else {
-        _showNutritionWarning = false;
-        _nutritionWarningMessage = '';
-      }
-    });
-  }
-
   Widget _buildNutritionCard({
     required String title,
     required String value,
@@ -371,6 +352,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     TextTheme? textTheme,
   }) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(3, context)),
       decoration: BoxDecoration(
@@ -481,42 +463,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Nutrition Warning (if any)
-                    if (_showNutritionWarning)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.orange.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Colors.orange,
-                              size: getIconScale(5, context),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _nutritionWarningMessage,
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: getTextScale(3, context),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                     // Health Score
                     Container(
                       width: double.infinity,
@@ -581,6 +527,13 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // Suggestions Section
+                    if (_editableAnalysis.containsKey('suggestions'))
+                      buildSuggestionsSection(
+                          context, _editableAnalysis, false),
 
                     const SizedBox(height: 20),
 
@@ -787,7 +740,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                       },
                     ),
 
-                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
                     // Save Button
                     SizedBox(
@@ -833,6 +786,16 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
   late TextEditingController _carbsController;
   late TextEditingController _fatController;
 
+  // Store original values for ratio calculations
+  late double _originalWeight;
+  late double _originalCalories;
+  late double _originalProtein;
+  late double _originalCarbs;
+  late double _originalFat;
+
+  bool _isUpdatingFromWeight = false;
+  bool _isUpdatingFromCalories = false;
+
   @override
   void initState() {
     super.initState();
@@ -841,20 +804,70 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
 
     _nameController =
         TextEditingController(text: widget.foodItem['name'] ?? '');
-    _weightController = TextEditingController(
-        text: widget.foodItem['estimatedWeight']?.toString() ?? '');
+
+    // Parse and store original values
+    _originalWeight = double.tryParse(widget.foodItem['estimatedWeight']
+                ?.toString()
+                .replaceAll('g', '') ??
+            '0') ??
+        0.0;
+    _originalCalories =
+        double.tryParse(nutrition['calories']?.toString() ?? '0') ?? 0.0;
+    _originalProtein =
+        double.tryParse(nutrition['protein']?.toString() ?? '0') ?? 0.0;
+    _originalCarbs =
+        double.tryParse(nutrition['carbs']?.toString() ?? '0') ?? 0.0;
+    _originalFat = double.tryParse(nutrition['fat']?.toString() ?? '0') ?? 0.0;
+
+    _weightController = TextEditingController(text: _originalWeight.toString());
     _caloriesController =
-        TextEditingController(text: nutrition['calories']?.toString() ?? '0');
+        TextEditingController(text: _originalCalories.toString());
     _proteinController =
-        TextEditingController(text: nutrition['protein']?.toString() ?? '0');
-    _carbsController =
-        TextEditingController(text: nutrition['carbs']?.toString() ?? '0');
-    _fatController =
-        TextEditingController(text: nutrition['fat']?.toString() ?? '0');
+        TextEditingController(text: _originalProtein.toString());
+    _carbsController = TextEditingController(text: _originalCarbs.toString());
+    _fatController = TextEditingController(text: _originalFat.toString());
+
+    // Add listeners for automatic conversion
+    _weightController.addListener(_onWeightChanged);
+    _caloriesController.addListener(_onCaloriesChanged);
+  }
+
+  void _onWeightChanged() {
+    if (_isUpdatingFromCalories) return;
+
+    final newWeight = double.tryParse(_weightController.text) ?? 0.0;
+    if (newWeight > 0 && _originalWeight > 0) {
+      final ratio = newWeight / _originalWeight;
+
+      _isUpdatingFromWeight = true;
+      _caloriesController.text = (_originalCalories * ratio).round().toString();
+      _proteinController.text = (_originalProtein * ratio).round().toString();
+      _carbsController.text = (_originalCarbs * ratio).round().toString();
+      _fatController.text = (_originalFat * ratio).round().toString();
+      _isUpdatingFromWeight = false;
+    }
+  }
+
+  void _onCaloriesChanged() {
+    if (_isUpdatingFromWeight) return;
+
+    final newCalories = double.tryParse(_caloriesController.text) ?? 0.0;
+    if (newCalories > 0 && _originalCalories > 0) {
+      final ratio = newCalories / _originalCalories;
+
+      _isUpdatingFromCalories = true;
+      _weightController.text = (_originalWeight * ratio).round().toString();
+      _proteinController.text = (_originalProtein * ratio).round().toString();
+      _carbsController.text = (_originalCarbs * ratio).round().toString();
+      _fatController.text = (_originalFat * ratio).round().toString();
+      _isUpdatingFromCalories = false;
+    }
   }
 
   @override
   void dispose() {
+    _weightController.removeListener(_onWeightChanged);
+    _caloriesController.removeListener(_onCaloriesChanged);
     _nameController.dispose();
     _weightController.dispose();
     _caloriesController.dispose();
@@ -867,7 +880,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
   void _save() {
     final updatedItem = Map<String, dynamic>.from(widget.foodItem);
     updatedItem['name'] = _nameController.text;
-    updatedItem['estimatedWeight'] = _weightController.text;
+    updatedItem['estimatedWeight'] = '${_weightController.text}g';
 
     final nutrition = updatedItem['nutritionalInfo'] as Map<String, dynamic>;
 
@@ -877,52 +890,14 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     final carbs = double.tryParse(_carbsController.text) ?? 0.0;
     final fat = double.tryParse(_fatController.text) ?? 0.0;
 
-    // Validate macros vs calories
+    // Calculate calories from macros
     final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
-    final difference = (calories - calculatedCalories).abs();
 
-    if (difference > calories * 0.15 && difference > 30) {
-      // Show warning dialog for significant discrepancies
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          backgroundColor:
-              getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-          title: const Text('Nutrition Warning'),
-          content: Text(
-              'The calories (${calories.round()}) don\'t match the calculated calories from macros (${calculatedCalories.round()}). This may affect nutrition accuracy. Do you want to continue?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Edit Again'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _saveValues(
-                    updatedItem, nutrition, calories, protein, carbs, fat);
-              },
-              child: const Text('Save Anyway'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      _saveValues(updatedItem, nutrition, calories, protein, carbs, fat);
-    }
-  }
+    // Use macro-based calories if they don't equal the provided calories
+    final finalCalories =
+        calculatedCalories != calories ? calculatedCalories : calories;
 
-  void _saveValues(
-      Map<String, dynamic> updatedItem,
-      Map<String, dynamic> nutrition,
-      double calories,
-      double protein,
-      double carbs,
-      double fat) {
-    nutrition['calories'] = calories.round();
+    nutrition['calories'] = finalCalories.round();
     nutrition['protein'] = protein.round();
     nutrition['carbs'] = carbs.round();
     nutrition['fat'] = fat.round();

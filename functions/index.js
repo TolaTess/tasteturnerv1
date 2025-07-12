@@ -99,15 +99,17 @@ exports.generateBattleIngredients = functions.pubsub
         prevBattleKey = dateKeys.pop(); // Get the most recent one
       }
       
-      // 4. Construct the update payload to create the new battle week
+      // 4. Construct the update payload to create the new battle week using nested structure
       const newBattlePayload = {
-        [`dates.${battleDateKey}`]: {
-          ingredients: ingredientsData,
-          participants: {},
-          voted: [],
-          status: "active",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          battleDeadline: admin.firestore.Timestamp.fromDate(deadline),
+        dates: {
+          [battleDateKey]: {
+            ingredients: ingredientsData,
+            participants: {},
+            voted: [],
+            status: "active",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            battleDeadline: admin.firestore.Timestamp.fromDate(deadline),
+          },
         },
       };
       await battleRef.set(newBattlePayload, { merge: true });
@@ -289,7 +291,7 @@ exports.processBattleEnd = functions.pubsub
       const battleData = battleDoc.data().dates[battleKeyToProcess];
       const participants = battleData.participants || {};
 
-      // Mark battle as ended regardless of participant count
+      // Mark battle as ended regardless of participant count using nested structure
       await battleRef.update({
         [`dates.${battleKeyToProcess}.status`]: "ended",
       });

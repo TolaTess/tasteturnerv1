@@ -15,6 +15,7 @@ class Meal {
   final String? category;
   final String? cookingMethod;
   final String? cookingTime;
+  final Map<String, dynamic>? suggestions;
 
   Meal({
     required this.userId,
@@ -36,6 +37,7 @@ class Meal {
     this.cookingMethod,
     this.cookingTime,
     this.nutrition = const {},
+    this.suggestions,
   });
 
   // Convert Meal instance to a JSON
@@ -59,6 +61,7 @@ class Meal {
       'cookingMethod': cookingMethod,
       'cookingTime': cookingTime,
       'nutrition': nutrition,
+      'suggestions': suggestions,
     };
   }
 
@@ -101,6 +104,7 @@ class Meal {
       category: json['category'] as String? ?? '',
       cookingMethod: json['cookingMethod'] as String? ?? '',
       cookingTime: json['cookingTime'] as String? ?? '',
+      suggestions: json['suggestions'] as Map<String, dynamic>? ?? {},
     );
   }
 
@@ -125,6 +129,7 @@ class Meal {
     String? cookingMethod,
     String? cookingTime,
     Map<String, String>? nutrition,
+    Map<String, dynamic>? suggestions,
   }) {
     return Meal(
       userId: userId ?? this.userId,
@@ -146,6 +151,7 @@ class Meal {
       cookingMethod: cookingMethod ?? this.cookingMethod,
       cookingTime: cookingTime ?? this.cookingTime,
       nutrition: nutrition ?? this.nutrition,
+      suggestions: suggestions ?? this.suggestions,
     );
   }
 }

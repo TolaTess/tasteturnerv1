@@ -99,6 +99,7 @@ class AppButton extends StatelessWidget {
                       style: textTheme.displaySmall?.copyWith(
                           color: txtColor,
                           fontWeight: FontWeight.w600,
+                          overflow: TextOverflow.ellipsis,
                           fontSize: type == AppButtonType.follow
                               ? getPercentageWidth(5.5, context)
                               : getPercentageWidth(6.5, context)),

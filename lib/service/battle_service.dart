@@ -36,41 +36,7 @@ class BattleService extends GetxController {
     return dates[firstDateKey] as Map<String, dynamic>;
   }
 
-  // Join a battle
-  Future<void> joinBattle({
-    required String battleId,
-    required String userId,
-    required String userName,
-    required String userImage,
-  }) async {
-    try {
-      final battleDoc = await battlesRef.doc(battleId).get();
-      if (!battleDoc.exists) throw Exception('Battle not found');
-
-      final data = battleDoc.data() as Map<String, dynamic>;
-      final firstDateKey = data['dates'].keys.first;
-      // Update participants for current week
-      await battlesRef.doc(battleId).update({
-        'dates.$firstDateKey.participants.$userId': {
-          'name': userName,
-          'image': userImage,
-          'votes': []
-        }
-      });
-
-      // Update user's battles
-      await _firestore.collection('userBattles').doc(userId).set({
-        'dates': {
-          firstDateKey: {
-            'ongoing': FieldValue.arrayUnion([battleId])
-          }
-        }
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error joining battle: $e');
-      throw Exception('Failed to join battle');
-    }
-  }
+  // Note: joinBattle is now handled by MacroManager to match the backend structure
 
   // Cast a vote in a battle
   Future<void> castVote({
@@ -79,16 +45,27 @@ class BattleService extends GetxController {
     required String votedForUserId,
   }) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
-      if (!battleDoc.exists) throw Exception('Battle not found');
+      // Use nested structure: battles/general/dates/{battleId}
+      final battleRef = _firestore.collection('battles').doc('general');
+      final battleDoc = await battleRef.get();
+      if (!battleDoc.exists) throw Exception('Battle document not found');
 
-      final data = battleDoc.data() as Map<String, dynamic>;
-      final firstDateKey = data['dates'].keys.first;
+      final battleData = battleDoc.data() as Map<String, dynamic>;
+
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        throw Exception('No dates structure found');
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        throw Exception('Battle not found: $battleId');
+      }
 
       // Update voted array and participant's votes
-      await battlesRef.doc(battleId).update({
-        'dates.$firstDateKey.voted': FieldValue.arrayUnion([voterId]),
-        'dates.$firstDateKey.participants.$votedForUserId.votes':
+      await battleRef.update({
+        'dates.$battleId.voted': FieldValue.arrayUnion([voterId]),
+        'dates.$battleId.participants.$votedForUserId.votes':
             FieldValue.arrayUnion([voterId])
       });
 
@@ -100,8 +77,8 @@ class BattleService extends GetxController {
         // Create the document with initial data
         await userBattlesRef.set({
           'dates': {
-            firstDateKey: {
-              'voted': [battleId],
+            battleId: {
+              'voted': ['general'],
               'ongoing': []
             }
           }
@@ -109,8 +86,8 @@ class BattleService extends GetxController {
       } else {
         // Update existing document
         await userBattlesRef.update({
-          'dates.$firstDateKey.voted': FieldValue.arrayUnion([battleId]),
-          'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
+          'dates.$battleId.voted': FieldValue.arrayUnion(['general']),
+          'dates.$battleId.ongoing': FieldValue.arrayRemove(['general'])
         });
       }
     } catch (e) {
@@ -192,15 +169,33 @@ class BattleService extends GetxController {
   Future<List<Map<String, dynamic>>> getBattleParticipants(
       String battleId) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
-      if (!battleDoc.exists) return [];
+      // In the new structure, battleId is the date key
+      // We need to get participants from battles/general/dates/{battleId}
+      final battleDoc =
+          await _firestore.collection('battles').doc('general').get();
+      if (!battleDoc.exists) {
+        print('General battle document not found');
+        return [];
+      }
 
-      final currentBattle = _getCurrentBattleData(battleDoc);
-      if (currentBattle == null) return [];
+      final battleData = battleDoc.data() as Map<String, dynamic>;
 
+      // Read from the nested dates structure: dates.{battleId}.participants
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        print('No dates structure found');
+        return [];
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        print('Battle not found: $battleId');
+        return [];
+      }
+
+      final currentBattle = datesMap[battleId] as Map<String, dynamic>;
       final participants =
-          currentBattle['participants'] as Map<String, dynamic>?;
-      if (participants == null) return [];
+          currentBattle['participants'] as Map<String, dynamic>? ?? {};
 
       final List<Map<String, dynamic>> participantList = [];
       participants.forEach((userId, userData) {
@@ -209,9 +204,13 @@ class BattleService extends GetxController {
           'userid': userId,
           'name': data['name'] ?? '',
           'image': data['image'] ?? '',
+          'votes': data['votes'] ?? [],
+          'mediaPaths': data['mediaPaths'] ?? [],
         });
       });
 
+      print(
+          'Found ${participantList.length} participants for battle: $battleId');
       return participantList;
     } catch (e) {
       print('Error getting battle participants: $e');
@@ -222,12 +221,24 @@ class BattleService extends GetxController {
   // Check if user has voted
   Future<bool> hasUserVoted(String battleId, String userId) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
+      // Use nested structure: battles/general/dates/{battleId}
+      final battleDoc =
+          await _firestore.collection('battles').doc('general').get();
       if (!battleDoc.exists) return false;
 
-      final currentBattle = _getCurrentBattleData(battleDoc);
-      if (currentBattle == null) return false;
+      final battleData = battleDoc.data() as Map<String, dynamic>;
 
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        return false;
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        return false;
+      }
+
+      final currentBattle = datesMap[battleId] as Map<String, dynamic>;
       final voted = List<String>.from(currentBattle['voted'] ?? []);
       return voted.contains(userId);
     } catch (e) {
@@ -239,15 +250,27 @@ class BattleService extends GetxController {
   // Check if user has joined battle
   Future<bool> hasUserJoinedBattle(String battleId, String userId) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
+      // Use nested structure: battles/general/dates/{battleId}
+      final battleDoc =
+          await _firestore.collection('battles').doc('general').get();
       if (!battleDoc.exists) return false;
 
-      final currentBattle = _getCurrentBattleData(battleDoc);
-      if (currentBattle == null) return false;
+      final battleData = battleDoc.data() as Map<String, dynamic>;
 
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        return false;
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        return false;
+      }
+
+      final currentBattle = datesMap[battleId] as Map<String, dynamic>;
       final participants =
-          currentBattle['participants'] as Map<String, dynamic>?;
-      return participants != null && participants.containsKey(userId);
+          currentBattle['participants'] as Map<String, dynamic>? ?? {};
+      return participants.containsKey(userId);
     } catch (e) {
       print('Error checking if user joined battle: $e');
       return false;
@@ -277,19 +300,21 @@ class BattleService extends GetxController {
 
         // Get details for each ongoing battle
         for (String battleId in ongoingBattles) {
-          final battleDoc = await battlesRef.doc(battleId).get();
+          final battleDoc = await battlesRef.doc('general').get();
           if (!battleDoc.exists) continue;
 
           final data = battleDoc.data() as Map<String, dynamic>;
+
           if (!data.containsKey('dates')) continue;
 
           final battleDates = data['dates'] as Map<String, dynamic>;
+
           if (!battleDates.containsKey(dateKey)) continue;
 
           final battleData = battleDates[dateKey];
           battleDetails.add({
             'id': battleId,
-            'category': data['category'],
+            'category': 'general',
             'currentBattle': battleData,
           });
         }
@@ -305,20 +330,30 @@ class BattleService extends GetxController {
   // Remove user from battle
   Future<void> removeUserFromBattle(String userId, String battleId) async {
     try {
-      final battleDoc = await battlesRef.doc(battleId).get();
-      if (!battleDoc.exists) throw Exception('Battle not found');
-      final data = battleDoc.data() as Map<String, dynamic>;
-      final currentBattle = _getCurrentBattleData(battleDoc);
-      if (currentBattle == null) throw Exception('No active battle found');
+      // Use nested structure: battles/general/dates/{battleId}
+      final battleRef = _firestore.collection('battles').doc('general');
+      final battleDoc = await battleRef.get();
+      if (!battleDoc.exists) throw Exception('Battle document not found');
 
-      final firstDateKey = data['dates'].keys.first;
+      final battleData = battleDoc.data() as Map<String, dynamic>;
+
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        throw Exception('No dates structure found');
+      }
+
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(battleId)) {
+        throw Exception('Battle not found: $battleId');
+      }
+
       // Remove user from participants
-      await battlesRef.doc(battleId).update(
-          {'dates.$firstDateKey.participants.$userId': FieldValue.delete()});
+      await battleRef.update(
+          {'dates.$battleId.participants.$userId': FieldValue.delete()});
 
       // Remove battle from user's ongoing battles
       await _firestore.collection('userBattles').doc(userId).update({
-        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([battleId])
+        'dates.$battleId.ongoing': FieldValue.arrayRemove(['general'])
       });
     } catch (e) {
       print('Error removing user from battle: $e');
@@ -331,24 +366,34 @@ class BattleService extends GetxController {
     required Post post,
   }) async {
     try {
-      final battleDoc = await battlesRef.doc(post.id).get();
+      // Access the general battle document, not the battle date as document ID
+      final battleDoc = await battlesRef.doc('general').get();
       if (!battleDoc.exists) throw Exception('Battle not found');
       final data = battleDoc.data() as Map<String, dynamic>;
 
-      final currentBattle = _getCurrentBattleData(battleDoc);
-      if (currentBattle == null) throw Exception('No active battle found');
+      if (!data.containsKey('dates') ||
+          data['dates'] is! Map<String, dynamic>) {
+        throw Exception('No dates structure found');
+      }
 
-      final firstDateKey = data['dates'].keys.first;
-      // Update participant's media in the battle
-      await battlesRef.doc(post.id).update({
-        'dates.$firstDateKey.participants.${post.userId}.mediaPaths':
+      final datesMap = data['dates'] as Map<String, dynamic>;
+      // post.id should be the battle date (e.g., "2025-07-11")
+      final battleId = post.id;
+
+      if (!datesMap.containsKey(battleId)) {
+        throw Exception('Battle not found: $battleId');
+      }
+
+      // Update participant's media in the battle using the correct structure
+      await battlesRef.doc('general').update({
+        'dates.$battleId.participants.${post.userId}.mediaPaths':
             post.mediaPaths
       });
 
-      // Move battle from ongoing to voted for the user
+      // Move battle from ongoing to uploaded for the user
       await _firestore.collection('userBattles').doc(post.userId).update({
-        'dates.$firstDateKey.ongoing': FieldValue.arrayRemove([post.id]),
-        'dates.$firstDateKey.uploaded': FieldValue.arrayUnion([post.id])
+        'dates.$battleId.ongoing': FieldValue.arrayRemove([battleId]),
+        'dates.$battleId.uploaded': FieldValue.arrayUnion([battleId])
       });
 
       // Create or update battle post
@@ -497,22 +542,38 @@ class BattleService extends GetxController {
   Future<List<Map<String, dynamic>>> getPreviousBattleParticipants(
       String battleId) async {
     try {
+      // Get previous battle date from general data
       final prevBattleDate = firebaseService.generalData['prevBattle'];
-      if (prevBattleDate == null) return [];
+      if (prevBattleDate == null) {
+        print('No previous battle found in general data');
+        return [];
+      }
 
-      final battleDoc = await battlesRef.doc(battleId).get();
-      if (!battleDoc.exists) return [];
+      // Get participants from battles/general/dates/{prevBattleDate}
+      final battleDoc =
+          await _firestore.collection('battles').doc('general').get();
+      if (!battleDoc.exists) {
+        print('General battle document not found');
+        return [];
+      }
 
-      final data = battleDoc.data() as Map<String, dynamic>;
-      if (!data.containsKey('dates')) return [];
+      final battleData = battleDoc.data() as Map<String, dynamic>;
 
-      final dates = data['dates'] as Map<String, dynamic>;
-      if (!dates.containsKey(prevBattleDate)) return [];
+      if (!battleData.containsKey('dates') ||
+          battleData['dates'] is! Map<String, dynamic>) {
+        print('No dates structure found');
+        return [];
+      }
 
-      final previousBattle = dates[prevBattleDate] as Map<String, dynamic>;
+      final datesMap = battleData['dates'] as Map<String, dynamic>;
+      if (!datesMap.containsKey(prevBattleDate)) {
+        print('Previous battle not found: $prevBattleDate');
+        return [];
+      }
+
+      final previousBattle = datesMap[prevBattleDate] as Map<String, dynamic>;
       final participants =
-          previousBattle['participants'] as Map<String, dynamic>?;
-      if (participants == null) return [];
+          previousBattle['participants'] as Map<String, dynamic>? ?? {};
 
       final List<Map<String, dynamic>> participantList = [];
       participants.forEach((userId, userData) {
@@ -521,9 +582,12 @@ class BattleService extends GetxController {
           'userid': userId,
           'name': data['name'] ?? '',
           'image': data['image'] ?? '',
+          'votes': data['votes'] ?? [],
         });
       });
 
+      print(
+          'Found ${participantList.length} participants for previous battle: $prevBattleDate');
       return participantList;
     } catch (e) {
       print('Error getting previous battle participants: $e');
