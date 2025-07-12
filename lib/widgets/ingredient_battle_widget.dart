@@ -350,8 +350,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 children: [
                   Text(
                     'Your Favs:',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
                           fontWeight: FontWeight.bold,
+                          fontSize: getTextScale(6, context),
                         ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -396,8 +397,6 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 ],
               ),
               children: [
-                SizedBox(height: getPercentageHeight(1, context)),
-
                 // Battle visualization
                 Row(
                   children: [
@@ -501,7 +500,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                 SizedBox(height: getPercentageHeight(1, context)),
                 Text(
                   'Based on your meal in last 7 days',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontStyle: FontStyle.italic,
                         color: isDarkMode ? kLightGrey : kDarkGrey,
                       ),

@@ -272,14 +272,3 @@ class DrawerItem extends StatelessWidget {
     );
   }
 }
-
-// For challenge notifications
-void notifyChallengeUpdates() {
-  NotificationService().scheduleDailyReminder(
-    id: 4001,
-    title: "Challenge Update ⭐",
-    body: "Check your progress in ongoing challenges!",
-    hour: 20, // 8 PM
-    minute: 0,
-  );
-}

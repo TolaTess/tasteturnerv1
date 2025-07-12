@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/badge_system_model.dart';
@@ -89,9 +90,15 @@ class BadgeService extends GetxController {
     }
   }
 
-  /// Award points to user with optional notification
+  /// Award points to user with optional notification (with daily tracking)
   Future<void> awardPoints(String userId, int points, {String? reason}) async {
     try {
+      // Check if this award has already been given today
+      if (reason != null && await _hasBeenAwardedToday(userId, reason)) {
+        print('Award already given today for: $reason');
+        return;
+      }
+
       await _updateUserPoints(userId, points);
 
       // Show notification if reason provided
@@ -101,9 +108,110 @@ class BadgeService extends GetxController {
           title: "Points Earned! 🏆",
           body: "$reason $points points awarded!",
         );
+
+        // Mark this award as given today
+        await _markAwardGivenToday(userId, reason);
       }
     } catch (e) {
       print('Error awarding points: $e');
+    }
+  }
+
+  /// Check if a specific award has been given today
+  Future<bool> _hasBeenAwardedToday(String userId, String reason) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today =
+          DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD format
+      final key = 'award_${userId}_${reason}_$today';
+      return prefs.getBool(key) ?? false;
+    } catch (e) {
+      print('Error checking daily award: $e');
+      return false;
+    }
+  }
+
+  /// Mark an award as given today
+  Future<void> _markAwardGivenToday(String userId, String reason) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today =
+          DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD format
+      final key = 'award_${userId}_${reason}_$today';
+      await prefs.setBool(key, true);
+
+      // Clean up old entries (older than 7 days) to prevent storage bloat
+      await _cleanupOldAwardEntries(userId);
+    } catch (e) {
+      print('Error marking award as given: $e');
+    }
+  }
+
+  /// Clean up old award entries to prevent SharedPreferences bloat
+  Future<void> _cleanupOldAwardEntries(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+      final cutoffString = cutoffDate.toIso8601String().split('T')[0];
+
+      for (final key in keys) {
+        if (key.startsWith('award_$userId') && key.contains('_')) {
+          final parts = key.split('_');
+          if (parts.length >= 4) {
+            final dateString = parts.last;
+            if (dateString.compareTo(cutoffString) < 0) {
+              await prefs.remove(key);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error cleaning up old award entries: $e');
+    }
+  }
+
+  /// Reset daily awards for a user (for testing or admin purposes)
+  Future<void> resetDailyAwards(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final today = DateTime.now().toIso8601String().split('T')[0];
+
+      for (final key in keys) {
+        if (key.startsWith('award_$userId') && key.endsWith('_$today')) {
+          await prefs.remove(key);
+        }
+      }
+      print('Daily awards reset for user: $userId');
+    } catch (e) {
+      print('Error resetting daily awards: $e');
+    }
+  }
+
+  /// Get list of awards already given today (for debugging)
+  Future<List<String>> getTodaysAwards(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final todaysAwards = <String>[];
+
+      for (final key in keys) {
+        if (key.startsWith('award_$userId') && key.endsWith('_$today')) {
+          // Extract the reason from the key
+          final parts = key.split('_');
+          if (parts.length >= 4) {
+            final reason = parts.sublist(2, parts.length - 1).join('_');
+            todaysAwards.add(reason);
+          }
+        }
+      }
+
+      return todaysAwards;
+    } catch (e) {
+      print('Error getting today\'s awards: $e');
+      return [];
     }
   }
 

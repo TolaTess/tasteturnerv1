@@ -106,6 +106,19 @@ class RoutineController extends GetxController {
         'isCompleted': completionStatus[item.title] ?? false,
       };
     }).toList();
+
+    // Sort items by completion status: incomplete items first, then completed items
+    result.sort((a, b) {
+      final aCompleted = a['isCompleted'] as bool;
+      final bCompleted = b['isCompleted'] as bool;
+
+      // If both have same completion status, maintain original order
+      if (aCompleted == bCompleted) return 0;
+
+      // Incomplete items (false) come first, completed items (true) come last
+      return aCompleted ? -1 : 1;
+    });
+
     await _checkCurrentDayCompletion(result);
     routineItems.assignAll(result);
     isLoading.value = false;
@@ -258,7 +271,8 @@ class _DailyRoutineListHorizontalState
           child: Text(
             'No routines set. Go to settings to add a routine.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? kWhite.withValues(alpha: 0.5) : Colors.grey,
+                  color:
+                      isDarkMode ? kWhite.withValues(alpha: 0.5) : Colors.grey,
                 ),
           ),
         );
@@ -320,20 +334,20 @@ class _DailyRoutineListHorizontalState
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode
-                        ? isCompleted
-                            ? kWhite
-                            : kWhite.withValues(alpha: 0.5)
-                        : isCompleted
-                            ? kBlack
-                            : kBlack.withValues(alpha: 0.5),
-                  ),
+                            ? isCompleted
+                                ? kWhite
+                                : kWhite.withValues(alpha: 0.5)
+                            : isCompleted
+                                ? kBlack
+                                : kBlack.withValues(alpha: 0.5),
+                      ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: getPercentageHeight(0.5, context)),
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith( 
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: isDarkMode
                             ? isCompleted
                                 ? kWhite
@@ -341,7 +355,7 @@ class _DailyRoutineListHorizontalState
                             : isCompleted
                                 ? kBlack
                                 : kBlack.withValues(alpha: 0.5),
-                  ),
+                      ),
                 ),
               ],
             ),
@@ -415,9 +429,10 @@ class _DailyRoutineListHorizontalState
                       children: [
                         Text(
                           capitalizeFirstLetter(item.title),
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         if (isCompleted)
                           const Icon(
