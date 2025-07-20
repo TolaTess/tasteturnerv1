@@ -1238,6 +1238,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     required String userId,
     required String mealType,
     required Map<String, dynamic> analysisResult,
+    required DateTime date,
   }) async {
     try {
       final totalNutrition =
@@ -1257,8 +1258,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
         servings: '1',
       );
 
-      final today = DateTime.now();
-      final dateId = DateFormat('yyyy-MM-dd').format(today);
+      final dateId = DateFormat('yyyy-MM-dd').format(date);
 
       final mealRef = firestore
           .collection('userMeals')

@@ -20,6 +20,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final bool? isMainPost;
   final String? selectedCategory;
   final bool? isAnalyzeAndUpload;
+  final DateTime? date;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -31,6 +32,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.isMainPost,
     this.selectedCategory,
     this.isAnalyzeAndUpload,
+    this.date,
   });
 
   @override
@@ -163,6 +165,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         userId: userService.userId ?? '',
         mealType: mealType,
         analysisResult: _editableAnalysis,
+        date: widget.date ?? DateTime.now(),
       );
 
       setState(() {

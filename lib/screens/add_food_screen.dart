@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/pages/edit_goal.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,10 +25,12 @@ import 'food_analysis_results_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
+  final DateTime? date;
 
   const AddFoodScreen({
     super.key,
     this.title = 'Update Goals',
+    this.date,
   });
 
   @override
@@ -97,9 +100,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Fetch meals and ingredients
       _allMeals = mealManager.meals;
       _allIngredients = macroManager.ingredient;
-      final currentDate = DateTime.now();
+      final currentDate = widget.date ?? DateTime.now();
       dailyDataController.listenToDailyData(userId, currentDate);
-      // No need for setState() when using GetX reactive state management
     } catch (e) {
       print('Error loading data: $e');
     }
@@ -521,6 +523,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             imageFile: File(croppedImage.path),
             analysisResult: analysisResult,
             isAnalyzeAndUpload: isPosting,
+            date: widget.date ?? DateTime.now(),
           ),
         ),
       );
@@ -844,6 +847,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           userId ?? '',
                           mealType,
                           item,
+                          widget.date ?? DateTime.now(),
                         );
                       }
 
@@ -886,6 +890,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final today = DateTime.now();
+    final isToday = widget.date != null &&
+        DateFormat('dd/MM/yyyy').format(widget.date!) ==
+            DateFormat('dd/MM/yyyy').format(today);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -912,7 +920,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 SizedBox(height: getPercentageHeight(2, context)),
 
                 // Daily Routine Section
-                if (!allDisabled)
+                if (!allDisabled && isToday)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
@@ -941,99 +949,103 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       ),
                     ],
                   ),
-                if (!allDisabled)
+                if (!allDisabled && isToday)
                   SizedBox(height: getPercentageHeight(2, context)),
-                if (!allDisabled) _buildDailyRoutineCard(context),
-
+                if (!allDisabled && isToday) _buildDailyRoutineCard(context),
+                if (isToday)
                 SizedBox(height: getPercentageHeight(2, context)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Text(
-                      'Water',
-                      style:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
-                                fontSize: getPercentageWidth(4.5, context),
-                                fontWeight: FontWeight.w200,
-                              ),
-                    ),
-                    Text(
-                      'Steps',
-                      style:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
-                                fontSize: getPercentageWidth(4.5, context),
-                                fontWeight: FontWeight.w200,
-                              ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: getPercentageHeight(3.5, context)),
-
-                // Water and Steps Trackers
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(3, context)),
-                  child: Row(
+                if (isToday)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Expanded(
-                        child: Obx(() {
-                          final settings =
-                              userService.currentUser.value!.settings;
-                          final double waterTotal = double.tryParse(
-                                  settings['waterIntake']?.toString() ?? '0') ??
-                              0.0;
-                          final double currentWater =
-                              dailyDataController.currentWater.value;
-                          return _buildGoalTracker(
-                            context: context,
-                            title: 'Water',
-                            currentValue: currentWater,
-                            totalValue: waterTotal,
-                            unit: 'ml',
-                            onAdd: () {
-                              dailyDataController.updateCurrentWater(
-                                  userService.userId!, currentWater + 250);
-                            },
-                            onRemove: () {
-                              dailyDataController.updateCurrentWater(
-                                  userService.userId!, currentWater - 250);
-                            },
-                            iconColor: kBlue,
-                          );
-                        }),
+                      Text(
+                        'Water',
+                        style:
+                            Theme.of(context).textTheme.displayMedium?.copyWith(
+                                  fontSize: getPercentageWidth(4.5, context),
+                                  fontWeight: FontWeight.w200,
+                                ),
                       ),
-                      SizedBox(width: getPercentageWidth(2, context)),
-                      Expanded(
-                        child: Obx(() {
-                          final settings =
-                              userService.currentUser.value!.settings;
-                          final double stepsTotal = double.tryParse(
-                                  settings['targetSteps']?.toString() ?? '0') ??
-                              0.0;
-                          final double currentSteps =
-                              dailyDataController.currentSteps.value;
-                          return _buildGoalTracker(
-                            context: context,
-                            title: 'Steps',
-                            currentValue: currentSteps,
-                            totalValue: stepsTotal,
-                            unit: 'steps',
-                            onAdd: () {
-                              dailyDataController.updateCurrentSteps(
-                                  userService.userId!, currentSteps + 1000);
-                            },
-                            onRemove: () {
-                              dailyDataController.updateCurrentSteps(
-                                  userService.userId!, currentSteps - 1000);
-                            },
-                            iconColor: kPurple,
-                          );
-                        }),
+                      Text(
+                        'Steps',
+                        style:
+                            Theme.of(context).textTheme.displayMedium?.copyWith(
+                                  fontSize: getPercentageWidth(4.5, context),
+                                  fontWeight: FontWeight.w200,
+                                ),
                       ),
                     ],
                   ),
-                ),
+                if (isToday)
+                SizedBox(height: getPercentageHeight(3.5, context)),
+
+                // Water and Steps Trackers
+                if (isToday)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context)),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Obx(() {
+                            final settings =
+                                userService.currentUser.value!.settings;
+                            final double waterTotal = double.tryParse(
+                                    settings['waterIntake']?.toString() ??
+                                        '0') ??
+                                0.0;
+                            final double currentWater =
+                                dailyDataController.currentWater.value;
+                            return _buildGoalTracker(
+                              context: context,
+                              title: 'Water',
+                              currentValue: currentWater,
+                              totalValue: waterTotal,
+                              unit: 'ml',
+                              onAdd: () {
+                                dailyDataController.updateCurrentWater(
+                                    userService.userId!, currentWater + 250);
+                              },
+                              onRemove: () {
+                                dailyDataController.updateCurrentWater(
+                                    userService.userId!, currentWater - 250);
+                              },
+                              iconColor: kBlue,
+                            );
+                          }),
+                        ),
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        Expanded(
+                          child: Obx(() {
+                            final settings =
+                                userService.currentUser.value!.settings;
+                            final double stepsTotal = double.tryParse(
+                                    settings['targetSteps']?.toString() ??
+                                        '0') ??
+                                0.0;
+                            final double currentSteps =
+                                dailyDataController.currentSteps.value;
+                            return _buildGoalTracker(
+                              context: context,
+                              title: 'Steps',
+                              currentValue: currentSteps,
+                              totalValue: stepsTotal,
+                              unit: 'steps',
+                              onAdd: () {
+                                dailyDataController.updateCurrentSteps(
+                                    userService.userId!, currentSteps + 1000);
+                              },
+                              onRemove: () {
+                                dailyDataController.updateCurrentSteps(
+                                    userService.userId!, currentSteps - 1000);
+                              },
+                              iconColor: kPurple,
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
                 Center(

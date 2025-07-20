@@ -12,10 +12,8 @@ import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
 import '../widgets/bottom_nav.dart';
-import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 import '../constants.dart';
-import 'recipes_list_category_screen.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
   final String screenType;
@@ -213,6 +211,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           userService.userId ?? '',
           foodType, // or pass meal type if available
           userMeal,
+          DateTime.now(),
         );
         // Save meal to Firestore
         await firestore.collection('meals').doc(mealId).set(newMeal.toJson());

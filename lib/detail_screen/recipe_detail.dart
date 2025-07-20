@@ -58,6 +58,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       floatingActionButton: buildFullWidthAddMealButton(
         context: context,
         meal: _meal!,
+        date: DateTime.now(),
       ),
       body: Obx(() {
         final mealUser = friendController.userProfileData.value;

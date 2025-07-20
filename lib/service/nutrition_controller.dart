@@ -340,7 +340,7 @@ class NutritionController extends GetxController {
             calories: newCalories.toInt(),
             quantity: '1',
             mealId: 'Add Food',
-          ));
+          ), DateTime.now());
     } else {
       final today = DateTime.now();
       final date =
@@ -495,9 +495,9 @@ class NutritionController extends GetxController {
 
   /// Add a new user meal
   Future<void> addUserMeal(
-      String userId, String foodType, UserMeal meal) async {
+      String userId, String foodType, UserMeal meal, DateTime mDate) async {
     try {
-      final today = DateTime.now();
+      final today = mDate;
 
       final dateId = DateFormat('yyyy-MM-dd').format(today);
 

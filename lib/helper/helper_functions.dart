@@ -77,6 +77,7 @@ class CustomFloatingActionButtonLocation extends FloatingActionButtonLocation {
 Widget buildFullWidthAddMealButton({
   required BuildContext context,
   required Meal meal,
+  required DateTime date,
   VoidCallback? onSuccess,
   VoidCallback? onError,
 }) {
@@ -97,6 +98,7 @@ Widget buildFullWidthAddMealButton({
         userService.userId ?? '',
         getMealTimeOfDay(),
         userMeal,
+        date,
       );
 
       if (context.mounted) {
@@ -887,6 +889,7 @@ bool canUseAI() {
 Widget buildFullWidthHomeButton({
   required BuildContext context,
   required GlobalKey key,
+  required DateTime date,
   VoidCallback? onSuccess,
   VoidCallback? onError,
 }) {
@@ -972,6 +975,7 @@ Widget buildFullWidthHomeButton({
             imageFile: File(croppedImage.path),
             analysisResult: analysisResult,
             isAnalyzeAndUpload: isPosting,
+            date: date,
           ),
         ),
       );

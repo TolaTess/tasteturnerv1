@@ -1109,7 +1109,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                         getPercentageWidth(
                                                             100, context)),
                                                 width: double.infinity,
-                                                height: double.infinity,)
+                                                height: double.infinity,
+                                              )
                                             : Image.asset(
                                                 getAssetImageForItem(
                                                     meal.mediaPaths.first),
@@ -1275,10 +1276,26 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       color: isDarkMode ? kWhite : kBlack)),
               SizedBox(height: getPercentageHeight(1, context)),
               ...[
-                {'label': 'Breakfast (BF)', 'icon': Icons.emoji_food_beverage},
-                {'label': 'Lunch (LH)', 'icon': Icons.lunch_dining},
-                {'label': 'Dinner (DN)', 'icon': Icons.dinner_dining},
-                {'label': 'Snacks (SK)', 'icon': Icons.fastfood},
+                {
+                  'label': 'Breakfast (BF)',
+                  'icon': Icons.emoji_food_beverage,
+                  'value': 'breakfast'
+                },
+                {
+                  'label': 'Lunch (LH)',
+                  'icon': Icons.lunch_dining,
+                  'value': 'lunch'
+                },
+                {
+                  'label': 'Dinner (DN)',
+                  'icon': Icons.dinner_dining,
+                  'value': 'dinner'
+                },
+                {
+                  'label': 'Snacks (SK)',
+                  'icon': Icons.fastfood,
+                  'value': 'snacks'
+                },
               ].map((item) => ListTile(
                     leading: Icon(item['icon'] as IconData,
                         color: isDarkMode ? kWhite : kBlack),
@@ -1286,8 +1303,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         style: textTheme.bodyLarge?.copyWith(
                           color: isDarkMode ? kWhite : kBlack,
                         )),
-                    onTap: () => Navigator.pop(
-                        context, (item['label'] as String).toLowerCase()),
+                    onTap: () =>
+                        Navigator.pop(context, item['value'] as String),
                   )),
               SizedBox(height: getPercentageHeight(0.5, context)),
               TextButton(
@@ -1309,8 +1326,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final result = await showMealTypePicker(context, isDarkMode);
     if (result != null) {
       final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-      final mealToAdd =
-          '${mealId}/${result.toLowerCase()}/${familyMember.toLowerCase()}';
+      final mealToAdd = '${mealId}/${result}/${familyMember.toLowerCase()}';
       mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
     }
     _mealPlanController.refresh();
@@ -1425,7 +1441,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 'Cheat Day',
                 'Family Dinner',
                 'Workout Boost',
-                'Special Celebration'
+                'Add your own'
               ].map(
                 (type) => Flexible(
                   child: ListTile(
@@ -1442,12 +1458,93 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       getDayTypeIcon(type),
                       color: getDayTypeColor(type, isDarkMode),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       if (!mounted) return;
-                      setState(() {
-                        selectedDayType =
-                            type.toLowerCase().replaceAll(' ', '_');
-                      });
+
+                      if (type == 'Add your own') {
+                        // Show custom input dialog
+                        final customType = await showDialog<String>(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            String customDayType = '';
+                            return AlertDialog(
+                              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              title: Text(
+                                'Custom Day Type',
+                                style: TextStyle(
+                                  color: kAccent,
+                                  fontSize: getTextScale(4, context),
+                                ),
+                              ),
+                              content: SafeTextField(
+                                style: TextStyle(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                  fontSize: getTextScale(3, context),
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter custom day type',
+                                  labelText: 'Day Type',
+                                  hintStyle: TextStyle(
+                                    color: isDarkMode ? kWhite : kBlack,
+                                    fontSize: getTextScale(3, context),
+                                  ),
+                                  labelStyle: TextStyle(
+                                    color: isDarkMode ? kWhite : kBlack,
+                                    fontSize: getTextScale(3, context),
+                                  ),
+                                ),
+                                onChanged: (value) {
+                                  customDayType = value;
+                                },
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                  },
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: isDarkMode ? kWhite : kBlack,
+                                      fontSize: getTextScale(3, context),
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    if (customDayType.isNotEmpty) {
+                                      Navigator.pop(
+                                          dialogContext, customDayType.trim());
+                                    }
+                                  },
+                                  child: Text(
+                                    'OK',
+                                    style: TextStyle(
+                                      color: kAccent,
+                                      fontSize: getTextScale(3, context),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (customType != null && customType.isNotEmpty) {
+                          setState(() {
+                            selectedDayType =
+                                customType.toLowerCase().replaceAll(' ', '_');
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          selectedDayType =
+                              type.toLowerCase().replaceAll(' ', '_');
+                        });
+                      }
                     },
                   ),
                 ),

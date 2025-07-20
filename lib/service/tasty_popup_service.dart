@@ -19,8 +19,10 @@ class TutorialPopupService {
     'food_tab_tutorial',
     'home_screen_tutorial',
     'spin_wheel_tutorial',
+    'program_screen_tutorial',
     'message_screen_tutorial',
-    'bottom_nav_tutorial',
+    'profile_screen_tutorial',
+    'inspiration_screen_tutorial',
     // Add more as needed
   ];
 

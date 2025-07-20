@@ -340,14 +340,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastUnreadCount = unreadCount; // Update last unread count
   }
 
-  // Add this helper method to check if date is today
-  bool getCurrentDate(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
-  }
-
   Future<void> _loadShowCaloriesPref() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -384,9 +376,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         );
       }
-      final announceDate =
-          DateTime.parse(firebaseService.generalData['isAnnounceDate']);
-      final isAnnounceShow = isDateTodayAfterTime(announceDate);
+      // final announceDate =
+      //     DateTime.parse(firebaseService.generalData['isAnnounceDate']);
+      // final isAnnounceShow = isDateTodayAfterTime(announceDate);
 
       // Safely access user data with null checks
       familyMode = currentUser.familyMode ?? false;
@@ -537,6 +529,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         floatingActionButton: buildFullWidthHomeButton(
           key: _addAnalyseButtonKey,
           context: context,
+          date: currentDate,  
           onSuccess: () {},
           onError: () {},
         ),
@@ -721,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           color: isDarkMode
                               ? kAccent
                               : kAccent.withValues(alpha: 0.5),
-                          destinationScreen: const AddFoodScreen(),
+                          destinationScreen: AddFoodScreen(date: currentDate),
                           isDarkMode: isDarkMode,
                         ),
                         //shopping
@@ -761,23 +754,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
 
-                  //water, track, steps, spin
+                  // if (winners.isNotEmpty && isAnnounceShow)
+                  //   SizedBox(height: getPercentageHeight(1, context)),
 
-                  if (winners.isNotEmpty && isAnnounceShow)
-                    SizedBox(height: getPercentageHeight(1, context)),
-
-                  if (winners.isNotEmpty && isAnnounceShow)
-                    AnnouncementWidget(
-                      title: '🏆 Winners of the week 🏆',
-                      announcements: winners,
-                      height: getPercentageHeight(
-                          5, context), // Optional, defaults to 90
-                      onTap: () {
-                        // Handle tap
-                      },
-                    ),
-                  if (winners.isNotEmpty && isAnnounceShow)
-                    SizedBox(height: getPercentageHeight(1, context)),
+                  // if (winners.isNotEmpty && isAnnounceShow)
+                  //   AnnouncementWidget(
+                  //     title: '🏆 Winners of the week 🏆',
+                  //     announcements: winners,
+                  //     height: getPercentageHeight(
+                  //         5, context), // Optional, defaults to 90
+                  //     onTap: () {
+                  //       // Handle tap
+                  //     },
+                  //   ),
+                  // if (winners.isNotEmpty && isAnnounceShow)
+                  //   SizedBox(height: getPercentageHeight(1, context)),
 
                   // ------------------------------------Premium / Ads------------------------------------
 

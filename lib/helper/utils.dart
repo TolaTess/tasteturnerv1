@@ -21,6 +21,8 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/optimized_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'helper_functions.dart';
+
 int currentPage = 0;
 List<MacroData> fullLabelsList = [];
 final Set<String> headerSet = {};
@@ -897,8 +899,8 @@ IconData getDayTypeIcon(String type) {
       return Icons.people;
     case 'workout boost':
       return Icons.fitness_center;
-    case 'special celebration':
-      return Icons.celebration;
+    case 'add your own':
+      return Icons.add;
     case 'chef tasty':
       return Icons.restaurant;
     case 'welcome day':
@@ -908,7 +910,7 @@ IconData getDayTypeIcon(String type) {
     case 'regular day':
       return Icons.restaurant;
     default:
-      return Icons.restaurant;
+      return Icons.celebration;
   }
 }
 
@@ -922,8 +924,8 @@ Color getDayTypeColor(String type, bool isDarkMode) {
       return Colors.green;
     case 'workout boost':
       return Colors.blue;
-    case 'special celebration':
-      return Colors.orange;
+    case 'add your own':
+      return Colors.blueGrey;
     case 'chef tasty':
       return Colors.red;
     case 'welcome day':
@@ -933,7 +935,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'regular day':
       return Colors.grey.withOpacity(0.7);
     default:
-      return kLightGrey;
+      return Colors.orange;
   }
 }
 
