@@ -511,6 +511,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
       Navigator.pop(context); // Close loading dialog
 
+      bool isPosting = showPostDialog(context);
+
       // Navigate to results screen for review and editing
       Navigator.push(
         context,
@@ -518,6 +520,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           builder: (context) => FoodAnalysisResultsScreen(
             imageFile: File(croppedImage.path),
             analysisResult: analysisResult,
+            isAnalyzeAndUpload: isPosting,
           ),
         ),
       );

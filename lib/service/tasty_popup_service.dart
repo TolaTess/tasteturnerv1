@@ -143,81 +143,96 @@ class TutorialPopupService {
       screenSize,
     );
 
-    OverlayEntry overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          // Animated background
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 300),
-            tween: Tween(begin: 0.0, end: 1.0),
-            builder: (context, value, child) {
-              return Container(
-                color: Colors.black.withValues(alpha: 0.6 * value),
-              );
-            },
-          ),
+    bool canDismissOnTap = false;
 
-          // Highlight target widget
-          Positioned(
-            left: targetPosition.dx - 8,
-            top: targetPosition.dy - 8,
-            child: TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 400),
+    // Enable tap-to-dismiss after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      canDismissOnTap = true;
+    });
+
+    OverlayEntry overlayEntry = OverlayEntry(
+      builder: (context) => GestureDetector(
+        onTap: () {
+          if (canDismissOnTap) {
+            removeCurrentOverlay();
+            onComplete();
+          }
+        },
+        child: Stack(
+          children: [
+            // Animated background
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 300),
               tween: Tween(begin: 0.0, end: 1.0),
               builder: (context, value, child) {
                 return Container(
-                  width: targetSize.width + 16,
-                  height: targetSize.height + 16,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: kAccent.withValues(alpha: value),
-                      width: 3,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kAccent.withValues(alpha: 0.3 * value),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
+                  color: Colors.black.withValues(alpha: 0.6 * value),
                 );
               },
             ),
-          ),
 
-          // Tutorial popup
-          Positioned(
-            left: popupInfo.position.dx,
-            top: popupInfo.position.dy,
-            child: TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 400),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.elasticOut,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: _buildModernPopup(
-                      context,
-                      title,
-                      message,
-                      stepNumber,
-                      totalSteps,
-                      showProgress,
-                      popupInfo.arrowDirection,
-                      popupInfo.popupSize,
-                      onComplete,
-                      onSkip,
+            // Highlight target widget
+            Positioned(
+              left: targetPosition.dx - 8,
+              top: targetPosition.dy - 8,
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 400),
+                tween: Tween(begin: 0.0, end: 1.0),
+                builder: (context, value, child) {
+                  return Container(
+                    width: targetSize.width + 16,
+                    height: targetSize.height + 16,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: kAccent.withValues(alpha: value),
+                        width: 3,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kAccent.withValues(alpha: 0.3 * value),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+
+            // Tutorial popup
+            Positioned(
+              left: popupInfo.position.dx,
+              top: popupInfo.position.dy,
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 400),
+                tween: Tween(begin: 0.0, end: 1.0),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: _buildModernPopup(
+                        context,
+                        title,
+                        message,
+                        stepNumber,
+                        totalSteps,
+                        showProgress,
+                        popupInfo.arrowDirection,
+                        popupInfo.popupSize,
+                        onComplete,
+                        onSkip,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -243,10 +258,13 @@ class TutorialPopupService {
     Size screenSize,
   ) {
     // Use responsive sizing based on screen size
-    final double popupWidth =
-        getPercentageWidth(75, context).clamp(250.0, 320.0);
-    final double popupHeight = getPercentageHeight(20, context)
-        .clamp(120.0, 200.0); // Reduced height to prevent overflow
+    final double basePopupWidth = getPercentageWidth(75, context);
+    final double basePopupHeight = getPercentageHeight(20, context);
+
+    final double popupWidth = basePopupWidth.clamp(
+        250.0, screenSize.width * 0.9); // Ensure it fits on screen
+    final double popupHeight = basePopupHeight.clamp(
+        120.0, screenSize.height * 0.4); // Ensure it fits on screen
     final double margin = getPercentageWidth(4, context).clamp(12.0, 20.0);
     final double arrowSize = getPercentageWidth(3, context).clamp(8.0, 12.0);
 
@@ -307,10 +325,11 @@ class TutorialPopupService {
       popupPosition = Offset(targetPosition.dx - popupWidth - arrowSize, top);
     } else {
       // Fallback: center on screen with reduced size
-      final adjustedWidth =
-          (screenSize.width - 2 * margin).clamp(200.0, popupWidth);
-      final adjustedHeight =
-          (screenSize.height - 2 * margin).clamp(120.0, popupHeight);
+      final maxAvailableWidth = screenSize.width - 2 * margin;
+      final maxAvailableHeight = screenSize.height - 2 * margin;
+
+      final adjustedWidth = maxAvailableWidth.clamp(200.0, popupWidth);
+      final adjustedHeight = maxAvailableHeight.clamp(120.0, popupHeight);
 
       popupPosition = Offset(
         (screenSize.width - adjustedWidth) / 2,
@@ -365,13 +384,19 @@ class TutorialPopupService {
   ) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
+    // Ensure constraints are always valid
+    final minWidth =
+        getPercentageWidth(60, context).clamp(200.0, popupSize.width);
+    final minHeight =
+        getPercentageHeight(12, context).clamp(100.0, popupSize.height);
+
     return Container(
       width: popupSize.width,
       constraints: BoxConstraints(
         maxHeight: popupSize.height,
         maxWidth: popupSize.width,
-        minHeight: getPercentageHeight(12, context),
-        minWidth: getPercentageWidth(60, context),
+        minHeight: minHeight,
+        minWidth: minWidth,
       ),
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : kWhite,
@@ -493,6 +518,43 @@ class TutorialPopupService {
                     ),
 
                     SizedBox(height: getPercentageHeight(2.5, context)),
+
+                    // Tap to dismiss hint (appears after 5 seconds)
+                    TweenAnimationBuilder<double>(
+                      duration: const Duration(seconds: 5),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      builder: (context, value, child) {
+                        return AnimatedOpacity(
+                          opacity: value >= 1.0 ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(3, context),
+                              vertical: getPercentageHeight(0.8, context),
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.1)
+                                  : kBlack.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(
+                                  getPercentageWidth(2, context)),
+                            ),
+                            child: Text(
+                              'Tap anywhere to dismiss',
+                              style: TextStyle(
+                                fontSize: getTextScale(3, context),
+                                color: isDarkMode
+                                    ? kWhite.withValues(alpha: 0.6)
+                                    : kBlack.withValues(alpha: 0.6),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: getPercentageHeight(1.5, context)),
 
                     // Actions
                     Row(

@@ -175,11 +175,11 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       selectedCategoryIngredient = category;
     });
     // Show snackbar notification
-    showTastySnackbar(
-      'Category Updated',
-      'Updated to $category',
-      context,
-    );
+    // showTastySnackbar(
+    //   'Category Updated',
+    //   'Updated to ${capitalizeFirstLetter(category)}',
+    //   context,
+    // );
 
     if (categoryId == 'custom' && category == 'custom') {
       final result = await showDialog<List<String>>(
@@ -306,36 +306,14 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         // Additional checks for common ingredient mappings
         switch (selectedCategory) {
           case 'protein':
-            return ingredient.type.toLowerCase().contains('meat') ||
-                ingredient.type.toLowerCase().contains('protein') ||
-                ingredient.type.toLowerCase().contains('fish') ||
-                ingredient.type.toLowerCase().contains('poultry') ||
-                ingredient.type.toLowerCase().contains('egg') ||
-                ingredient.type.toLowerCase().contains('bean') ||
-                ingredient.type.toLowerCase().contains('legume') ||
-                ingredient.categories.any((cat) =>
-                    cat.toLowerCase().contains('protein') ||
-                    cat.toLowerCase().contains('meat') ||
-                    cat.toLowerCase().contains('fish'));
+            return ingredient.type.toLowerCase().contains('protein');
+
           case 'grain':
-            return ingredient.type.toLowerCase().contains('grain') ||
-                ingredient.type.toLowerCase().contains('cereal') ||
-                ingredient.type.toLowerCase().contains('rice') ||
-                ingredient.type.toLowerCase().contains('wheat') ||
-                ingredient.type.toLowerCase().contains('oat') ||
-                ingredient.categories.any((cat) =>
-                    cat.toLowerCase().contains('grain') ||
-                    cat.toLowerCase().contains('carb'));
+            return ingredient.type.toLowerCase().contains('grain');
           case 'vegetable':
-            return ingredient.type.toLowerCase().contains('vegetable') ||
-                ingredient.type.toLowerCase().contains('veggie') ||
-                ingredient.categories.any((cat) =>
-                    cat.toLowerCase().contains('vegetable') ||
-                    cat.toLowerCase().contains('veggie'));
+            return ingredient.type.toLowerCase().contains('vegetable');
           case 'fruit':
-            return ingredient.type.toLowerCase().contains('fruit') ||
-                ingredient.categories
-                    .any((cat) => cat.toLowerCase().contains('fruit'));
+            return ingredient.type.toLowerCase().contains('fruit');
           default:
             return false;
         }
@@ -391,7 +369,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Container(
-                      key: _addSwitchButtonKey,
                       padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(2, context),
                       ),
@@ -400,6 +377,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextButton(
+                        key: _addSwitchButtonKey,
                         onPressed: () {
                           setState(() {
                             showIngredientSpin = !showIngredientSpin;

@@ -19,6 +19,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final String? battleCategory;
   final bool? isMainPost;
   final String? selectedCategory;
+  final bool? isAnalyzeAndUpload;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -29,6 +30,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.battleCategory,
     this.isMainPost,
     this.selectedCategory,
+    this.isAnalyzeAndUpload,
   });
 
   @override
@@ -168,7 +170,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       });
 
       // Handle post creation for new analyze & upload flow
-      if (isNewAnalyzeAndUpload) {
+      if (isNewAnalyzeAndUpload && widget.isAnalyzeAndUpload == true) {
         try {
           // Upload image to battle storage
           String battleImageUrl;

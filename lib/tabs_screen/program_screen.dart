@@ -362,6 +362,7 @@ class _ProgramScreenState extends State<ProgramScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            key: _addProgramButtonKey,
             ' Current Programs',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode ? kWhite : kDarkGrey,
@@ -415,9 +416,6 @@ class _ProgramScreenState extends State<ProgramScreen>
                       );
                     }
                   },
-                  key: index == 0
-                      ? _addProgramButtonKey
-                      : null, // Only apply key to first program to avoid GlobalKey conflicts
                   child: Container(
                     width: double.infinity,
                     margin: EdgeInsets.only(
@@ -641,7 +639,6 @@ class _ProgramScreenState extends State<ProgramScreen>
                       ),
                     ))
                   : GoalDietWidget(
-                      key: _addFeaturedButtonKey,
                       diet: userDiet,
                       goal: userGoal,
                       topIngredients: _recommendedIngredients,
@@ -684,9 +681,9 @@ class _ProgramScreenState extends State<ProgramScreen>
               ),
               SizedBox(height: getPercentageHeight(1.5, context)),
               ElevatedButton.icon(
-                key: _addTastyAIButtonKey,
                 icon: const Icon(Icons.lightbulb, color: kWhite),
                 label: Text(
+                  key: _addTastyAIButtonKey,
                   'Get Meal Plan Guidance',
                   style: textTheme.labelLarge?.copyWith(color: kWhite),
                 ),

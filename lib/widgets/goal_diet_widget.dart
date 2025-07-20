@@ -7,7 +7,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
-import '../constants.dart'; // Added import for helperController global instance
+// Added import for helperController global instance
 
 class GoalDietWidget extends StatefulWidget {
   final String diet;

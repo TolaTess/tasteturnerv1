@@ -31,7 +31,7 @@ class _SpinScreenState extends State<SpinScreen>
 
   Future<void> _fetchData() async {
     try {
-      final ingredients = await macroManager.getFirstNIngredients(100);
+      final ingredients = await macroManager.getFirstNIngredients(120);
 
       final uniqueTypes = await macroManager.getUniqueTypes(ingredients);
 

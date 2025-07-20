@@ -212,6 +212,8 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   }
 
   void _maintainAvailableLabels() {
+    print('availableLabels: ${availableLabels.length}');
+    print('acceptedItems: ${acceptedItems.length}');
     availableLabels.removeWhere((label) => acceptedItems.contains(label));
 
     while (availableLabels.length < 10 && fullLabelsList.isNotEmpty) {

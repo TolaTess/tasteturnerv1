@@ -608,6 +608,10 @@ Widget showPremiumDialog(
 }
 
 String getFeatureDescription(String key, dynamic value) {
+  if (value.toString().toLowerCase() == 'na' ||
+      value.toString().toLowerCase() == 'not recommended') {
+    return '${capitalizeFirstLetter(key)}: Not Suitable';
+  }
   switch (key.toLowerCase()) {
     case 'season':
       return 'Best harvested and consumed during $value season.\nThis is when the ingredient is at its peak freshness and flavor.';
@@ -901,13 +905,38 @@ Widget buildFullWidthHomeButton({
       final selectedOption = await showMediaSelectionDialog(
         isCamera: true,
         context: context,
+        isVideo: false,
       );
 
       if (selectedOption == null) {
         return; // User cancelled the dialog
       }
 
-      // Show loading dialog
+      List<XFile> pickedImages = [];
+
+      if (selectedOption == 'photo') {
+        // Take photo with camera
+        final ImagePicker picker = ImagePicker();
+        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+        if (photo != null) {
+          pickedImages = [photo];
+        }
+      } else if (selectedOption == 'gallery') {
+        // Pick image from gallery using the existing modal
+        pickedImages = await openMultiImagePickerModal(context: context);
+      }
+
+      if (pickedImages.isEmpty) {
+        return;
+      }
+
+      // Crop the first image (only for photos)
+      XFile? croppedImage = await cropImage(pickedImages.first, context);
+      if (croppedImage == null) {
+        return;
+      }
+
+      // Show loading dialog only when starting analysis
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -926,38 +955,14 @@ Widget buildFullWidthHomeButton({
         ),
       );
 
-      List<XFile> pickedImages = [];
-
-      if (selectedOption == 'photo') {
-        // Take photo with camera
-        final ImagePicker picker = ImagePicker();
-        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
-        if (photo != null) {
-          pickedImages = [photo];
-        }
-      } else if (selectedOption == 'gallery') {
-        // Pick image from gallery using the existing modal
-        pickedImages = await openMultiImagePickerModal(context: context);
-      }
-
-      if (pickedImages.isEmpty) {
-        Navigator.pop(context); // Close loading dialog
-        return;
-      }
-
-      // Crop the first image (only for photos)
-      XFile? croppedImage = await cropImage(pickedImages.first, context);
-      if (croppedImage == null) {
-        Navigator.pop(context); // Close loading dialog
-        return;
-      }
-
       // Analyze the image
       final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: File(croppedImage.path),
       );
 
       Navigator.pop(context); // Close loading dialog
+
+      bool isPosting = showPostDialog(context);   
 
       // Navigate to results screen for review and editing
       Navigator.push(
@@ -966,14 +971,21 @@ Widget buildFullWidthHomeButton({
           builder: (context) => FoodAnalysisResultsScreen(
             imageFile: File(croppedImage.path),
             analysisResult: analysisResult,
+            isAnalyzeAndUpload: isPosting,
           ),
         ),
       );
 
       onSuccess?.call();
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      // Only close loading dialog if it's showing (i.e., we reached the analysis phase)
       if (context.mounted) {
+        try {
+          Navigator.pop(context); // Close loading dialog
+        } catch (_) {
+          // Dialog might not be showing, ignore error
+        }
+
         showTastySnackbar(
           'Error',
           'Analysis failed: $e',
@@ -1132,14 +1144,14 @@ Widget buildFullWidthHomeButton({
 }
 
 Future<String?> showMediaSelectionDialog(
-    {required bool isCamera, required BuildContext context}) async {
+    {required bool isCamera, required BuildContext context,bool isVideo = false}) async {
   return await showDialog<String>(
     context: context,
     builder: (BuildContext context) {
       final isDarkMode = getThemeProvider(context).isDarkMode;
       final textTheme = Theme.of(context).textTheme;
 
-      final title = isCamera ? 'Choose capture mode' : 'Choose media type';
+      final title = isCamera ? 'Choose Camera mode' : 'Choose Media type';
       final options = isCamera
           ? [
               {
@@ -1147,6 +1159,13 @@ Future<String?> showMediaSelectionDialog(
                 'title': 'Take Photo',
                 'value': 'photo'
               },
+              if (isVideo)
+              {
+                'icon': Icons.video_library,
+                'title': 'Take Video',
+                'value': 'video'
+              },
+              if (!isVideo)
               {
                 'icon': Icons.photo_library,
                 'title': 'Pick from Gallery',
@@ -1247,4 +1266,37 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
       ],
     ),
   );
+}
+
+  bool showPostDialog(BuildContext context) {
+    bool isPosting = false;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor:
+            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        title: const Text('Do you want to post this meal?'),
+        content: Text('This will also add it to our post feed.'),
+        actions: [  
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              isPosting = true;
+            },
+            child: const Text('Yes'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              isPosting = false;
+            },
+            child: const Text('No'),
+          ),
+        ],
+        ),
+    );
+    return isPosting;
 }

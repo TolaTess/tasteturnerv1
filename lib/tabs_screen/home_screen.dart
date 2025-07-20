@@ -121,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_recipe_button',
-          message: 'Tap here to view your recipes!',
+          message: 'Tap here to view our recipe library!',
           targetKey: _addRecipeButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed

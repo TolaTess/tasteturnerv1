@@ -92,13 +92,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     final ImagePicker picker = ImagePicker();
 
     final choice =
-        await showMediaSelectionDialog(isCamera: fromCamera, context: context);
+        await showMediaSelectionDialog(isCamera: fromCamera, context: context, isVideo: true);
     if (choice == null) return;
 
     if (fromCamera) {
       final XFile? media = choice == 'photo'
           ? await picker.pickImage(source: ImageSource.camera, imageQuality: 80)
-          : await picker.pickVideo(source: ImageSource.camera);
+          : await picker.pickVideo(source: ImageSource.camera, maxDuration: Duration(seconds: 5));
 
       if (media != null) {
         if (choice == 'photo') {

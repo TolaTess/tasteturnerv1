@@ -88,7 +88,9 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final imagePath = widget.item.mediaPaths.isNotEmpty
         ? widget.item.mediaPaths.first
-        : 'placeholder';
+        : widget.item.type.isNotEmpty
+            ? widget.item.type.toLowerCase()
+            : intPlaceholderImage;
     return Scaffold(
       appBar: AppBar(
         leading: InkWell(

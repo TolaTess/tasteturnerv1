@@ -98,7 +98,6 @@ class MacroManager extends GetxController {
           tempList.add(macro);
           successCount++;
         } catch (docError) {
-          print('Error parsing document ${doc.id}: $docError');
           errorCount++;
         }
       }
@@ -906,42 +905,49 @@ class MacroManager extends GetxController {
   }
 
   /// Returns the first [n] ingredients after ensuring data is fetched.
-  /// Ensures at least one of each type (protein, grain, vegetable, fruit) is included.
+  /// Evenly distributes ingredients across 4 types (protein, grain, vegetable, fruit).
   Future<List<MacroData>> getFirstNIngredients(int n) async {
     await _ensureDataFetched();
-    
+
     if (ingredient.isEmpty) return [];
-    
+
     // Define the required types
     final requiredTypes = ['protein', 'grain', 'vegetable', 'fruit'];
-    
-    // Get one ingredient of each required type
+
+    // Calculate how many ingredients per type
+    final perType = n ~/ 4; // Integer division
+    final remainder = n % 4; // Remaining ingredients to distribute
+
     List<MacroData> result = [];
-    for (String type in requiredTypes) {
+
+    // Get ingredients for each type
+    for (int i = 0; i < requiredTypes.length; i++) {
+      final type = requiredTypes[i];
       final typeIngredients = ingredient
           .where((item) => item.type.toLowerCase() == type.toLowerCase())
           .toList();
-      
+
+      // Calculate how many ingredients this type should get
+      int targetCount = perType;
+      if (i < remainder) {
+        targetCount += 1; // Distribute remainder among first few types
+      }
+
       if (typeIngredients.isNotEmpty) {
-        result.add(typeIngredients.first);
+        // Take up to targetCount ingredients of this type
+        final ingredientsToAdd = typeIngredients.take(targetCount).toList();
+        result.addAll(ingredientsToAdd);
       }
     }
-    
-    // Fill the remaining slots with other ingredients
-    final remainingIngredients = ingredient
-        .where((item) => !result.contains(item))
-        .take(n - result.length)
-        .toList();
-    
-    result.addAll(remainingIngredients);
-    
-    // If we still don't have enough ingredients, add more from the original list
-    if (result.length < n && ingredient.length > result.length) {
-      final additionalIngredients = ingredient
+
+    // If we still don't have enough ingredients (some types might be empty),
+    // fill with remaining ingredients from any type
+    if (result.length < n) {
+      final remainingIngredients = ingredient
           .where((item) => !result.contains(item))
           .take(n - result.length)
           .toList();
-      result.addAll(additionalIngredients);
+      result.addAll(remainingIngredients);
     }
 
     return result;
