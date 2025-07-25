@@ -156,11 +156,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final winners = helperController.winners;
-    final announceDate = DateTime.parse(
-        firebaseService.generalData['isAnnounceDate'] ??
-            DateTime.now().toString());
-    final isAnnounceShow = isDateTodayAfterTime(announceDate);
 
     return Scaffold(
       backgroundColor: isDarkMode ? kDarkGrey : kBackgroundColor,
@@ -228,23 +223,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ),
             ),
 
-          // Winners Announcement
-          if (winners.isNotEmpty && isAnnounceShow)
-            SliverToBoxAdapter(
-              child: Container(
-                margin: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(4, context),
-                  vertical: getPercentageHeight(1, context),
-                ),
-                child: AnnouncementWidget(
-                  title: '🏆 Winners of the week 🏆',
-                  announcements: winners,
-                  height: getPercentageHeight(6, context),
-                  onTap: () {},
-                ),
-              ),
-            ),
-
           // Loading or Leaderboard Content
           if (isLoading)
             SliverFillRemaining(
@@ -252,7 +230,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(
+                    const CircularProgressIndicator(
                       color: kAccent,
                       strokeWidth: 3,
                     ),

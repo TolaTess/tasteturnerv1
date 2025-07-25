@@ -752,22 +752,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
 
-                  // if (winners.isNotEmpty && isAnnounceShow)
-                  //   SizedBox(height: getPercentageHeight(1, context)),
-
-                  // if (winners.isNotEmpty && isAnnounceShow)
-                  //   AnnouncementWidget(
-                  //     title: '🏆 Winners of the week 🏆',
-                  //     announcements: winners,
-                  //     height: getPercentageHeight(
-                  //         5, context), // Optional, defaults to 90
-                  //     onTap: () {
-                  //       // Handle tap
-                  //     },
-                  //   ),
-                  // if (winners.isNotEmpty && isAnnounceShow)
-                  //   SizedBox(height: getPercentageHeight(1, context)),
-
                   // ------------------------------------Premium / Ads------------------------------------
 
                   getAdsWidget(currentUser.isPremium, isDiv: false),
