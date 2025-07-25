@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,9 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
+import '../helper/helper_functions.dart';
+import '../helper/utils.dart';
+import '../widgets/loading_screen.dart';
 
 /// Enhanced GeminiService with comprehensive user context integration
 ///
@@ -379,7 +383,36 @@ USER CONTEXT:
       jsonStr = jsonStr.substring(0, jsonStr.lastIndexOf('```')).trim();
     }
 
+    // Fix common JSON issues from AI responses
+    jsonStr = _sanitizeJsonString(jsonStr);
+
     return jsonDecode(jsonStr);
+  }
+
+  // Sanitize JSON string to fix common AI response issues
+  String _sanitizeJsonString(String jsonStr) {
+    // Fix unquoted nutritional values like "protein": 40g to "protein": "40g"
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(
+            r'"(calories|protein|carbs|fat|fiber|sugar|sodium)":\s*(\d+(?:\.\d+)?[a-zA-Z]*)',
+            multiLine: true),
+        (match) => '"${match.group(1)}": "${match.group(2)}"');
+
+    // Fix unquoted numeric values followed by units like 40g, 25mg, etc.
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r':\s*(\d+(?:\.\d+)?[a-zA-Z]+)(?=[,\]\}])', multiLine: true),
+        (match) => ': "${match.group(1)}"');
+
+    // Fix missing quotes around standalone numbers that should be strings
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(
+            r'"(totalCalories|totalProtein|totalCarbs|totalFat)":\s*(\d+(?:\.\d+)?)',
+            multiLine: true),
+        (match) =>
+            '"${match.group(1)}": ${match.group(2)}' // Keep these as numbers
+        );
+
+    return jsonStr;
   }
 
   Future<Map<String, dynamic>> generateMealPlan(String prompt) async {
@@ -519,9 +552,12 @@ Important:
     // Get comprehensive user context
     final aiContext = await _buildAIContext();
 
+    final checkPromptCount = prompt.split(',').length;
+    final promptCount = checkPromptCount > 2 ? checkPromptCount : 'only 2';
+
     final contextualPrompt = familyMode
         ? 'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt'
-        : 'Generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt';
+        : 'Generate 2 healthy meal recipes using $promptCount of these ingredients: $prompt';
 
     final mealPrompt = '''
     $aiContext
@@ -1118,6 +1154,278 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       print('AI API Exception: $e');
       _activeModel = null;
       throw Exception('Failed to compare food images: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> generateMealsFromIngredients(
+      List<dynamic> displayedItems, BuildContext context, bool isDineIn) async {
+    try {
+      showDialog(
+        context: context,
+        builder: (context) => const LoadingScreen(
+          loadingText: 'Generating Meals, Please Wait...',
+        ),
+      );
+
+      // Prepare prompt and generate meal plan
+      final mealPlan = await generateMealFromIngredients(
+        displayedItems.map((item) => item.title).join(', '),
+      );
+
+      // Hide loading dialog before showing selection
+      Navigator.of(context).pop();
+
+      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+      if (meals.isEmpty) throw Exception('No meals generated');
+
+      // Show dialog to let user pick one meal
+      final selectedMeal = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false, // Prevent dismissing during loading
+        builder: (context) {
+          final isDarkMode = getThemeProvider(context).isDarkMode;
+          final textTheme = Theme.of(context).textTheme;
+          return StatefulBuilder(
+            builder: (context, setState) {
+              int? loadingIndex; // Track which item is loading
+              bool isProcessing = false; // Global processing state
+
+              return AlertDialog(
+                backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                title: Text(
+                  'Select a Meal',
+                  style: textTheme.displaySmall?.copyWith(
+                      fontSize: getPercentageWidth(7, context),
+                      color: kAccent,
+                      fontWeight: FontWeight.w500),
+                ),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: meals.length,
+                    itemBuilder: (context, index) {
+                      final meal = meals[index];
+                      final title = meal['title'] ?? 'Untitled';
+                      final isThisItemLoading = loadingIndex == index;
+                      final isDisabled = isProcessing && !isThisItemLoading;
+
+                      String cookingTime = meal['cookingTime'] ?? '';
+                      String cookingMethod = meal['cookingMethod'] ?? '';
+
+                      return Card(
+                        color: colors[index % colors.length],
+                        child: ListTile(
+                          enabled: !isProcessing,
+                          title: Text(
+                            title,
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode ? kWhite : kDarkGrey,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (cookingTime.isNotEmpty)
+                                Text(
+                                  'Cooking Time: $cookingTime',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                  ),
+                                ),
+                              if (cookingMethod.isNotEmpty)
+                                Text(
+                                  'Method: $cookingMethod',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onTap: isProcessing
+                              ? null
+                              : () async {
+                                  // Set loading state and show SnackBar
+                                  setState(() {
+                                    isProcessing = true;
+                                    loadingIndex = index;
+                                  });
+
+                                  // Show SnackBar with loading message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: kWhite,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Text(
+                                              'Saving "$title" to your calendar...',
+                                              style: const TextStyle(
+                                                color: kWhite,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: kAccent,
+                                      duration: const Duration(seconds: 10),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+
+                                  try {
+                                    final userId = userService.userId;
+                                    if (userId == null)
+                                      throw Exception('User ID not found');
+                                    final date = DateFormat('yyyy-MM-dd')
+                                        .format(DateTime.now());
+                                    // Save all meals first
+                                    final List<String> allMealIds =
+                                        await saveMealsToFirestore(
+                                            userId, mealPlan, '');
+                                    final int selectedIndex = meals.indexWhere(
+                                        (m) => m['title'] == meal['title']);
+                                    final String? selectedMealId =
+                                        (selectedIndex != -1 &&
+                                                selectedIndex <
+                                                    allMealIds.length)
+                                            ? allMealIds[selectedIndex]
+                                            : null;
+                                    // Get existing meals first
+                                    final docRef = firestore
+                                        .collection('mealPlans')
+                                        .doc(userId)
+                                        .collection('date')
+                                        .doc(date);
+                                    // Add new meal ID if not null
+                                    if (selectedMealId != null) {
+                                      await docRef.set({
+                                        'userId': userId,
+                                        'dayType': 'chef_tasty',
+                                        'isSpecial': true,
+                                        'date': date,
+                                        'meals': FieldValue.arrayUnion(
+                                            [selectedMealId]),
+                                      }, SetOptions(merge: true));
+                                    }
+
+                                    if (context.mounted) {
+                                      // Hide the SnackBar
+                                      ScaffoldMessenger.of(context)
+                                          .hideCurrentSnackBar();
+
+                                      // Show success SnackBar
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Successfully saved "$title" to your calendar!',
+                                            style: const TextStyle(
+                                              color: kWhite,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          backgroundColor: kAccent,
+                                          duration: const Duration(seconds: 2),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                      );
+
+                                      Navigator.of(context)
+                                          .pop(meal); // Close selection dialog
+                                    }
+                                  } catch (e) {
+                                    // Reset loading state on error
+                                    if (context.mounted) {
+                                      // Hide the loading SnackBar
+                                      ScaffoldMessenger.of(context)
+                                          .hideCurrentSnackBar();
+
+                                      setState(() {
+                                        isProcessing = false;
+                                        loadingIndex = null;
+                                      });
+
+                                      // Show error SnackBar
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to save meal. Please try again.',
+                                            style: const TextStyle(
+                                              color: kWhite,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          backgroundColor: kRed,
+                                          duration: const Duration(seconds: 3),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                      );
+
+                                      handleError(e, context);
+                                    }
+                                  }
+                                },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed:
+                        isProcessing ? null : () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: isProcessing
+                            ? kLightGrey
+                            : (isDarkMode ? kWhite : kBlack),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      return selectedMeal ?? {}; // Return empty map if user cancelled
+    } catch (e) {
+      if (context.mounted) {
+        handleError(e, context);
+      }
+      return {};
     }
   }
 

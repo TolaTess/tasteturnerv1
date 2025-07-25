@@ -400,274 +400,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
     });
   }
 
-  Future<void> _generateMealFromIngredients(displayedItems) async {
-    try {
-      showDialog(
-        context: context,
-        builder: (context) => const LoadingScreen(
-          loadingText: 'Generating Meal Plan, Please Wait...',
-        ),
-      );
-
-      // Prepare prompt and generate meal plan
-      final mealPlan = await geminiService.generateMealFromIngredients(
-        displayedItems.map((item) => item.title).join(', '),
-      );
-
-      // Hide loading dialog before showing selection
-      if (mounted) Navigator.of(context).pop();
-
-      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
-      if (meals.isEmpty) throw Exception('No meals generated');
-
-      // Show dialog to let user pick one meal
-      final selectedMeal = await showDialog<Map<String, dynamic>>(
-        context: context,
-        barrierDismissible: false, // Prevent dismissing during loading
-        builder: (context) {
-          final isDarkMode = getThemeProvider(context).isDarkMode;
-          final textTheme = Theme.of(context).textTheme;
-          return StatefulBuilder(
-            builder: (context, setState) {
-              int? loadingIndex; // Track which item is loading
-              bool isProcessing = false; // Global processing state
-
-              return AlertDialog(
-                backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                ),
-                title: Text(
-                  'Select a Meal',
-                  style: textTheme.displaySmall?.copyWith(
-                      fontSize: getPercentageWidth(7, context),
-                      color: kAccent,
-                      fontWeight: FontWeight.w500),
-                ),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: meals.length,
-                    itemBuilder: (context, index) {
-                      final meal = meals[index];
-                      final title = meal['title'] ?? 'Untitled';
-                      final isThisItemLoading = loadingIndex == index;
-                      final isDisabled = isProcessing && !isThisItemLoading;
-
-                      String cookingTime = meal['cookingTime'] ?? '';
-                      String cookingMethod = meal['cookingMethod'] ?? '';
-
-                      return Card(
-                        color: colors[index % colors.length],
-                        child: ListTile(
-                          enabled: !isProcessing,
-                          title: Text(
-                            title,
-                            style: textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDarkMode ? kWhite : kDarkGrey,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (cookingTime.isNotEmpty)
-                                Text(
-                                  'Cooking Time: $cookingTime',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                  ),
-                                ),
-                              if (cookingMethod.isNotEmpty)
-                                Text(
-                                  'Method: $cookingMethod',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          onTap: isProcessing
-                              ? null
-                              : () async {
-                                  // Set loading state and show SnackBar
-                                  setState(() {
-                                    isProcessing = true;
-                                    loadingIndex = index;
-                                  });
-
-                                  // Show SnackBar with loading message
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: kWhite,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Text(
-                                              'Saving "$title" to your calendar...',
-                                              style: const TextStyle(
-                                                color: kWhite,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: kAccent,
-                                      duration: const Duration(seconds: 10),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  );
-
-                                  try {
-                                    final userId = userService.userId;
-                                    if (userId == null)
-                                      throw Exception('User ID not found');
-                                    final date = DateFormat('yyyy-MM-dd')
-                                        .format(DateTime.now());
-                                    // Save all meals first
-                                    final List<String> allMealIds =
-                                        await saveMealsToFirestore(
-                                            userId, mealPlan, '');
-                                    final int selectedIndex = meals.indexWhere(
-                                        (m) => m['title'] == meal['title']);
-                                    final String? selectedMealId =
-                                        (selectedIndex != -1 &&
-                                                selectedIndex <
-                                                    allMealIds.length)
-                                            ? allMealIds[selectedIndex]
-                                            : null;
-                                    // Get existing meals first
-                                    final docRef = firestore
-                                        .collection('mealPlans')
-                                        .doc(userId)
-                                        .collection('date')
-                                        .doc(date);
-                                    // Add new meal ID if not null
-                                    if (selectedMealId != null) {
-                                      await docRef.set({
-                                        'userId': userId,
-                                        'dayType': 'chef_tasty',
-                                        'isSpecial': true,
-                                        'date': date,
-                                        'meals': FieldValue.arrayUnion(
-                                            [selectedMealId]),
-                                      }, SetOptions(merge: true));
-                                    }
-
-                                    if (mounted) {
-                                      // Hide the SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .hideCurrentSnackBar();
-
-                                      // Show success SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Successfully saved "$title" to your calendar!',
-                                            style: const TextStyle(
-                                              color: kWhite,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          backgroundColor: kAccent,
-                                          duration: const Duration(seconds: 2),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      );
-
-                                      Navigator.of(context)
-                                          .pop(meal); // Close selection dialog
-                                    }
-                                  } catch (e) {
-                                    // Reset loading state on error
-                                    if (mounted) {
-                                      // Hide the loading SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .hideCurrentSnackBar();
-
-                                      setState(() {
-                                        isProcessing = false;
-                                        loadingIndex = null;
-                                      });
-
-                                      // Show error SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failed to save meal. Please try again.',
-                                            style: const TextStyle(
-                                              color: kWhite,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          backgroundColor: kRed,
-                                          duration: const Duration(seconds: 3),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      );
-
-                                      handleError(e, context);
-                                    }
-                                  }
-                                },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed:
-                        isProcessing ? null : () => Navigator.of(context).pop(),
-                    child: Text(
-                      'Cancel',
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: isProcessing
-                            ? kLightGrey
-                            : (isDarkMode ? kWhite : kBlack),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-      if (selectedMeal == null) return; // User cancelled
-    } catch (e) {
-      if (mounted) {
-        handleError(e, context);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -721,9 +453,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
       BuildContext context, dynamic displayedItems, bool isMealSpin) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final freeTrialDate = userService.currentUser.value?.freeTrialDate;
-    final isInFreeTrial =
-        freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -830,8 +559,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     if (displayedItems.isNotEmpty &&
                         widget.acceptedItems.length > 1) {
                       if (canUseAI()) {
-                        _generateMealFromIngredients(displayedItems);
-                        return;
+                        geminiService.generateMealsFromIngredients(
+                            displayedItems, context, false);
                       } else {
                         showPremiumRequiredDialog(context, isDarkMode);
                       }
@@ -859,9 +588,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   child: Text(
                     isMealSpin
                         ? 'Save to Meal Plan'
-                        : (userService.currentUser.value?.isPremium ?? false) ||
-                                isInFreeTrial
-                            ? 'Generate Meals with ingredients!'
+                        : canUseAI()
+                            ? 'Generate Meals with Tasty AI!'
                             : 'Go Premium to generate a Meal!',
                     style: textTheme.labelLarge?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,

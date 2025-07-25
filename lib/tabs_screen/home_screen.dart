@@ -16,14 +16,12 @@ import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
-import '../widgets/announcement.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
-import '../widgets/premium_widget.dart';
 import '../widgets/second_nav_widget.dart';
-import 'food_challenge_screen.dart';
+import 'dine-in.screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 
@@ -724,7 +722,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           icon: 'assets/images/svg/target.svg',
                           color:
                               isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
-                          destinationScreen: const FoodChallengeScreen(),
+                          destinationScreen: const DineInScreen(),
                           isDarkMode: isDarkMode,
                         ),
                         //Planner
