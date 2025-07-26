@@ -366,7 +366,7 @@ Future<List<XFile>> openMultiImagePickerModal({
 }
 
 ThemeProvider getThemeProvider(BuildContext context) {
-  return Provider.of<ThemeProvider>(context);
+  return Provider.of<ThemeProvider>(context, listen: false);
 }
 
 // Unit options

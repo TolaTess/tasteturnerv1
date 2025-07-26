@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../constants.dart';
 import '../data_models/post_model.dart';
@@ -42,6 +44,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
   String selectedCategoryId = '';
   String selectedCategory = 'general';
   bool _isVideo = false;
+  double _uploadProgress = 0.0;
+  String? _videoThumbnailPath;
 
   Future<String> _compressAndResizeBattleImage(String imagePath) async {
     // Read the image file
@@ -88,32 +92,115 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     return tempPath;
   }
 
+  /// Validate and optimize video file size for better loading performance
+  Future<String> _optimizeVideo(String videoPath) async {
+    final File videoFile = File(videoPath);
+    final int originalSize = await videoFile.length();
+
+    print(
+        'Original video size: ${(originalSize / (1024 * 1024)).toStringAsFixed(2)} MB');
+
+    // Set reasonable file size limits for battle videos (8 seconds max)
+    const int maxSizeBytes = 15 * 1024 * 1024; // 15MB limit for 8-second videos
+    const int warningSize = 8 * 1024 * 1024; // 8MB warning threshold
+
+    if (originalSize > maxSizeBytes) {
+      throw Exception(
+          'Video file is too large (${(originalSize / (1024 * 1024)).toStringAsFixed(1)}MB). '
+          'Maximum allowed is ${(maxSizeBytes / (1024 * 1024)).toStringAsFixed(0)}MB. '
+          'Please record a shorter video or use lower quality settings.');
+    }
+
+    // Show warning for large files but allow upload
+    if (originalSize > warningSize && mounted) {
+      showTastySnackbar(
+        'Large Video File',
+        'Video is ${(originalSize / (1024 * 1024)).toStringAsFixed(1)}MB. This may take longer to load.',
+        context,
+        backgroundColor: Colors.orange,
+      );
+    }
+
+    return videoPath; // Return original path since no compression is available
+  }
+
+  /// Generate thumbnail for video preview to avoid loading full video
+  Future<String?> _generateVideoThumbnail(String videoPath) async {
+    try {
+      final String? thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoPath,
+        thumbnailPath: (await getTemporaryDirectory()).path,
+        imageFormat: ImageFormat.JPEG,
+        maxHeight: 400, // Reasonable size for preview
+        quality: 80,
+        timeMs: 1000, // Get thumbnail from 1 second mark
+      );
+      return thumbnailPath;
+    } catch (e) {
+      print('Failed to generate video thumbnail: $e');
+      return null;
+    }
+  }
+
   Future<void> _pickMedia({bool fromCamera = false}) async {
     final ImagePicker picker = ImagePicker();
 
-    final choice =
-        await showMediaSelectionDialog(isCamera: fromCamera, context: context, isVideo: true);
+    final choice = await showMediaSelectionDialog(
+        isCamera: fromCamera, context: context, isVideo: true);
     if (choice == null) return;
 
     if (fromCamera) {
       final XFile? media = choice == 'photo'
-          ? await picker.pickImage(source: ImageSource.camera, imageQuality: 80)
-          : await picker.pickVideo(source: ImageSource.camera, maxDuration: Duration(seconds: 5));
+          ? await picker.pickImage(
+              source: ImageSource.camera,
+              imageQuality: 80,
+              maxWidth: 1024, // Limit resolution for faster processing
+              maxHeight: 1024,
+            )
+          : await picker.pickVideo(
+              source: ImageSource.camera,
+              maxDuration: Duration(seconds: 8),
+            );
 
       if (media != null) {
         if (choice == 'photo') {
-          XFile? cropped = await cropImage(media, context);
+          XFile? cropped = await cropImage(
+              media, context, getThemeProvider(context).isDarkMode);
           if (cropped != null) {
             setState(() {
               _selectedMedia = [cropped];
               _isVideo = false;
+              _videoThumbnailPath = null;
             });
           }
         } else {
-          setState(() {
-            _selectedMedia = [media];
-            _isVideo = true;
-          });
+          // Show compression progress for video
+          _showVideoProcessingDialog();
+
+          try {
+            // Optimize video and generate thumbnail
+            final String optimizedPath = await _optimizeVideo(media.path);
+            final String? thumbnailPath =
+                await _generateVideoThumbnail(optimizedPath);
+
+            Navigator.pop(context); // Close processing dialog
+
+            setState(() {
+              _selectedMedia = [XFile(optimizedPath)];
+              _isVideo = true;
+              _videoThumbnailPath = thumbnailPath;
+            });
+          } catch (e) {
+            Navigator.pop(context); // Close processing dialog
+            if (mounted) {
+              showTastySnackbar(
+                'Video Processing Failed',
+                e.toString(),
+                context,
+                backgroundColor: kRed,
+              );
+            }
+          }
         }
       }
     } else {
@@ -123,7 +210,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         if (pickedImages.isNotEmpty) {
           List<XFile> croppedImages = [];
           for (final img in pickedImages) {
-            final XFile? cropped = await cropImage(img, context);
+            final XFile? cropped = await cropImage(
+                img, context, getThemeProvider(context).isDarkMode);
             if (cropped != null) {
               croppedImages.add(cropped);
             }
@@ -132,6 +220,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             setState(() {
               _selectedMedia = croppedImages;
               _isVideo = false;
+              _videoThumbnailPath = null;
             });
           }
         }
@@ -139,13 +228,71 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         final XFile? video =
             await picker.pickVideo(source: ImageSource.gallery);
         if (video != null) {
-          setState(() {
-            _selectedMedia = [video];
-            _isVideo = true;
-          });
+          // Show compression progress for video
+          _showVideoProcessingDialog();
+
+          try {
+            // Optimize video and generate thumbnail
+            final String optimizedPath = await _optimizeVideo(video.path);
+            final String? thumbnailPath =
+                await _generateVideoThumbnail(optimizedPath);
+
+            Navigator.pop(context); // Close processing dialog
+
+            setState(() {
+              _selectedMedia = [XFile(optimizedPath)];
+              _isVideo = true;
+              _videoThumbnailPath = thumbnailPath;
+            });
+          } catch (e) {
+            Navigator.pop(context); // Close processing dialog
+            if (mounted) {
+              showTastySnackbar(
+                'Video Processing Failed',
+                e.toString(),
+                context,
+                backgroundColor: kRed,
+              );
+            }
+          }
         }
       }
     }
+  }
+
+  void _showVideoProcessingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor:
+            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: kAccent),
+            SizedBox(height: getPercentageHeight(2, context)),
+            Text(
+              'Optimizing video for faster loading...',
+              style: TextStyle(
+                color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
+            Text(
+              'This may take a moment',
+              style: TextStyle(
+                color: getThemeProvider(context).isDarkMode
+                    ? kWhite.withValues(alpha: 0.7)
+                    : kBlack.withValues(alpha: 0.7),
+                fontSize: getTextScale(3, context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _uploadMedia(String postId) async {
@@ -167,7 +314,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       return;
     }
 
-    setState(() => isUploading = true);
+    setState(() {
+      isUploading = true;
+      _uploadProgress = 0.0;
+    });
 
     print('Selected category: $selectedCategory');
     print('Selected category id: $selectedCategoryId');
@@ -232,6 +382,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 battleCategory: widget.battleCategory,
                 isMainPost: widget.isMainPost,
                 selectedCategory: selectedCategory,
+                isAnalyzeAndUpload: true,
               ),
             ),
           );
@@ -243,18 +394,30 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       final List<String> uploadedUrls = [];
 
       for (final media in _selectedMedia) {
+        setState(() {
+          _uploadProgress = 0.3; // Show initial progress
+        });
+
         String downloadUrl;
         if (_isVideo) {
-          // Upload video directly
+          // Video is already compressed, upload directly
           downloadUrl = await BattleService.instance.uploadBattleVideo(
             battleId: widget.battleId,
             userId: userService.userId ?? '',
             videoFile: File(media.path),
           );
+          setState(() {
+            _uploadProgress = 0.8; // Update progress for video upload
+          });
         } else {
           // Compress and resize battle image before upload
           final String compressedPath =
               await _compressAndResizeBattleImage(media.path);
+
+          setState(() {
+            _uploadProgress = 0.5; // Update progress after compression
+          });
+
           downloadUrl = await BattleService.instance.uploadBattleImage(
             battleId: widget.battleId,
             userId: userService.userId ?? '',
@@ -264,10 +427,18 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
           print('Download url: $downloadUrl');
           // Clean up temporary file
           await File(compressedPath).delete();
+
+          setState(() {
+            _uploadProgress = 0.8; // Update progress after upload
+          });
         }
 
         uploadedUrls.add(downloadUrl);
       }
+
+      setState(() {
+        _uploadProgress = 0.9; // Almost complete
+      });
 
       final post = Post(
         id: widget.isMainPost
@@ -291,6 +462,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         await BattleService.instance.uploadBattleImages(post: post);
       }
 
+      setState(() {
+        _uploadProgress = 1.0; // Complete
+      });
+
       if (mounted) {
         if (widget.isMainPost) {
           Get.to(() => const BottomNavSec(selectedIndex: 2));
@@ -307,7 +482,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => isUploading = false);
+        setState(() {
+          isUploading = false;
+          _uploadProgress = 0.0;
+        });
       }
     }
   }
@@ -341,18 +519,89 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     }
 
     if (_isVideo) {
-      return Container(
-        height: MediaQuery.of(context).size.height > 1100
-            ? getPercentageHeight(35, context)
-            : getPercentageHeight(30, context),
-        width: double.infinity,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: VideoPlayerWidget(
-            videoUrl: _selectedMedia.first.path,
-            autoPlay: false,
+      // Use thumbnail preview instead of full video player for better performance
+      return Stack(
+        children: [
+          Container(
+            height: MediaQuery.of(context).size.height > 1100
+                ? getPercentageHeight(35, context)
+                : getPercentageHeight(30, context),
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: _videoThumbnailPath != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(_videoThumbnailPath!),
+                          fit: BoxFit.cover,
+                        ),
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          child: Center(
+                            child: Icon(
+                              Icons.play_circle_outline,
+                              size: 60,
+                              color: kWhite,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.videocam,
+                              size: 40,
+                              color: kWhite,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Video Ready',
+                              style: TextStyle(color: kWhite),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
           ),
-        ),
+          // File size indicator for videos
+          if (_selectedMedia.isNotEmpty)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: FutureBuilder<int>(
+                  future: File(_selectedMedia.first.path).length(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      final sizeInMB = snapshot.data! / (1024 * 1024);
+                      return Text(
+                        '${sizeInMB.toStringAsFixed(1)}MB',
+                        style: TextStyle(
+                          color: kWhite,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    }
+                    return SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+        ],
       );
     }
 
@@ -477,6 +726,32 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             ),
 
             SizedBox(height: getPercentageHeight(3, context)),
+
+            // Upload progress indicator
+            if (isUploading && _uploadProgress > 0)
+              Container(
+                margin:
+                    EdgeInsets.only(bottom: getPercentageHeight(2, context)),
+                child: Column(
+                  children: [
+                    LinearProgressIndicator(
+                      value: _uploadProgress,
+                      backgroundColor:
+                          isDarkMode ? kDarkGrey : Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(kAccent),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '${(_uploadProgress * 100).toInt()}% uploaded',
+                      style: TextStyle(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontSize: getTextScale(3, context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             AppButton(
               onPressed: isUploading ? () {} : () => _uploadMedia(''),
               text: isUploading ? "Uploading..." : "Upload Without Analysis",

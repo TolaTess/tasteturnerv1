@@ -777,7 +777,7 @@ class _DineInScreenState extends State<DineInScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: AppButton(
-                              text: 'Cook This Recipe!',
+                              text: 'Upload Creation!',
                               onPressed: _navigateToUploadBattle,
                               type: AppButtonType.primary,
                               color: kAccent,

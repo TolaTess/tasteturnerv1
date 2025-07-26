@@ -595,6 +595,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           final XFile? cropped = await cropImage(
                             img,
                             context,
+                            getThemeProvider(context).isDarkMode,
                           );
                           if (cropped != null) {
                             croppedImages.add(cropped);

@@ -18,6 +18,7 @@ import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/custom_drawer.dart';
+import '../widgets/daily-meal-portion.dart';
 import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
 import '../widgets/second_nav_widget.dart';
@@ -527,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         floatingActionButton: buildFullWidthHomeButton(
           key: _addAnalyseButtonKey,
           context: context,
-          date: currentDate,  
+          date: currentDate,
           onSuccess: () {},
           onError: () {},
         ),
@@ -583,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Row(
                           children: [
                             Text(
-                              '${getRelativeDayString(currentDate)},',
+                              '${getRelativeDayString(currentDate)}',
                               style: textTheme.displaySmall
                                   ?.copyWith(color: kAccent),
                             ),
@@ -891,54 +892,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
-                          if (hasMealPlan &&
-                              currentDate.isAfter(DateTime.now()
-                                  .subtract(const Duration(days: 1)))) ...[
-                            FutureBuilder<List<MealWithType>>(
-                              future: _loadMealsForUI(
-                                  displayList[selectedUserIndex]['name']
-                                      as String,
-                                  familyList),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const CircularProgressIndicator(
-                                    color: kAccent,
-                                  );
-                                }
-                                if (!snapshot.hasData ||
-                                    snapshot.data!.isEmpty) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          getPercentageWidth(2, context)),
-                                  child: Container(
-                                    padding: EdgeInsets.all(
-                                        getPercentageWidth(2, context)),
-                                    decoration: BoxDecoration(
-                                      color: colors[
-                                              selectedUserIndex % colors.length]
-                                          .withValues(alpha: kMidOpacity),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                          color: colors[selectedUserIndex %
-                                              colors.length],
-                                          width: 1.5),
-                                    ),
-                                    child: MealPlanSection(
-                                      meals: snapshot.data!,
-                                      mealPlan: mealPlan,
-                                      isDarkMode: isDarkMode,
-                                      showCaloriesAndGoal: showCaloriesAndGoal,
-                                      user: user,
-                                      color: colors[
-                                          selectedUserIndex % colors.length],
-                                    ),
-                                  ),
-                                );
-                              },
+                          if (currentDate.isAfter(DateTime.now()
+                              .subtract(const Duration(days: 1)))) ...[
+                            DailyMealPortion(
+                              userProgram:
+                                  _programService.userPrograms.isNotEmpty
+                                      ? _programService.userPrograms.first
+                                      : null,
+                              notAllowed:
+                                  _programService.userPrograms.isNotEmpty
+                                      ? (_programService.userPrograms.first
+                                              .notAllowed.isNotEmpty
+                                          ? _programService
+                                              .userPrograms.first.notAllowed
+                                          : [])
+                                      : [],
                             ),
                           ],
                           SizedBox(height: getPercentageHeight(3, context)),

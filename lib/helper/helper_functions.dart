@@ -12,9 +12,11 @@ import '../themes/theme_provider.dart';
 import '../widgets/optimized_image.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 Widget buildTastyFloatingActionButton({
   required BuildContext context,
@@ -278,7 +280,7 @@ String getRelativeDayString(DateTime date) {
   } else if (diff == 1) {
     return 'Tomorrow';
   } else {
-    return _weekdayName(target.weekday);
+    return '${_weekdayName(target.weekday)},';
   }
 }
 
@@ -724,10 +726,41 @@ Future<void> showFeatureDialog(
   );
 }
 
-Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
+Future<XFile?> cropImage(
+    XFile imageFile, BuildContext context, bool isDarkMode) async {
   final Completer<XFile?> completer = Completer<XFile?>();
   final CropController controller = CropController();
-  final imageBytes = await imageFile.readAsBytes();
+
+  // Preprocess the image to fix orientation issues for gallery images (especially on iOS)
+  Uint8List imageBytes;
+  try {
+    // iOS has more EXIF orientation issues than Android, so preprocess more aggressively on iOS
+    final bool needsPreprocessing = Platform.isIOS;
+
+    if (needsPreprocessing) {
+      // Use flutter_image_compress to normalize the image and fix orientation
+      final compressedFile = await FlutterImageCompress.compressWithFile(
+        imageFile.path,
+        quality: 95, // High quality to preserve crop interface clarity
+        format: CompressFormat.jpeg,
+        autoCorrectionAngle: true, // This fixes orientation issues
+        keepExif: false, // Remove EXIF data that can cause display issues
+      );
+
+      if (compressedFile != null) {
+        imageBytes = compressedFile;
+      } else {
+        // Fallback to original if compression fails
+        imageBytes = await imageFile.readAsBytes();
+      }
+    } else {
+      // Android typically handles orientation better, use original
+      imageBytes = await imageFile.readAsBytes();
+    }
+  } catch (e) {
+    print('Image preprocessing failed, using original: $e');
+    imageBytes = await imageFile.readAsBytes();
+  }
 
   showDialog(
     context: context,
@@ -742,6 +775,7 @@ Future<XFile?> cropImage(XFile imageFile, BuildContext context) async {
           child: Crop(
             controller: controller,
             image: imageBytes,
+            aspectRatio: null, // Allow free aspect ratio
             onCropped: (croppedData) async {
               final tempDir = await getTemporaryDirectory();
               final croppedPath =
@@ -886,86 +920,108 @@ bool canUseAI() {
   return isPremium || isFreeTrial;
 }
 
-Widget buildFullWidthHomeButton({
+// Consolidated camera action function with optional mealType
+Future<void> handleCameraAction({
   required BuildContext context,
-  required GlobalKey key,
   required DateTime date,
+  required bool isDarkMode,
+  String? mealType,
   VoidCallback? onSuccess,
   VoidCallback? onError,
-}) {
-  final isDarkMode = getThemeProvider(context).isDarkMode;
-  final textTheme = Theme.of(context).textTheme;
+}) async {
+  // Check if user can use AI features
+  if (!canUseAI()) {
+    showPremiumRequiredDialog(context, isDarkMode);
+    return;
+  }
 
-  Future<void> handleCameraAction() async {
-    // Check if user can use AI features
-    if (!canUseAI()) {
-      showPremiumRequiredDialog(context, isDarkMode);
+  try {
+    // Show media selection dialog first
+    final selectedOption = await showMediaSelectionDialog(
+      isCamera: true,
+      context: context,
+      isVideo: false,
+    );
+
+    if (selectedOption == null) {
+      return; // User cancelled the dialog
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: kAccent),
+      ),
+    );
+
+    List<XFile> pickedImages = [];
+
+    if (selectedOption == 'photo') {
+      // Take photo with camera
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+      if (photo != null) {
+        pickedImages = [photo];
+      }
+    } else if (selectedOption == 'gallery') {
+      // Pick image from gallery using the existing modal
+      pickedImages = await openMultiImagePickerModal(context: context);
+    }
+
+    if (pickedImages.isEmpty) {
+      Navigator.pop(context); // Close loading dialog
       return;
     }
 
-    try {
-      // Show media selection dialog first
-      final selectedOption = await showMediaSelectionDialog(
-        isCamera: true,
-        context: context,
-        isVideo: false,
-      );
+    // Crop the first image
+    XFile? croppedImage =
+        await cropImage(pickedImages.first, context, isDarkMode);
+    if (croppedImage == null) {
+      Navigator.pop(context); // Close loading dialog
+      return;
+    }
 
-      if (selectedOption == null) {
-        return; // User cancelled the dialog
-      }
+    Navigator.pop(context); // Close loading dialog
 
-      List<XFile> pickedImages = [];
+    // Ask user about posting before starting analysis
+    bool isPosting = await showPostDialog(context);
 
-      if (selectedOption == 'photo') {
-        // Take photo with camera
-        final ImagePicker picker = ImagePicker();
-        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
-        if (photo != null) {
-          pickedImages = [photo];
-        }
-      } else if (selectedOption == 'gallery') {
-        // Pick image from gallery using the existing modal
-        pickedImages = await openMultiImagePickerModal(context: context);
-      }
-
-      if (pickedImages.isEmpty) {
-        return;
-      }
-
-      // Crop the first image (only for photos)
-      XFile? croppedImage = await cropImage(pickedImages.first, context);
-      if (croppedImage == null) {
-        return;
-      }
-
-      // Show loading dialog only when starting analysis
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    // Show loading dialog for analysis
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          content: Row(
             children: [
               const CircularProgressIndicator(color: kAccent),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(width: getPercentageWidth(2, context)),
               Text(
-                'Analyzing your meal...',
-                style: textTheme.bodyLarge?.copyWith(color: kAccent),
+                "Analyzing your meal...",
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
               ),
             ],
           ),
-        ),
-      );
+        );
+      },
+    );
 
+    try {
       // Analyze the image
       final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: File(croppedImage.path),
+        mealType: mealType,
       );
 
-      Navigator.pop(context); // Close loading dialog
-
-      bool isPosting = showPostDialog(context);   
+      Navigator.pop(context); // Close analysis loading dialog
 
       // Navigate to results screen for review and editing
       Navigator.push(
@@ -976,30 +1032,44 @@ Widget buildFullWidthHomeButton({
             analysisResult: analysisResult,
             isAnalyzeAndUpload: isPosting,
             date: date,
+            mealType: mealType,
           ),
         ),
       );
-
-      onSuccess?.call();
     } catch (e) {
-      // Only close loading dialog if it's showing (i.e., we reached the analysis phase)
-      if (context.mounted) {
-        try {
-          Navigator.pop(context); // Close loading dialog
-        } catch (_) {
-          // Dialog might not be showing, ignore error
-        }
-
-        showTastySnackbar(
-          'Error',
-          'Analysis failed: $e',
-          context,
-          backgroundColor: kRed,
-        );
-      }
+      Navigator.pop(context); // Close analysis loading dialog
+      showTastySnackbar(
+        'Error',
+        'Analysis failed: $e',
+        context,
+        backgroundColor: kRed,
+      );
       onError?.call();
+      return;
     }
+
+    onSuccess?.call();
+  } catch (e) {
+    Navigator.pop(context); // Close loading dialog
+    showTastySnackbar(
+      'Error',
+      'Analysis failed: $e',
+      context,
+      backgroundColor: kRed,
+    );
+    onError?.call();
   }
+}
+
+Widget buildFullWidthHomeButton({
+  required BuildContext context,
+  required GlobalKey key,
+  required DateTime date,
+  VoidCallback? onSuccess,
+  VoidCallback? onError,
+}) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
 
   Future<void> navigateToTasty() async {
     if (canUseAI()) {
@@ -1047,7 +1117,13 @@ Widget buildFullWidthHomeButton({
                 bottomLeft: Radius.circular(16),
               ),
               key: key,
-              onTap: handleCameraAction,
+              onTap: () => handleCameraAction(
+                context: context,
+                date: date,
+                isDarkMode: isDarkMode,
+                onSuccess: onSuccess,
+                onError: onError,
+              ),
               child: Container(
                 height: double.infinity,
                 padding: EdgeInsets.symmetric(
@@ -1148,7 +1224,9 @@ Widget buildFullWidthHomeButton({
 }
 
 Future<String?> showMediaSelectionDialog(
-    {required bool isCamera, required BuildContext context,bool isVideo = false}) async {
+    {required bool isCamera,
+    required BuildContext context,
+    bool isVideo = false}) async {
   return await showDialog<String>(
     context: context,
     builder: (BuildContext context) {
@@ -1164,17 +1242,17 @@ Future<String?> showMediaSelectionDialog(
                 'value': 'photo'
               },
               if (isVideo)
-              {
-                'icon': Icons.video_library,
-                'title': 'Take Video',
-                'value': 'video'
-              },
+                {
+                  'icon': Icons.video_library,
+                  'title': 'Take Video',
+                  'value': 'video'
+                },
               if (!isVideo)
-              {
-                'icon': Icons.photo_library,
-                'title': 'Pick from Gallery',
-                'value': 'gallery'
-              },
+                {
+                  'icon': Icons.photo_library,
+                  'title': 'Pick from Gallery',
+                  'value': 'gallery'
+                },
             ]
           : [
               {'icon': Icons.photo, 'title': 'Photos', 'value': 'photos'},
@@ -1272,35 +1350,43 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
   );
 }
 
-  bool showPostDialog(BuildContext context) {
-    bool isPosting = false;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor:
-            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        title: const Text('Do you want to post this meal?'),
-        content: Text('This will also add it to our post feed.'),
-        actions: [  
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              isPosting = true;
-            },
-            child: const Text('Yes'),
+Future<bool> showPostDialog(BuildContext context) async {
+  return await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor:
+              getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              isPosting = false;
-            },
-            child: const Text('No'),
+          title: const Text(
+            'Also add to Post?',
+            style: TextStyle(color: kAccent),
           ),
-        ],
+          content: const Text(
+            'Tap yes to add your meal to the post feed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text(
+                'No',
+                style: TextStyle(color: kAccentLight),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text(
+                'Yes',
+                style: TextStyle(color: kAccent),
+              ),
+            ),
+          ],
         ),
-    );
-    return isPosting;
+      ) ??
+      false; // Default to false if dialog is dismissed
 }

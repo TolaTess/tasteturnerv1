@@ -6,7 +6,6 @@ import '../constants.dart';
 import '../widgets/premium_widget.dart';
 import 'utils.dart';
 
-
 Future<void> deleteImagesFromStorage(List<String> imageUrls,
     {String? folder}) async {
   for (var url in imageUrls) {
@@ -252,4 +251,62 @@ Widget buildSuggestionsSection(BuildContext context,
       ),
     ],
   );
+}
+
+num? parseToNumber(dynamic value) {
+  if (value == null) return null;
+  if (value is num) {
+    return value;
+  }
+  if (value is String) {
+    // Handle percentage strings by removing % and converting to decimal
+    if (value.contains('%')) {
+      final percentageString = value.replaceAll('%', '').trim();
+      final percentageNumber = num.tryParse(percentageString);
+      if (percentageNumber != null) {
+        // Convert percentage to decimal (e.g., 45% -> 0.45)
+        return percentageNumber / 100;
+      }
+    }
+    return num.tryParse(value);
+  }
+  return null;
+}
+
+String getRecommendedCalories(String mealType, String screen) {
+  final settings = userService.currentUser.value?.settings;
+  final foodGoalValue = settings?['foodGoal'];
+  final baseTargetCalories = (parseToNumber(foodGoalValue) ?? 2000).toDouble();
+
+  // Calculate adjusted total target based on fitness goal ranges
+  final minTotalTarget = baseTargetCalories * 0.8; // Weight loss range
+  final maxTotalTarget = baseTargetCalories * 1.0; // Muscle gain range
+
+  // Updated calorie distribution for 3 main meals only (no separate snack allocation)
+  double percentage = 0.0;
+  switch (mealType) {
+    case 'Breakfast':
+      percentage = 0.25; // 25%
+      break;
+    case 'Lunch':
+      percentage = 0.375; // 37.5%
+      break;
+    case 'Dinner':
+      percentage = 0.375; // 37.5%
+      break;
+    case 'Snacks':
+      // Snacks are now part of lunch/dinner, no separate allocation
+      percentage = 0.0;
+      break;
+  }
+
+  // Apply percentage to the adjusted totals
+  final minMealCalories = minTotalTarget * percentage;
+  final maxMealCalories = maxTotalTarget * percentage;
+
+  if (screen == 'addFood') {
+    return 'Recommended ${minMealCalories.round()} - ${maxMealCalories.round()} kcal';
+  } else {
+    return '${minMealCalories.round()}-${maxMealCalories.round()} kcal';
+  }
 }

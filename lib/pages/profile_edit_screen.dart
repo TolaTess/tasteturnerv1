@@ -87,7 +87,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ),
         centerTitle: true,
         title: Text("Edit Profile",
-              style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
+            style:
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
       ),
       body: SafeArea(
         child: SizedBox(
@@ -113,6 +114,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           final XFile? cropped = await cropImage(
                             img,
                             context,
+                            getThemeProvider(context).isDarkMode,
                           );
                           if (cropped != null) {
                             croppedImages.add(cropped);

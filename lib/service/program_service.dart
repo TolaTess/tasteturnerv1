@@ -91,6 +91,9 @@ class ProgramService extends GetxController {
       createdAt: now,
       startDate: now,
       benefits: List<String>.from(programData['benefits']),
+      notAllowed: List<String>.from(programData['notAllowed']),
+      programDetails: List<String>.from(programData['programDetails']),
+      portionDetails: Map<String, dynamic>.from(programData['portionDetails']),
     );
 
     try {

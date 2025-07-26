@@ -56,6 +56,9 @@ class Program {
   final DateTime startDate;
   final bool isActive;
   final List<String> benefits;
+  final List<String> notAllowed;
+  final List<String> programDetails;
+  final Map<String, dynamic> portionDetails;
 
   Program({
     required this.programId,
@@ -71,6 +74,9 @@ class Program {
     required this.startDate,
     this.isActive = true,
     required this.benefits,
+    required this.notAllowed,
+    required this.programDetails,
+    this.portionDetails = const {},
   });
 
   factory Program.fromJson(Map<String, dynamic> json) {
@@ -99,9 +105,17 @@ class Program {
           ? (json['startDate'] as Timestamp).toDate()
           : DateTime.now(),
       isActive: json['isActive'] ?? true,
-      benefits: json['benefits'] != null
-          ? List<String>.from(json['benefits'])
+      benefits:
+          json['benefits'] != null ? List<String>.from(json['benefits']) : [],
+      notAllowed: json['notAllowed'] != null
+          ? List<String>.from(json['notAllowed'])
           : [],
+      programDetails: json['programDetails'] != null
+          ? List<String>.from(json['programDetails'])
+          : [],
+      portionDetails: json['portionDetails'] != null
+          ? Map<String, dynamic>.from(json['portionDetails'])
+          : {},
     );
   }
 
@@ -120,6 +134,9 @@ class Program {
       'startDate': Timestamp.fromDate(startDate),
       'isActive': isActive,
       'benefits': benefits,
+      'notAllowed': notAllowed,
+      'programDetails': programDetails,
+      'portionDetails': portionDetails,
     };
   }
 }

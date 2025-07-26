@@ -14,6 +14,7 @@ import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
 import '../data_models/user_data_model.dart';
 import '../pages/profile_edit_screen.dart';
+import '../screens/add_food_screen.dart';
 import 'bottom_nav.dart';
 
 class DailyNutritionOverview extends StatefulWidget {
@@ -406,22 +407,27 @@ class UserDetailsSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          capitalizeFirstLetter(user['name'] ?? ''),
-                          style: textTheme.displaySmall?.copyWith(
-                              fontSize: getPercentageWidth(6, context)),
+                  GestureDetector(
+                    onTap: () {
+                      Get.to(() => const AddFoodScreen());
+                    },
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            capitalizeFirstLetter(user['name'] ?? ''),
+                            style: textTheme.displaySmall?.copyWith(
+                                fontSize: getPercentageWidth(6, context)),
+                          ),
                         ),
-                      ),
-                      if (user['name'] ==
-                          userService.currentUser.value?.displayName)
-                        SizedBox(
-                            width: user['name'].length > 10
-                                ? getPercentageWidth(0.5, context)
-                                : getPercentageWidth(1, context)),
-                    ],
+                        if (user['name'] ==
+                            userService.currentUser.value?.displayName)
+                          SizedBox(
+                              width: user['name'].length > 10
+                                  ? getPercentageWidth(0.5, context)
+                                  : getPercentageWidth(1, context)),
+                      ],
+                    ),
                   ),
                   if ((user['fitnessGoal'] ?? '').isNotEmpty &&
                       showCaloriesAndGoal)
@@ -552,7 +558,7 @@ class UserDetailsSection extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                            color: kAccent.withValues(alpha: 0.18),
+                          color: kAccent.withValues(alpha: 0.18),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -855,8 +861,8 @@ class FamilySelectorSection extends StatelessWidget {
                 backgroundColor: i == selectedUserIndex
                     ? kAccent
                     : isDarkMode
-                          ? kDarkGrey.withValues(alpha: 0.18)
-                          : kWhite.withValues(alpha: 0.25),
+                        ? kDarkGrey.withValues(alpha: 0.18)
+                        : kWhite.withValues(alpha: 0.25),
                 child: fam['avatar'] == null
                     ? getAvatar(fam['ageGroup'], context, isDarkMode)
                     : ClipOval(

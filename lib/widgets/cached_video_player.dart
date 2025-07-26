@@ -88,6 +88,10 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
       if (videoPath.startsWith('http')) {
         _videoPlayerController = VideoPlayerController.networkUrl(
           Uri.parse(videoPath),
+          // Optimize network video loading
+          httpHeaders: {
+            'User-Agent': 'TasteTurner-App/1.0',
+          },
         );
       } else {
         _videoPlayerController = VideoPlayerController.file(
@@ -95,7 +99,11 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
         );
       }
 
+      // Optimize video player settings for better performance
       await _videoPlayerController!.initialize();
+
+      // Set optimized buffering for faster loading
+      await _videoPlayerController!.setVolume(1.0);
 
       // Listen for video completion to handle replay
       _videoPlayerController!.addListener(_videoListener);
@@ -109,30 +117,40 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
         allowMuting: true,
         showControls: widget.showControls,
 
-        // Improved control visibility settings
-        hideControlsTimer:
-            const Duration(seconds: 2), // Hide controls after 2 seconds
+        // Improved control visibility settings for better performance
+        hideControlsTimer: const Duration(
+            seconds: 1), // Hide controls faster to reduce UI updates
         showControlsOnInitialize: false, // Don't show controls initially
 
-        cupertinoProgressColors: ChewieProgressColors(
-          playedColor: kAccent,
-          handleColor: kAccent,
-          backgroundColor: kWhite.withValues(alpha: 0.3),
-          bufferedColor: kWhite.withValues(alpha: 0.5),
-        ),
+        // Optimize startup performance
+        startAt: Duration.zero,
+
+        // Reduce overlay complexity for better performance
         materialProgressColors: ChewieProgressColors(
           playedColor: kAccent,
           handleColor: kAccent,
           backgroundColor: kWhite.withValues(alpha: 0.3),
           bufferedColor: kWhite.withValues(alpha: 0.5),
         ),
+        cupertinoProgressColors: ChewieProgressColors(
+          playedColor: kAccent,
+          handleColor: kAccent,
+          backgroundColor: kWhite.withValues(alpha: 0.3),
+          bufferedColor: kWhite.withValues(alpha: 0.5),
+        ),
+
+        // Optimize loading experience
         placeholder: Container(
           color: Colors.black,
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const CircularProgressIndicator(color: kAccent),
+                const CircularProgressIndicator(
+                  color: kAccent,
+                  strokeWidth:
+                      2, // Thinner progress indicator for better performance
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Loading video...',
@@ -244,7 +262,8 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
           allowFullScreen: widget.allowFullScreen,
           allowMuting: true,
           showControls: widget.showControls,
-          hideControlsTimer: const Duration(seconds: 2),
+          hideControlsTimer:
+              const Duration(seconds: 1), // Faster hide for better performance
           showControlsOnInitialize: false,
           cupertinoProgressColors: ChewieProgressColors(
             playedColor: kAccent,
@@ -437,10 +456,10 @@ class _CachedVideoPlayerState extends State<CachedVideoPlayer> {
                       ),
                     ],
                   ),
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

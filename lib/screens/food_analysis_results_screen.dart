@@ -21,6 +21,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final String? selectedCategory;
   final bool? isAnalyzeAndUpload;
   final DateTime? date;
+  final String? mealType;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -33,6 +34,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.selectedCategory,
     this.isAnalyzeAndUpload,
     this.date,
+    this.mealType,
   });
 
   @override
@@ -44,14 +46,225 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   late Map<String, dynamic> _editableAnalysis;
   bool _isSaving = false;
   bool _hasCreatedMeal = false;
+  late String mealType;
 
   @override
   void initState() {
     super.initState();
+    mealType = widget.mealType ?? getMealTimeOfDay();
     _editableAnalysis = Map<String, dynamic>.from(widget.analysisResult);
+
+    // Apply ingredient deduplication and validation on initial load
+    _normalizeAnalysisData();
 
     // Recalculate totals on initial load to ensure consistency
     _recalculateTotalNutrition();
+  }
+
+  /// Normalize and validate analysis data to prevent duplicates and handle errors
+  void _normalizeAnalysisData() {
+    try {
+      // Normalize ingredients if they exist
+      if (_editableAnalysis.containsKey('ingredients') &&
+          _editableAnalysis['ingredients'] is Map) {
+        _editableAnalysis['ingredients'] = _normalizeAndDeduplicateIngredients(
+            _editableAnalysis['ingredients'] as Map<String, dynamic>);
+      }
+
+      // Ensure required fields exist with fallback values
+      _editableAnalysis['foodItems'] = _editableAnalysis['foodItems'] ?? [];
+      _editableAnalysis['totalNutrition'] =
+          _editableAnalysis['totalNutrition'] ??
+              {
+                'calories': 0,
+                'protein': 0,
+                'carbs': 0,
+                'fat': 0,
+                'fiber': 0,
+                'sugar': 0,
+                'sodium': 0,
+              };
+      _editableAnalysis['healthScore'] = _editableAnalysis['healthScore'] ?? 5;
+      _editableAnalysis['estimatedPortionSize'] =
+          _editableAnalysis['estimatedPortionSize'] ?? 'medium';
+      _editableAnalysis['confidence'] =
+          _editableAnalysis['confidence'] ?? 'medium';
+
+      // Validate and fix food items
+      final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
+      for (int i = 0; i < foodItems.length; i++) {
+        final item = foodItems[i] as Map<String, dynamic>;
+
+        // Ensure required fields exist
+        item['name'] = item['name'] ?? 'Unknown Food ${i + 1}';
+        item['estimatedWeight'] = item['estimatedWeight'] ?? '100g';
+        item['confidence'] = item['confidence'] ?? 'medium';
+
+        // Ensure nutritional info exists
+        item['nutritionalInfo'] = item['nutritionalInfo'] ??
+            {
+              'calories': 100,
+              'protein': 5,
+              'carbs': 10,
+              'fat': 4,
+              'fiber': 1,
+              'sugar': 2,
+              'sodium': 100
+            };
+
+        // Validate nutritional values are numbers
+        final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
+        nutrition.forEach((key, value) {
+          if (value == null ||
+              (value is String && double.tryParse(value) == null)) {
+            nutrition[key] = 0;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error normalizing analysis data: $e');
+      // Set minimal fallback data if normalization fails
+      _editableAnalysis = {
+        'foodItems': [
+          {
+            'name': 'Unknown Food',
+            'estimatedWeight': '100g',
+            'confidence': 'low',
+            'nutritionalInfo': {
+              'calories': 200,
+              'protein': 10,
+              'carbs': 20,
+              'fat': 8,
+              'fiber': 2,
+              'sugar': 5,
+              'sodium': 200
+            }
+          }
+        ],
+        'totalNutrition': {
+          'calories': 200,
+          'protein': 10,
+          'carbs': 20,
+          'fat': 8,
+          'fiber': 2,
+          'sugar': 5,
+          'sodium': 200
+        },
+        'healthScore': 5,
+        'estimatedPortionSize': 'medium',
+        'ingredients': {'unknown ingredient': '1 portion'},
+        'confidence': 'low',
+        'notes':
+            'Analysis data was malformed and has been reset to safe defaults.'
+      };
+    }
+  }
+
+  /// Normalize and deduplicate ingredients to prevent variations like "sesameseed" vs "sesame seed"
+  Map<String, String> _normalizeAndDeduplicateIngredients(
+      Map<String, dynamic> ingredients) {
+    final Map<String, String> normalizedIngredients = {};
+    final Map<String, List<MapEntry<String, String>>> groupedIngredients = {};
+
+    // Convert all ingredients to Map<String, String> and normalize keys
+    final stringIngredients = <String, String>{};
+    ingredients.forEach((key, value) {
+      stringIngredients[key] = value.toString();
+    });
+
+    // Group ingredients by normalized name
+    stringIngredients.forEach((originalName, amount) {
+      final normalizedName = _normalizeIngredientName(originalName);
+
+      if (!groupedIngredients.containsKey(normalizedName)) {
+        groupedIngredients[normalizedName] = [];
+      }
+      groupedIngredients[normalizedName]!.add(MapEntry(originalName, amount));
+    });
+
+    // Process grouped ingredients
+    groupedIngredients.forEach((normalizedName, ingredientList) {
+      if (ingredientList.length == 1) {
+        // Single ingredient, use as-is
+        final ingredient = ingredientList.first;
+        normalizedIngredients[ingredient.key] = ingredient.value;
+      } else {
+        // Multiple ingredients with same normalized name - combine them
+        final combinedResult = _combineIngredients(ingredientList);
+        normalizedIngredients[combinedResult.key] = combinedResult.value;
+      }
+    });
+
+    return normalizedIngredients;
+  }
+
+  /// Normalize ingredient name for comparison (lowercase, no spaces, common substitutions)
+  String _normalizeIngredientName(String name) {
+    return name
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
+        .replaceAll(RegExp(r'[^\w]'), '') // Remove non-word characters
+        .replaceAll('oilolive', 'oliveoil') // Handle oil variations
+        .replaceAll('saltpink', 'pinksalt')
+        .replaceAll('saltrock', 'rocksalt')
+        .replaceAll('saltsea', 'seasalt');
+  }
+
+  /// Combine multiple ingredients with the same normalized name
+  MapEntry<String, String> _combineIngredients(
+      List<MapEntry<String, String>> ingredients) {
+    // Use the most descriptive name (longest with spaces)
+    String bestName = ingredients.first.key;
+    for (final ingredient in ingredients) {
+      if (ingredient.key.contains(' ') &&
+          ingredient.key.length > bestName.length) {
+        bestName = ingredient.key;
+      }
+    }
+
+    // Try to combine quantities if they have the same unit
+    final quantities = <double>[];
+    String? commonUnit;
+    bool canCombine = true;
+
+    for (final ingredient in ingredients) {
+      final amount = ingredient.value.toLowerCase().trim();
+      final match = RegExp(r'(\d+(?:\.\d+)?)\s*([a-zA-Z]*)').firstMatch(amount);
+
+      if (match != null) {
+        final quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
+        final unit = match.group(2) ?? '';
+
+        if (commonUnit == null) {
+          commonUnit = unit;
+        } else if (commonUnit != unit && unit.isNotEmpty) {
+          // Different units, can't combine
+          canCombine = false;
+          break;
+        }
+        quantities.add(quantity);
+      } else {
+        // Can't parse quantity, can't combine
+        canCombine = false;
+        break;
+      }
+    }
+
+    if (canCombine && quantities.isNotEmpty) {
+      final totalQuantity = quantities.reduce((a, b) => a + b);
+      final combinedAmount = commonUnit != null && commonUnit.isNotEmpty
+          ? '$totalQuantity$commonUnit'
+          : totalQuantity.toString();
+      return MapEntry(bestName, combinedAmount);
+    } else {
+      // Can't combine, use the first one and add a note
+      final firstAmount = ingredients.first.value;
+      final additionalCount = ingredients.length - 1;
+      final combinedAmount = additionalCount > 0
+          ? '$firstAmount (+$additionalCount more)'
+          : firstAmount;
+      return MapEntry(bestName, combinedAmount);
+    }
   }
 
   Color _getHealthScoreColor(int score) {
@@ -76,8 +289,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       final uploadTask =
           await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
       final downloadUrl = await uploadTask.ref.getDownloadURL();
-
-      final mealType = getMealTimeOfDay();
 
       // Save analysis to tastyanalysis collection
       await geminiService.saveAnalysisToFirestore(
@@ -129,13 +340,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         imagePath: downloadUrl,
       );
 
-      final mealType = getMealTimeOfDay();
-
       // Determine if this is for an existing post or a new analyze & upload flow
       final bool isExistingPostAnalysis =
           widget.postId != null && widget.postId!.isNotEmpty;
-      final bool isNewAnalyzeAndUpload =
-          widget.battleId != null && !isExistingPostAnalysis;
 
       String finalMealId;
 
@@ -172,17 +379,24 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         _hasCreatedMeal = true;
       });
 
-      // Handle post creation for new analyze & upload flow
-      if (isNewAnalyzeAndUpload && widget.isAnalyzeAndUpload == true) {
+      // Handle post creation for analyze & upload flow (both regular and battle posts)
+      if (widget.isAnalyzeAndUpload == true && !isExistingPostAnalysis) {
         try {
-          // Upload image to battle storage
-          String battleImageUrl;
-          if (widget.isMainPost == true) {
-            // For main posts, upload normally
-            battleImageUrl = downloadUrl; // Use the same uploaded image
+          String postImageUrl;
+
+          // Determine if this is a battle post, main post, or regular post
+          final bool isBattlePost =
+              widget.battleId != null && widget.isMainPost != true;
+          final bool isMainPost = widget.isMainPost == true;
+          final bool isRegularPost =
+              widget.battleId == null && widget.isMainPost == null;
+
+          if (isMainPost || isRegularPost) {
+            // For main posts and regular posts, use the already uploaded image
+            postImageUrl = downloadUrl;
           } else {
             // For battle posts, upload to battle storage
-            battleImageUrl = await BattleService.instance.uploadBattleImage(
+            postImageUrl = await BattleService.instance.uploadBattleImage(
               battleId: widget.battleId!,
               userId: userService.userId ?? '',
               imageFile: widget.imageFile,
@@ -194,18 +408,18 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             id: finalMealId, // Use mealId as postId for proper linking
             mealId: finalMealId, // Link the post to the meal
             userId: userService.userId ?? '',
-            mediaPaths: [battleImageUrl],
+            mediaPaths: [postImageUrl],
             name: userService.currentUser.value?.displayName ?? '',
             category: widget.selectedCategory ?? 'general',
-            isBattle: widget.isMainPost == true ? false : true,
-            battleId: widget.isMainPost == true ? '' : widget.battleId!,
+            isBattle: isBattlePost,
+            battleId: isBattlePost ? widget.battleId! : '',
             isVideo: false,
           );
 
           // Upload the post
-          if (widget.isMainPost == true) {
+          if (isMainPost || isRegularPost) {
             await postController
-                .uploadPost(post, userService.userId ?? '', [battleImageUrl]);
+                .uploadPost(post, userService.userId ?? '', [postImageUrl]);
           } else {
             await BattleService.instance.uploadBattleImages(post: post);
           }
@@ -219,12 +433,15 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           );
 
           // Navigate to appropriate screen
-          if (widget.isMainPost == true) {
+          if (isMainPost) {
             Get.to(() => const BottomNavSec(selectedIndex: 2));
-          } else {
-            // Go back to the previous screen
+          } else if (isBattlePost) {
+            // Go back to the previous screen for battle posts
             Navigator.of(context).pop();
             Navigator.of(context).pop(); // Go back to battle screen
+          } else {
+            // For regular posts, just go back to the previous screen
+            Navigator.of(context).pop();
           }
         } catch (e) {
           print('Failed to create post: $e');
@@ -755,7 +972,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                               child: CircularProgressIndicator(color: kAccent),
                             )
                           : AppButton(
-                              text: 'Add to ${getMealTimeOfDay()}',
+                              text: 'Add to ${capitalizeFirstLetter(mealType)}',
                               onPressed: () => _saveAnalysis(),
                               type: AppButtonType.primary,
                               width: 100,

@@ -11,6 +11,7 @@ import '../data_models/ingredient_data.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
+import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
@@ -454,106 +455,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   }
 
   Future<void> _handleCameraAction() async {
-    // Check if user can use AI features
-    if (!canUseAI()) {
-      showPremiumRequiredDialog(context, getThemeProvider(context).isDarkMode);
-      return;
-    }
-
-    try {
-      // Show media selection dialog first
-      final selectedOption = await showMediaSelectionDialog(
-        isCamera: true,
-        context: context,
-      );
-
-      if (selectedOption == null) {
-        return; // User cancelled the dialog
-      }
-
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: kAccent),
-        ),
-      );
-
-      List<XFile> pickedImages = [];
-
-      if (selectedOption == 'photo') {
-        // Take photo with camera
-        final ImagePicker picker = ImagePicker();
-        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
-        if (photo != null) {
-          pickedImages = [photo];
-        }
-      } else if (selectedOption == 'gallery') {
-        // Pick image from gallery using the existing modal
-        pickedImages = await openMultiImagePickerModal(context: context);
-      }
-
-      if (pickedImages.isEmpty) {
-        Navigator.pop(context); // Close loading dialog
-        return;
-      }
-
-      // Crop the first image
-      XFile? croppedImage = await cropImage(pickedImages.first, context);
-      if (croppedImage == null) {
-        Navigator.pop(context); // Close loading dialog
-        return;
-      }
-
-      // Analyze the image
-      final analysisResult = await geminiService.analyzeFoodImageWithContext(
-        imageFile: File(croppedImage.path),
-      );
-
-      Navigator.pop(context); // Close loading dialog
-
-      bool isPosting = showPostDialog(context);
-
-      // Navigate to results screen for review and editing
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FoodAnalysisResultsScreen(
-            imageFile: File(croppedImage.path),
-            analysisResult: analysisResult,
-            isAnalyzeAndUpload: isPosting,
-            date: widget.date ?? DateTime.now(),
-          ),
-        ),
-      );
-
-      // Refresh the data
-      await _loadData();
-    } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorDialog('Analysis failed: $e');
-    }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
+    await handleCameraAction(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor:
-            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      date: widget.date ?? DateTime.now(),
+      isDarkMode: getThemeProvider(context).isDarkMode,
+      mealType: foodType,
+      onSuccess: () async {
+        // Refresh the data
+        await _loadData();
+      },
+      onError: () {
+        // Error handling is already done in the consolidated function
+      },
     );
   }
 
@@ -952,8 +865,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 if (!allDisabled && isToday)
                   SizedBox(height: getPercentageHeight(2, context)),
                 if (!allDisabled && isToday) _buildDailyRoutineCard(context),
-                if (isToday)
-                SizedBox(height: getPercentageHeight(2, context)),
+                if (isToday) SizedBox(height: getPercentageHeight(2, context)),
                 if (isToday)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -977,7 +889,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     ],
                   ),
                 if (isToday)
-                SizedBox(height: getPercentageHeight(3.5, context)),
+                  SizedBox(height: getPercentageHeight(3.5, context)),
 
                 // Water and Steps Trackers
                 if (isToday)
@@ -1093,7 +1005,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           context: context,
                           mealType: 'Breakfast',
                           recommendedCalories:
-                              _getRecommendedCalories('Breakfast'),
+                              getRecommendedCalories('Breakfast', 'addFood'),
                           currentCalories:
                               dailyDataController.breakfastCalories.value,
                           meals:
@@ -1113,7 +1025,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               dailyDataController.userMealList['Breakfast'] ??
                                   [],
                               dailyDataController.breakfastCalories.value,
-                              _getRecommendedCalories('Breakfast'),
+                              getRecommendedCalories('Breakfast', 'addFood'),
                               Icons.emoji_food_beverage_outlined,
                             );
                           },
@@ -1121,7 +1033,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         _buildMealCard(
                           context: context,
                           mealType: 'Lunch',
-                          recommendedCalories: _getRecommendedCalories('Lunch'),
+                          recommendedCalories:
+                              getRecommendedCalories('Lunch', 'addFood'),
                           currentCalories:
                               dailyDataController.lunchCalories.value,
                           meals:
@@ -1139,7 +1052,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               'Lunch',
                               dailyDataController.userMealList['Lunch'] ?? [],
                               dailyDataController.lunchCalories.value,
-                              _getRecommendedCalories('Lunch'),
+                              getRecommendedCalories('Lunch', 'addFood'),
                               Icons.lunch_dining_outlined,
                             );
                           },
@@ -1148,7 +1061,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           context: context,
                           mealType: 'Dinner',
                           recommendedCalories:
-                              _getRecommendedCalories('Dinner'),
+                              getRecommendedCalories('Dinner', 'addFood'),
                           currentCalories:
                               dailyDataController.dinnerCalories.value,
                           meals:
@@ -1166,35 +1079,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               'Dinner',
                               dailyDataController.userMealList['Dinner'] ?? [],
                               dailyDataController.dinnerCalories.value,
-                              _getRecommendedCalories('Dinner'),
+                              getRecommendedCalories('Dinner', 'addFood'),
                               Icons.dinner_dining_outlined,
-                            );
-                          },
-                        ),
-                        _buildMealCard(
-                          context: context,
-                          mealType: 'Snacks',
-                          recommendedCalories:
-                              _getRecommendedCalories('Snacks'),
-                          currentCalories:
-                              dailyDataController.snacksCalories.value,
-                          meals:
-                              dailyDataController.userMealList['Snacks'] ?? [],
-                          icon: Icons.fastfood_outlined,
-                          onAdd: () {
-                            setState(() {
-                              foodType = 'Snacks';
-                            });
-                            _showSearchResults(context, 'Snacks');
-                          },
-                          onTap: () {
-                            _showMealDetailModal(
-                              context,
-                              'Snacks',
-                              dailyDataController.userMealList['Snacks'] ?? [],
-                              dailyDataController.snacksCalories.value,
-                              _getRecommendedCalories('Snacks'),
-                              Icons.fastfood_outlined,
                             );
                           },
                         ),
@@ -1343,30 +1229,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
       ],
     );
-  }
-
-  String _getRecommendedCalories(String mealType) {
-    final settings = userService.currentUser.value?.settings;
-    final targetCalories = settings?['targetCalories'] as num? ?? 2000;
-    double percentage = 0.0;
-    switch (mealType) {
-      case 'Breakfast':
-        percentage = 0.20;
-        break;
-      case 'Lunch':
-        percentage = 0.35;
-        break;
-      case 'Dinner':
-        percentage = 0.35;
-        break;
-      case 'Snacks':
-        percentage = 0.10;
-        break;
-    }
-    final avg = targetCalories * percentage;
-    final min = avg * 0.8;
-    final max = avg * 1.2;
-    return 'Recommended ${min.round()} - ${max.round()} kcal';
   }
 
   Widget _buildMealCard({

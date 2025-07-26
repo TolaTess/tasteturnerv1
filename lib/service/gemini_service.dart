@@ -60,6 +60,323 @@ class GeminiService {
   String? _lastUserId;
   DateTime? _lastContextFetch;
 
+  /// Normalize and deduplicate ingredients to prevent variations like "sesameseed" vs "sesame seed"
+  Map<String, String> _normalizeAndDeduplicateIngredients(
+      Map<String, dynamic> ingredients) {
+    final Map<String, String> normalizedIngredients = {};
+    final Map<String, List<MapEntry<String, String>>> groupedIngredients = {};
+
+    // Convert all ingredients to Map<String, String> and normalize keys
+    final stringIngredients = <String, String>{};
+    ingredients.forEach((key, value) {
+      stringIngredients[key] = value.toString();
+    });
+
+    // Group ingredients by normalized name
+    stringIngredients.forEach((originalName, amount) {
+      final normalizedName = _normalizeIngredientName(originalName);
+
+      if (!groupedIngredients.containsKey(normalizedName)) {
+        groupedIngredients[normalizedName] = [];
+      }
+      groupedIngredients[normalizedName]!.add(MapEntry(originalName, amount));
+    });
+
+    // Process grouped ingredients
+    groupedIngredients.forEach((normalizedName, ingredientList) {
+      if (ingredientList.length == 1) {
+        // Single ingredient, use as-is
+        final ingredient = ingredientList.first;
+        normalizedIngredients[ingredient.key] = ingredient.value;
+      } else {
+        // Multiple ingredients with same normalized name - combine them
+        final combinedResult = _combineIngredients(ingredientList);
+        normalizedIngredients[combinedResult.key] = combinedResult.value;
+      }
+    });
+
+    return normalizedIngredients;
+  }
+
+  /// Normalize ingredient name for comparison (lowercase, no spaces, common substitutions)
+  String _normalizeIngredientName(String name) {
+    return name
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
+        .replaceAll(RegExp(r'[^\w]'), '') // Remove non-word characters
+        .replaceAll('oilolive', 'oliveoil') // Handle oil variations
+        .replaceAll('saltpink', 'pinksalt')
+        .replaceAll('saltrock', 'rocksalt')
+        .replaceAll('saltsea', 'seasalt');
+  }
+
+  /// Combine multiple ingredients with the same normalized name
+  MapEntry<String, String> _combineIngredients(
+      List<MapEntry<String, String>> ingredients) {
+    // Use the most descriptive name (longest with spaces)
+    String bestName = ingredients.first.key;
+    for (final ingredient in ingredients) {
+      if (ingredient.key.contains(' ') &&
+          ingredient.key.length > bestName.length) {
+        bestName = ingredient.key;
+      }
+    }
+
+    // Try to combine quantities if they have the same unit
+    final quantities = <double>[];
+    String? commonUnit;
+    bool canCombine = true;
+
+    for (final ingredient in ingredients) {
+      final amount = ingredient.value.toLowerCase().trim();
+      final match = RegExp(r'(\d+(?:\.\d+)?)\s*([a-zA-Z]*)').firstMatch(amount);
+
+      if (match != null) {
+        final quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
+        final unit = match.group(2) ?? '';
+
+        if (commonUnit == null) {
+          commonUnit = unit;
+        } else if (commonUnit != unit && unit.isNotEmpty) {
+          // Different units, can't combine
+          canCombine = false;
+          break;
+        }
+        quantities.add(quantity);
+      } else {
+        // Can't parse quantity, can't combine
+        canCombine = false;
+        break;
+      }
+    }
+
+    if (canCombine && quantities.isNotEmpty) {
+      final totalQuantity = quantities.reduce((a, b) => a + b);
+      final combinedAmount = commonUnit != null && commonUnit.isNotEmpty
+          ? '$totalQuantity$commonUnit'
+          : totalQuantity.toString();
+      return MapEntry(bestName, combinedAmount);
+    } else {
+      // Can't combine, use the first one and add a note
+      final firstAmount = ingredients.first.value;
+      final additionalCount = ingredients.length - 1;
+      final combinedAmount = additionalCount > 0
+          ? '$firstAmount (+$additionalCount more)'
+          : firstAmount;
+      return MapEntry(bestName, combinedAmount);
+    }
+  }
+
+  /// Enhanced error handling wrapper for AI responses
+  Map<String, dynamic> _processAIResponse(String text, String operation) {
+    try {
+      final jsonData = _extractJsonObject(text);
+
+      // Apply ingredient deduplication if ingredients exist
+      if (jsonData.containsKey('ingredients') &&
+          jsonData['ingredients'] is Map) {
+        jsonData['ingredients'] = _normalizeAndDeduplicateIngredients(
+            jsonData['ingredients'] as Map<String, dynamic>);
+      }
+
+      // Also check for ingredients in meal objects
+      if (jsonData.containsKey('meals') && jsonData['meals'] is List) {
+        final meals = jsonData['meals'] as List<dynamic>;
+        for (final meal in meals) {
+          if (meal is Map<String, dynamic> && meal.containsKey('ingredients')) {
+            meal['ingredients'] = _normalizeAndDeduplicateIngredients(
+                meal['ingredients'] as Map<String, dynamic>);
+          }
+        }
+      }
+
+      // Validate required fields based on operation
+      _validateResponseStructure(jsonData, operation);
+
+      return jsonData;
+    } catch (e) {
+      print('Error processing AI response for $operation: $e');
+      print('Raw response text: $text');
+
+      // Return a fallback structure based on operation type
+      return _createFallbackResponse(operation, e.toString());
+    }
+  }
+
+  /// Validate response structure based on operation type
+  void _validateResponseStructure(Map<String, dynamic> data, String operation) {
+    switch (operation) {
+      case 'food_analysis':
+        if (!data.containsKey('foodItems') ||
+            !data.containsKey('totalNutrition')) {
+          throw Exception(
+              'Missing required fields: foodItems or totalNutrition');
+        }
+        break;
+      case 'meal_generation':
+        if (!data.containsKey('meals')) {
+          throw Exception('Missing required field: meals');
+        }
+        break;
+      case 'meal_plan':
+        if (!data.containsKey('meals')) {
+          throw Exception('Missing required field: meals');
+        }
+        break;
+      case 'program_generation':
+        if (!data.containsKey('weeklyPlans')) {
+          throw Exception('Missing required field: weeklyPlans');
+        }
+        break;
+      case 'food_comparison':
+        if (!data.containsKey('image1Analysis') ||
+            !data.containsKey('image2Analysis')) {
+          throw Exception(
+              'Missing required fields: image1Analysis or image2Analysis');
+        }
+        break;
+    }
+  }
+
+  /// Create fallback response for failed AI operations
+  Map<String, dynamic> _createFallbackResponse(String operation, String error) {
+    switch (operation) {
+      case 'food_analysis':
+        return {
+          'foodItems': [
+            {
+              'name': 'Unknown Food',
+              'estimatedWeight': '100g',
+              'confidence': 'low',
+              'nutritionalInfo': {
+                'calories': 200,
+                'protein': 10,
+                'carbs': 20,
+                'fat': 8,
+                'fiber': 2,
+                'sugar': 5,
+                'sodium': 200
+              }
+            }
+          ],
+          'totalNutrition': {
+            'calories': 200,
+            'protein': 10,
+            'carbs': 20,
+            'fat': 8,
+            'fiber': 2,
+            'sugar': 5,
+            'sodium': 200
+          },
+          'mealType': 'unknown',
+          'estimatedPortionSize': 'medium',
+          'ingredients': {'unknown ingredient': '1 portion'},
+          'cookingMethod': 'unknown',
+          'confidence': 'low',
+          'healthScore': 5,
+          'notes':
+              'Analysis failed: $error. Please verify nutritional information manually.'
+        };
+      case 'meal_generation':
+        return {
+          'meals': [
+            {
+              'title': 'Simple Meal',
+              'type': 'protein',
+              'description': 'A basic meal when AI analysis failed',
+              'cookingTime': '15 minutes',
+              'cookingMethod': 'cooking',
+              'ingredients': {'main ingredient': '1 portion'},
+              'instructions': [
+                'Analysis failed: $error',
+                'Please create meal manually'
+              ],
+              'nutritionalInfo': {
+                'calories': 300,
+                'protein': 15,
+                'carbs': 30,
+                'fat': 10
+              },
+              'categories': ['error-fallback'],
+              'serveQty': 1
+            }
+          ],
+          'nutritionalSummary': {
+            'totalCalories': 300,
+            'totalProtein': 15,
+            'totalCarbs': 30,
+            'totalFat': 10
+          },
+          'tips': ['AI analysis failed, please verify all information manually']
+        };
+      case 'program_generation':
+        return {
+          'duration': '4 weeks',
+          'weeklyPlans': [
+            {
+              'week': 1,
+              'goals': ['Basic health improvement'],
+              'mealPlan': {
+                'breakfast': ['Simple breakfast option'],
+                'lunch': ['Simple lunch option'],
+                'dinner': ['Simple dinner option'],
+                'snacks': ['Healthy snack']
+              },
+              'nutritionGuidelines': {
+                'calories': '1800-2200',
+                'protein': '80-120g',
+                'carbs': '200-250g',
+                'fats': '60-80g'
+              },
+              'tips': [
+                'Analysis failed: $error',
+                'Please create program manually'
+              ]
+            }
+          ],
+          'requirements': ['Manual verification needed'],
+          'recommendations': ['Please verify all information manually']
+        };
+      case 'food_comparison':
+        return {
+          'image1Analysis': {
+            'foodItems': ['Unknown Food 1'],
+            'totalNutrition': {
+              'calories': 200,
+              'protein': 10,
+              'carbs': 20,
+              'fat': 8
+            },
+            'healthScore': 5
+          },
+          'image2Analysis': {
+            'foodItems': ['Unknown Food 2'],
+            'totalNutrition': {
+              'calories': 200,
+              'protein': 10,
+              'carbs': 20,
+              'fat': 8
+            },
+            'healthScore': 5
+          },
+          'comparison': {
+            'winner': 'tie',
+            'reasons': ['Analysis failed: $error'],
+            'nutritionalDifferences': {
+              'calories': 'Unable to determine',
+              'protein': 'Unable to determine',
+              'carbs': 'Unable to determine',
+              'fat': 'Unable to determine'
+            }
+          },
+          'recommendations': ['Manual verification needed'],
+          'summary': 'Comparison failed, please verify manually'
+        };
+      default:
+        return {'error': true, 'message': 'Operation failed: $error'};
+    }
+  }
+
   // Initialize and find a working model
   Future<bool> initializeModel() async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
@@ -517,7 +834,7 @@ Important:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'meal_plan');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse meal plan JSON: $e');
@@ -623,7 +940,7 @@ Important:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'meal_generation');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse meal JSON: $e');
@@ -727,7 +1044,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'program_generation');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse program JSON: $e');
@@ -849,7 +1166,7 @@ Important guidelines:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'food_analysis');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse food analysis JSON: $e');
@@ -1010,7 +1327,7 @@ Important guidelines:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'food_analysis');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse food analysis JSON: $e');
@@ -1139,7 +1456,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _extractJsonObject(text);
+          return _processAIResponse(text, 'food_comparison');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse food comparison JSON: $e');
@@ -1474,7 +1791,7 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       final foodItems = analysisResult['foodItems'] as List<dynamic>;
 
       // Handle ingredients - can be either Map or List from AI response
-      final ingredientsMap = <String, String>{};
+      Map<String, String> ingredientsMap = <String, String>{};
       final ingredientsFromAnalysis = analysisResult['ingredients'];
 
       if (ingredientsFromAnalysis is Map<String, dynamic>) {
@@ -1487,6 +1804,10 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
           ingredientsMap['ingredient${i + 1}'] = ingredientsList[i];
         }
       }
+
+      // Apply ingredient deduplication to prevent duplicates like "sesameseed" vs "sesame seed"
+      ingredientsMap = _normalizeAndDeduplicateIngredients(
+          ingredientsMap.cast<String, dynamic>());
 
       // Create meal title from primary food item
       String title = 'AI Analyzed Food';
