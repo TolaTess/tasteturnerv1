@@ -354,24 +354,6 @@ class TutorialPopupService {
     );
   }
 
-  double _calculatePositionScore(
-      Offset position, Size popupSize, Size screenSize, double margin) {
-    double score = 100.0;
-
-    // Penalize if popup goes off screen
-    if (position.dx < margin) score -= (margin - position.dx) * 2;
-    if (position.dy < margin) score -= (margin - position.dy) * 2;
-    if (position.dx + popupSize.width > screenSize.width - margin) {
-      score -= (position.dx + popupSize.width - screenSize.width + margin) * 2;
-    }
-    if (position.dy + popupSize.height > screenSize.height - margin) {
-      score -=
-          (position.dy + popupSize.height - screenSize.height + margin) * 2;
-    }
-
-    return score.clamp(0.0, 100.0);
-  }
-
   Widget _buildModernPopup(
     BuildContext context,
     String? title,
@@ -509,54 +491,15 @@ class TutorialPopupService {
 
                     // Message
                     Text(
-                      message,
+                      capitalizeFirstLetter(message),
                       style: TextStyle(
                         fontSize: getTextScale(3.5, context),
                         color: isDarkMode
                             ? kWhite.withValues(alpha: 0.9)
                             : kBlack.withValues(alpha: 0.8),
-                        height: 1.4,
                       ),
                     ),
-
-                    SizedBox(height: getPercentageHeight(2.5, context)),
-
-                    // Tap to dismiss hint (appears after 5 seconds)
-                    TweenAnimationBuilder<double>(
-                      duration: const Duration(seconds: 5),
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      builder: (context, value, child) {
-                        return AnimatedOpacity(
-                          opacity: value >= 1.0 ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 300),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(3, context),
-                              vertical: getPercentageHeight(0.8, context),
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDarkMode
-                                  ? kWhite.withValues(alpha: 0.1)
-                                  : kBlack.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(
-                                  getPercentageWidth(2, context)),
-                            ),
-                            child: Text(
-                              'Tap anywhere to dismiss',
-                              style: TextStyle(
-                                fontSize: getTextScale(3, context),
-                                color: isDarkMode
-                                    ? kWhite.withValues(alpha: 0.6)
-                                    : kBlack.withValues(alpha: 0.6),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    SizedBox(height: getPercentageHeight(1.5, context)),
+                    SizedBox(height: getPercentageHeight(0.5, context)),
 
                     // Actions
                     Row(
@@ -578,7 +521,41 @@ class TutorialPopupService {
                               ),
                             ),
                           ),
-                        SizedBox(width: getPercentageWidth(2, context)),
+                        // Tap to dismiss hint (appears after 5 seconds)
+                        TweenAnimationBuilder<double>(
+                          duration: const Duration(seconds: 5),
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          builder: (context, value, child) {
+                            return AnimatedOpacity(
+                              opacity: value >= 1.0 ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 300),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(3, context),
+                                  vertical: getPercentageHeight(0.8, context),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? kWhite.withValues(alpha: 0.1)
+                                      : kBlack.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(
+                                      getPercentageWidth(2, context)),
+                                ),
+                                child: Text(
+                                  'Tap anywhere to dismiss',
+                                  style: TextStyle(
+                                    fontSize: getTextScale(3, context),
+                                    color: isDarkMode
+                                        ? kWhite.withValues(alpha: 0.6)
+                                        : kBlack.withValues(alpha: 0.6),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        SizedBox(width: getPercentageWidth(0.5, context)),
                         ElevatedButton(
                           onPressed: () {
                             removeCurrentOverlay();
@@ -636,6 +613,25 @@ class TutorialPopupService {
       if (!await isSequenceComplete(key)) return false;
     }
     return true;
+  }
+
+  // Method to reset all tutorial preferences for testing
+  Future<void> resetTutorialPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Reset first time user flag
+    await prefs.setBool(_firstTimeUserKey, true);
+
+    // Clear all tutorial shown flags
+    final keys = prefs.getKeys();
+    for (final key in keys) {
+      if (key.startsWith('tutorial_shown_') ||
+          key.startsWith('sequence_complete_')) {
+        await prefs.remove(key);
+      }
+    }
+
+    print('Tutorial preferences reset - all tutorials will show again');
   }
 }
 
