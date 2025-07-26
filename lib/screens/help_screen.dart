@@ -114,9 +114,7 @@ class HelpSupport extends StatelessWidget {
                         );
                         await launchUrl(emailLaunchUri);
                       },
-                      width: userService.currentUser.value?.isPremium == true
-                          ? 100
-                          : 40,
+                      width: 100,
                       type: AppButtonType.secondary),
                 ),
               ],

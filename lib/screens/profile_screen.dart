@@ -92,14 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           },
         ),
         TutorialStep(
-          tutorialId: 'add_battle_button',
-          message: 'Tap here to view your Dine-In Challenges!',
-          targetKey: _addBattleButtonKey,
-          onComplete: () {
-            // Optional: Add any actions to perform after the tutorial is completed
-          },
-        ),
-        TutorialStep(
           tutorialId: 'add_badges_button',
           message: 'Tap here to view your badges and points!',
           targetKey: _addBadgesButtonKey,
@@ -413,6 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               SizedBox(height: getPercentageHeight(2, context)),
                               ClipRRect(
+                                key: _addBadgesButtonKey,
                                 borderRadius: BorderRadius.circular(15),
                                 child: BackdropFilter(
                                   filter: ImageFilter.blur(

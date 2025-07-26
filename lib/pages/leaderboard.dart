@@ -7,7 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/user_profile_screen.dart';
-import '../widgets/announcement.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});

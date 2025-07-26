@@ -137,7 +137,12 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
-  Future<void> _generateIngredientPair() async {
+  Future<void> _generateIngredientPair({bool forceRefresh = false}) async {
+    // Only generate new ingredients if none exist or if forced refresh
+    if (!forceRefresh && selectedCarb != null && selectedProtein != null) {
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -150,24 +155,36 @@ class _DineInScreenState extends State<DineInScreen> {
 
       final ingredients = _macroManager.ingredient;
 
-      // Get top 10 carbs (grains)
-      final carbs = ingredients
+      // Get carbs (grains, vegetables, carbs) and shuffle properly
+      final allCarbs = ingredients
           .where((ingredient) =>
-              ingredient.type.toLowerCase() == 'grain' ||
-              ingredient.type.toLowerCase() == 'carb')
-          .take(10)
+              (ingredient.type.toLowerCase() == 'grain' ||
+              ingredient.type.toLowerCase() == 'vegetable' ||
+              ingredient.type.toLowerCase() == 'carb') &&
+              !excludedIngredients.contains(ingredient.title.toLowerCase()))
           .toList();
+      allCarbs.shuffle(_random);
+      final carbs = allCarbs.take(10).toList();
 
-      // Get top 10 proteins
-      final proteins = ingredients
-          .where((ingredient) => ingredient.type.toLowerCase() == 'protein')
-          .take(10)
+      // Get proteins and shuffle properly
+      final allProteins = ingredients
+          .where((ingredient) => 
+              ingredient.type.toLowerCase() == 'protein' &&
+              !excludedIngredients.contains(ingredient.title.toLowerCase()))
           .toList();
+      allProteins.shuffle(_random);
+      final proteins = allProteins.take(10).toList();
 
       // Randomly select one of each
       if (carbs.isNotEmpty && proteins.isNotEmpty) {
         selectedCarb = carbs[_random.nextInt(carbs.length)];
         selectedProtein = proteins[_random.nextInt(proteins.length)];
+
+        // Clear meal when ingredients change
+        if (forceRefresh) {
+          selectedMeal = null;
+          isAccepted = false;
+        }
       }
     } catch (e) {
       print('Error generating ingredient pair: $e');
@@ -181,6 +198,11 @@ class _DineInScreenState extends State<DineInScreen> {
     _saveMealToStorage();
   }
 
+  // Method to refresh ingredients
+  Future<void> _refreshIngredients() async {
+    await _generateIngredientPair(forceRefresh: true);
+  }
+
   void _refreshPair() async {
     // If there's a saved meal, show confirmation dialog
     if (selectedMeal != null) {
@@ -188,13 +210,10 @@ class _DineInScreenState extends State<DineInScreen> {
       if (!shouldClear) return;
     }
 
-    setState(() {
-      isAccepted = false;
-      selectedMeal =
-          null; // Clear any existing meal when generating new ingredients
-    });
-    _clearSavedMeal(); // Clear from storage when user explicitly generates new ingredients
-    _generateIngredientPair();
+    // Clear from storage when user explicitly generates new ingredients
+    _clearSavedMeal();
+    // Use the new refresh method which forces new ingredient generation
+    await _refreshIngredients();
   }
 
   // Show dialog to confirm clearing existing meal
@@ -369,7 +388,7 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: getPercentageHeight(4, context)),
+                  SizedBox(height: getPercentageHeight(3, context)),
 
                   // Ingredient cards
                   if (selectedCarb != null && selectedProtein != null) ...[
@@ -419,9 +438,7 @@ class _DineInScreenState extends State<DineInScreen> {
                   Container(
                     padding: EdgeInsets.all(getPercentageWidth(3, context)),
                     decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? kDarkGrey.withValues(alpha: 0.5)
-                          : kLightGrey.withValues(alpha: 0.3),
+                      color: kAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -434,7 +451,9 @@ class _DineInScreenState extends State<DineInScreen> {
                         SizedBox(width: getPercentageWidth(2, context)),
                         Expanded(
                           child: Text(
-                            'Try different combinations to spark new recipe ideas!',
+                            selectedMeal != null
+                                ? 'Your ingredient pair is saved! Tap "Go Back and Refresh Pair" to try new combinations.'
+                                : 'Try different combinations to spark new recipe ideas!',
                             style: textTheme.bodySmall?.copyWith(
                               color: isDarkMode ? kLightGrey : kDarkGrey,
                               fontSize: getPercentageWidth(3, context),
@@ -822,11 +841,17 @@ class _DineInScreenState extends State<DineInScreen> {
               vertical: getPercentageHeight(0.5, context),
             ),
             decoration: BoxDecoration(
-              color: kAccent.withValues(alpha: 0.2),
+              color: isDarkMode
+                  ? kAccent.withValues(alpha: 0.2)
+                  : kLightGrey.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              typeLabel,
+              typeLabel == 'Grain'
+                  ? 'Carb'
+                  : typeLabel == 'Protein'
+                      ? 'Protein'
+                      : typeLabel,
               style: textTheme.bodySmall?.copyWith(
                 color: isDarkMode ? kWhite : kBlack,
                 fontWeight: FontWeight.w600,
@@ -893,7 +918,7 @@ class _DineInScreenState extends State<DineInScreen> {
           Text(
             '${ingredient.calories} cal',
             style: textTheme.bodySmall?.copyWith(
-              color: kAccent,
+              color: isDarkMode ? kAccent : kLightGrey,
               fontSize: getPercentageWidth(3, context),
             ),
           ),

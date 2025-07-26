@@ -9,11 +9,13 @@ import '../data_models/program_model.dart';
 class DailyMealPortion extends StatefulWidget {
   final Program? userProgram;
   final List<String> notAllowed;
+  final String programName;
 
   const DailyMealPortion({
     super.key,
     this.userProgram,
     this.notAllowed = const [],
+    this.programName = '',
   });
 
   @override
@@ -365,7 +367,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    SizedBox(height: getPercentageHeight(0.5, context)),
                     if (widget.userProgram != null)
                       Text(
                         'Based on your program',
@@ -603,13 +604,24 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Portion Guide Tools',
-                  style: textTheme.displaySmall?.copyWith(
-                    color: kAccent,
-                    fontSize: getPercentageWidth(7, context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                Column(
+                  children: [
+                    Text(
+                      'Portion Guide Tools',
+                      style: textTheme.displaySmall?.copyWith(
+                        color: kAccent,
+                        fontSize: getPercentageWidth(7, context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Portion guide for current program: \n${widget.programName}',
+                      style: textTheme.bodySmall?.copyWith(
+                        fontSize: getPercentageWidth(2.5, context),
+                        color: kLightGrey,
+                      ),
+                    ),
+                  ],
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),

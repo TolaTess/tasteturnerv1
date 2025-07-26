@@ -21,8 +21,6 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/optimized_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'helper_functions.dart';
-
 int currentPage = 0;
 List<MacroData> fullLabelsList = [];
 final Set<String> headerSet = {};
@@ -503,6 +501,7 @@ double getProportionalHeight(double inputHeight, BuildContext context) {
 // Define list of ingredients to exclude (common seasonings, herbs, spices)
 const excludedIngredients = [
   'salt',
+  'ingredient',
   'pepper',
   'onion',
   'garlic',
@@ -540,6 +539,7 @@ const excludedIngredients = [
   'lemon juice',
   'olive oil',
   'vegetable oil',
+  'red onion',
   'oil',
   'butter',
   'ghee',
@@ -571,6 +571,7 @@ const excludedIngredients = [
   'syrup',
   'jam',
   'avocado oil',
+  'red onion',
   'olive oil',
   'sesame oil',
   'peanut oil',

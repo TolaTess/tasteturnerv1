@@ -895,6 +895,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (currentDate.isAfter(DateTime.now()
                               .subtract(const Duration(days: 1)))) ...[
                             DailyMealPortion(
+                              programName: _programService.userPrograms.isNotEmpty
+                                      ? _programService.userPrograms.first.type
+                                      : '',
                               userProgram:
                                   _programService.userPrograms.isNotEmpty
                                       ? _programService.userPrograms.first
