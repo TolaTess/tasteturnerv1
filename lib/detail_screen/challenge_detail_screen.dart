@@ -395,16 +395,24 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       Navigator.pop(context); // Close loading dialog
 
       // Navigate to food analysis results screen
-      Navigator.push(
+      final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => FoodAnalysisResultsScreen(
             imageFile: tempFile,
             analysisResult: analysisResult,
             postId: _currentPostData['id'] ?? '',
+            screen: 'challenge_detail',
           ),
         ),
       );
+
+      // Refresh meal data if analysis was completed
+      if (result == true || result == null) {
+        // Wait a moment for Firestore to propagate the update
+        await Future.delayed(const Duration(milliseconds: 500));
+        _loadMeal(); // Refresh meal data to update hasMeal state
+      }
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
       _showErrorDialog('AI analysis failed: $e');

@@ -277,9 +277,13 @@ class PostController extends GetxController {
       }
 
       final updatedPost = post.copyWith(
+        id: post.id.isEmpty
+            ? postRef.id
+            : post.id, // Use generated ID if post.id is empty
         mediaPaths: downloadUrls,
         createdAt: post.createdAt ?? DateTime.now(),
       );
+
       WriteBatch batch = firestore.batch();
       batch.set(postRef, updatedPost.toFirestore());
       batch.update(firestore.collection('users').doc(userId), {
@@ -328,12 +332,34 @@ class PostController extends GetxController {
     bool isBattle = false,
     String? battleId,
   }) async {
-    if (isBattle && battleId != null) {
-      // Remove battle-specific references and images
-      await BattleService.instance
-          .removeBattleImages(battleId: battleId, userId: userId);
-    }
     // Remove the post and its images from posts collection and user
     await deletePostAndImages(postId, userId);
+  }
+
+  /// Update an existing post with new fields (e.g., mealId after analysis)
+  Future<void> updatePost({
+    required String postId,
+    Map<String, dynamic>? updateData,
+  }) async {
+    try {
+      if (updateData == null || updateData.isEmpty) {
+        print('No update data provided');
+        return;
+      }
+
+      final postRef = firestore.collection('posts').doc(postId);
+      final postSnapshot = await postRef.get();
+
+      if (!postSnapshot.exists) {
+        print('Post not found: $postId');
+        return;
+      }
+
+      // Update the post document with provided fields
+      await postRef.update(updateData);
+    } catch (e) {
+      print('Error updating post: $e');
+      throw Exception('Failed to update post: $e');
+    }
   }
 }

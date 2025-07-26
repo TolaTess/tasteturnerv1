@@ -481,9 +481,7 @@ exports.getPostsFeed = functions.https.onCall(async (data, context) => {
     // Build query with server-side filtering
     let query = admin.firestore()
       .collection('posts')
-      .where('battleId', '!=', 'private')
-      .orderBy('battleId') // Required for != query
-      .orderBy('createdAt', 'desc');
+      .orderBy('createdAt', 'desc'); // Simple query - no compound index needed
 
     // Apply category filtering on server
     if (category && category.toLowerCase() !== 'all' && category.toLowerCase() !== 'general') {
@@ -510,6 +508,11 @@ exports.getPostsFeed = functions.https.onCall(async (data, context) => {
       
       // Skip excluded post
       if (excludePostId && doc.id === excludePostId) {
+        return;
+      }
+
+      // Skip private posts (client-side filtering)
+      if (data.battleId === 'private') {
         return;
       }
 

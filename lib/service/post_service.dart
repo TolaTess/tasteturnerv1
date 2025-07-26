@@ -211,7 +211,7 @@ class PostService extends GetxService {
 
   /// Clear user-specific cache
   void clearUserCache(String userId) {
-    _feedCache.removeWhere((key, value) => key.startsWith('user_$userId')); 
+    _feedCache.removeWhere((key, value) => key.startsWith('user_$userId'));
   }
 
   /// Get cache status for debugging

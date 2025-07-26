@@ -108,15 +108,6 @@ class MacroManager extends GetxController {
     }
   }
 
-  Future<void> fetchIngredientBattle() async {
-    try {
-      final activeBattles = await _battleService.getActiveBattles();
-      _ingredientBattle.value = activeBattles;
-    } catch (e) {
-      _ingredientBattle.value = [];
-    }
-  }
-
   Future<List<String>> getMacroDataByType(String type) async {
     if (type.isEmpty) {
       return [];
@@ -430,12 +421,6 @@ class MacroManager extends GetxController {
     }
   }
 
-  Future<void> _ensureDataFetchedBattle() async {
-    if (_ingredientBattle.isEmpty) {
-      await fetchIngredientBattle();
-    }
-  }
-
   Future<List<MacroData>> getIngredients() async {
     await _ensureDataFetched();
 
@@ -557,98 +542,6 @@ class MacroManager extends GetxController {
     } catch (e) {
       print('Error getting ingredients battle: $e');
       return [];
-    }
-  }
-
-  Future<void> joinBattle(String userId, String battleId, String categoryName,
-      String userName, String userImage) async {
-    try {
-      // Using nested structure: battles/general/dates/{battleId}/participants
-      final battleRef = firestore.collection('battles').doc('general');
-
-      await firestore.runTransaction((transaction) async {
-        final battleDoc = await transaction.get(battleRef);
-
-        if (!battleDoc.exists) {
-          throw Exception('Battle document not found');
-        }
-
-        final battleData = battleDoc.data() as Map<String, dynamic>;
-
-        // Check if dates map exists and contains the battleId
-        if (!battleData.containsKey('dates') ||
-            !(battleData['dates'] as Map<String, dynamic>)
-                .containsKey(battleId)) {
-          throw Exception('Battle not found: $battleId');
-        }
-
-        // Update the user's entry in the nested dates structure
-        transaction.update(battleRef, {
-          'dates.$battleId.participants.$userId': {
-            'name': userName,
-            'image': userImage,
-            'votes': [], // Initialize empty votes array
-          }
-        });
-      });
-
-      await firestore.collection('userBattles').doc(userId).set({
-        'dates': {
-          battleId: {
-            'ongoing': FieldValue.arrayUnion([battleId])
-          }
-        }
-      }, SetOptions(merge: true));
-
-      await _ensureDataFetchedBattle();
-    } catch (e) {
-      print('Error joining battle: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> isUserInBattle(String userId, String battleId) async {
-    if (userId.isEmpty || battleId.isEmpty) return false;
-
-    try {
-      // Use nested structure: battles/general/dates/{battleId}/participants
-      final battleRef = firestore.collection('battles').doc('general');
-      final battleDoc = await battleRef.get();
-
-      if (!battleDoc.exists) {
-        return false;
-      }
-
-      final battleData = battleDoc.data() as Map<String, dynamic>;
-
-      if (!battleData.containsKey('dates') ||
-          battleData['dates'] is! Map<String, dynamic>) {
-        return false;
-      }
-
-      final datesMap = battleData['dates'] as Map<String, dynamic>;
-      if (!datesMap.containsKey(battleId)) {
-        return false;
-      }
-
-      final currentBattle = datesMap[battleId] as Map<String, dynamic>;
-      final participants =
-          currentBattle['participants'] as Map<String, dynamic>? ?? {};
-
-      return participants.containsKey(userId);
-    } catch (e) {
-      print('Error checking if user is in battle: $e');
-      return false;
-    }
-  }
-
-  Future<void> removeUserFromBattle(String userId, String battleId) async {
-    try {
-      // This functionality needs to be implemented in BattleService
-      await _battleService.removeUserFromBattle(userId, battleId);
-      _ensureDataFetchedBattle();
-    } catch (e) {
-      rethrow;
     }
   }
 

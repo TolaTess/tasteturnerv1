@@ -93,9 +93,8 @@ class SearchContentGridState extends State<SearchContentGrid> {
         // Use new PostService for efficient loading
         final postService = PostService.instance;
         final result = await postService.getPostsFeed(
-          category: widget.selectedCategory.isEmpty
-              ? 'general'
-              : widget.selectedCategory,
+          category:
+              widget.selectedCategory.isEmpty ? 'all' : widget.selectedCategory,
           limit: widget.screenLength * 2, // Load more for better UX
           excludePostId: widget.postId.isNotEmpty ? widget.postId : null,
           includeBattlePosts: true,
@@ -142,9 +141,8 @@ class SearchContentGridState extends State<SearchContentGrid> {
     try {
       final postService = PostService.instance;
       final result = await postService.getPostsFeed(
-        category: widget.selectedCategory.isEmpty
-            ? 'general'
-            : widget.selectedCategory,
+        category:
+            widget.selectedCategory.isEmpty ? 'all' : widget.selectedCategory,
         limit: widget.screenLength,
         lastPostId: lastPostId,
         excludePostId: widget.postId.isNotEmpty ? widget.postId : null,

@@ -66,7 +66,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     BadgeService.instance.loadUserProgress(userId);
     _fetchContent(userId);
     chartDataFuture = fetchChartData(userId);
-    _fetchOngoingBattles(userId);
     // Points are now loaded as part of BadgeService.loadUserProgress
     authController.listenToUserData(userId);
     super.initState();
@@ -114,7 +113,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _fetchOngoingBattles(userId);
     // Points are now handled by BadgeService
   }
 
@@ -194,32 +192,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           showBattle = ongoingBattles.isNotEmpty;
         });
       }
-    }
-  }
-
-  /// **Fetch list of battles user has signed up for**
-  Future<void> _fetchOngoingBattles(String userId) async {
-    try {
-      final battleDetails =
-          await BattleService.instance.getUserOngoingBattles(userId);
-      // Transform battle data to match the expected format
-      final formattedBattles = battleDetails
-          .map((battle) => {
-                'id': battle['id'],
-                'name':
-                    'Ingredient Battle - ${capitalizeFirstLetter(battle['category'])}',
-                'category': battle['category'] ?? 'Unknown Category',
-              })
-          .toList();
-
-      setState(() {
-        ongoingBattles = formattedBattles;
-        showBattle = ongoingBattles.isNotEmpty;
-        isLoading = false;
-      });
-    } catch (e) {
-      print("Error fetching ongoing battles: $e");
-      setState(() => isLoading = false);
     }
   }
 

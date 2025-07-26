@@ -1092,10 +1092,10 @@ Widget buildFullWidthHomeButton({
   }
 
   return Container(
-    width: getPercentageWidth(100, context) - getPercentageWidth(8, context),
+    width: getPercentageWidth(100, context) - getPercentageWidth(9, context),
     height: getPercentageHeight(7, context),
     decoration: BoxDecoration(
-      color: isDarkMode ? kDarkGrey : kWhite,
+      color: isDarkMode ? kBackgroundColor : kDarkGrey,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(

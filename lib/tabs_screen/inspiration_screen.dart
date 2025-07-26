@@ -22,14 +22,14 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey _addDietButtonKey = GlobalKey();
   final GlobalKey _addUploadButtonKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
-  String selectedGoal = 'general';
+  String selectedGoal = 'all';
 
   Future<void> _refreshPosts() async {
     // Clear cache and refresh
     setState(() {
-      selectedGoal = 'general';
+      selectedGoal = 'all';
     });
-    PostService.instance.clearCategoryCache('general');
+    PostService.instance.clearCategoryCache('all');
 
     // Trigger refresh in SearchContentGrid
     if (_gridKey.currentState != null) {
@@ -135,7 +135,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
         verticalOffset: getPercentageHeight(5, context),
         horizontalOffset: getPercentageWidth(2, context),
       ),
-      floatingActionButton: FloatingActionButton( 
+      floatingActionButton: FloatingActionButton(
         key: _addUploadButtonKey,
         onPressed: () {
           Get.to(

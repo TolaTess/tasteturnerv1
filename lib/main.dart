@@ -29,7 +29,6 @@ import 'service/helper_controller.dart';
 import 'service/battle_service.dart';
 import 'service/user_service.dart';
 import 'data_models/message_screen_data.dart';
-import 'data_models/profilescreen_data.dart';
 import 'service/macro_manager.dart';
 
 void main() async {

@@ -77,15 +77,15 @@ class Post {
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
-      'mealId': mealId,
+      'mealId': mealId ?? '',
       'userId': userId,
       'mediaPaths': mediaPaths,
-      'name': name,
-      'category': category,
+      'name': name ?? '',
+      'category': category ?? 'general',
       'favorites': favorites,
       'createdAt': createdAt?.toIso8601String(),
-      'isBattle': isBattle,
-      'battleId': battleId,
+      'isBattle': isBattle ?? false,
+      'battleId': battleId ?? '', // Ensure battleId is never null
       'isVideo': isVideo,
     };
   }

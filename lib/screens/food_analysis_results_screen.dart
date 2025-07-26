@@ -22,6 +22,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final bool? isAnalyzeAndUpload;
   final DateTime? date;
   final String? mealType;
+  final String? screen;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -35,6 +36,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.isAnalyzeAndUpload,
     this.date,
     this.mealType,
+    this.screen,
   });
 
   @override
@@ -367,13 +369,28 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       }
 
       // Add to daily meals
-      await geminiService.addAnalyzedMealToDaily(
-        mealId: finalMealId,
-        userId: userService.userId ?? '',
-        mealType: mealType,
-        analysisResult: _editableAnalysis,
-        date: widget.date ?? DateTime.now(),
-      );
+      if (widget.screen != 'challenge_detail') {
+        await geminiService.addAnalyzedMealToDaily(
+          mealId: finalMealId,
+          userId: userService.userId ?? '',
+          mealType: mealType,
+          analysisResult: _editableAnalysis,
+          date: widget.date ?? DateTime.now(),
+        );
+      }
+
+      // CRITICAL FIX: Update original post with mealId for existing post analysis
+      if (isExistingPostAnalysis) {
+        try {
+          await postController.updatePost(
+            postId: widget.postId!,
+            updateData: {'mealId': finalMealId},
+          );
+        } catch (e) {
+          print('Error updating post with mealId: $e');
+          // Don't fail the whole operation, just log the error
+        }
+      }
 
       setState(() {
         _hasCreatedMeal = true;
@@ -405,24 +422,24 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
           // Create the post using the mealId as the postId for proper linking
           final post = Post(
-            id: finalMealId, // Use mealId as postId for proper linking
-            mealId: finalMealId, // Link the post to the meal
+            id: isBattlePost
+                ? ''
+                : finalMealId, // Battle posts get unique ID, main posts use mealId for linking
+            mealId:
+                finalMealId, // Always link the post to the meal via mealId field
             userId: userService.userId ?? '',
             mediaPaths: [postImageUrl],
             name: userService.currentUser.value?.displayName ?? '',
-            category: widget.selectedCategory ?? 'general',
+            category: widget.selectedCategory ??
+                'general', // Use actual selected category for all posts
             isBattle: isBattlePost,
             battleId: isBattlePost ? widget.battleId! : '',
             isVideo: false,
           );
 
           // Upload the post
-          if (isMainPost || isRegularPost) {
-            await postController
-                .uploadPost(post, userService.userId ?? '', [postImageUrl]);
-          } else {
-            await BattleService.instance.uploadBattleImages(post: post);
-          }
+          await postController
+              .uploadPost(post, userService.userId ?? '', [postImageUrl]);
 
           // Show success message
           showTastySnackbar(
@@ -462,8 +479,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           backgroundColor: kAccent,
         );
 
-        // Navigate back to the previous screen
-        Navigator.of(context).pop();
+        // Navigate back to the previous screen with success result
+        Navigator.of(context).pop(true); // Return true to indicate success
       }
     } catch (e) {
       print('Failed to save analysis: $e');
@@ -972,7 +989,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                               child: CircularProgressIndicator(color: kAccent),
                             )
                           : AppButton(
-                              text: 'Add to ${capitalizeFirstLetter(mealType)}',
+                              text: widget.screen == 'challenge_detail'
+                                  ? 'Save Meal'
+                                  : 'Add to ${capitalizeFirstLetter(mealType)}',
                               onPressed: () => _saveAnalysis(),
                               type: AppButtonType.primary,
                               width: 100,

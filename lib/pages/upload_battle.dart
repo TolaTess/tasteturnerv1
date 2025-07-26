@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -15,11 +13,9 @@ import '../data_models/post_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/food_analysis_results_screen.dart';
-import '../widgets/bottom_nav.dart';
 import '../service/battle_service.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/primary_button.dart';
-import '../widgets/video_player_widget.dart';
 
 class UploadBattleImageScreen extends StatefulWidget {
   final String battleId;
@@ -319,14 +315,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       _uploadProgress = 0.0;
     });
 
-    print('Selected category: $selectedCategory');
-    print('Selected category id: $selectedCategoryId');
-    print('Is video: $_isVideo');
-    print('Selected media: ${_selectedMedia.first.path}');
-    print('Battle id: ${widget.battleId}');
-    print('Battle category: ${widget.battleCategory}');
-    print('Is main post: ${widget.isMainPost}');
-
     try {
       // If this is for analysis (postId is 'analyze_and_upload') and not a video, do analysis FIRST
       if (postId == 'analyze_and_upload' && !_isVideo) {
@@ -424,7 +412,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             imageFile: File(compressedPath),
           );
 
-          print('Download url: $downloadUrl');
           // Clean up temporary file
           await File(compressedPath).delete();
 
@@ -441,25 +428,25 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       });
 
       final post = Post(
-        id: widget.isMainPost
-            ? postId.isEmpty
-                ? ''
-                : postId
-            : widget.battleId,
+        id: '', // Always let Firestore generate unique ID
         userId: userService.userId ?? '',
         mediaPaths: uploadedUrls,
         name: userService.currentUser.value?.displayName ?? '',
-        category: selectedCategory,
+        category:
+            selectedCategory, // Use actual selected category for all posts
         isBattle: widget.isMainPost ? false : true,
-        battleId: widget.isMainPost ? '' : widget.battleCategory,
+        battleId: widget.battleId, // Keep battleId for categorization
         isVideo: _isVideo,
       );
 
-      if (widget.isMainPost) {
-        await postController.uploadPost(
-            post, userService.userId ?? '', uploadedUrls);
-      } else {
-        await BattleService.instance.uploadBattleImages(post: post);
+      await postController.uploadPost(
+          post, userService.userId ?? '', uploadedUrls);
+
+      if (widget.battleCategory == 'Dine-In Challenge' &&
+          widget.isMainPost == false &&
+          widget.battleId.isNotEmpty) {
+        await badgeService.awardPoints(userService.userId ?? '', 10,
+            reason: 'Dine-In Challenge');
       }
 
       setState(() {
@@ -467,11 +454,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       });
 
       if (mounted) {
-        if (widget.isMainPost) {
-          Get.to(() => const BottomNavSec(selectedIndex: 2));
-        } else {
-          Get.back();
-        }
+        Get.back();
       }
     } catch (e) {
       print('Error uploading battle media: $e');
