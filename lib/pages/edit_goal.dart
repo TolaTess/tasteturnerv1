@@ -300,20 +300,20 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               SizedBox(height: getPercentageHeight(2, context)),
               // Family Mode ExpansionTile
               ExpansionTile(
-                initiallyExpanded: isFamilyModeEnabled,
+                initiallyExpanded: widget.isFamilyModeExpand,
                 title: Text(
                   "Family Mode",
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: isFamilyModeEnabled
+                    color: widget.isFamilyModeExpand
                         ? kAccent
                         : (isDarkMode ? kWhite : kDarkGrey),
                   ),
                 ),
-                collapsedIconColor: isFamilyModeEnabled ? kAccent : kAccent,
+                collapsedIconColor: widget.isFamilyModeExpand ? kAccent : kAccent,
                 iconColor: kAccent,
                 textColor: kAccent,
-                collapsedTextColor: isFamilyModeEnabled
+                collapsedTextColor: widget.isFamilyModeExpand
                     ? kAccent
                     : (isDarkMode ? kWhite : kDarkGrey),
                 children: [
@@ -327,7 +327,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           : kLightGrey.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isFamilyModeEnabled ? kAccent : kLightGrey,
+                        color: widget.isFamilyModeExpand ? kAccent : kLightGrey,
                         width: 1.5,
                       ),
                     ),

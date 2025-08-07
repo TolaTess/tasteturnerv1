@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/post_model.dart';
@@ -60,6 +61,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
     await fetchContent();
   }
 
+  // Method to fetch content (can be called from parent widgets)
   Future<void> fetchContent() async {
     if (mounted) {
       setState(() {
@@ -101,8 +103,11 @@ class SearchContentGridState extends State<SearchContentGrid> {
         );
 
         if (result.isSuccess && mounted) {
+          // Filter out battle posts from current week
+          final filteredPosts = _filterOutCurrentWeekBattlePosts(result.posts);
+
           setState(() {
-            searchContentDatas = result.posts;
+            searchContentDatas = filteredPosts;
             lastPostId = result.lastPostId;
             hasMorePosts = result.hasMore;
             isLoading = false;
@@ -151,8 +156,11 @@ class SearchContentGridState extends State<SearchContentGrid> {
       );
 
       if (result.isSuccess && mounted) {
+        // Filter out battle posts from current week
+        final filteredPosts = _filterOutCurrentWeekBattlePosts(result.posts);
+
         setState(() {
-          searchContentDatas.addAll(result.posts);
+          searchContentDatas.addAll(filteredPosts);
           lastPostId = result.lastPostId;
           hasMorePosts = result.hasMore;
         });
@@ -160,6 +168,44 @@ class SearchContentGridState extends State<SearchContentGrid> {
     } catch (e) {
       print('Error loading more posts: $e');
     }
+  }
+
+  /// Filter out battle posts from the current week to avoid duplication
+  List<Map<String, dynamic>> _filterOutCurrentWeekBattlePosts(
+      List<Map<String, dynamic>> posts) {
+    // Calculate current week's Monday and Friday
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final friday = monday.add(const Duration(days: 4));
+
+    // Set time to start of Monday and end of Friday
+    final weekStart = DateTime(monday.year, monday.month, monday.day);
+    final weekEnd = DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+
+    return posts.where((post) {
+      // Keep the post if it's not a battle post
+      if (post['isBattle'] != true) {
+        return true;
+      }
+
+      // For battle posts, check if they're from the current week
+      if (post['createdAt'] != null) {
+        try {
+          final postDate = DateTime.parse(post['createdAt']);
+          final isInCurrentWeek =
+              postDate.isAfter(weekStart) && postDate.isBefore(weekEnd);
+
+          // Remove battle posts from current week (they'll be shown in horizontal list)
+          return !isInCurrentWeek;
+        } catch (e) {
+          // If date parsing fails, keep the post
+          return true;
+        }
+      }
+
+      // If no createdAt, keep the post
+      return true;
+    }).toList();
   }
 
   @override
@@ -198,162 +244,434 @@ class SearchContentGridState extends State<SearchContentGrid> {
               builder: (context, constraints) {
                 int crossAxisCount =
                     (constraints.maxWidth / 120).floor().clamp(3, 4);
-                return GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    mainAxisSpacing: 1,
-                    crossAxisSpacing: 1,
-                  ),
-                  padding: EdgeInsets.only(
-                    bottom: getPercentageHeight(1, context),
-                  ),
-                  itemCount: itemCount,
-                  itemBuilder: (BuildContext ctx, index) {
-                    final data = searchContentDatas[index];
-                    return SearchContent(
-                      dataSrc: data,
-                      press: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChallengeDetailScreen(
-                            screen: widget.listType,
-                            dataSrc: data,
-                            allPosts: searchContentDatas,
-                            initialIndex: index,
-                          ),
+                double childAspectRatio =
+                    (constraints.maxWidth / crossAxisCount) / 150;
+
+                return Column(
+                  children: [
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: childAspectRatio,
+                        crossAxisSpacing: 2,
+                        mainAxisSpacing: 2,
+                      ),
+                      itemCount: itemCount,
+                      itemBuilder: (context, index) {
+                        final item = searchContentDatas[index];
+                        return _buildGridItem(context, item, index);
+                      },
+                    ),
+                    if (searchContentDatas.length > widget.screenLength)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            vertical: getPercentageHeight(2, context)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!showAll)
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    showAll = true;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kAccent,
+                                  foregroundColor: kWhite,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Show More'),
+                              )
+                            else
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    showAll = false;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kAccent,
+                                  foregroundColor: kWhite,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Show Less'),
+                              ),
+                          ],
                         ),
                       ),
-                    );
-                  },
+                    if (hasMorePosts && showAll)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            vertical: getPercentageHeight(2, context)),
+                        child: ElevatedButton(
+                          onPressed: _loadMorePosts,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: kWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Load More'),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
-
-          // Show All / Load More / Pagination controls
-          if (searchContentDatas.isNotEmpty && !isLoading)
-            Column(
-              children: [
-                // Traditional show all toggle for limited content
-                if (searchContentDatas.length > widget.screenLength && !showAll)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        showAll = true;
-                      });
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                          vertical: getPercentageHeight(1, context)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            size: getPercentageWidth(5, context),
-                            color: kAccent,
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text(
-                            'Show All ${searchContentDatas.length} Posts',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: kAccent,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Load more button for pagination (when showing all and more posts available)
-                if (showAll && hasMorePosts && widget.listType != "meals")
-                  GestureDetector(
-                    onTap: _loadMorePosts,
-                    child: Container(
-                      margin: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(1, context),
-                        horizontal: getPercentageWidth(4, context),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(1.5, context),
-                        horizontal: getPercentageWidth(6, context),
-                      ),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(25),
-                        border:
-                            Border.all(color: kAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.refresh,
-                            size: getPercentageWidth(4, context),
-                            color: kAccent,
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text(
-                            'Load More Posts',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: kAccent,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Collapse button when showing all
-                if (showAll && searchContentDatas.length > widget.screenLength)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        showAll = false;
-                      });
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                          vertical: getPercentageHeight(1, context)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.keyboard_arrow_up,
-                            size: getPercentageWidth(5, context),
-                            color: Colors.grey[600],
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text(
-                            'Show Less',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          SizedBox(height: getPercentageHeight(7, context)),
         ],
       ),
     );
+  }
+
+  Widget _buildGridItem(
+      BuildContext context, Map<String, dynamic> item, int index) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final mediaPaths = List<String>.from(item['mediaPaths'] ?? []);
+    final isVideo = item['isVideo'] ?? false;
+    final isPremium = item['isPremium'] ?? false;
+
+    return GestureDetector(
+      onTap: () {
+        if (widget.listType == "meals") {
+          Get.to(() =>
+              RecipeDetailScreen(mealData: Meal.fromJson(item['id'], item)));
+        } else {
+          Get.to(() => ChallengeDetailScreen(
+                dataSrc: item,
+                allPosts: searchContentDatas,
+                initialIndex: index,
+              ));
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color:
+                isDarkMode ? kWhite.withOpacity(0.1) : kBlack.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              // Image or video thumbnail
+              if (mediaPaths.isNotEmpty)
+                isVideo
+                    ? CachedVideoThumbnail(
+                        videoUrl: mediaPaths.first,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : OptimizedImage(
+                        imageUrl: mediaPaths.first,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+              else
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: isDarkMode
+                      ? kBlack.withOpacity(0.3)
+                      : kWhite.withOpacity(0.3),
+                  child: Icon(
+                    Icons.image,
+                    color: isDarkMode
+                        ? kWhite.withOpacity(0.5)
+                        : kBlack.withOpacity(0.5),
+                  ),
+                ),
+
+              // Premium badge
+              if (isPremium)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: kAccent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.star,
+                      color: kWhite,
+                      size: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal list widget for challenge posts
+class ChallengePostsHorizontalList extends StatefulWidget {
+  const ChallengePostsHorizontalList({super.key});
+
+  @override
+  State<ChallengePostsHorizontalList> createState() =>
+      _ChallengePostsHorizontalListState();
+}
+
+class _ChallengePostsHorizontalListState
+    extends State<ChallengePostsHorizontalList> {
+  List<Map<String, dynamic>> challengePosts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallengePosts();
+  }
+
+  Future<void> _loadChallengePosts() async {
+    try {
+      final postService = PostService.instance;
+      final posts = await postService.getBattlePostsForCurrentWeek(limit: 20);
+
+      if (mounted) {
+        setState(() {
+          challengePosts = posts;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading battle posts: $e');
+      if (mounted) {
+        setState(() {
+          challengePosts = [];
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Don't show anything if no challenge posts or still loading
+    if (isLoading || challengePosts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(4, context),
+            vertical: getPercentageHeight(2, context),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.emoji_events,
+                color: kAccent,
+                size: getIconScale(4, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Text(
+                'This Week\'s Challenges',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: getPercentageHeight(20, context),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(4, context)),
+            itemCount: challengePosts.length,
+            itemBuilder: (context, index) {
+              final post = challengePosts[index];
+              return _buildChallengePostCard(context, post, index);
+            },
+          ),
+        ),
+        SizedBox(height: getPercentageHeight(2, context)),
+      ],
+    );
+  }
+
+  Widget _buildChallengePostCard(
+      BuildContext context, Map<String, dynamic> post, int index) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    final mediaPaths = List<String>.from(post['mediaPaths'] ?? []);
+    final isVideo = post['isVideo'] ?? false;
+    final isPremium = post['isPremium'] ?? false;
+    final username = post['username'] ?? post['name'] ?? 'Unknown';
+    final createdAt =
+        post['createdAt'] != null ? DateTime.parse(post['createdAt']) : null;
+
+    return Container(
+      width: getPercentageWidth(35, context),
+      margin: EdgeInsets.only(right: getPercentageWidth(3, context)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode ? kWhite.withOpacity(0.1) : kBlack.withOpacity(0.1),
+          width: 1,
+        ),
+        color: isDarkMode ? kBlack.withOpacity(0.3) : kWhite.withOpacity(0.3),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          Get.to(() => ChallengeDetailScreen(
+                dataSrc: post,
+                allPosts: challengePosts,
+                initialIndex: index,
+              ));
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image/Video section
+            Expanded(
+              flex: 4,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: Stack(
+                    children: [
+                      if (mediaPaths.isNotEmpty)
+                        isVideo
+                            ? CachedVideoThumbnail(
+                                videoUrl: mediaPaths.first,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : OptimizedImage(
+                                imageUrl: mediaPaths.first,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                      else
+                        Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: isDarkMode
+                              ? kBlack.withOpacity(0.3)
+                              : kWhite.withOpacity(0.3),
+                          child: Icon(
+                            Icons.image,
+                            color: isDarkMode
+                                ? kWhite.withOpacity(0.5)
+                                : kBlack.withOpacity(0.5),
+                          ),
+                        ),
+
+                      // Premium badge
+                      if (isPremium)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: kAccent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(
+                              Icons.star,
+                              color: kWhite,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Info section
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      username,
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (createdAt != null) ...[
+                      SizedBox(height: getPercentageHeight(0.5, context)),
+                      Text(
+                        _formatDate(createdAt),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode
+                              ? kWhite.withOpacity(0.7)
+                              : kBlack.withOpacity(0.7),
+                          fontSize: getTextScale(2, context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }
 

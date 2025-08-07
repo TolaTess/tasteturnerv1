@@ -434,7 +434,10 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         name: userService.currentUser.value?.displayName ?? '',
         category:
             selectedCategory, // Use actual selected category for all posts
-        isBattle: widget.isMainPost ? false : true,
+        isBattle:
+            widget.isMainPost && widget.battleCategory == 'Dine-In Challenge'
+                ? false
+                : true,
         battleId: widget.battleId, // Keep battleId for categorization
         isVideo: _isVideo,
       );
@@ -447,6 +450,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
           widget.battleId.isNotEmpty) {
         await badgeService.awardPoints(userService.userId ?? '', 10,
             reason: 'Dine-In Challenge');
+      }
+
+      if (widget.battleCategory == 'Weekly Challenge' &&
+          widget.isMainPost == false &&
+          widget.battleId.isNotEmpty) {
+        await badgeService.awardPoints(userService.userId ?? '', 15,
+            reason: 'Weekly Challenge');
       }
 
       setState(() {
@@ -707,13 +717,13 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                       size: getIconScale(5, context),
                     ),
                     SizedBox(width: getPercentageWidth(1, context)),
-                Text(
-                  'Analyze Food & Upload',
-                  style: textTheme.displaySmall?.copyWith(
-                      color: _isVideo ? kLightGrey : kAccentLight,
-                        fontWeight: FontWeight.w200,
-                        fontSize: getTextScale(5.5, context)),
-                  ),
+                    Text(
+                      'Analyze Food & Upload',
+                      style: textTheme.displaySmall?.copyWith(
+                          color: _isVideo ? kLightGrey : kAccentLight,
+                          fontWeight: FontWeight.w200,
+                          fontSize: getTextScale(5.5, context)),
+                    ),
                   ],
                 ),
               ),

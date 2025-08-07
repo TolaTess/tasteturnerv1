@@ -209,6 +209,45 @@ class PostService extends GetxService {
     }
   }
 
+  /// Get battle posts for the current week (Monday to Friday)
+  Future<List<Map<String, dynamic>>> getBattlePostsForCurrentWeek({
+    int limit = 20,
+  }) async {
+    try {
+      // Calculate current week's Monday and Friday
+      final now = DateTime.now();
+      final monday = now.subtract(Duration(days: now.weekday - 1));
+      final friday = monday.add(const Duration(days: 4));
+
+      // Set time to start of Monday and end of Friday
+      final weekStart = DateTime(monday.year, monday.month, monday.day);
+      final weekEnd =
+          DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+
+      final HttpsCallable callable =
+          _functions.httpsCallable('getChallengePostsForWeek');
+      final HttpsCallableResult result = await callable.call({
+        'weekStart': weekStart.toIso8601String(),
+        'weekEnd': weekEnd.toIso8601String(),
+        'limit': limit,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      print('data: $data');
+
+      if (data['success'] == true) {
+        return (data['posts'] as List)
+            .map((post) => Map<String, dynamic>.from(post))
+            .toList();
+      } else {
+        throw Exception(data['error'] ?? 'Failed to fetch battle posts');
+      }
+    } catch (e) {
+      print('Error fetching battle posts: $e');
+      return [];
+    }
+  }
+
   /// Clear user-specific cache
   void clearUserCache(String userId) {
     _feedCache.removeWhere((key, value) => key.startsWith('user_$userId'));

@@ -745,11 +745,12 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                               settings?['fitnessGoal'] as String? ?? '';
 
                           String targetText = '(${baseTarget.round()} kcal)';
-                          if (fitnessGoal.toLowerCase().contains('weight')) {
+                          final fitnessGoalStr = fitnessGoal?.toString() ?? '';
+                          if (fitnessGoalStr.toLowerCase().contains('weight')) {
                             final adjustedTarget = (baseTarget * 0.8).round();
                             targetText =
                                 '($adjustedTarget kcal for weight loss)';
-                          } else if (fitnessGoal
+                          } else if (fitnessGoalStr
                               .toLowerCase()
                               .contains('muscle')) {
                             final adjustedTarget = (baseTarget * 1.2).round();

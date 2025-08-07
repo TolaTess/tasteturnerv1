@@ -154,11 +154,19 @@ class _InspirationScreenState extends State<InspirationScreen> {
           controller: _scrollController,
           physics:
               AlwaysScrollableScrollPhysics(), // Enables pull-to-refresh even when content is short
-          child: SearchContentGrid(
-            key: _gridKey,
-            screenLength: 24, // Show more images on this dedicated screen
-            listType: 'battle_post',
-            selectedCategory: selectedGoal,
+          child: Column(
+            children: [
+              // Challenge posts horizontal list
+              ChallengePostsHorizontalList(),
+
+              // Main content grid
+              SearchContentGrid(
+                key: _gridKey,
+                screenLength: 24, // Show more images on this dedicated screen
+                listType: 'battle_post',
+                selectedCategory: selectedGoal,
+              ),
+            ],
           ),
         ),
       ),

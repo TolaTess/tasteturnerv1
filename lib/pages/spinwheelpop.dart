@@ -66,7 +66,15 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final categoryDatasMeal = helperController.headers;
     if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
       selectedCategoryIdMeal = categoryDatasMeal[1]['id'] ?? '';
-      selectedCategoryMeal = categoryDatasMeal[1]['name'] ?? '';
+      // Safely extract the name
+      final nameData = categoryDatasMeal[1]['name'];
+      if (nameData is String) {
+        selectedCategoryMeal = nameData;
+      } else if (nameData is Map<String, dynamic>) {
+        selectedCategoryMeal = nameData['name']?.toString() ?? '';
+      } else {
+        selectedCategoryMeal = nameData?.toString() ?? '';
+      }
     }
 
     // Set default for meal diet categories
@@ -521,8 +529,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   onTap: () {
                     if (mounted) {
                       setState(() {
-                        selectedCategoryIdMeal = dietPreference;
-                        selectedCategoryMeal = dietPreference;
+                        final dietPrefStr = dietPreference?.toString() ?? '';
+                        selectedCategoryIdMeal = dietPrefStr;
+                        selectedCategoryMeal = dietPrefStr;
                       });
                       _updateMealListByType();
                     }
@@ -534,7 +543,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                     ),
                     decoration: BoxDecoration(
                       color: selectedCategoryMeal.toLowerCase() ==
-                              dietPreference.toLowerCase()
+                              (dietPreference?.toString() ?? '').toLowerCase()
                           ? kAccent.withValues(alpha: 0.2)
                           : kLightGrey.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -544,7 +553,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         dietPreference,
                         style: textTheme.titleMedium?.copyWith(
                             color: selectedCategoryMeal.toLowerCase() ==
-                                    dietPreference.toLowerCase()
+                                    (dietPreference?.toString() ?? '')
+                                        .toLowerCase()
                                 ? kAccent
                                 : kLightGrey),
                       ),

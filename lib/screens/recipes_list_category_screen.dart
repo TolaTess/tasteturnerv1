@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
+import '../widgets/category_selector.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
@@ -61,12 +62,26 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   String selectedDietFilter = '';
   bool _isRefreshing = false;
   double _savedScrollPosition = 0.0;
+  List<Map<String, dynamic>> categoryDatas = [];
 
   @override
   void initState() {
     super.initState();
     // Remove automatic refresh call to prevent double loading
     _searchController.text = widget.searchIngredient;
+    // Set default for meal category
+    categoryDatas = helperController.mainCategory;
+    if (userService.currentUser.value?.familyMode ?? false) {
+      // Add "General" option first
+      categoryDatas.clear();
+
+      final categoryDatasMeal = helperController.kidsCategory;
+      if (categoryDatasMeal.isNotEmpty) {
+        categoryDatasMeal.forEach((element) {
+          categoryDatas.add({'id': element['name'], 'name': element['name']});
+        });
+      }
+    }
 
     // Only refresh if we don't have data yet
     if (mealManager.meals.isEmpty) {
@@ -190,6 +205,22 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     }
   }
 
+  String _getSearchTarget() {
+    // Priority order: search query > selected category (family mode) > search ingredient > general
+    final isFamilyMode = userService.currentUser.value?.familyMode ?? false;
+    if (searchQuery.isNotEmpty) {
+      return searchQuery;
+    } else if (isFamilyMode &&
+        selectedCategory.isNotEmpty &&
+        selectedCategory != 'general') {
+      return selectedCategory;
+    } else if (widget.searchIngredient.isNotEmpty) {
+      return widget.searchIngredient;
+    } else {
+      return 'general';
+    }
+  }
+
   void toggleMealSelection(String mealId) {
     setState(() {
       if (selectedMealIds.contains(mealId)) {
@@ -309,6 +340,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+    final isFamilyMode = userService.currentUser.value?.familyMode ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -571,6 +603,35 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               );
                             }),
 
+                      SizedBox(height: getPercentageHeight(2, context)),
+
+                      if (categoryDatas.isNotEmpty) ...[
+                        CategorySelector(
+                          categories: categoryDatas
+                              .map((e) => {'id': e['name'], 'name': e['name']})
+                              .toList(),
+                          selectedCategoryId: selectedCategoryId.isNotEmpty
+                              ? selectedCategoryId
+                              : selectedCategory,
+                          onCategorySelected: (category, categoryId) async {
+                            setState(() {
+                              selectedCategory = category;
+                              selectedCategoryId = categoryId;
+                            });
+
+                            // Fetch meals for the selected category
+                            if (category.isNotEmpty && category != 'general') {
+                              await mealManager
+                                  .fetchMealsByCategory(category.toLowerCase());
+                            }
+                          },
+                          isDarkMode: isDarkMode,
+                          accentColor: kAccentLight,
+                          darkModeAccentColor: kDarkModeAccent,
+                          isFunMode: false,
+                        ),
+                      ],
+
                       widget.isNoTechnique
                           ? const SizedBox.shrink()
                           : Column(
@@ -580,7 +641,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                     height: getPercentageHeight(4, context)),
                                 Center(
                                   child: Text(
-                                    'All Meals',
+                                    isFamilyMode &&
+                                            selectedCategory != 'general'
+                                        ? capitalizeFirstLetter(
+                                            selectedCategory)
+                                        : 'All Meals',
                                     style: textTheme.displayMedium?.copyWith(
                                       fontSize: getTextScale(5.5, context),
                                     ),
@@ -597,12 +662,8 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                 // Recipes list per category
                 SearchResultGrid(
                   key: ValueKey(
-                      'search_grid_${widget.screen}_${widget.searchIngredient}_${searchQuery}_${_isRefreshing ? 'refreshing' : 'stable'}'),
-                  search: searchQuery.isEmpty && widget.searchIngredient.isEmpty
-                      ? selectedCategory
-                      : (searchQuery.isEmpty
-                          ? widget.searchIngredient
-                          : searchQuery),
+                      'search_grid_${widget.screen}_${widget.searchIngredient}_${searchQuery}_${selectedCategory}_${_isRefreshing ? 'refreshing' : 'stable'}'),
+                  search: _getSearchTarget(),
                   searchQuery: searchQuery.isNotEmpty ? searchQuery : null,
                   searchIngredient: widget.searchIngredient.isNotEmpty
                       ? widget.searchIngredient

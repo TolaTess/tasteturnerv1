@@ -678,3 +678,132 @@ exports.getUserPosts = functions.https.onCall(async (data, context) => {
     };
   }
 });
+
+// Get battle posts for the current week (Monday to Friday)
+exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) => {
+  try {
+    const {
+      weekStart,
+      weekEnd,
+      limit = 20
+    } = data;
+
+    if (!weekStart || !weekEnd) {
+      return {
+        success: false,
+        error: 'weekStart and weekEnd are required',
+        posts: []
+      };
+    }
+
+    // Convert ISO strings to Firestore timestamps
+    const startDate = new Date(weekStart);
+    const endDate = new Date(weekEnd);
+    
+    console.log('Date range for battle posts:', {
+      weekStart,
+      weekEnd,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+
+    // Build query to fetch all battle posts (we'll filter by date on server side)
+    let query = admin.firestore()
+      .collection('posts')
+      .where('isBattle', '==', true)
+      .orderBy('createdAt', 'desc')
+      .limit(limit * 2); // Get more posts to account for date filtering
+
+    const snapshot = await query.get();
+    console.log(`Found ${snapshot.docs.length} battle posts total`);
+    
+    const posts = [];
+    const batchPromises = [];
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      
+      // Skip private posts
+      if (data.battleId === 'private') {
+        return;
+      }
+
+      // Filter by date range on server side since createdAt is a string
+      if (data.createdAt) {
+        const postDate = new Date(data.createdAt);
+        console.log('Checking post date:', {
+          postId: doc.id,
+          createdAt: data.createdAt,
+          postDate: postDate.toISOString(),
+          isInRange: postDate >= startDate && postDate <= endDate
+        });
+        if (postDate < startDate || postDate > endDate) {
+          return; // Skip posts outside the date range
+        }
+      }
+
+      // Only include essential data for horizontal list view
+      const optimizedPost = {
+        id: doc.id,
+        mealId: data.mealId || '',
+        mediaPaths: data.mediaPaths || [],
+        isVideo: data.isVideo || false,
+        category: data.category || 'general',
+        name: data.name || 'Unknown',
+        username: data.name || 'Unknown', // For display in horizontal list
+        userId: data.userId || '',
+        createdAt: data.createdAt,
+        isBattle: data.isBattle || false,
+        battleId: data.battleId || '',
+        favorites: data.favorites || [],
+      };
+
+      posts.push(optimizedPost);
+
+      // Batch user data fetching for efficiency
+      if (data.userId) {
+        batchPromises.push(
+          admin.firestore().collection('users').doc(data.userId).get()
+        );
+      }
+    });
+
+    // Fetch user data in batch
+    const userDocs = await Promise.all(batchPromises);
+    const userMap = {};
+    
+    userDocs.forEach(userDoc => {
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        userMap[userDoc.id] = {
+          displayName: userData.displayName || 'Anonymous',
+          avatar: userData.avatar || '',
+          isPremium: userData.isPremium || false
+        };
+      }
+    });
+
+    // Attach user data to posts
+    posts.forEach(post => {
+      if (post.userId && userMap[post.userId]) {
+        post.username = userMap[post.userId].displayName;
+        post.avatar = userMap[post.userId].avatar;
+        post.isPremium = userMap[post.userId].isPremium;
+      }
+    });
+
+    return {
+      success: true,
+      posts: posts,
+      totalFetched: posts.length
+    };
+
+  } catch (error) {
+    console.error('Error fetching battle posts:', error);
+    return {
+      success: false,
+      error: error.message,
+      posts: []
+    };
+  }
+});

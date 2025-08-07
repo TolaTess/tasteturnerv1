@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 
-
-
 class CategorySelector extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
   final String selectedCategoryId;
@@ -25,6 +23,30 @@ class CategorySelector extends StatelessWidget {
     this.isFunMode = false,
   });
 
+  String _getCategoryDisplayName(dynamic categoryName) {
+    // Handle case where categoryName might be a Map or null
+    if (categoryName == null) return 'Unknown';
+
+    String name;
+    if (categoryName is String) {
+      name = categoryName;
+    } else if (categoryName is Map<String, dynamic>) {
+      // If it's a map, try to extract the name from it
+      name = categoryName['name']?.toString() ?? 'Unknown';
+    } else {
+      name = categoryName.toString();
+    }
+
+    // Now safely apply the logic
+    if (name.toLowerCase() == 'all') {
+      return 'General';
+    } else if (name.toLowerCase() == 'balanced') {
+      return 'Balanced';
+    } else {
+      return capitalizeFirstLetter(name);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -42,7 +64,16 @@ class CategorySelector extends StatelessWidget {
           return GestureDetector(
             onTap: () {
               if (category['id'] != null && category['name'] != null) {
-                onCategorySelected(category['id'], category['name']);
+                // Safely extract the name
+                String name;
+                if (category['name'] is String) {
+                  name = category['name'];
+                } else if (category['name'] is Map<String, dynamic>) {
+                  name = category['name']['name']?.toString() ?? 'Unknown';
+                } else {
+                  name = category['name'].toString();
+                }
+                onCategorySelected(category['id'], name);
               }
             },
             child: Container(
@@ -50,7 +81,7 @@ class CategorySelector extends StatelessWidget {
                   horizontal: getPercentageWidth(2, context)),
               margin: EdgeInsets.only(right: getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color: selectedCategoryId == category['id']
+                color: selectedCategoryId == (category['id']?.toString() ?? '')
                     ? isDarkMode
                         ? darkModeAccentColor.withOpacity(0.50)
                         : accentColor.withOpacity(0.60)
@@ -61,13 +92,10 @@ class CategorySelector extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  category['name'].toLowerCase() == 'all'
-                      ? 'General'
-                      : category['name'].toLowerCase() == 'balanced'
-                          ? 'Balanced'
-                          : capitalizeFirstLetter(category['name']),
+                  _getCategoryDisplayName(category['name']),
                   style: textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode ? kWhite : kBlack, fontWeight: FontWeight.w600),
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w600),
                 ),
               ),
             ),
