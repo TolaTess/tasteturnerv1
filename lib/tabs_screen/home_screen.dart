@@ -10,6 +10,7 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../pages/profile_edit_screen.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
@@ -22,6 +23,7 @@ import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
 import '../widgets/second_nav_widget.dart';
 import '../pages/family_member.dart';
+import '../pages/profile_edit_screen.dart';
 import '../data_models/user_data_model.dart';
 import 'dine-in.screen.dart';
 import 'recipe_screen.dart';
@@ -1050,7 +1052,81 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   saveShowCaloriesPref(showCaloriesAndGoal);
                                 },
                                 onEdit: (editedUser, isDarkMode) {
-                                  // Implement edit logic, maybe show a dialog
+                                  // Handle family member editing
+                                  if (familyMode &&
+                                      editedUser['name'] !=
+                                          userService
+                                              .currentUser.value?.displayName) {
+                                    // Find the family member in the current user's family members
+                                    final currentUser =
+                                        userService.currentUser.value;
+                                    if (currentUser?.familyMembers != null) {
+                                      final familyMemberIndex = currentUser!
+                                          .familyMembers!
+                                          .indexWhere((member) =>
+                                              member.name ==
+                                              editedUser['name']);
+
+                                      if (familyMemberIndex != -1) {
+                                        // Get the specific family member to edit
+                                        final familyMember = currentUser
+                                            .familyMembers![familyMemberIndex];
+                                        final familyMemberData = {
+                                          'name': familyMember.name,
+                                          'ageGroup': familyMember.ageGroup,
+                                          'fitnessGoal':
+                                              familyMember.fitnessGoal,
+                                          'foodGoal': familyMember.foodGoal,
+                                        };
+
+                                        // Show family member edit dialog
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) =>
+                                              EditFamilyMemberDialog(
+                                            familyMember: familyMemberData,
+                                            onMemberUpdated:
+                                                (updatedMember) async {
+                                              // Update the specific family member
+                                              final updatedFamilyMembers =
+                                                  List<FamilyMember>.from(
+                                                      currentUser
+                                                          .familyMembers!);
+                                              updatedFamilyMembers[
+                                                      familyMemberIndex] =
+                                                  FamilyMember.fromMap(
+                                                      updatedMember);
+
+                                              final updatedUser =
+                                                  currentUser.copyWith(
+                                                familyMembers:
+                                                    updatedFamilyMembers,
+                                              );
+                                              userService.setUser(updatedUser);
+
+                                              // Save to Firestore
+                                              await firestore
+                                                  .collection('users')
+                                                  .doc(userService.userId)
+                                                  .set({
+                                                'familyMembers': updatedUser
+                                                    .familyMembers
+                                                    ?.map((f) => f.toMap())
+                                                    .toList(),
+                                                'familyMode': updatedUser
+                                                        .familyMembers
+                                                        ?.isNotEmpty ??
+                                                    false,
+                                              }, SetOptions(merge: true));
+                                            },
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    // Handle current user editing
+                                    Get.to(() => const ProfileEditScreen());
+                                  }
                                 },
                               ),
                             ),
