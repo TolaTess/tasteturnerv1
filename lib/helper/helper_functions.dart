@@ -363,7 +363,6 @@ Future<List<String>> saveMealsToFirestore(String userId,
   if (mealPlan == null ||
       mealPlan['meals'] == null ||
       mealPlan['meals'] is! List) {
-    print('Invalid mealPlan: $mealPlan');
     return [];
   }
 
@@ -464,12 +463,9 @@ List<String> _convertToStringList(dynamic value) {
   return [];
 }
 
-Future<void> saveMealPlanToFirestore(
-    String userId,
-    String date,
-    List<String> mealIds,
-    Map<String, dynamic>? mealPlan,
-    String selectedDiet) async {
+Future<void> saveMealPlanToFirestore(String userId, String date,
+    List<String> mealIds, Map<String, dynamic>? mealPlan, String selectedDiet,
+    {String? familyMemberName}) async {
   final docRef = firestore
       .collection('mealPlans')
       .doc(userId)
@@ -498,6 +494,7 @@ Future<void> saveMealPlanToFirestore(
     'timestamp':
         Timestamp.fromDate(DateTime.now()), // Use client-side Timestamp
     'diet': selectedDiet ?? 'general',
+    'familyMemberName': familyMemberName, // Add family member name if provided
   };
 
   // Add nutritionSummary and tips if they exist in mealPlan
@@ -529,7 +526,6 @@ Future<void> saveMealPlanToFirestore(
 
 // Handle errors
 void handleError(dynamic e, BuildContext context) {
-  print('Error: $e');
   Navigator.of(context).pop(); // Hide loading
   showDialog(
     context: context,

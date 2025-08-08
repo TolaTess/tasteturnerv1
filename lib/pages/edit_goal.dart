@@ -501,7 +501,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       decoration: InputDecoration(
-                        labelText: "Fitness Goal",
+                        labelText: "Nutrition Goal",
                         labelStyle: textTheme.bodyMedium
                             ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),

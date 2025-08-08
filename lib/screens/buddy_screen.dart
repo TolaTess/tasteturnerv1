@@ -33,7 +33,7 @@ class _TastyScreenState extends State<TastyScreen> {
   // List of welcome messages
   final List<String> _welcomeMessages = [
     "👋 Hey there! Need some nutrition advice or meal planning help? I'm Tasty, your AI buddy!",
-    "🌟 Welcome back! Looking for healthy meal ideas or want to discuss your fitness goals?",
+    "🌟 Welcome back! Looking for healthy meal ideas or want to discuss your nutrition goals?",
     "🥗 Hi! Want to explore new recipes or get personalized nutrition tips? Just ask!",
     "💪 Ready to make some healthy choices? Let me know what you'd like help with!",
     "🎯 Need help staying on track with your nutrition goals? I'm here to support you!"
@@ -300,7 +300,7 @@ class _TastyScreenState extends State<TastyScreen> {
                                 children: [
                                   _buildFeatureItem(
                                       context,
-                                      "💬 Chat about your fitness goals and progress",
+                                      "💬 Chat about your nutrition goals and progress",
                                       "Ask for advice, motivation, or meal planning",
                                       themeProvider.isDarkMode,
                                       textTheme),

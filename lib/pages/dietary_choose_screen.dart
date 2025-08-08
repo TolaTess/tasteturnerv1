@@ -19,13 +19,20 @@ class ChooseDietScreen extends StatefulWidget {
     this.isOnboarding = false,
     this.onPreferencesSelected,
     this.isDontShowPicker = false,
+    this.familyMemberName,
+    this.familyMemberKcal,
+    this.familyMemberGoal,
+    this.familyMemberType,
   });
 
   final bool isOnboarding;
   final Function(String diet, Set<String> allergies, String cuisineType)?
       onPreferencesSelected;
   final bool isDontShowPicker;
-
+  final String? familyMemberName;
+  final String? familyMemberKcal;
+  final String? familyMemberGoal;
+  final String? familyMemberType;
   @override
   State<ChooseDietScreen> createState() => _ChooseDietScreenState();
 }
@@ -68,6 +75,14 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final dietPreference = selectedDiet;
+
+        // Use family member's goal and calorie target if available, otherwise use main user's
+        final fitnessGoal = widget.familyMemberGoal ?? goal;
+
+        final allergies = selectedAllergies.isEmpty
+            ? ['No allergies']
+            : selectedAllergies.toList();
         return AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -84,7 +99,9 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'You already have the following preferences:',
+                widget.familyMemberName != null
+                    ? 'You already have the following preferences for ${capitalizeFirstLetter(widget.familyMemberName!)}:'
+                    : 'You already have the following preferences:',
                 style: TextStyle(
                   color:
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -92,7 +109,9 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
               ),
               SizedBox(height: getPercentageHeight(1, context)),
               Text(
-                selectedDiet != 'All' ? 'Diet: $selectedDiet' : 'Diet: General',
+                dietPreference != 'All'
+                    ? 'Diet: $dietPreference'
+                    : 'Diet: General',
                 style: TextStyle(
                   color:
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -100,7 +119,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
               ),
               if (selectedAllergies.isNotEmpty)
                 Text(
-                  'Allergies: ${selectedAllergies.join(", ")}',
+                  'Allergies: ${allergies.join(", ")}',
                   style: TextStyle(
                     color: getThemeProvider(context).isDarkMode
                         ? kWhite
@@ -115,7 +134,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                 ),
               ),
               Text(
-                'Fitness Goal: $goal',
+                'Nutrition Goal: $fitnessGoal',
                 style: TextStyle(
                   color:
                       getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
@@ -493,7 +512,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final List<String> mealIds =
           await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
       await saveMealPlanToFirestore(
-          userId, date, mealIds, mealPlan, selectedDiet);
+          userId, date, mealIds, mealPlan, selectedDiet,
+          familyMemberName: widget.familyMemberName);
       await _updateUserPreferences(userId);
       FirebaseAnalytics.instance.logEvent(name: 'meal_plan_generated');
 
@@ -585,27 +605,41 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     return false; // Return false if no preferences found
   }
 
-
-
   String _buildGeminiPrompt() {
     final dietPreference = selectedDiet;
-    final fitnessGoal = goal;
-    final dailyCalorieGoal = calculateRecommendedGoals(fitnessGoal);
+
+    // Use family member's goal and calorie target if available, otherwise use main user's
+    final nutritionalGoal = widget.familyMemberGoal ?? goal;
+    final dailyCalorieGoal =
+        widget.familyMemberKcal ?? calculateRecommendedGoals(nutritionalGoal);
+
     final allergies = selectedAllergies.isEmpty
         ? ['No allergies']
         : selectedAllergies.toList();
 
-    return '''
+    final familyMemberAgeGroup = widget.familyMemberType ?? 'adult';
 
-Generate a ${selectedCuisine} cuisine meal plan considering:
-Daily calorie goal: $dailyCalorieGoal
-Dietary preference: $dietPreference
-Fitness goal: $fitnessGoal
-Allergies to avoid: ${allergies.join(', ')}
+
+    return '''
+IMPORTANT: This meal plan is for a ${familyMemberAgeGroup}. Consider age-appropriate:
+- Portion sizes and serving quantities
+- Food textures and preparation methods
+- Nutritional needs specific to ${familyMemberAgeGroup} development
+- Safety considerations for ${familyMemberAgeGroup}s
+
+PRIMARY REQUIREMENTS:
+1. Daily calorie target: $dailyCalorieGoal calories (${familyMemberAgeGroup}-appropriate)
+2. Nutrition goal: $nutritionalGoal (must be strictly followed)
+3. Dietary preference: $dietPreference
+4. Allergies to avoid: ${allergies.join(', ')}
+
+Cuisine style: ${selectedCuisine}
 Include:
 - $proteinDishes protein dishes
-- $grainDishes grain dishes
+- $grainDishes grain dishes  
 - $vegDishes vegetable dishes
+
+CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption, meet the calorie target, and align with the nutrition goal.
 ''';
   }
 
@@ -820,7 +854,7 @@ class AllergyItem extends StatelessWidget {
           bottom: getPercentageHeight(2, context)),
       child: InkWell(
         onTap: () => onSelected(dataSrc.allergy),
-        splashColor: kPrimaryColor.withValues(alpha: 0.4),    
+        splashColor: kPrimaryColor.withValues(alpha: 0.4),
         borderRadius: const BorderRadius.all(
           Radius.circular(50),
         ),

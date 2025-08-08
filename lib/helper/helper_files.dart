@@ -65,13 +65,17 @@ void showGenerationLimitDialog(BuildContext context,
 }
 
 void navigateToChooseDiet(BuildContext context,
-    {bool isDontShowPicker = false}) {
+    {bool isDontShowPicker = false, String? familyMemberName, String? familyMemberKcal, String? familyMemberGoal, String? familyMemberType}) {
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => ChooseDietScreen(
         isOnboarding: false,
         isDontShowPicker: isDontShowPicker,
+        familyMemberName: familyMemberName,
+        familyMemberKcal: familyMemberKcal,
+        familyMemberGoal: familyMemberGoal,
+        familyMemberType: familyMemberType,
       ),
     ),
   );

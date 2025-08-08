@@ -198,6 +198,16 @@ class GeminiService {
       print('Error processing AI response for $operation: $e');
       print('Raw response text: $text');
 
+      // Try to extract partial JSON if possible
+      try {
+        final partialJson = _extractPartialJson(text, operation);
+        if (partialJson.isNotEmpty) {
+          return partialJson;
+        }
+      } catch (partialError) {
+        print('Partial JSON recovery failed: $partialError');
+      }
+
       // Return a fallback structure based on operation type
       return _createFallbackResponse(operation, e.toString());
     }
@@ -306,6 +316,75 @@ class GeminiService {
             'totalProtein': 15,
             'totalCarbs': 30,
             'totalFat': 10
+          },
+          'tips': ['AI analysis failed, please verify all information manually']
+        };
+      case 'meal_plan':
+        return {
+          'meals': [
+            {
+              'title': 'Simple Breakfast',
+              'type': 'protein',
+              'mealType': 'breakfast',
+              'ingredients': {'eggs': '2', 'bread': '1 slice'},
+              'instructions': [
+                'Analysis failed: $error',
+                'Please create meal manually'
+              ],
+              'diet': 'general',
+              'nutritionalInfo': {
+                'calories': 250,
+                'protein': 15,
+                'carbs': 20,
+                'fat': 12
+              },
+              'categories': ['error-fallback'],
+              'serveQty': 1
+            },
+            {
+              'title': 'Simple Lunch',
+              'type': 'protein',
+              'mealType': 'lunch',
+              'ingredients': {'chicken': '100g', 'rice': '1/2 cup'},
+              'instructions': [
+                'Analysis failed: $error',
+                'Please create meal manually'
+              ],
+              'diet': 'general',
+              'nutritionalInfo': {
+                'calories': 350,
+                'protein': 25,
+                'carbs': 30,
+                'fat': 15
+              },
+              'categories': ['error-fallback'],
+              'serveQty': 1
+            },
+            {
+              'title': 'Simple Dinner',
+              'type': 'protein',
+              'mealType': 'dinner',
+              'ingredients': {'fish': '150g', 'vegetables': '1 cup'},
+              'instructions': [
+                'Analysis failed: $error',
+                'Please create meal manually'
+              ],
+              'diet': 'general',
+              'nutritionalInfo': {
+                'calories': 300,
+                'protein': 30,
+                'carbs': 15,
+                'fat': 18
+              },
+              'categories': ['error-fallback'],
+              'serveQty': 1
+            }
+          ],
+          'nutritionalSummary': {
+            'totalCalories': 900,
+            'totalProtein': 70,
+            'totalCarbs': 65,
+            'totalFat': 45
           },
           'tips': ['AI analysis failed, please verify all information manually']
         };
@@ -478,7 +557,7 @@ class GeminiService {
         final userProgramData = userProgramDoc.data();
         final programId = userProgramDoc.id; // Document ID is the program ID
 
-        if (programId != null) {
+        if (programId.isNotEmpty) {
           // Fetch program details
           final programDoc =
               await firestore.collection('programs').doc(programId).get();
@@ -708,6 +787,21 @@ USER CONTEXT:
 
   // Sanitize JSON string to fix common AI response issues
   String _sanitizeJsonString(String jsonStr) {
+    // Fix trailing quotes after numeric values (e.g., "serveQty": 1" -> "serveQty": 1)
+    final beforeFix = jsonStr;
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'":\s*(\d+)"(?=\s*[,}\]])', multiLine: true),
+        (match) => '": ${match.group(1)}');
+
+    if (beforeFix != jsonStr) {
+      print('Fixed trailing quotes in JSON');
+    }
+
+    // Fix any remaining trailing quotes after numbers (more comprehensive)
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]+)":\s*(\d+)"(?=\s*[,}\]])', multiLine: true),
+        (match) => '"${match.group(1)}": ${match.group(2)}');
+
     // Fix unquoted nutritional values like "protein": 40g to "protein": "40g"
     jsonStr = jsonStr.replaceAllMapped(
         RegExp(
@@ -729,7 +823,462 @@ USER CONTEXT:
             '"${match.group(1)}": ${match.group(2)}' // Keep these as numbers
         );
 
+    // Fix unterminated strings - look for strings that don't end with a quote
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]*?)(?=\s*[,}\]])', multiLine: true), (match) {
+      final value = match.group(1) ?? '';
+      // If the value doesn't end with a quote, add one
+      if (!value.endsWith('"')) {
+        return '"$value"';
+      }
+      return match.group(0) ?? '';
+    });
+
+    // Fix specific diet type unterminated strings
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"diet":\s*"([^"]*?)(?=\s*[,}\]])', multiLine: true), (match) {
+      final dietValue = match.group(1) ?? '';
+      if (!dietValue.endsWith('"')) {
+        return '"diet": "$dietValue"';
+      }
+      return match.group(0) ?? '';
+    });
+
+    // Fix diet field with missing quotes in the middle (e.g., "diet": "low-carb", dairy-free")
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"diet":\s*"([^"]*?),\s*([^"]*?)"(?=\s*[,}\]])',
+            multiLine: true), (match) {
+      final firstPart = match.group(1) ?? '';
+      final secondPart = match.group(2) ?? '';
+      return '"diet": "$firstPart, $secondPart"';
+    });
+
+    // Fix diet field with unquoted values after comma (e.g., "diet": "low-carb", dairy-free)
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"diet":\s*"([^"]*?)",\s*([^"]*?)(?=\s*[,}\]])',
+            multiLine: true), (match) {
+      final firstPart = match.group(1) ?? '';
+      final secondPart = match.group(2) ?? '';
+      return '"diet": "$firstPart, $secondPart"';
+    });
+
+    // Fix double quotes in string values (e.g., "title": "value"")
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]*?)""(?=\s*[,}\]])', multiLine: true),
+        (match) => '"${match.group(1)}"');
+
+    // Fix broken value where comma-suffixed text is outside quotes
+    // Example: "onion": "1/4 medium", chopped" -> "onion": "1/4 medium, chopped"
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([\w\s]+)":\s*"([^"]*?)",\s*([A-Za-z][^",}\]]*)"',
+            multiLine: true), (match) {
+      final key = match.group(1) ?? '';
+      final first = match.group(2) ?? '';
+      final second = match.group(3) ?? '';
+      return '"$key": "$first, $second"';
+    });
+
+    // Fix unquoted nutritional values with units (e.g., "protein": 20g -> "protein": "20g")
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(
+            r'"(calories|protein|carbs|fat|fiber|sugar|sodium)":\s*(\d+[a-zA-Z]+)',
+            multiLine: true),
+        (match) => '"${match.group(1)}": "${match.group(2)}"');
+
+    // Fix any remaining unquoted values with units that might be missed
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r':\s*(\d+[a-zA-Z]+)(?=[,\]\}])', multiLine: true),
+        (match) => ': "${match.group(1)}"');
+
     return jsonStr;
+  }
+
+  // Normalize meal plan data similar to FoodAnalysis normalization
+  Map<String, dynamic> _normalizeMealPlanData(Map<String, dynamic> data) {
+    if (!data.containsKey('meals') || data['meals'] is! List) return data;
+
+    final meals =
+        (data['meals'] as List).whereType<Map<String, dynamic>>().toList();
+    for (final meal in meals) {
+      // Ensure required fields
+      meal['title'] = meal['title']?.toString() ?? 'Untitled Meal';
+      meal['type'] = meal['type']?.toString() ?? 'protein';
+      meal['mealType'] = meal['mealType']?.toString() ?? 'breakfast';
+      meal['serveQty'] = (meal['serveQty'] is num)
+          ? (meal['serveQty'] as num).toInt()
+          : int.tryParse(meal['serveQty']?.toString() ?? '') ?? 1;
+
+      // Ingredients normalization to Map<String,String>
+      final ing = meal['ingredients'];
+      Map<String, dynamic> ingMap = {};
+      if (ing is Map) {
+        ing.forEach((k, v) => ingMap[k.toString()] = v.toString());
+      } else if (ing is List) {
+        for (int i = 0; i < ing.length; i++) {
+          ingMap['ingredient${i + 1}'] = ing[i].toString();
+        }
+      }
+      meal['ingredients'] =
+          _normalizeAndDeduplicateIngredients(ingMap.cast<String, dynamic>());
+
+      // Instructions normalization to List<String>
+      final steps = meal['instructions'];
+      if (steps is List) {
+        meal['instructions'] = steps.map((e) => e.toString()).toList();
+      } else if (steps is String) {
+        meal['instructions'] = [steps];
+      } else {
+        meal['instructions'] = [];
+      }
+
+      // Nutritional info numbers
+      final ni = (meal['nutritionalInfo'] is Map)
+          ? Map<String, dynamic>.from(meal['nutritionalInfo'])
+          : <String, dynamic>{};
+      double _num(dynamic v) {
+        if (v == null) return 0.0;
+        if (v is num) return v.toDouble();
+        final s = v.toString().replaceAll(RegExp(r'[^0-9.]+'), '');
+        return double.tryParse(s) ?? 0.0;
+      }
+
+      meal['nutritionalInfo'] = {
+        'calories': _num(ni['calories']).round(),
+        'protein': _num(ni['protein']).round(),
+        'carbs': _num(ni['carbs']).round(),
+        'fat': _num(ni['fat']).round(),
+      };
+
+      // Categories normalization
+      final cats = meal['categories'];
+      if (cats is List) {
+        meal['categories'] = cats.map((e) => e.toString()).toList();
+      } else if (cats != null) {
+        meal['categories'] = [cats.toString()];
+      } else {
+        meal['categories'] = <String>[];
+      }
+    }
+
+    data['meals'] = meals;
+    return data;
+  }
+
+  // Extract meal data from raw AI response by parsing sections
+  Map<String, dynamic> _extractPartialJson(String text, String operation) {
+    if (operation == 'meal_plan' || operation == 'meal_generation') {
+      return _extractMealDataFromRawResponse(text);
+    }
+
+    // For other operations, try the old approach
+    final jsonPattern =
+        RegExp(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', multiLine: true);
+    final matches = jsonPattern.allMatches(text);
+
+    for (final match in matches) {
+      try {
+        final potentialJson = match.group(0) ?? '';
+        final sanitized = _sanitizeJsonString(potentialJson);
+        final parsed = jsonDecode(sanitized) as Map<String, dynamic>;
+
+        if (_isValidPartialResponse(parsed, operation)) {
+          return parsed;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    return {};
+  }
+
+  // Extract meal data from raw AI response by parsing sections
+  Map<String, dynamic> _extractMealDataFromRawResponse(String text) {
+    final meals = <Map<String, dynamic>>[];
+
+    // Find all meal objects in the response using a more specific pattern
+    // This regex captures complete meal objects from opening { to closing }
+    final mealMatches =
+        RegExp(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', multiLine: true)
+            .allMatches(text);
+
+    for (final match in mealMatches) {
+      final section = match.group(0) ?? '';
+      if (section.trim().isEmpty) continue;
+
+      try {
+        // Only process sections that contain a title (actual meal objects)
+        if (!section.contains('"title"')) {
+          continue;
+        }
+
+        final meal = _extractSingleMeal(section);
+        if (meal != null &&
+            meal['title'] != null &&
+            meal['title'] != 'Extracted Meal') {
+          meals.add(meal);
+
+          // Print nutritional info for debugging
+          final nutrition = meal['nutritionalInfo'] as Map<String, dynamic>?;
+          if (nutrition != null) {
+          } else {
+          }
+        } else if (meal != null) {
+        }
+      } catch (e) {
+        print('Failed to extract meal from section: $e');
+        print(
+            'Section: ${section.substring(0, section.length > 100 ? 100 : section.length)}...');
+      }
+    }
+
+    if (meals.isEmpty) {
+      return _createFallbackResponse(
+          'meal_plan', 'No meals could be extracted from response');
+    }
+
+    // Calculate total nutrition from all meals
+    final totalNutrition = <String, dynamic>{
+      'totalCalories': 0,
+      'totalProtein': 0,
+      'totalCarbs': 0,
+      'totalFat': 0,
+    };
+
+    for (final meal in meals) {
+      final nutrition = meal['nutritionalInfo'] as Map<String, dynamic>?;
+      if (nutrition != null) {
+        totalNutrition['totalCalories'] += (nutrition['calories'] ?? 0);
+        totalNutrition['totalProtein'] += (nutrition['protein'] ?? 0);
+        totalNutrition['totalCarbs'] += (nutrition['carbs'] ?? 0);
+        totalNutrition['totalFat'] += (nutrition['fat'] ?? 0);
+      }
+    }
+
+    return {
+      'meals': meals,
+      'nutritionalSummary': totalNutrition,
+      'extracted': true,
+    };
+  }
+
+  // Extract a single meal from a text section
+  Map<String, dynamic>? _extractSingleMeal(String section) {
+    try {
+      final meal = <String, dynamic>{};
+
+      // Extract title
+      final titleMatch =
+          RegExp(r'"title":\s*"([^"]+)"', multiLine: true).firstMatch(section);
+      if (titleMatch != null) {
+        meal['title'] = titleMatch.group(1)?.trim();
+      }
+
+      // Extract type
+      final typeMatch =
+          RegExp(r'"type":\s*"([^"]+)"', multiLine: true).firstMatch(section);
+      if (typeMatch != null) {
+        meal['type'] = typeMatch.group(1)?.trim();
+      }
+
+      // Extract mealType
+      final mealTypeMatch = RegExp(r'"mealType":\s*"([^"]+)"', multiLine: true)
+          .firstMatch(section);
+      if (mealTypeMatch != null) {
+        meal['mealType'] = mealTypeMatch.group(1)?.trim();
+      }
+
+      // Extract serveQty
+      final serveQtyMatch =
+          RegExp(r'"serveQty":\s*(\d+)', multiLine: true).firstMatch(section);
+      if (serveQtyMatch != null) {
+        meal['serveQty'] = int.tryParse(serveQtyMatch.group(1) ?? '1') ?? 1;
+      }
+
+      // Extract diet
+      final dietMatch =
+          RegExp(r'"diet":\s*"([^"]+)"', multiLine: true).firstMatch(section);
+      if (dietMatch != null) {
+        meal['diet'] = dietMatch.group(1)?.trim();
+      }
+
+      // Extract ingredients
+      final ingredients = _extractIngredients(section);
+      if (ingredients.isNotEmpty) {
+        meal['ingredients'] = ingredients;
+      }
+
+      // Extract instructions
+      final instructions = _extractInstructions(section);
+      if (instructions.isNotEmpty) {
+        meal['instructions'] = instructions;
+      }
+
+      // Extract nutritional info
+      final nutrition = _extractNutritionalInfo(section);
+      if (nutrition.isNotEmpty) {
+        meal['nutritionalInfo'] = nutrition;
+      }
+
+      // Extract categories
+      final categories = _extractCategories(section);
+      if (categories.isNotEmpty) {
+        meal['categories'] = categories;
+      }
+
+      // Set defaults for missing fields
+      meal['title'] = meal['title'] ?? 'Extracted Meal';
+      meal['type'] = meal['type'] ?? 'protein';
+      meal['mealType'] = meal['mealType'] ?? 'breakfast';
+      meal['serveQty'] = meal['serveQty'] ?? 1;
+      meal['ingredients'] = meal['ingredients'] ?? {'ingredient': '1 portion'};
+      meal['instructions'] = meal['instructions'] ?? ['Prepare as directed'];
+
+      // Only set nutritional defaults if no nutrition was extracted
+      if (meal['nutritionalInfo'] == null ||
+          (meal['nutritionalInfo'] as Map).isEmpty) {
+        meal['nutritionalInfo'] = {
+          'calories': 300,
+          'protein': 20,
+          'carbs': 15,
+          'fat': 15
+        };
+      }
+
+      meal['categories'] = meal['categories'] ?? ['extracted'];
+
+      return meal;
+    } catch (e) {
+      print('Error extracting single meal: $e');
+      return null;
+    }
+  }
+
+  // Extract ingredients from a meal section
+  Map<String, String> _extractIngredients(String section) {
+    final ingredients = <String, String>{};
+
+    // Look for ingredients section
+    final ingredientsMatch =
+        RegExp(r'"ingredients":\s*\{([^}]+)\}', multiLine: true)
+            .firstMatch(section);
+    if (ingredientsMatch != null) {
+      final ingredientsText = ingredientsMatch.group(1) ?? '';
+
+      // Extract individual ingredients
+      final ingredientMatches =
+          RegExp(r'"([^"]+)":\s*"([^"]+)"', multiLine: true)
+              .allMatches(ingredientsText);
+      for (final match in ingredientMatches) {
+        final key = match.group(1)?.trim();
+        final value = match.group(2)?.trim();
+        if (key != null && value != null) {
+          ingredients[key] = value;
+        }
+      }
+    }
+
+    return ingredients;
+  }
+
+  // Extract instructions from a meal section
+  List<String> _extractInstructions(String section) {
+    final instructions = <String>[];
+
+    // Look for instructions array
+    final instructionsMatch =
+        RegExp(r'"instructions":\s*\[([^\]]+)\]', multiLine: true)
+            .firstMatch(section);
+    if (instructionsMatch != null) {
+      final instructionsText = instructionsMatch.group(1) ?? '';
+
+      // Extract individual instructions
+      final instructionMatches =
+          RegExp(r'"([^"]+)"', multiLine: true).allMatches(instructionsText);
+      for (final match in instructionMatches) {
+        final instruction = match.group(1)?.trim();
+        if (instruction != null && instruction.isNotEmpty) {
+          instructions.add(instruction);
+        }
+      }
+    }
+
+    return instructions;
+  }
+
+  // Extract nutritional info from a meal section
+  Map<String, dynamic> _extractNutritionalInfo(String section) {
+    final nutrition = <String, dynamic>{};
+
+    // Look for nutritionalInfo section
+    final nutritionMatch =
+        RegExp(r'"nutritionalInfo":\s*\{([^}]+)\}', multiLine: true)
+            .firstMatch(section);
+    if (nutritionMatch != null) {
+      final nutritionText = nutritionMatch.group(1) ?? '';
+
+      // Extract individual nutrition values - handle both quoted and unquoted values with units
+      final nutritionMatches =
+          RegExp(r'"([^"]+)":\s*(\d+[a-zA-Z]*)', multiLine: true)
+              .allMatches(nutritionText);
+      for (final match in nutritionMatches) {
+        final key = match.group(1)?.trim();
+        final valueStr = match.group(2) ?? '0';
+        // Extract just the number from values like "20g" -> 20
+        final value =
+            int.tryParse(valueStr.replaceAll(RegExp(r'[a-zA-Z]+'), '')) ?? 0;
+        if (key != null) {
+          nutrition[key] = value;
+        }
+      }
+    }
+
+    return nutrition;
+  }
+
+  // Extract categories from a meal section
+  List<String> _extractCategories(String section) {
+    final categories = <String>[];
+
+    // Look for categories array
+    final categoriesMatch =
+        RegExp(r'"categories":\s*\[([^\]]+)\]', multiLine: true)
+            .firstMatch(section);
+    if (categoriesMatch != null) {
+      final categoriesText = categoriesMatch.group(1) ?? '';
+
+      // Extract individual categories
+      final categoryMatches =
+          RegExp(r'"([^"]+)"', multiLine: true).allMatches(categoriesText);
+      for (final match in categoryMatches) {
+        final category = match.group(1)?.trim();
+        if (category != null && category.isNotEmpty) {
+          categories.add(category);
+        }
+      }
+    }
+
+    return categories;
+  }
+
+  // Check if a partial response is valid for the given operation
+  bool _isValidPartialResponse(Map<String, dynamic> data, String operation) {
+    switch (operation) {
+      case 'meal_plan':
+        return data.containsKey('meals') && data['meals'] is List;
+      case 'meal_generation':
+        return data.containsKey('meals') && data['meals'] is List;
+      case 'tasty_analysis':
+        return data.containsKey('foodItems') ||
+            data.containsKey('totalNutrition');
+      case 'program_generation':
+        return data.containsKey('weeklyPlans');
+      case 'food_comparison':
+        return data.containsKey('image1Analysis') ||
+            data.containsKey('image2Analysis');
+      default:
+        return data.isNotEmpty;
+    }
   }
 
   Future<Map<String, dynamic>> generateMealPlan(String prompt) async {
@@ -749,9 +1298,8 @@ USER CONTEXT:
     // Get comprehensive user context
     final aiContext = await _buildAIContext();
 
-    final contextualPrompt = familyMode
-        ? 'For a family, generate a detailed meal plan based on the following requirements: $prompt'
-        : 'Generate a detailed meal plan based on the following requirements: $prompt';
+    final contextualPrompt =
+        'Generate a detailed meal plan based on the following requirements: $prompt';
 
     try {
       final response = await http.post(
@@ -834,10 +1382,17 @@ Important:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _processAIResponse(text, 'meal_plan');
+          final parsed = _processAIResponse(text, 'meal_plan');
+          return _normalizeMealPlanData(parsed);
         } catch (e) {
-          print('Raw response text: $text');
-          throw Exception('Failed to parse meal plan JSON: $e');
+          // Attempt sanitization + parse once more
+          try {
+            final sanitized = _sanitizeJsonString(text);
+            final reparsed = jsonDecode(sanitized) as Map<String, dynamic>;
+            return _normalizeMealPlanData(reparsed);
+          } catch (_) {
+            throw Exception('Failed to parse meal plan JSON: $e');
+          }
         }
       } else {
         print('AI API Error: ${response.body}');
@@ -940,10 +1495,17 @@ Important:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _processAIResponse(text, 'meal_generation');
+          final parsed = _processAIResponse(text, 'meal_generation');
+          return _normalizeMealPlanData(parsed);
         } catch (e) {
           print('Raw response text: $text');
-          throw Exception('Failed to parse meal JSON: $e');
+          try {
+            final sanitized = _sanitizeJsonString(text);
+            final reparsed = jsonDecode(sanitized) as Map<String, dynamic>;
+            return _normalizeMealPlanData(reparsed);
+          } catch (_) {
+            throw Exception('Failed to parse meal JSON: $e');
+          }
         }
       } else {
         print('AI API Error: ${response.body}');
@@ -1504,7 +2066,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
           final textTheme = Theme.of(context).textTheme;
           return StatefulBuilder(
             builder: (context, setState) {
-              int? loadingIndex; // Track which item is loading
               bool isProcessing = false; // Global processing state
 
               return AlertDialog(
@@ -1530,8 +2091,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
                     itemBuilder: (context, index) {
                       final meal = meals[index];
                       final title = meal['title'] ?? 'Untitled';
-                      final isThisItemLoading = loadingIndex == index;
-                      final isDisabled = isProcessing && !isThisItemLoading;
 
                       String cookingTime = meal['cookingTime'] ?? '';
                       String cookingMethod = meal['cookingMethod'] ?? '';
@@ -1572,7 +2131,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
                                   // Set loading state and show SnackBar
                                   setState(() {
                                     isProcessing = true;
-                                    loadingIndex = index;
                                   });
 
                                   // Show SnackBar with loading message
@@ -1683,7 +2241,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
 
                                       setState(() {
                                         isProcessing = false;
-                                        loadingIndex = null;
                                       });
 
                                       // Show error SnackBar
