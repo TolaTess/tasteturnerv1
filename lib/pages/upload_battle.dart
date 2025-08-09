@@ -698,12 +698,23 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                     );
                   }
                 },
-                child: Text(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      color: _isVideo ? kLightGrey : kAccentLight,
+                      size: getIconScale(5, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(1, context)),
+                Text(
                   'Analyze Food & Upload',
                   style: textTheme.displaySmall?.copyWith(
                       color: _isVideo ? kLightGrey : kAccentLight,
-                      fontWeight: FontWeight.w200,
-                      fontSize: getTextScale(5.5, context)),
+                        fontWeight: FontWeight.w200,
+                        fontSize: getTextScale(5.5, context)),
+                  ),
+                  ],
                 ),
               ),
             ),
