@@ -500,19 +500,14 @@ class _BuddyTabState extends State<BuddyTab> {
     }
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: kWhite,
-        child: Image.asset(
-          'assets/images/tasty/tasty.png',
-          width: getPercentageWidth(6, context),
-          height: getPercentageWidth(6, context),
-        ),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TastyScreen(screen: 'message'),
-          ),
-        ),
+      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
+        verticalOffset: getPercentageHeight(5, context),
+        horizontalOffset: getPercentageWidth(2, context),
+      ),
+      floatingActionButton: buildTastyFloatingActionButton(
+        context: context,
+        buttonKey: ValueKey('buddy_tab_button'),
+        themeProvider: getThemeProvider(context),
       ),
       body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
         future: _buddyDataFuture,

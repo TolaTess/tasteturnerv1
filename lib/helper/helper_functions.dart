@@ -44,15 +44,15 @@ Widget buildTastyFloatingActionButton({
         );
       }
     },
-    backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
+    backgroundColor: themeProvider.isDarkMode ? kWhite : kDarkGrey,
     child: CircleAvatar(
       key:
           buttonKey != null ? ValueKey('avatar_${buttonKey.toString()}') : null,
-      backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
-      child: Image.asset(
-        'assets/images/tasty/tasty.png',
-        width: getIconScale(7.5, context),
-        height: getIconScale(7.5, context),
+      backgroundColor: themeProvider.isDarkMode ? kWhite : kDarkGrey,
+      child: Icon(
+        Icons.auto_awesome,
+        color: kAccent,
+        size: getIconScale(7, context),
       ),
     ),
   );

@@ -502,7 +502,7 @@ class _ProgramScreenState extends State<ProgramScreen>
     final String userGoal =
         user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
     final textTheme = Theme.of(context).textTheme;
-    final fontSize = getTextScale(6, context);
+    final fontSize = getTextScale(5, context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
@@ -599,14 +599,16 @@ class _ProgramScreenState extends State<ProgramScreen>
                   ),
                 ],
               ),
-              SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(2.5, context)),
 
               Text(
                 'See Recipes for your $userDiet diet',
-                style: textTheme.displaySmall?.copyWith(
+                maxLines: 2,
+                style: textTheme.headlineMedium?.copyWith(
                   color: accent,
                   fontWeight: FontWeight.w200,
-                  fontSize: getTextScale(6, context),
+                  fontSize: getTextScale(5, context),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               SizedBox(height: getPercentageHeight(1.5, context)),
