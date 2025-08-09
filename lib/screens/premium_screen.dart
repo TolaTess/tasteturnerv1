@@ -170,14 +170,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
               '\$${currentPrice.toStringAsFixed(2)}',
-              style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold, color: kAccent),
+              style: textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
             ),
             if (isYearlyPlan)
               Text(
                 '\$${perMonthPrice.toStringAsFixed(2)}/mo',
-                style: textTheme.bodyMedium?.copyWith(
-                    color: isDarkMode ? kLightGrey : kBlack),
+                style: textTheme.bodyMedium
+                    ?.copyWith(color: isDarkMode ? kLightGrey : kBlack),
               ),
           ],
         ),
@@ -222,13 +222,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     ),
                   Text(
                     '\$${monthlyPerMonth.toStringAsFixed(2)}',
-                    style: textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold, color: kAccent),
+                    style: textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                   ),
                   Text(
                     '/month',
-                    style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kLightGrey : kBlack),
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: isDarkMode ? kLightGrey : kBlack),
                   ),
                 ],
               ),
@@ -248,7 +248,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isYearlySelected
-                        ? kAccent.withValues(alpha: 0.3)
+                      ? kAccent.withValues(alpha: 0.3)
                       : Colors.grey.withValues(alpha: 0.3),
                   width: 2,
                 ),
@@ -278,7 +278,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             textAlign: TextAlign.center,
                             'SAVE ${((1 - yearlyPerMonth / monthlyPerMonth) * 100).toStringAsFixed(0)}%',
                             style: textTheme.bodyMedium?.copyWith(
-                                color: Colors.white, fontWeight: FontWeight.bold),
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -294,13 +295,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     ),
                   Text(
                     '\$${discountedYearlyPrice.toStringAsFixed(2)}',
-                    style: textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold, color: kAccent),
+                    style: textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                   ),
                   Text(
                     '\$${yearlyPerMonth.toStringAsFixed(2)}/mo',
-                    style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kLightGrey : kBlack),
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: isDarkMode ? kLightGrey : kBlack),
                   ),
                 ],
               ),
@@ -372,7 +373,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     SizedBox(
                         height: isUserPremium
                             ? getPercentageHeight(1, context)
-                            : getPercentageHeight(4, context)),
+                            : getPercentageHeight(3, context)),
 
                     // Premium Features
                     Padding(
@@ -418,8 +419,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               padding: EdgeInsets.only(
                                   bottom: getPercentageHeight(1, context)),
                               child: Text(_purchaseError!,
-                                  style: textTheme.bodyMedium?.copyWith(
-                                      color: Colors.red)),
+                                  style: textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.red)),
                             ),
                           AppButton(
                             text: _purchaseInProgress

@@ -8,6 +8,7 @@ import '../data_models/macro_data.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
+import '../screens/recipes_list_category_screen.dart';
 import '../service/macro_manager.dart';
 import '../widgets/optimized_image.dart';
 import '../widgets/primary_button.dart';
@@ -388,7 +389,7 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: getPercentageHeight(3, context)),
+                  SizedBox(height: getPercentageHeight(2.5, context)),
 
                   // Ingredient cards
                   if (selectedCarb != null && selectedProtein != null) ...[
@@ -464,7 +465,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     ),
                   ),
 
-                  SizedBox(height: getPercentageHeight(3, context)),
+                  SizedBox(height: getPercentageHeight(2.5, context)),
 
                   // Action buttons
                   if (!isAccepted) ...[
@@ -571,8 +572,32 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
 
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    Center(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPink,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Get.to(() => RecipeListCategory(
+                                index: 1,
+                                searchIngredient:
+                                    selectedProtein!.title.toLowerCase(),
+                                screen: 'categories',
+                                isNoTechnique: true,
+                              ));
+                        },
+                        icon: const Icon(Icons.restaurant, color: kWhite),
+                        label: Text('See Recipes for ${selectedProtein!.title}',
+                            style: textTheme.labelLarge?.copyWith(color: kWhite)),
+                      ),
+                    ),
+                  
+
                     if (selectedMeal == null) ...[
-                      SizedBox(height: getPercentageHeight(3, context)),
+                      SizedBox(height: getPercentageHeight(2, context)),
                       Row(
                         children: [
                           SizedBox(width: getPercentageWidth(4, context)),

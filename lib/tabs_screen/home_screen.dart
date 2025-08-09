@@ -21,6 +21,8 @@ import '../widgets/daily-meal-portion.dart';
 import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
 import '../widgets/second_nav_widget.dart';
+import '../pages/family_member.dart';
+import '../data_models/user_data_model.dart';
 import 'dine-in.screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
@@ -80,6 +82,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _setupDataListeners();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
+    });
+
+    // Show family nutrition setup dialog after a delay (only for first-time users)
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _checkAndShowFamilyNutritionDialog();
+      }
     });
   }
 
@@ -146,6 +155,177 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ],
     );
+  }
+
+  Future<void> _checkAndShowFamilyNutritionDialog() async {
+    // Check if user already has family mode enabled
+    if (userService.currentUser.value?.familyMode == true) {
+      return; // Don't show dialog if family mode is already enabled
+    }
+
+    // Check if user has already seen the family nutrition dialog
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenFamilyDialog =
+        prefs.getBool('has_seen_family_nutrition_dialog') ?? false;
+
+    if (hasSeenFamilyDialog) {
+      return; // Don't show dialog if user has already seen it
+    }
+
+    // Mark that user has seen the dialog
+    await prefs.setBool('has_seen_family_nutrition_dialog', true);
+
+    // Show the dialog
+    _showFamilyNutritionDialog();
+  }
+
+  void _showFamilyNutritionDialog() {
+    // Check if user already has family mode enabled
+    if (userService.currentUser.value?.familyMode == true) {
+      return; // Don't show dialog if family mode is already enabled
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor:
+            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Manage Family Nutrition?',
+          style: TextStyle(
+            color: kAccent,
+            fontSize: getTextScale(4, context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Would you like to manage nutrition for your family members? \n\nYou can add family members and plan their meals together \n(you can always change this later in Edit Goals).',
+          style: TextStyle(
+            color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text(
+              'Not Now',
+              style: TextStyle(
+                color:
+                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+              foregroundColor: kWhite,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showFamilySetupDialog();
+            },
+            child: Text(
+              'Yes, Set Up Family',
+              style: TextStyle(
+                fontSize: getTextScale(3.5, context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFamilySetupDialog() {
+    List<Map<String, String>> familyMembers = [];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => FamilyMembersDialog(
+        initialMembers: familyMembers,
+        onMembersChanged: (members) async {
+          if (members.isNotEmpty && members.first['name']?.isNotEmpty == true) {
+            await _saveFamilyMembers(members);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _saveFamilyMembers(List<Map<String, String>> members) async {
+    try {
+      // Convert to FamilyMember objects
+      final familyMembers = members
+          .where((m) => m['name']?.isNotEmpty == true)
+          .map((m) => FamilyMember(
+                name: m['name']!,
+                ageGroup: m['ageGroup']!,
+                fitnessGoal: m['fitnessGoal']!,
+                foodGoal: m['foodGoal']!,
+              ))
+          .toList();
+
+      if (familyMembers.isEmpty) return;
+
+      // Update user in Firestore
+      await firestore.collection('users').doc(userService.userId).update({
+        'familyMode': true,
+        'familyMembers': familyMembers.map((f) => f.toMap()).toList(),
+      });
+
+      // Update local user data
+      final currentUser = userService.currentUser.value;
+      if (currentUser != null) {
+        final updatedUser = UserModel(
+          userId: currentUser.userId,
+          displayName: currentUser.displayName,
+          bio: currentUser.bio,
+          dob: currentUser.dob,
+          profileImage: currentUser.profileImage,
+          following: currentUser.following,
+          settings: currentUser.settings,
+          preferences: currentUser.preferences,
+          userType: currentUser.userType,
+          isPremium: currentUser.isPremium,
+          created_At: currentUser.created_At,
+          freeTrialDate: currentUser.freeTrialDate,
+          familyMode: true,
+          familyMembers: familyMembers,
+        );
+        userService.setUser(updatedUser);
+      }
+
+      // Show success message
+      if (mounted) {
+        showTastySnackbar(
+          'Family Setup Complete!',
+          'You can now manage nutrition for ${familyMembers.length} family member${familyMembers.length > 1 ? 's' : ''}.',
+          context,
+          backgroundColor: kAccentLight,
+        );
+      }
+    } catch (e) {
+      print('Error saving family members: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to save family members. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
   }
 
   Future<void> loadMeals(String date) async {
@@ -308,7 +488,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _lastUnreadCount = unreadCount; // Update last unread count
   }
-
 
   @override
   void dispose() {
@@ -672,14 +851,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           color: isDarkMode
                               ? kAccent
                               : kAccent.withValues(alpha: 0.5),
-                          destinationScreen: AddFoodScreen(
-                            date: currentDate,
-                            notAllowedMealType: _programService.userPrograms
-                                    .isNotEmpty
-                                ? _programService.userPrograms.first.notAllowed
-                                    .join(',')
-                                : null,
-                          ),
+                          destinationScreen: familyMode &&
+                                  selectedUserIndex != 0
+                              ? null // No destination when family member is selected
+                              : AddFoodScreen(
+                                  date: currentDate,
+                                  notAllowedMealType:
+                                      _programService.userPrograms.isNotEmpty
+                                          ? _programService
+                                              .userPrograms.first.notAllowed
+                                              .join(',')
+                                          : null,
+                                ),
+                          onTap: familyMode && selectedUserIndex != 0
+                              ? () {
+                                  // Show snackbar when family member is selected
+                                  showTastySnackbar(
+                                    'Tracking Only',
+                                    'Food tracking is only available for ${userService.currentUser.value?.displayName}',
+                                    context,
+                                    backgroundColor: kAccentLight,
+                                  );
+                                }
+                              : null,
                           isDarkMode: isDarkMode,
                         ),
                         //shopping
@@ -816,6 +1010,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       setState(() {
                                         selectedUserIndex = index;
                                       });
+                                      // Force rebuild of all components that depend on user data
+                                      if (mounted) {
+                                        setState(() {});
+                                      }
                                     },
                                     isDarkMode: isDarkMode,
                                   ),
@@ -861,7 +1059,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (currentDate.isAfter(DateTime.now()
                               .subtract(const Duration(days: 1)))) ...[
                             DailyMealPortion(
-                              programName: _programService.userPrograms.isNotEmpty
+                              key: ValueKey(
+                                  'daily_meal_portion_$selectedUserIndex'), // Add key for proper rebuilding
+                              programName:
+                                  _programService.userPrograms.isNotEmpty
                                       ? _programService.userPrograms.first.type
                                       : '',
                               userProgram:
@@ -876,6 +1077,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                               .userPrograms.first.notAllowed
                                           : [])
                                       : [],
+                              selectedUser: user, // Pass the selected user data
                             ),
                           ],
                           SizedBox(height: getPercentageHeight(3, context)),

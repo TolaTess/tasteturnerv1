@@ -274,8 +274,25 @@ num? parseToNumber(dynamic value) {
 }
 
 String getRecommendedCalories(String mealType, String screen,
-    {String? notAllowedMealType}) {
-  final settings = userService.currentUser.value?.settings;
+    {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) {
+  // Use selected user's data if provided, otherwise fall back to current user
+  Map<String, dynamic>? settings;
+  if (selectedUser != null) {
+    if (selectedUser['settings'] != null) {
+      // If settings exist (current user), use them
+      settings = selectedUser['settings'];
+    } else {
+      // For family members, create settings from their direct properties
+      settings = {
+        'foodGoal': selectedUser['foodGoal'],
+        'fitnessGoal': selectedUser['fitnessGoal'],
+        'ageGroup': selectedUser['ageGroup'],
+      };
+    }
+  } else {
+    settings = userService.currentUser.value?.settings;
+  }
+
   final foodGoalValue = settings?['foodGoal'];
   final baseTargetCalories = (parseToNumber(foodGoalValue) ?? 2000).toDouble();
 
@@ -340,11 +357,11 @@ String getRecommendedCalories(String mealType, String screen,
   final minMealCalories = minTotalTarget * percentage;
   final maxMealCalories = maxTotalTarget * percentage;
 
-  if (screen == 'addFood') {
-    return 'Recommended ${minMealCalories.round()} - ${maxMealCalories.round()} kcal';
-  } else {
-    return '${minMealCalories.round()}-${maxMealCalories.round()} kcal';
-  }
+  final result = screen == 'addFood'
+      ? 'Recommended ${minMealCalories.round()} - ${maxMealCalories.round()} kcal'
+      : '${minMealCalories.round()}-${maxMealCalories.round()} kcal';
+
+  return result;
 }
 
 /// Shows a dialog when user exceeds recommended calories for a meal type
@@ -526,9 +543,9 @@ Map<String, int> extractCalorieRange(String recommendation) {
 /// Adjusts the recommended calories for a meal type to compensate for overage
 String getAdjustedRecommendedCalories(
     String mealType, String screen, int overageCalories,
-    {String? notAllowedMealType}) {
+    {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) {
   final originalRecommendation = getRecommendedCalories(mealType, screen,
-      notAllowedMealType: notAllowedMealType);
+      notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
   final range = extractCalorieRange(originalRecommendation);
 
   if (range['min']! > 0 && range['max']! > 0) {
@@ -552,9 +569,9 @@ String getAdjustedRecommendedCalories(
 /// This can be used in any screen where meals are added
 Future<void> checkCalorieOverageAndAdjust(
     BuildContext context, String mealType, int currentCalories,
-    {String? notAllowedMealType}) async {
+    {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) async {
   final recommendation = getRecommendedCalories(mealType, 'addFood',
-      notAllowedMealType: notAllowedMealType);
+      notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
   final range = extractCalorieRange(recommendation);
 
   if (range['min']! > 0 && range['max']! > 0) {

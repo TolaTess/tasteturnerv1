@@ -11,7 +11,6 @@ import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
-import '../pages/family_member.dart';
 import '../pages/safe_text_field.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
@@ -52,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Set<String> selectedAllergies = {};
   String selectedCuisineType = '';
 
-  List<Map<String, String>> familyMembers = [];
+  // List<Map<String, String>> familyMembers = [];
 
   @override
   void initState() {
@@ -165,9 +164,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'vegDishes': 3,
           'lastUpdated': FieldValue.serverTimestamp(),
         },
-        familyMembers:
-            familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
-        familyMode: familyMembers.isNotEmpty,
+        // familyMembers:
+        //     familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
+        // familyMode: familyMembers.isNotEmpty,
       );
 
       try {
@@ -239,9 +238,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  List<Map<String, dynamic>> saveFamilyMembers() {
-    return familyMembers.map((e) => Map<String, dynamic>.from(e)).toList();
-  }
+  // List<Map<String, dynamic>> saveFamilyMembers() {
+  //   return familyMembers.map((e) => Map<String, dynamic>.from(e)).toList();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +488,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
-            children: healthGoals.map((goal) {
+            children: healthGoalsNoFamily.map((goal) {
               return RadioListTile<String>(
                 title: Text(
                   goal,
@@ -504,19 +503,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     selectedGoals = value != null ? [value] : [];
                     _validateInputs();
                   });
-                  if (value == "Family Nutrition") {
-                    await showDialog(
-                      context: context,
-                      builder: (context) => FamilyMembersDialog(
-                        initialMembers: familyMembers,
-                        onMembersChanged: (members) {
-                          setState(() {
-                            familyMembers = members;
-                          });
-                        },
-                      ),
-                    );
-                  }
+                  // if (value == "Family Nutrition") {
+                  //   await showDialog(
+                  //     context: context,
+                  //     builder: (context) => FamilyMembersDialog(
+                  //       initialMembers: familyMembers,
+                  //       onMembersChanged: (members) {
+                  //         setState(() {
+                  //           familyMembers = members;
+                  //         });
+                  //       },
+                  //     ),
+                  //   );
+                  // }
                 },
                 activeColor: kAccentLight,
               );

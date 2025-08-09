@@ -6,13 +6,19 @@ import '../widgets/category_selector.dart';
 import '../widgets/daily_routine_list.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
+import '../pages/family_member.dart';
+import '../data_models/user_data_model.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
   final bool isRoutineExpand;
   final bool isHealthExpand;
+  final bool isFamilyModeExpand;
   const NutritionSettingsPage(
-      {super.key, this.isRoutineExpand = false, this.isHealthExpand = false});
+      {super.key,
+      this.isRoutineExpand = false,
+      this.isHealthExpand = false,
+      this.isFamilyModeExpand = false});
 
   @override
   _NutritionSettingsPageState createState() => _NutritionSettingsPageState();
@@ -33,6 +39,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
   String selectedDietCategoryId = '';
   String selectedDietCategoryName = '';
+  bool isFamilyModeEnabled = false;
 
   @override
   void initState() {
@@ -66,6 +73,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       selectedDietCategoryId = foundDiet['id'] ?? '';
       selectedDietCategoryName = foundDiet['name'] ?? '';
       dietPerfController.text = selectedDietCategoryName;
+
+      // Initialize family mode from user data
+      isFamilyModeEnabled = user.familyMode ?? false;
     }
   }
 
@@ -83,39 +93,136 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     super.dispose();
   }
 
-
-  void _saveSettings() {
+  Future<void> _saveSettings() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Prepare updated settings map
-      final updatedSettings = {
-        'waterIntake': waterController.text,
-        'foodGoal': foodController.text,
-        'goalWeight': goalWeightController.text,
-        'startingWeight': startingWeightController.text,
-        'currentWeight': currentWeightController.text,
-        'fitnessGoal': fitnessGoalController.text,
-        'dietPreference': dietPerfController.text,
-        'targetSteps': targetStepsController.text,
-        'height': heightController.text,
-      };
+      try {
+        // Prepare updated settings map
+        final updatedSettings = {
+          'waterIntake': waterController.text,
+          'foodGoal': foodController.text,
+          'goalWeight': goalWeightController.text,
+          'startingWeight': startingWeightController.text,
+          'currentWeight': currentWeightController.text,
+          'fitnessGoal': fitnessGoalController.text,
+          'dietPreference': dietPerfController.text,
+          'targetSteps': targetStepsController.text,
+          'height': heightController.text,
+        };
 
-      // Check if fitness goal is family nutrition
-      final bool isFamilyNutrition =
-          fitnessGoalController.text == 'Family Nutrition';
+        // Update both settings and familyMode
+        await authController.updateUserData(
+            {'settings': updatedSettings, 'familyMode': isFamilyModeEnabled});
 
-      // Update both settings and familyMode if needed
-      if (isFamilyNutrition) {
-        authController
-            .updateUserData({'settings': updatedSettings, 'familyMode': true});
-      } else {
-        authController
-            .updateUserData({'settings': updatedSettings, 'familyMode': false});
+        Get.snackbar('Success', 'Settings updated successfully!',
+            snackPosition: SnackPosition.BOTTOM);
+
+        Navigator.pop(context);
+      } catch (e) {
+        print('Error saving settings: $e');
+        Get.snackbar('Error', 'Failed to save settings. Please try again.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white);
+      }
+    }
+  }
+
+  void _showFamilyMembersDialog() {
+    List<Map<String, String>> familyMembers = [];
+
+    // Convert existing family members to the format expected by FamilyMembersDialog
+    if (userService.currentUser.value?.familyMembers != null) {
+      familyMembers = userService.currentUser.value!.familyMembers!
+          .map((member) => {
+                'name': member.name,
+                'ageGroup': member.ageGroup,
+                'fitnessGoal': member.fitnessGoal,
+                'foodGoal': member.foodGoal,
+              })
+          .toList();
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => FamilyMembersDialog(
+        initialMembers: familyMembers,
+        onMembersChanged: (members) async {
+          if (members.isNotEmpty && members.first['name']?.isNotEmpty == true) {
+            await _saveFamilyMembers(members);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _saveFamilyMembers(List<Map<String, String>> members) async {
+    try {
+      // Convert to FamilyMember objects
+      final familyMembers = members
+          .where((m) => m['name']?.isNotEmpty == true)
+          .map((m) => FamilyMember(
+                name: m['name']!,
+                ageGroup: m['ageGroup']!,
+                fitnessGoal: m['fitnessGoal']!,
+                foodGoal: m['foodGoal']!,
+              ))
+          .toList();
+
+      if (familyMembers.isEmpty) return;
+
+      // Update user in Firestore
+      await firestore.collection('users').doc(userService.userId).update({
+        'familyMembers': familyMembers.map((f) => f.toMap()).toList(),
+        'familyMode': familyMembers.isNotEmpty,
+      });
+
+      // Update local user data
+      final currentUser = userService.currentUser.value;
+      if (currentUser != null) {
+        final updatedUser = UserModel(
+          userId: currentUser.userId,
+          displayName: currentUser.displayName,
+          bio: currentUser.bio,
+          dob: currentUser.dob,
+          profileImage: currentUser.profileImage,
+          following: currentUser.following,
+          settings: currentUser.settings,
+          preferences: currentUser.preferences,
+          userType: currentUser.userType,
+          isPremium: currentUser.isPremium,
+          created_At: currentUser.created_At,
+          freeTrialDate: currentUser.freeTrialDate,
+          familyMode: familyMembers.isNotEmpty,
+          familyMembers: familyMembers,
+        );
+        userService.setUser(updatedUser);
       }
 
-      Get.snackbar('Success', 'Settings updated successfully!',
-          snackPosition: SnackPosition.BOTTOM);
+      // Update local state
+      setState(() {
+        isFamilyModeEnabled = familyMembers.isNotEmpty;
+      });
 
-      Navigator.pop(context);
+      // Show success message
+      if (mounted) {
+        showTastySnackbar(
+          'Family Members Updated!',
+          'Your family members have been updated successfully.',
+          context,
+          backgroundColor: kAccentLight,
+        );
+      }
+    } catch (e) {
+      print('Error saving family members: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to save family members. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -149,7 +256,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand)
                 SafeTextFormField(
                   controller: waterController,
-                  style: textTheme.bodyMedium
+                  style: textTheme.bodyLarge
                       ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
@@ -172,7 +279,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand)
                 SafeTextFormField(
                   controller: foodController,
-                  style: textTheme.bodyMedium
+                  style: textTheme.bodyLarge
                       ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
@@ -190,13 +297,163 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     return null;
                   },
                 ),
+              SizedBox(height: getPercentageHeight(2, context)),
+              // Family Mode ExpansionTile
+              ExpansionTile(
+                initiallyExpanded: isFamilyModeEnabled,
+                title: Text(
+                  "Family Mode",
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: isFamilyModeEnabled
+                        ? kAccent
+                        : (isDarkMode ? kWhite : kDarkGrey),
+                  ),
+                ),
+                collapsedIconColor: isFamilyModeEnabled ? kAccent : kAccent,
+                iconColor: kAccent,
+                textColor: kAccent,
+                collapsedTextColor: isFamilyModeEnabled
+                    ? kAccent
+                    : (isDarkMode ? kWhite : kDarkGrey),
+                children: [
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  // Family Mode Toggle
+                  Container(
+                    padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? kDarkGrey.withValues(alpha: 0.3)
+                          : kLightGrey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isFamilyModeEnabled ? kAccent : kLightGrey,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Enable Family Mode',
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                'Manage nutrition for your family members',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode
+                                      ? kLightGrey
+                                      : kDarkGrey.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isFamilyModeEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              isFamilyModeEnabled = value;
+                            });
+                          },
+                          activeColor: kAccent,
+                          activeTrackColor: kAccent.withValues(alpha: 0.3),
+                          inactiveTrackColor: isDarkMode
+                              ? kLightGrey.withValues(alpha: 0.3)
+                              : kLightGrey,
+                          inactiveThumbColor: isDarkMode ? kWhite : kDarkGrey,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Family Members Management (only show if family mode is enabled)
+                  if (isFamilyModeEnabled) ...[
+                    Container(
+                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? kDarkGrey.withValues(alpha: 0.3)
+                            : kLightGrey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: kAccent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Family Members',
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  _showFamilyMembersDialog();
+                                },
+                                icon: Icon(Icons.edit,
+                                    size: getIconScale(5, context),
+                                    color: kAccent),
+                                label: Text(
+                                  'Edit',
+                                  style: TextStyle(
+                                      color: kAccent,
+                                      fontSize: getTextScale(3, context)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          Text(
+                            'Manage your family members\' nutrition goals',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? kLightGrey
+                                  : kDarkGrey.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          // Show current family members count
+                          Text(
+                            '${userService.currentUser.value?.familyMembers?.length ?? 0} family member${(userService.currentUser.value?.familyMembers?.length ?? 0) == 1 ? '' : 's'} added',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: kAccent,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               SizedBox(height: getPercentageHeight(1, context)),
               if (!widget.isRoutineExpand)
                 ExpansionTile(
                   initiallyExpanded: widget.isHealthExpand,
                   title: Text("Health & Fitness",
                       style: textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w500)),
+                          ?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: widget.isHealthExpand
+                                  ? kAccent
+                                  : (isDarkMode ? kWhite : kDarkGrey))),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
@@ -220,7 +477,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: targetStepsController,
-                      style: textTheme.bodyMedium
+                      style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
@@ -241,7 +498,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
                       controller: fitnessGoalController,
-                      style: textTheme.bodyMedium
+                      style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       decoration: InputDecoration(
                         labelText: "Fitness Goal",
@@ -262,17 +519,17 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           builder: (context) => Container(
                             color: isDarkMode ? kDarkGrey : kWhite,
                             child: ListView.builder(
-                              itemCount: healthGoals.length,
+                              itemCount: healthGoalsNoFamily.length,
                               itemBuilder: (context, index) {
                                 return ListTile(
                                   title: Text(
-                                    healthGoals[index],
+                                    healthGoalsNoFamily[index],
                                     style: textTheme.bodyMedium?.copyWith(
                                         color: isDarkMode ? kWhite : kDarkGrey),
                                   ),
                                   onTap: () {
                                     fitnessGoalController.text =
-                                        healthGoals[index];
+                                        healthGoalsNoFamily[index];
                                     Navigator.pop(context);
                                   },
                                 );
@@ -301,7 +558,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: startingWeightController,
-                      style: textTheme.bodyMedium
+                      style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
@@ -322,7 +579,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: goalWeightController,
-                      style: textTheme.bodyMedium
+                      style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
@@ -343,7 +600,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     SafeTextFormField(
                       controller: currentWeightController,
-                      style: textTheme.bodyMedium
+                      style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
@@ -379,8 +636,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   onPressed: _saveSettings,
                   text: "Save Settings",
                   width: userService.currentUser.value?.isPremium == true
-                          ? 100
-                          : 40,
+                      ? 100
+                      : 40,
                   type: AppButtonType.secondary,
                 ),
 

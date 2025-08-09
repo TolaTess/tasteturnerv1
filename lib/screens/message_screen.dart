@@ -9,7 +9,6 @@ import '../helper/utils.dart';
 import '../service/chat_controller.dart';
 import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../constants.dart';
 import 'chat_screen.dart';

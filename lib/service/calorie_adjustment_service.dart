@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/notifications_helper.dart';
+import 'package:intl/intl.dart';
 import '../helper/utils.dart';
 
 class CalorieAdjustmentService extends GetxController {
@@ -10,6 +11,24 @@ class CalorieAdjustmentService extends GetxController {
 
   // Store adjustments for each meal type
   final RxMap<String, int> mealAdjustments = <String, int>{}.obs;
+
+  // Store the current date for adjustments
+  String? _currentAdjustmentDate;
+
+  // Check if it's a new day and clear adjustments if needed
+  Future<void> _checkAndClearForNewDay() async {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    if (_currentAdjustmentDate != null && _currentAdjustmentDate != today) {
+      // It's a new day, clear all adjustments
+      await clearAdjustments();
+    }
+
+    _currentAdjustmentDate = today;
+  }
+
+  // Get current adjustment date (for debugging)
+  String? get currentAdjustmentDate => _currentAdjustmentDate;
 
   // Get the adjustment for a specific meal type
   int getAdjustmentForMeal(String mealType) {
@@ -21,6 +40,9 @@ class CalorieAdjustmentService extends GetxController {
 
   // Set adjustment for a meal type and save to SharedPreferences
   Future<void> setAdjustmentForMeal(String mealType, int adjustment) async {
+    // Check if it's a new day and clear adjustments if needed
+    await _checkAndClearForNewDay();
+
     mealAdjustments[mealType] = adjustment;
     update(); // Trigger GetBuilder rebuilds
 
@@ -33,8 +55,12 @@ class CalorieAdjustmentService extends GetxController {
       String mealType, int adjustment) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = '${mealType.toLowerCase()}_adjustment';
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final key = '${mealType.toLowerCase()}_adjustment_$today';
       await prefs.setInt(key, adjustment);
+
+      // Also save the current date
+      await prefs.setString('adjustment_date', today);
     } catch (e) {
       print('DEBUG: Error saving adjustment to SharedPreferences: $e');
     }
@@ -43,13 +69,17 @@ class CalorieAdjustmentService extends GetxController {
   // Load adjustments from SharedPreferences
   Future<void> loadAdjustmentsFromSharedPrefs() async {
     try {
+      // Check if it's a new day and clear adjustments if needed
+      await _checkAndClearForNewDay();
+
       final prefs = await SharedPreferences.getInstance();
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final mealTypes = ['breakfast', 'lunch', 'dinner', 'snacks', 'fruits'];
 
       mealAdjustments.clear();
 
       for (final mealType in mealTypes) {
-        final key = '${mealType}_adjustment';
+        final key = '${mealType}_adjustment_$today';
         final adjustment = prefs.getInt(key);
         if (adjustment != null && adjustment > 0) {
           mealAdjustments[mealType] = adjustment;
@@ -70,12 +100,16 @@ class CalorieAdjustmentService extends GetxController {
     // Clear from SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final mealTypes = ['breakfast', 'lunch', 'dinner', 'snacks', 'fruits'];
 
       for (final mealType in mealTypes) {
-        final key = '${mealType}_adjustment';
+        final key = '${mealType}_adjustment_$today';
         await prefs.remove(key);
       }
+
+      // Clear the adjustment date
+      await prefs.remove('adjustment_date');
     } catch (e) {
       print('DEBUG: Error clearing adjustments from SharedPreferences: $e');
     }
@@ -84,9 +118,9 @@ class CalorieAdjustmentService extends GetxController {
   // Check if user exceeds recommended calories and show adjustment dialog
   Future<void> checkAndShowAdjustmentDialog(
       BuildContext context, String mealType, int currentCalories,
-      {String? notAllowedMealType}) async {
+      {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) async {
     final recommendation = getRecommendedCalories(mealType, 'addFood',
-        notAllowedMealType: notAllowedMealType);
+        notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
     final range = extractCalorieRange(recommendation);
 
     if (range['min']! > 0 && range['max']! > 0) {
@@ -143,7 +177,7 @@ class CalorieAdjustmentService extends GetxController {
 
   // Get adjusted recommendation for a meal type
   String getAdjustedRecommendation(String mealType, String screen,
-      {String? notAllowedMealType}) {
+      {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) {
     final adjustment = getAdjustmentForMeal(mealType);
 
     if (adjustment > 0) {
@@ -152,11 +186,12 @@ class CalorieAdjustmentService extends GetxController {
         screen,
         adjustment,
         notAllowedMealType: notAllowedMealType,
+        selectedUser: selectedUser,
       );
     }
 
     return getRecommendedCalories(mealType, screen,
-        notAllowedMealType: notAllowedMealType);
+        notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
   }
 
   // Check if a meal type has an adjustment

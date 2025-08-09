@@ -7,11 +7,11 @@ import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
+import '../helper/notifications_helper.dart';
 import '../pages/edit_goal.dart';
 import '../pages/profile_edit_screen.dart';
 import '../screens/add_food_screen.dart';
 import 'bottom_nav.dart';
-
 
 class UserDetailsSection extends StatelessWidget {
   final Map<String, dynamic> user;
@@ -52,6 +52,19 @@ class UserDetailsSection extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () {
+                      // Only navigate to AddFoodScreen if selected user is current user
+                      if (familyMode &&
+                          user['name'] !=
+                              userService.currentUser.value?.displayName) {
+                        // Show snackbar when family member is selected
+                        showTastySnackbar(
+                          'Tracking Only',
+                          'Food tracking is only available for ${userService.currentUser.value?.displayName}',
+                          context,
+                          backgroundColor: kAccentLight,
+                        );
+                        return; // Do nothing
+                      }
                       Get.to(() => const AddFoodScreen());
                     },
                     child: Row(
@@ -132,7 +145,7 @@ class UserDetailsSection extends StatelessWidget {
                     color: kAccent.withValues(alpha: 0.13),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.edit,
+                  child: Icon(Icons.settings,
                       color: isDarkMode ? kAccent : kWhite,
                       size: getIconScale(7, context)),
                 ),

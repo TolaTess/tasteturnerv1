@@ -10,12 +10,14 @@ class DailyMealPortion extends StatefulWidget {
   final Program? userProgram;
   final List<String> notAllowed;
   final String programName;
+  final Map<String, dynamic>? selectedUser; // Add selected user parameter
 
   const DailyMealPortion({
     super.key,
     this.userProgram,
     this.notAllowed = const [],
     this.programName = '',
+    this.selectedUser, // Add this parameter
   });
 
   @override
@@ -25,7 +27,33 @@ class DailyMealPortion extends StatefulWidget {
 class _DailyMealPortionState extends State<DailyMealPortion> {
   List<Map<String, dynamic>> _foodTypes = [];
   late ScrollController _scrollController;
-  final settings = userService.currentUser.value?.settings;
+
+  // Get settings based on selected user or fall back to current user
+  Map<String, dynamic>? get settings {
+    final selectedUser = widget.selectedUser;
+    final currentUser = userService.currentUser.value;
+
+    // For family members, create a settings map from their direct properties
+    Map<String, dynamic>? selectedSettings;
+    if (selectedUser != null) {
+      if (selectedUser['settings'] != null) {
+        // If settings exist (current user), use them
+        selectedSettings = selectedUser['settings'];
+      } else {
+        // For family members, create settings from their direct properties
+        selectedSettings = {
+          'foodGoal': selectedUser['foodGoal'],
+          'fitnessGoal': selectedUser['fitnessGoal'],
+          'ageGroup': selectedUser['ageGroup'],
+        };
+      }
+    } else {
+      // No selected user (single user mode), use current user settings
+      selectedSettings = currentUser?.settings;
+    }
+
+    return selectedSettings;
+  }
 
   // Default food type configurations
   final Map<String, Map<String, dynamic>> _defaultFoodTypes = {
@@ -91,7 +119,8 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
   @override
   void didUpdateWidget(DailyMealPortion oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.userProgram != widget.userProgram) {
+    if (oldWidget.userProgram != widget.userProgram ||
+        oldWidget.selectedUser != widget.selectedUser) {
       _buildFoodTypesFromProgram();
     }
   }
@@ -138,15 +167,32 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
   }
 
   double _getMealTargetCalories(String mealType) {
-    final settings = userService.currentUser.value?.settings;
-    final foodGoalValue = settings?['foodGoal'];
-    final fitnessGoal = settings?['fitnessGoal'] as String? ?? '';
+    // Use selected user's data if available, otherwise fall back to current user
+    final selectedUser = widget.selectedUser;
+    final currentUser = userService.currentUser.value;
+
+    // Get food goal and fitness goal from selected user or current user
+    String? foodGoalValue;
+    String? fitnessGoal;
+
+    if (selectedUser != null) {
+      foodGoalValue =
+          selectedUser['foodGoal'] ?? currentUser?.settings?['foodGoal'];
+      fitnessGoal = selectedUser['fitnessGoal'] as String? ??
+          currentUser?.settings?['fitnessGoal'] as String?;
+    } else {
+      foodGoalValue = currentUser?.settings?['foodGoal'];
+      fitnessGoal = currentUser?.settings?['fitnessGoal'] as String?;
+    }
+
+    final fitnessGoalFinal = fitnessGoal ?? '';
+
     final baseTargetCalories =
         (parseToNumber(foodGoalValue) ?? 2000).toDouble();
 
     // Calculate adjusted total target based on fitness goal FIRST
     double adjustedTotalTarget;
-    switch (fitnessGoal.toLowerCase()) {
+    switch (fitnessGoalFinal.toLowerCase()) {
       case 'lose weight':
       case 'weight loss':
         adjustedTotalTarget = baseTargetCalories * 0.8; // 80% for weight loss
@@ -201,7 +247,10 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     final palmCount = foodTypeCalories / caloriesPerPalmNumber;
 
     // Format the palm size
-    return _formatPalmSize(palmCount, false); // Assuming not cupped for now
+    final palmSize =
+        _formatPalmSize(palmCount, false); // Assuming not cupped for now
+
+    return palmSize;
   }
 
   String _formatPalmSize(double palmCount, bool isCupped) {
@@ -361,7 +410,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                       ),
                     ),
                     Text(
-                      'Target: ${getRecommendedCalories(getMealTimeOfDay(), 'dailyPortion')}',
+                      'Target: ${getRecommendedCalories(getMealTimeOfDay(), 'dailyPortion', selectedUser: widget.selectedUser)}',
                       style: textTheme.bodySmall?.copyWith(
                         color: isDarkMode ? kLightGrey : kDarkGrey,
                         fontSize: getPercentageWidth(3, context),
@@ -725,17 +774,20 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                     children: [
                       _buildMealCalorieInfo(
                           'Breakfast',
-                          getRecommendedCalories('Breakfast', 'dailyPortion'),
+                          getRecommendedCalories('Breakfast', 'dailyPortion',
+                              selectedUser: widget.selectedUser),
                           textTheme,
                           isDarkMode),
                       _buildMealCalorieInfo(
                           'Lunch',
-                          getRecommendedCalories('Lunch', 'dailyPortion'),
+                          getRecommendedCalories('Lunch', 'dailyPortion',
+                              selectedUser: widget.selectedUser),
                           textTheme,
                           isDarkMode),
                       _buildMealCalorieInfo(
                           'Dinner',
-                          getRecommendedCalories('Dinner', 'dailyPortion'),
+                          getRecommendedCalories('Dinner', 'dailyPortion',
+                              selectedUser: widget.selectedUser),
                           textTheme,
                           isDarkMode),
                     ],

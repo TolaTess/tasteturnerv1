@@ -8,26 +8,33 @@ class SecondNavWidget extends StatelessWidget {
   final String icon;
   final Color color;
   final String label;
-  final Widget destinationScreen;
+  final Widget? destinationScreen;
   final bool isDarkMode;
+  final VoidCallback? onTap;
 
   const SecondNavWidget({
     Key? key,
     required this.icon,
     required this.color,
     required this.label,
-    required this.destinationScreen,
+    this.destinationScreen,
     required this.isDarkMode,
+    this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => destinationScreen),
-        );
+        if (onTap != null) {
+          onTap!();
+        } else if (destinationScreen != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => destinationScreen!),
+          );
+        }
+        // If both onTap and destinationScreen are null, do nothing
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -44,7 +51,7 @@ class SecondNavWidget extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                    color: color.withValues(alpha: 0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

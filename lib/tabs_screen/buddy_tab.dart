@@ -160,126 +160,334 @@ class _BuddyTabState extends State<BuddyTab> {
   Widget _buildDefaultView(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-
-    String tastyMessage = "It's $appNameBuddy Time!";
-    String tastyMessage2 =
-        "Let's craft a perfect meal plan for a healthier you.";
-    String tastyMessage1 = "$appNameBuddy, at your service";
-    String tastyMessage4 =
-        "AI-powered food coach, crafting the perfect plan for a fitter you.";
-
-    final date = DateFormat('d MMMM')
-        .format(userService.currentUser.value?.freeTrialDate ?? DateTime.now());
-
-    String tastyMessage3 =
-        "Please enjoy our AI-powered food coach, helping you craft the perfect plan for a fitter you. \n \n Free trail until $date";
-
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
     final freeTrialDate = userService.currentUser.value?.freeTrialDate;
     final isInFreeTrial =
         freeTrialDate != null && DateTime.now().isBefore(freeTrialDate);
 
     return SafeArea(
       child: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // ------------------------------------Premium / Ads------------------------------------
+        child: Column(
+          children: [
+            // Premium/Ads Section
+            getAdsWidget(isPremium, isDiv: false),
 
-              getAdsWidget(userService.currentUser.value?.isPremium ?? false,
-                  isDiv: false),
-              // ------------------------------------Premium / Ads------------------------------------
+            SizedBox(height: getPercentageHeight(4, context)),
 
-              TweenAnimationBuilder(
-                tween: Tween<double>(
-                    begin: 0.8,
-                    end: userService.currentUser.value?.isPremium ?? false
-                        ? 1.2
-                        : 1.0),
-                duration: const Duration(seconds: 2),
-                curve: Curves.easeInOut,
-                builder: (context, double scale, child) {
-                  return Transform.scale(
-                    scale: scale,
-                    child: child,
-                  );
-                },
-                child: Container(
-                  width: userService.currentUser.value?.isPremium ?? false
-                      ? getPercentageWidth(17, context)
-                      : getPercentageWidth(12, context),
-                  height: userService.currentUser.value?.isPremium ?? false
-                      ? getPercentageWidth(17, context)
-                      : getPercentageWidth(12, context),
-                  decoration: BoxDecoration(
-                    color: kAccentLight.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
-                    image: const DecorationImage(
-                      image: AssetImage(tastyImage),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+            // Main Content Container
+            Container(
+              margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(4, context)),
+              padding: EdgeInsets.all(getPercentageWidth(5, context)),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isPremium
+                      ? [
+                          kAccent.withValues(alpha: 0.1),
+                          kAccentLight.withValues(alpha: 0.05)
+                        ]
+                      : [
+                          isDarkMode
+                              ? kDarkGrey.withValues(alpha: 0.3)
+                              : kLightGrey.withValues(alpha: 0.3),
+                          isDarkMode
+                              ? kDarkGrey.withValues(alpha: 0.1)
+                              : kLightGrey.withValues(alpha: 0.1)
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isPremium
+                      ? kAccent.withValues(alpha: 0.3)
+                      : kLightGrey.withValues(alpha: 0.5),
+                  width: 1.5,
                 ),
               ),
-              SizedBox(
-                height: getPercentageHeight(3, context),
-              ),
-              Text(
-                (userService.currentUser.value?.isPremium ?? false)
-                    ? tastyMessage
-                    : tastyMessage1,
-                style: textTheme.displaySmall?.copyWith(
-                  fontSize: getTextScale(5, context),
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(1.6, context)),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(3.2, context)),
-                child: Text(
-                  (userService.currentUser.value?.isPremium ?? false)
-                      ? tastyMessage2
-                      : isInFreeTrial
-                          ? tastyMessage3
-                          : tastyMessage4,
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(2, context)),
-              if (canUseAI())
-                AppButton(
-                    text: 'Get Meal Plan',
-                    onPressed: () async {
-                      final canGenerate =
-                          await checkMealPlanGenerationLimit(context);
-                      if (canGenerate) {
-                        navigateToChooseDiet(context);
-                      } else {
-                        showGenerationLimitDialog(context,
-                            isDarkMode: isDarkMode);
-                      }
+              child: Column(
+                children: [
+                  // Animated Tasty Avatar
+                  TweenAnimationBuilder(
+                    tween:
+                        Tween<double>(begin: 0.8, end: isPremium ? 1.2 : 1.0),
+                    duration: const Duration(seconds: 2),
+                    curve: Curves.elasticOut,
+                    builder: (context, double scale, child) {
+                      return Transform.scale(
+                        scale: scale,
+                        child: Container(
+                          width: isPremium
+                              ? getPercentageWidth(20, context)
+                              : getPercentageWidth(15, context),
+                          height: isPremium
+                              ? getPercentageWidth(20, context)
+                              : getPercentageWidth(15, context),
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              colors: [
+                                kAccentLight.withValues(alpha: 0.8),
+                                kAccent.withValues(alpha: 0.6),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: kAccent.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            margin:
+                                EdgeInsets.all(getPercentageWidth(1, context)),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: const DecorationImage(
+                                image: AssetImage(tastyImage),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
                     },
-                    type: AppButtonType.secondary,
-                    width: 50)
-              else
-                AppButton(
-                  text: goPremium,
-                  type: AppButtonType.secondary,
-                  width: 50,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PremiumScreen(),
+                  ),
+
+                  SizedBox(height: getPercentageHeight(4, context)),
+
+                  // Title Section
+                  Text(
+                    isPremium
+                        ? "It's $appNameBuddy Time!"
+                        : "$appNameBuddy, at your service",
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineMedium?.copyWith(
+                      fontSize: getTextScale(5.5, context),
+                      fontWeight: FontWeight.bold,
+                      color: isPremium
+                          ? kAccent
+                          : (isDarkMode ? kWhite : kDarkGrey),
                     ),
                   ),
-                ),
-              SizedBox(height: getPercentageHeight(10, context)),
-            ],
-          ),
+
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Description Section
+                  Container(
+                    padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? kDarkGrey.withValues(alpha: 0.5)
+                          : kWhite.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: isPremium
+                            ? kAccent.withValues(alpha: 0.2)
+                            : kLightGrey.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        if (isPremium) ...[
+                          _buildFeatureItem(context, Icons.restaurant_menu,
+                              "Personalized Meal Plans"),
+                          _buildFeatureItem(context, Icons.psychology,
+                              "AI-Powered Recommendations"),
+                          _buildFeatureItem(context, Icons.trending_up,
+                              "Track Your Progress"),
+                        ] else ...[
+                          if (isInFreeTrial) ...[
+                            Text(
+                              "Free Trial Active",
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              "Enjoy premium features until ${DateFormat('MMM d, yyyy').format(freeTrialDate!)}",
+                              textAlign: TextAlign.center,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: isDarkMode
+                                    ? kLightGrey
+                                    : kDarkGrey.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ] else ...[
+                            Text(
+                              "AI-Powered Food Coach",
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              "Crafting the perfect plan for a fitter you",
+                              textAlign: TextAlign.center,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: isDarkMode
+                                    ? kLightGrey
+                                    : kDarkGrey.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: getPercentageHeight(4, context)),
+
+                  // Action Button
+                  Container(
+                    width: double.infinity,
+                    height: getPercentageHeight(6, context),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isPremium
+                            ? [kAccent, kAccent.withValues(alpha: 0.5)]
+                            : [
+                                kAccent.withValues(alpha: 0.8),
+                                kAccent.withValues(alpha: 0.6)
+                              ],
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kAccent.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () async {
+                          if (canUseAI()) {
+                            final canGenerate =
+                                await checkMealPlanGenerationLimit(context);
+                            if (canGenerate) {
+                              navigateToChooseDiet(context);
+                            } else {
+                              showGenerationLimitDialog(context,
+                                  isDarkMode: isDarkMode);
+                            }
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PremiumScreen(),
+                              ),
+                            );
+                          }
+                        },
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isPremium ? Icons.auto_awesome : Icons.star,
+                                color: kWhite,
+                                size: getIconScale(6, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Text(
+                                canUseAI() ? 'Get Meal Plan' : goPremium,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: kWhite,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: getTextScale(4, context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Premium Badge for Premium Users
+                  if (isPremium) ...[
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context),
+                        vertical: getPercentageHeight(1, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: kAccentLight.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: kAccentLight),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.verified,
+                            color: kAccentLight,
+                            size: getIconScale(5, context),
+                          ),
+                          SizedBox(width: getPercentageWidth(1, context)),
+                          Text(
+                            'Premium Member',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: kAccentLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            SizedBox(height: getPercentageHeight(6, context)),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(BuildContext context, IconData icon, String text) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding:
+          EdgeInsets.symmetric(vertical: getPercentageHeight(0.5, context)),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(getPercentageWidth(1.5, context)),
+            decoration: BoxDecoration(
+              color: kAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: kAccent,
+              size: getIconScale(5, context),
+            ),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Expanded(
+            child: Text(
+              text,
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite : kDarkGrey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

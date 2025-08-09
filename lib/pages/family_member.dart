@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../helper/notifications_helper.dart';
+import '../service/user_service.dart';
 import 'safe_text_field.dart';
 
 class FamilyMembersDialog extends StatefulWidget {
@@ -55,6 +57,22 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
   }
 
   void _addMember() {
+    // Check if user is premium to allow multiple family members
+    final isPremium = userService.currentUser.value?.isPremium ?? false;
+    final maxMembers = isPremium ? 10 : 1; // Premium users can add up to 10, free users only 1
+    
+    if (members.length >= maxMembers) {
+      showTastySnackbar(
+        'Member Limit Reached',
+        isPremium 
+          ? 'You can add up to 10 family members.'
+          : 'Free users can only add 1 family member. Upgrade to Premium for more!',
+        context,
+        backgroundColor: kAccentLight,
+      );
+      return;
+    }
+    
     setState(() {
       members.add({
         'name': '',
@@ -100,10 +118,23 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       backgroundColor:
           getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-      title: Text('Add Family Members',
-          style: TextStyle(
-              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              fontSize: getTextScale(3.5, context))),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Add Family Members',
+              style: TextStyle(
+                  color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+                  fontSize: getTextScale(3.5, context))),
+          if (userService.currentUser.value?.isPremium != true)
+            Text(
+              'Free users can add 1 family member. Upgrade to Premium for more!',
+              style: TextStyle(
+                  color: kAccentLight,
+                  fontSize: getTextScale(2.5, context),
+                  fontStyle: FontStyle.italic),
+            ),
+        ],
+      ),
       content: SizedBox(
         width: getPercentageWidth(70, context),
         child: ListView.builder(
@@ -206,9 +237,13 @@ class _FamilyMembersDialogState extends State<FamilyMembersDialog> {
         ),
         TextButton(
           onPressed: _addMember,
-          child: Text('Add Member',
-              style: TextStyle(
-                  color: kAccentLight, fontSize: getTextScale(3, context))),
+          child: Text(
+            userService.currentUser.value?.isPremium == true ? 'Add Member' : 'Add Member (Premium)',
+            style: TextStyle(
+                color: userService.currentUser.value?.isPremium == true ? kAccentLight : kLightGrey, 
+                fontSize: getTextScale(3, context)
+            ),
+          ),
         ),
         TextButton(
           onPressed: _onDone,

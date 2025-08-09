@@ -347,6 +347,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       hint: isPendingFriendRequest
                           ? 'You can\'t send messages yet'
                           : 'Type your caption...'),
+                  SizedBox(height: getPercentageHeight(3, context)),
                 ],
               ),
             ),

@@ -353,9 +353,7 @@ class _TastyScreenState extends State<TastyScreen> {
                   }),
                 ),
                 _buildInputSection(themeProvider.isDarkMode, textTheme),
-                SizedBox(
-                  height: MediaQuery.of(context).viewInsets.bottom + 16,
-                ),
+                SizedBox(height: getPercentageHeight(3, context)),
               ],
             ),
           ),

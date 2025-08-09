@@ -812,6 +812,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType,
                           totalCalories,
                           notAllowedMealType: widget.notAllowedMealType,
+                          selectedUser:
+                              null, // Single user mode, use current user
                         );
                       }
 
@@ -1042,16 +1044,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
-                Center(
-                  child: Text(
-                    'Your program does not include ${capitalizeFirstLetter(widget.notAllowedMealType ?? '')}',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          fontSize: getPercentageWidth(3.5, context),
-                          fontWeight: FontWeight.w200,
-                          color: kAccent,
-                        ),
+                if (widget.notAllowedMealType != null &&
+                    widget.notAllowedMealType != '')
+                  Center(
+                    child: Text(
+                      'Your program does not include ${capitalizeFirstLetter(widget.notAllowedMealType ?? '')}',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            fontSize: getPercentageWidth(3.5, context),
+                            fontWeight: FontWeight.w200,
+                            color: kAccent,
+                          ),
+                    ),
                   ),
-                ),
 
                 SizedBox(height: getPercentageHeight(1, context)),
 
@@ -1073,8 +1077,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType: 'Breakfast',
                           recommendedCalories: _calorieAdjustmentService
                               .getAdjustedRecommendation('Breakfast', 'addFood',
-                                  notAllowedMealType:
-                                      widget.notAllowedMealType),
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
                           currentCalories:
                               dailyDataController.breakfastCalories.value,
                           meals:
@@ -1115,8 +1119,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType: 'Lunch',
                           recommendedCalories: _calorieAdjustmentService
                               .getAdjustedRecommendation('Lunch', 'addFood',
-                                  notAllowedMealType:
-                                      widget.notAllowedMealType),
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
                           currentCalories:
                               dailyDataController.lunchCalories.value,
                           meals:
@@ -1137,7 +1141,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               _calorieAdjustmentService
                                   .getAdjustedRecommendation('Lunch', 'addFood',
                                       notAllowedMealType:
-                                          widget.notAllowedMealType),
+                                          widget.notAllowedMealType,
+                                      selectedUser: null), // Single user mode
                               Icons.lunch_dining_outlined,
                             );
                           },
@@ -1154,8 +1159,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType: 'Dinner',
                           recommendedCalories: _calorieAdjustmentService
                               .getAdjustedRecommendation('Dinner', 'addFood',
-                                  notAllowedMealType:
-                                      widget.notAllowedMealType),
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
                           currentCalories:
                               dailyDataController.dinnerCalories.value,
                           meals:
@@ -1177,7 +1182,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   .getAdjustedRecommendation(
                                       'Dinner', 'addFood',
                                       notAllowedMealType:
-                                          widget.notAllowedMealType),
+                                          widget.notAllowedMealType,
+                                      selectedUser: null), // Single user mode
                               Icons.dinner_dining_outlined,
                             );
                           },
@@ -1194,8 +1200,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType: 'Snacks',
                           recommendedCalories: _calorieAdjustmentService
                               .getAdjustedRecommendation('Snacks', 'addFood',
-                                  notAllowedMealType:
-                                      widget.notAllowedMealType),
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
                           currentCalories:
                               dailyDataController.snacksCalories.value,
                           meals:
@@ -1217,7 +1223,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   .getAdjustedRecommendation(
                                       'Snacks', 'addFood',
                                       notAllowedMealType:
-                                          widget.notAllowedMealType),
+                                          widget.notAllowedMealType,
+                                      selectedUser: null), // Single user mode
                               Icons.fastfood_outlined,
                             );
                           },
@@ -1234,8 +1241,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mealType: 'Fruits',
                           recommendedCalories: _calorieAdjustmentService
                               .getAdjustedRecommendation('Fruits', 'addFood',
-                                  notAllowedMealType:
-                                      widget.notAllowedMealType),
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
                           currentCalories:
                               dailyDataController.snacksCalories.value,
                           meals:
@@ -1257,7 +1264,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   .getAdjustedRecommendation(
                                       'Fruits', 'addFood',
                                       notAllowedMealType:
-                                          widget.notAllowedMealType),
+                                          widget.notAllowedMealType,
+                                      selectedUser: null), // Single user mode
                               Icons.fastfood_outlined,
                             );
                           },
