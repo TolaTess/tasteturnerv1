@@ -74,6 +74,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     // Defer the data loading until after the first frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _loadCalorieAdjustments();
     });
 
     _getAllDisabled().then((value) {
@@ -86,6 +87,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     });
   }
 
+  // Load calorie adjustments from SharedPreferences
+  Future<void> _loadCalorieAdjustments() async {
+    await _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
+  }
+
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
@@ -94,8 +100,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   void dispose() {
     _searchController.dispose();
-    // Clear calorie adjustments when leaving the screen
-    _calorieAdjustmentService.clearAdjustments();
+    // Don't clear adjustments - let them persist throughout the day
     super.dispose();
   }
 
@@ -801,14 +806,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         // Total calories = existing + new
                         final totalCalories = existingCalories + newCalories;
 
-                        // Debug logging
-                        print('DEBUG: New calories: $newCalories');
-                        print('DEBUG: Existing calories: $existingCalories');
-                        print('DEBUG: Total calories: $totalCalories');
-                        print('DEBUG: Meal type: $mealType');
-                        print(
-                            'DEBUG: Not allowed meal type: ${widget.notAllowedMealType}');
-
                         await _calorieAdjustmentService
                             .checkAndShowAdjustmentDialog(
                           context,
@@ -1107,141 +1104,165 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           },
                         );
                       }),
-                      Obx(() => _buildMealCard(
-                            context: context,
-                            mealType: 'Lunch',
-                            recommendedCalories: _calorieAdjustmentService
-                                .getAdjustedRecommendation('Lunch', 'addFood',
-                                    notAllowedMealType:
-                                        widget.notAllowedMealType),
-                            currentCalories:
-                                dailyDataController.lunchCalories.value,
-                            meals:
-                                dailyDataController.userMealList['Lunch'] ?? [],
-                            icon: Icons.lunch_dining_outlined,
-                            onAdd: () {
-                              setState(() {
-                                foodType = 'Lunch';
-                              });
-                              _showSearchResults(context, 'Lunch');
-                            },
-                            onTap: () {
-                              _showMealDetailModal(
-                                context,
-                                'Lunch',
-                                dailyDataController.userMealList['Lunch'] ?? [],
-                                dailyDataController.lunchCalories.value,
-                                _calorieAdjustmentService
-                                    .getAdjustedRecommendation('Lunch',
-                                        'addFood',
-                                        notAllowedMealType:
-                                            widget.notAllowedMealType),
-                                Icons.lunch_dining_outlined,
-                              );
-                            },
-                          )),
-                      Obx(() => _buildMealCard(
-                            context: context,
-                            mealType: 'Dinner',
-                            recommendedCalories: _calorieAdjustmentService
-                                .getAdjustedRecommendation('Dinner', 'addFood',
-                                    notAllowedMealType:
-                                        widget.notAllowedMealType),
-                            currentCalories:
-                                dailyDataController.dinnerCalories.value,
-                            meals: dailyDataController.userMealList['Dinner'] ??
-                                [],
-                            icon: Icons.dinner_dining_outlined,
-                            onAdd: () {
-                              setState(() {
-                                foodType = 'Dinner';
-                              });
-                              _showSearchResults(context, 'Dinner');
-                            },
-                            onTap: () {
-                              _showMealDetailModal(
-                                context,
-                                'Dinner',
-                                dailyDataController.userMealList['Dinner'] ??
-                                    [],
-                                dailyDataController.dinnerCalories.value,
-                                _calorieAdjustmentService
-                                    .getAdjustedRecommendation('Dinner',
-                                        'addFood',
-                                        notAllowedMealType:
-                                            widget.notAllowedMealType),
-                                Icons.dinner_dining_outlined,
-                              );
-                            },
-                          )),
-                      Obx(() => _buildMealCard(
-                            context: context,
-                            mealType: 'Snacks',
-                            recommendedCalories: _calorieAdjustmentService
-                                .getAdjustedRecommendation('Snacks', 'addFood',
-                                    notAllowedMealType:
-                                        widget.notAllowedMealType),
-                            currentCalories:
-                                dailyDataController.snacksCalories.value,
-                            meals: dailyDataController.userMealList['Snacks'] ??
-                                [],
-                            icon: Icons.fastfood_outlined,
-                            onAdd: () {
-                              setState(() {
-                                foodType = 'Snacks';
-                              });
-                              _showSearchResults(context, 'Snacks');
-                            },
-                            onTap: () {
-                              _showMealDetailModal(
-                                context,
-                                'Snacks',
-                                dailyDataController.userMealList['Snacks'] ??
-                                    [],
-                                dailyDataController.snacksCalories.value,
-                                _calorieAdjustmentService
-                                    .getAdjustedRecommendation('Snacks',
-                                        'addFood',
-                                        notAllowedMealType:
-                                            widget.notAllowedMealType),
-                                Icons.fastfood_outlined,
-                              );
-                            },
-                          )),
-                      Obx(() => _buildMealCard(
-                            context: context,
-                            mealType: 'Fruits',
-                            recommendedCalories: _calorieAdjustmentService
-                                .getAdjustedRecommendation('Fruits', 'addFood',
-                                    notAllowedMealType:
-                                        widget.notAllowedMealType),
-                            currentCalories:
-                                dailyDataController.snacksCalories.value,
-                            meals: dailyDataController.userMealList['Fruits'] ??
-                                [],
-                            icon: Icons.fastfood_outlined,
-                            onAdd: () {
-                              setState(() {
-                                foodType = 'Fruits';
-                              });
-                              _showSearchResults(context, 'Fruits');
-                            },
-                            onTap: () {
-                              _showMealDetailModal(
-                                context,
-                                'Fruits',
-                                dailyDataController.userMealList['Fruits'] ??
-                                    [],
-                                dailyDataController.snacksCalories.value,
-                                _calorieAdjustmentService
-                                    .getAdjustedRecommendation('Fruits',
-                                        'addFood',
-                                        notAllowedMealType:
-                                            widget.notAllowedMealType),
-                                Icons.fastfood_outlined,
-                              );
-                            },
-                          )),
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.lunchCalories.value;
+                        dailyDataController.userMealList['Lunch'];
+
+                        return _buildMealCard(
+                          context: context,
+                          mealType: 'Lunch',
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Lunch', 'addFood',
+                                  notAllowedMealType:
+                                      widget.notAllowedMealType),
+                          currentCalories:
+                              dailyDataController.lunchCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Lunch'] ?? [],
+                          icon: Icons.lunch_dining_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Lunch';
+                            });
+                            _showSearchResults(context, 'Lunch');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Lunch',
+                              dailyDataController.userMealList['Lunch'] ?? [],
+                              dailyDataController.lunchCalories.value,
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation('Lunch', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType),
+                              Icons.lunch_dining_outlined,
+                            );
+                          },
+                        );
+                      }),
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.dinnerCalories.value;
+                        dailyDataController.userMealList['Dinner'];
+
+                        return _buildMealCard(
+                          context: context,
+                          mealType: 'Dinner',
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Dinner', 'addFood',
+                                  notAllowedMealType:
+                                      widget.notAllowedMealType),
+                          currentCalories:
+                              dailyDataController.dinnerCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Dinner'] ?? [],
+                          icon: Icons.dinner_dining_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Dinner';
+                            });
+                            _showSearchResults(context, 'Dinner');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Dinner',
+                              dailyDataController.userMealList['Dinner'] ?? [],
+                              dailyDataController.dinnerCalories.value,
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation(
+                                      'Dinner', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType),
+                              Icons.dinner_dining_outlined,
+                            );
+                          },
+                        );
+                      }),
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.snacksCalories.value;
+                        dailyDataController.userMealList['Snacks'];
+
+                        return _buildMealCard(
+                          context: context,
+                          mealType: 'Snacks',
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Snacks', 'addFood',
+                                  notAllowedMealType:
+                                      widget.notAllowedMealType),
+                          currentCalories:
+                              dailyDataController.snacksCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                          icon: Icons.fastfood_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Snacks';
+                            });
+                            _showSearchResults(context, 'Snacks');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Snacks',
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                              dailyDataController.snacksCalories.value,
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation(
+                                      'Snacks', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType),
+                              Icons.fastfood_outlined,
+                            );
+                          },
+                        );
+                      }),
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.snacksCalories.value;
+                        dailyDataController.userMealList['Fruits'];
+
+                        return _buildMealCard(
+                          context: context,
+                          mealType: 'Fruits',
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Fruits', 'addFood',
+                                  notAllowedMealType:
+                                      widget.notAllowedMealType),
+                          currentCalories:
+                              dailyDataController.snacksCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Fruits'] ?? [],
+                          icon: Icons.fastfood_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Fruits';
+                            });
+                            _showSearchResults(context, 'Fruits');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Fruits',
+                              dailyDataController.userMealList['Fruits'] ?? [],
+                              dailyDataController.snacksCalories.value,
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation(
+                                      'Fruits', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType),
+                              Icons.fastfood_outlined,
+                            );
+                          },
+                        );
+                      }),
                     ],
                   ),
                 ),

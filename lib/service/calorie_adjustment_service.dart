@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
@@ -12,19 +13,72 @@ class CalorieAdjustmentService extends GetxController {
 
   // Get the adjustment for a specific meal type
   int getAdjustmentForMeal(String mealType) {
-    return mealAdjustments[mealType] ?? 0;
+    // Convert to lowercase to match the keys used in SharedPreferences
+    final key = mealType.toLowerCase();
+    final adjustment = mealAdjustments[key] ?? 0;
+    return adjustment;
   }
 
-  // Set adjustment for a meal type
-  void setAdjustmentForMeal(String mealType, int adjustment) {
+  // Set adjustment for a meal type and save to SharedPreferences
+  Future<void> setAdjustmentForMeal(String mealType, int adjustment) async {
     mealAdjustments[mealType] = adjustment;
     update(); // Trigger GetBuilder rebuilds
+
+    // Save to SharedPreferences
+    await _saveAdjustmentToSharedPrefs(mealType, adjustment);
   }
 
-  // Clear all adjustments
-  void clearAdjustments() {
+  // Save adjustment to SharedPreferences
+  Future<void> _saveAdjustmentToSharedPrefs(
+      String mealType, int adjustment) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = '${mealType.toLowerCase()}_adjustment';
+      await prefs.setInt(key, adjustment);
+    } catch (e) {
+      print('DEBUG: Error saving adjustment to SharedPreferences: $e');
+    }
+  }
+
+  // Load adjustments from SharedPreferences
+  Future<void> loadAdjustmentsFromSharedPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mealTypes = ['breakfast', 'lunch', 'dinner', 'snacks', 'fruits'];
+
+      mealAdjustments.clear();
+
+      for (final mealType in mealTypes) {
+        final key = '${mealType}_adjustment';
+        final adjustment = prefs.getInt(key);
+        if (adjustment != null && adjustment > 0) {
+          mealAdjustments[mealType] = adjustment;
+        }
+      }
+
+      update();
+    } catch (e) {
+      print('DEBUG: Error loading adjustments from SharedPreferences: $e');
+    }
+  }
+
+  // Clear all adjustments from memory and SharedPreferences
+  Future<void> clearAdjustments() async {
     mealAdjustments.clear();
     update(); // Trigger GetBuilder rebuilds
+
+    // Clear from SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mealTypes = ['breakfast', 'lunch', 'dinner', 'snacks', 'fruits'];
+
+      for (final mealType in mealTypes) {
+        final key = '${mealType}_adjustment';
+        await prefs.remove(key);
+      }
+    } catch (e) {
+      print('DEBUG: Error clearing adjustments from SharedPreferences: $e');
+    }
   }
 
   // Check if user exceeds recommended calories and show adjustment dialog
@@ -35,15 +89,8 @@ class CalorieAdjustmentService extends GetxController {
         notAllowedMealType: notAllowedMealType);
     final range = extractCalorieRange(recommendation);
 
-    // Debug logging
-    print('DEBUG: MealType: $mealType');
-    print('DEBUG: CurrentCalories: $currentCalories');
-    print('DEBUG: Recommendation: $recommendation');
-    print('DEBUG: Range: $range');
-
     if (range['min']! > 0 && range['max']! > 0) {
       final overage = currentCalories - range['max']!;
-      print('DEBUG: Overage: $overage');
 
       if (overage > 0) {
         final shouldAdjust = await showCalorieAdjustmentDialog(
@@ -78,7 +125,7 @@ class CalorieAdjustmentService extends GetxController {
           }
 
           // Set the adjustment
-          setAdjustmentForMeal(adjustmentMealType, overage);
+          await setAdjustmentForMeal(adjustmentMealType, overage);
 
           // Show confirmation
           if (context.mounted) {
@@ -114,8 +161,11 @@ class CalorieAdjustmentService extends GetxController {
 
   // Check if a meal type has an adjustment
   bool hasAdjustment(String mealType) {
-    return mealAdjustments.containsKey(mealType) &&
-        mealAdjustments[mealType]! > 0;
+    // Convert to lowercase to match the keys used in SharedPreferences
+    final key = mealType.toLowerCase();
+    final hasAdjustment =
+        mealAdjustments.containsKey(key) && mealAdjustments[key]! > 0;
+    return hasAdjustment;
   }
 
   // Get all adjustments

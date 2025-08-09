@@ -418,7 +418,7 @@ Future<bool> showCalorieAdjustmentDialog(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'You\'ve exceeded your $mealType allowance by $overage calories.',
+            'You\'ve exceeded your $mealType target by $overage calories.',
             style: textTheme.bodyLarge?.copyWith(
               color: isDarkMode ? kWhite : kBlack,
             ),
