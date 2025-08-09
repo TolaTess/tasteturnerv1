@@ -3,6 +3,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,8 +18,11 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../data_models/post_model.dart';
 import '../pages/photo_manager.dart';
 import '../screens/friend_screen.dart';
+import '../screens/food_analysis_results_screen.dart';
+import '../service/chat_controller.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/optimized_image.dart';
@@ -117,6 +123,387 @@ OutlineInputBorder outlineInputBorder(
     borderRadius: BorderRadius.circular(radius),
     borderSide: BorderSide(color: kAccent.withValues(alpha: 0.2)),
   );
+}
+
+Future<void> handleImageSend(List<File> images, String? caption, String chatId,
+    ScrollController scrollController, ChatController chatController) async {
+  List<String> uploadedUrls = [];
+
+  for (File image in images) {
+    try {
+      final String fileName =
+          'chats/$chatId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final Reference storageRef = firebaseStorage.ref().child(fileName);
+
+      final uploadTask = storageRef.putFile(image);
+      final snapshot = await uploadTask;
+      final imageUrl = await snapshot.ref.getDownloadURL();
+
+      uploadedUrls.add(imageUrl);
+    } catch (e, stack) {
+      print('Error uploading image: $e');
+      print(stack);
+    }
+  }
+
+  // Check if this is a buddy chat (AI chat)
+  final isBuddyChat = chatId == userService.buddyId;
+
+  if (isBuddyChat) {
+    // For buddy chat, send image and trigger AI analysis
+    final messageContent = caption?.isNotEmpty == true ? caption : '';
+    await chatController.sendMessage(
+      messageContent: messageContent,
+      imageUrls: uploadedUrls,
+      isPrivate: true,
+    );
+
+    // Trigger AI analysis of the image
+    await _triggerAIImageAnalysis(
+        uploadedUrls, caption, chatId, chatController, scrollController);
+  } else {
+    // For regular chats, create a post and send the message
+    final postRef = firestore.collection('posts').doc();
+    final postId = postRef.id;
+    final messageContent =
+        'Shared caption: ${capitalizeFirstLetter(caption ?? '')} /${postId} /${'post'} /${'private'}';
+
+    final post = Post(
+      id: postId,
+      userId: userService.userId ?? '',
+      mediaPaths: uploadedUrls,
+      name: userService.currentUser.value?.displayName ?? '',
+      category: 'general',
+      isBattle: false,
+      battleId: 'private',
+      createdAt: DateTime.now(),
+    );
+
+    WriteBatch batch = firestore.batch();
+    batch.set(postRef, post.toFirestore());
+    batch.update(firestore.collection('users').doc(userService.userId), {
+      'posts': FieldValue.arrayUnion([postRef.id]),
+    });
+    await batch.commit();
+
+    await chatController.sendMessage(
+      messageContent: messageContent,
+      imageUrls: uploadedUrls,
+      isPrivate: true,
+    );
+  }
+
+  onNewMessage(scrollController);
+}
+
+// Store the last food analysis ID for reference
+String? _lastFoodAnalysisId;
+
+/// Triggers AI analysis of uploaded images in buddy chat
+Future<void> _triggerAIImageAnalysis(
+    List<String> imageUrls,
+    String? caption,
+    String chatId,
+    ChatController chatController,
+    ScrollController scrollController) async {
+  if (imageUrls.isEmpty) return;
+
+  try {
+    // Send loading message
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content:
+          "🔍 Analyzing your food... This will help me give you better suggestions!",
+      senderId: 'buddy',
+    );
+
+    // Download the image from URL to create a File object
+    final response = await http.get(Uri.parse(imageUrls.first));
+    final bytes = response.bodyBytes;
+
+    // Create a temporary file
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/buddy_tasty_analysis.jpg');
+    await tempFile.writeAsBytes(bytes);
+
+    // Analyze the image using GeminiService
+    final analysisResult = await geminiService.analyzeFoodImageWithContext(
+      imageFile: tempFile,
+      additionalContext: caption,
+    );
+
+    // Clean up temp file
+    await tempFile.delete();
+
+    // Store analysis in Firestore
+    final analysisId = await _storeFoodAnalysisInFirestore(
+        analysisResult, imageUrls.first, caption);
+    _lastFoodAnalysisId = analysisId;
+
+    // Get user context for personalized response
+    final userContext = _getBuddyUserContext();
+
+    // Create a summary response based on the actual analysis
+    final summaryResponse =
+        _createAnalysisSummaryResponse(analysisResult, userContext);
+
+    // Send analysis summary with the analysis ID attached
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content: summaryResponse,
+      senderId: 'buddy',
+    );
+
+    // Send follow-up with action options
+    await Future.delayed(const Duration(milliseconds: 1500));
+    final optionsMessage = _createActionOptionsMessage(userContext);
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content: optionsMessage,
+      senderId: 'buddy',
+    );
+
+    onNewMessage(scrollController);
+  } catch (e) {
+    print('Error in AI image analysis: $e');
+    // Send fallback response as buddy
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content:
+          "I can see your delicious food! While I had trouble with the detailed analysis, I'm here to help you optimize your nutrition. What would you like to know about this meal? 🍽️",
+      senderId: 'buddy',
+    );
+    onNewMessage(scrollController);
+  }
+}
+
+/// Get user context for personalized food analysis
+Map<String, dynamic> _getBuddyUserContext() {
+  return {
+    'displayName': userService.currentUser.value?.displayName ?? 'there',
+    'fitnessGoal': userService.currentUser.value?.settings['fitnessGoal'] ??
+        'Healthy Eating',
+    'currentWeight':
+        userService.currentUser.value?.settings['currentWeight'] ?? 0.0,
+    'goalWeight': userService.currentUser.value?.settings['goalWeight'] ?? 0.0,
+    'foodGoal': userService.currentUser.value?.settings['foodGoal'] ?? 0.0,
+    'dietPreference':
+        userService.currentUser.value?.settings['dietPreference'] ?? 'Balanced',
+  };
+}
+
+/// Store food analysis results in Firestore
+Future<String> _storeFoodAnalysisInFirestore(
+    Map<String, dynamic> analysisResult,
+    String imageUrl,
+    String? caption) async {
+  final analysisRef = firestore.collection('tastyanalysis').doc();
+  final analysisId = analysisRef.id;
+
+  // Follow the existing tastyanalysis collection structure
+  final analysisData = {
+    'analysis':
+        analysisResult, // Match existing structure: 'analysis' not 'analysisResult'
+    'imagePath':
+        imageUrl, // Match existing structure: 'imagePath' not 'imageUrl'
+    'timestamp': FieldValue
+        .serverTimestamp(), // Match existing structure: 'timestamp' not 'createdAt'
+    'userId': userService.userId,
+    // Additional fields for buddy chat tracking
+    'caption': caption ?? '',
+    'source': 'buddy_chat',
+  };
+
+  await analysisRef.set(analysisData);
+  return analysisId;
+}
+
+/// Create analysis summary response based on actual food analysis
+String _createAnalysisSummaryResponse(
+    Map<String, dynamic> analysisResult, Map<String, dynamic> userContext) {
+  final buffer = StringBuffer();
+
+  // Extract key info from analysis
+  final foods = analysisResult['foodItems'] as List?;
+  final totalNutrition =
+      analysisResult['totalNutrition'] as Map<String, dynamic>? ?? {};
+  final totalCalories = totalNutrition['calories'];
+  final totalProtein = totalNutrition['protein'];
+
+  buffer.write("Great choice! I can see ");
+
+  if (foods != null && foods.isNotEmpty) {
+    final foodNames = foods.take(3).map((food) => food['name']).join(", ");
+    buffer.write("$foodNames ");
+  } else {
+    buffer.write("your delicious meal ");
+  }
+
+  if (totalCalories != null) {
+    buffer.write("(~$totalCalories calories");
+    if (totalProtein != null) {
+      buffer.write(", ${totalProtein}g protein");
+    }
+    buffer.write(") ");
+  }
+
+  buffer.write(
+      "which looks perfect for your ${userContext['fitnessGoal']} goals! ");
+
+  // Add personalized encouragement based on their diet
+  final diet = userContext['dietPreference'] as String;
+  if (diet.toLowerCase().contains('keto')) {
+    buffer.write("The low-carb focus aligns well with your keto approach. ");
+  } else if (diet.toLowerCase().contains('protein')) {
+    buffer.write("Great protein content for your fitness journey! ");
+  } else {
+    buffer.write("This balanced meal fits your nutrition style perfectly. ");
+  }
+
+  buffer.write("Ready to optimize it further? 💪");
+
+  return buffer.toString();
+}
+
+/// Create action options message
+String _createActionOptionsMessage(Map<String, dynamic> userContext) {
+  final goal = userContext['fitnessGoal'] as String;
+  final isWeightLoss = goal.toLowerCase().contains('weight loss') ||
+      goal.toLowerCase().contains('lose');
+  final isMuscleBuild = goal.toLowerCase().contains('muscle') ||
+      goal.toLowerCase().contains('gain');
+
+  return """
+🎯 What would you like me to help you with?
+
+Option 1: 🔄 **Remix these ingredients** to better match your ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals
+
+Option 2: 💪 **${isWeightLoss ? 'Reduce calories while keeping protein high' : isMuscleBuild ? 'Add more protein for muscle building' : 'Optimize the nutritional balance'}**
+
+Option 3: 🔍 **Detailed Food Analysis** - Get comprehensive nutritional breakdown, calories, and macro analysis
+
+Just let me know which option interests you, or ask me anything else about this meal! 😊
+""";
+}
+
+/// Handle detailed food analysis for Option 3
+Future<void> handleDetailedFoodAnalysis(
+    BuildContext context, String chatId) async {
+  if (_lastFoodAnalysisId == null) {
+    // Send error message as buddy
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content:
+          "Sorry, I can't find the food analysis. Please upload the image again! 📸",
+      senderId: 'buddy',
+    );
+    return;
+  }
+
+  try {
+    // Get the stored analysis from Firestore
+    final analysisDoc = await firestore
+        .collection('tastyanalysis')
+        .doc(_lastFoodAnalysisId!)
+        .get();
+
+    if (!analysisDoc.exists) {
+      throw Exception('Analysis not found');
+    }
+
+    final analysisData = analysisDoc.data()!;
+    final analysisResult = analysisData['analysis']
+        as Map<String, dynamic>; // Use 'analysis' field
+    final imageUrl =
+        analysisData['imagePath'] as String; // Use 'imagePath' field
+
+    // Send message indicating we're opening detailed view
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content:
+          "📊 Opening detailed food analysis for you! You'll see comprehensive nutritional breakdown, calories, and personalized recommendations.",
+      senderId: 'buddy',
+    );
+
+    // Download the image to create a File object for the screen
+    final response = await http.get(Uri.parse(imageUrl));
+    final bytes = response.bodyBytes;
+
+    // Create a temporary file
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/detailed_analysis_view.jpg');
+    await tempFile.writeAsBytes(bytes);
+
+    // Navigate to FoodAnalysisResultsScreen
+    if (context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FoodAnalysisResultsScreen(
+            imageFile: tempFile,
+            analysisResult: analysisResult,
+            isAnalyzeAndUpload: false,
+            date: DateTime.now(),
+            mealType: 'Lunch', // Default meal type
+            skipAnalysisSave:
+                true, // Skip saving since it's already saved in buddy chat
+          ),
+        ),
+      );
+
+      // Send completion message when user returns to chat
+      await ChatController.saveMessageToFirestore(
+        chatId: chatId,
+        content:
+            "Great! Hope the detailed analysis was helpful. Feel free to ask me any questions about your meal or nutrition goals! 😊",
+        senderId: 'buddy',
+      );
+    }
+  } catch (e) {
+    print('Error in detailed food analysis: $e');
+    // Send error message as buddy
+    await ChatController.saveMessageToFirestore(
+      chatId: chatId,
+      content:
+          "Sorry, I had trouble opening the detailed analysis. The basic analysis showed it looks nutritious though! Feel free to ask me any specific questions about your meal. 😊",
+      senderId: 'buddy',
+    );
+  }
+}
+
+/// Get stored food analysis data
+Future<Map<String, dynamic>?> getFoodAnalysisData(String analysisId) async {
+  try {
+    final doc =
+        await firestore.collection('tastyanalysis').doc(analysisId).get();
+    if (doc.exists) {
+      return doc.data()!['analysis']
+          as Map<String, dynamic>; // Use 'analysis' field
+    }
+  } catch (e) {
+    print('Error getting food analysis: $e');
+  }
+  return null;
+}
+
+/// Get the last food analysis ID for use in buddy screen
+String? getLastFoodAnalysisId() {
+  return _lastFoodAnalysisId;
+}
+
+void onNewMessage(ScrollController scrollController) {
+  WidgetsBinding.instance
+      .addPostFrameCallback((_) => scrollToBottom(scrollController));
+}
+
+void scrollToBottom(ScrollController scrollController) {
+  if (scrollController.hasClients) {
+    scrollController.animateTo(
+      scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
 }
 
 String getAssetImageForItem(String itemType) {
@@ -391,7 +778,6 @@ List<String> unitOptions = [
 Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
     Function(int) onChanged, bool isColorChange,
     [List<String>? labels]) {
-  final isDarkMode = getThemeProvider(context).isDarkMode;
   final textTheme = Theme.of(context).textTheme;
 
   return CupertinoPicker(

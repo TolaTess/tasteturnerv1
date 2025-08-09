@@ -206,7 +206,7 @@ class GeminiService {
   /// Validate response structure based on operation type
   void _validateResponseStructure(Map<String, dynamic> data, String operation) {
     switch (operation) {
-      case 'food_analysis':
+      case 'tasty_analysis':
         if (!data.containsKey('foodItems') ||
             !data.containsKey('totalNutrition')) {
           throw Exception(
@@ -241,7 +241,7 @@ class GeminiService {
   /// Create fallback response for failed AI operations
   Map<String, dynamic> _createFallbackResponse(String operation, String error) {
     switch (operation) {
-      case 'food_analysis':
+      case 'tasty_analysis':
         return {
           'foodItems': [
             {
@@ -1166,7 +1166,7 @@ Important guidelines:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _processAIResponse(text, 'food_analysis');
+          return _processAIResponse(text, 'tasty_analysis');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse food analysis JSON: $e');
@@ -1327,7 +1327,7 @@ Important guidelines:
         final decoded = jsonDecode(response.body);
         final text = decoded['candidates'][0]['content']['parts'][0]['text'];
         try {
-          return _processAIResponse(text, 'food_analysis');
+          return _processAIResponse(text, 'tasty_analysis');
         } catch (e) {
           print('Raw response text: $text');
           throw Exception('Failed to parse food analysis JSON: $e');

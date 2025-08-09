@@ -233,7 +233,6 @@ class PostService extends GetxService {
       });
 
       final data = result.data as Map<String, dynamic>;
-      print('data: $data');
 
       if (data['success'] == true) {
         return (data['posts'] as List)

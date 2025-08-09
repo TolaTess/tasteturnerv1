@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
 import '../themes/theme_provider.dart';
@@ -116,12 +117,21 @@ class _TastyScreenState extends State<TastyScreen> {
     final summary = await geminiService.getResponse(summaryPrompt, 512);
 
     try {
-      // Update chat summary as the last message
-      await firestore.collection('chats').doc(chatId).update({
+      // Prepare update data
+      final updateData = {
         'lastMessage': summary,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSender': messages.last.senderId,
-      });
+      };
+
+      // Include food analysis ID if available
+      final analysisId = getLastFoodAnalysisId();
+      if (analysisId != null) {
+        updateData['lastFoodAnalysisId'] = analysisId;
+      }
+
+      // Update chat summary as the last message
+      await firestore.collection('chats').doc(chatId).update(updateData);
     } catch (e) {
       print("Failed to save chat summary: $e");
     }
@@ -306,6 +316,12 @@ class _TastyScreenState extends State<TastyScreen> {
                                       "Get personalized recommendations for your goals",
                                       themeProvider.isDarkMode,
                                       textTheme),
+                                  _buildFeatureItem(
+                                      context,
+                                      "🍽️ Analyze your food images",
+                                      "Get personalized recommendations for your meal",
+                                      themeProvider.isDarkMode,
+                                      textTheme),
                                 ],
                               ),
                             ],
@@ -379,6 +395,31 @@ class _TastyScreenState extends State<TastyScreen> {
             getPercentageHeight(2.8, context)),
         child: Row(
           children: [
+            InkWell(
+              onTap: !canUseAI()
+                  ? null
+                  : () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) {
+                          return CustomImagePickerModal(
+                            onSend: (images, caption) => handleImageSend(
+                                images,
+                                caption,
+                                chatId!,
+                                _scrollController,
+                                chatController),
+                          );
+                        },
+                      );
+                    },
+              child: const IconCircleButton(
+                icon: Icons.camera_alt,
+                size: kIconSizeMedium,
+              ),
+            ),
+            SizedBox(width: getPercentageWidth(1, context)),
             Expanded(
               child: SafeTextFormField(
                 controller: textController,
@@ -471,6 +512,63 @@ class _TastyScreenState extends State<TastyScreen> {
     };
   }
 
+  // Helper method to extract ingredients from analysis data
+  String _extractIngredientsFromAnalysis(Map<String, dynamic> analysisData) {
+    if (analysisData.containsKey('foodItems') &&
+        analysisData['foodItems'] is List) {
+      final foods = analysisData['foodItems'] as List;
+      return foods
+          .take(5)
+          .map((food) => food['name'] ?? food.toString())
+          .join(', ');
+    }
+    return 'the meal items';
+  }
+
+  // Helper method to send remix response
+  Future<void> _sendRemixResponse(
+      String prompt,
+      Map<String, dynamic> userContext,
+      String currentUserId,
+      String chatId,
+      List<ChatScreenData> messages) async {
+    try {
+      final response = await geminiService.getResponse(
+        prompt,
+        512,
+        role: buddyAiRole,
+      );
+
+      setState(() {
+        messages.add(ChatScreenData(
+          messageContent: response,
+          senderId: 'buddy',
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(response, 'buddy');
+    } catch (e) {
+      print("Error getting remix suggestions: $e");
+      setState(() {
+        messages.add(ChatScreenData(
+          messageContent:
+              "I'd love to help you remix those ingredients! Here are some ideas based on your ${userContext['dietPreference']} goals: try adding more protein with some lean meat or legumes, swap refined grains for whole grains, and add colorful vegetables for extra nutrients. What specific ingredient would you like to focus on? 😊",
+          senderId: 'buddy',
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(
+          "I'd love to help you remix those ingredients! Here are some ideas based on your ${userContext['dietPreference']} goals: try adding more protein with some lean meat or legumes, swap refined grains for whole grains, and add colorful vegetables for extra nutrients. What specific ingredient would you like to focus on? 😊",
+          'buddy');
+    }
+  }
+
   // Helper method to create initial prompt
   String _createInitialPrompt(Map<String, dynamic> userContext) {
     return """
@@ -494,8 +592,196 @@ Greet the user warmly and offer guidance based on:
     final currentUserId = userService.userId!;
     final messages = chatController.messages;
 
-    // Check for spin wheel command
+    // Check for various commands
     final userInputLower = userInput.toLowerCase();
+
+    // Check for food analysis options
+    if (userInputLower.contains('option 3') ||
+        userInputLower.contains('3') ||
+        userInputLower.contains('analyze') ||
+        userInputLower.contains('analyse') ||
+        userInputLower.contains('detailed food analysis') ||
+        userInputLower.contains('food analysis')) {
+      // Add user message to chat
+      setState(() {
+        messages.add(ChatScreenData(
+          messageContent: userInput,
+          senderId: currentUserId,
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(userInput, currentUserId);
+
+      // Trigger detailed food analysis
+      await handleDetailedFoodAnalysis(context, chatId!);
+      return;
+    }
+
+    // Check for Option 1 - Remix ingredients
+    if (userInputLower.contains('option 1') ||
+        userInputLower.contains('1') ||
+        userInputLower.contains('remix')) {
+      // Add user message to chat
+      setState(() {
+        messages.add(ChatScreenData(
+          messageContent: userInput,
+          senderId: currentUserId,
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(userInput, currentUserId);
+
+      // Get user context and food analysis data
+      final userContext = _getUserContext();
+      final analysisId = getLastFoodAnalysisId();
+
+      if (analysisId != null) {
+        final analysisData = await getFoodAnalysisData(analysisId);
+        if (analysisData != null) {
+          // Create remix suggestions based on actual analyzed ingredients
+          final ingredients = _extractIngredientsFromAnalysis(analysisData);
+          final remixPrompt = """
+User wants to remix their meal containing: $ingredients
+
+For their ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals.
+
+Give 3-4 specific ingredient substitutions or cooking method improvements. Be encouraging and practical!
+""";
+          await _sendRemixResponse(
+              remixPrompt, userContext, currentUserId, chatId!, messages);
+          return;
+        }
+      }
+
+      // Fallback if no analysis data
+      final remixPrompt = """
+User wants to remix their meal for ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals.
+
+Give 3-4 specific ingredient or cooking suggestions. Be encouraging and practical!
+""";
+
+      await _sendRemixResponse(
+          remixPrompt, userContext, currentUserId, chatId!, messages);
+      return;
+    }
+
+    // Check for Option 2 - Optimize nutrition
+    if (userInputLower.contains('option 2') ||
+        userInputLower.contains('2') ||
+        userInputLower.contains('protein') ||
+        userInputLower.contains('optimize')) {
+      // Add user message to chat
+      setState(() {
+        messages.add(ChatScreenData(
+          messageContent: userInput,
+          senderId: currentUserId,
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(userInput, currentUserId);
+
+      // Get user context and food analysis data
+      final userContext = _getUserContext();
+      final goal = userContext['fitnessGoal'] as String;
+      final isWeightLoss = goal.toLowerCase().contains('weight loss') ||
+          goal.toLowerCase().contains('lose');
+      final isMuscleBuild = goal.toLowerCase().contains('muscle') ||
+          goal.toLowerCase().contains('gain');
+
+      final analysisId = getLastFoodAnalysisId();
+
+      String optimizePrompt;
+      if (analysisId != null) {
+        final analysisData = await getFoodAnalysisData(analysisId);
+        if (analysisData != null) {
+          final totalNutrition =
+              analysisData['totalNutrition'] as Map<String, dynamic>? ?? {};
+          final calories = totalNutrition['calories'] ?? 'unknown';
+          final protein = totalNutrition['protein'] ?? 'unknown';
+          final carbs = totalNutrition['carbs'] ?? 'unknown';
+          final fat = totalNutrition['fat'] ?? 'unknown';
+          final ingredients = _extractIngredientsFromAnalysis(analysisData);
+
+          optimizePrompt = """
+User wants to optimize their meal containing: $ingredients
+Current nutrition: ${calories}cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat
+
+For their ${userContext['fitnessGoal']} goals.
+
+Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
+
+Give 3-4 specific improvements based on the actual nutrition data. Be encouraging!
+""";
+        } else {
+          optimizePrompt = """
+User wants to optimize their meal for ${userContext['fitnessGoal']} goals.
+
+Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
+
+Give 3-4 practical tips. Be encouraging!
+""";
+        }
+      } else {
+        optimizePrompt = """
+User wants to optimize their meal for ${userContext['fitnessGoal']} goals.
+
+Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
+
+Give 3-4 practical tips. Be encouraging!
+""";
+      }
+
+      try {
+        final response = await geminiService.getResponse(
+          optimizePrompt,
+          512,
+          role: buddyAiRole,
+        );
+
+        setState(() {
+          messages.add(ChatScreenData(
+            messageContent: response,
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          ));
+        });
+        _onNewMessage();
+        await _saveMessageToFirestore(response, 'buddy');
+      } catch (e) {
+        print("Error getting optimization suggestions: $e");
+        final fallbackMessage = isWeightLoss
+            ? "Great choice! To reduce calories while keeping protein high, try: using lean proteins like chicken breast or fish, adding more vegetables to increase volume, using cooking sprays instead of oils, and choosing Greek yogurt over regular yogurt. These swaps will help you feel full while staying on track! 💪"
+            : isMuscleBuild
+                ? "Perfect for muscle building! Try adding: a protein-rich side like cottage cheese or Greek yogurt, some nuts or seeds for healthy fats and extra protein, quinoa instead of rice for complete protein, or a protein smoothie as a post-meal boost. Your muscles will thank you! 🏋️‍♂️"
+                : "For optimal nutrition balance, consider: adding colorful vegetables for vitamins and minerals, including healthy fats like avocado or nuts, ensuring you have a good protein source, and staying hydrated. Balance is key to feeling your best! 🌟";
+
+        setState(() {
+          messages.add(ChatScreenData(
+            messageContent: fallbackMessage,
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          ));
+        });
+        _onNewMessage();
+        await _saveMessageToFirestore(fallbackMessage, 'buddy');
+      }
+      return;
+    }
+
+    // Check for spin wheel command
     if (userInputLower.contains('spin') || userInputLower.contains('wheel')) {
       try {
         // Get ingredients from Firestore first
@@ -746,7 +1032,7 @@ Greet the user warmly and offer guidance based on:
                   title,
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: isDarkMode ? kWhite : kBlack,
+                    color: kAccent,
                   ),
                 ),
                 Center(

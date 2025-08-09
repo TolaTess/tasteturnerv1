@@ -389,6 +389,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                   ),
                   onPressed: _sendImages,
                 ),
+                SizedBox(height: getPercentageHeight(5, context)),
               ],
             ),
           ),

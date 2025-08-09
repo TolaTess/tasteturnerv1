@@ -7,22 +7,21 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/user_profile_screen.dart';
-import 'dine_in_leaderboard.dart';
 
-class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({super.key});
+class DineInLeaderboardScreen extends StatefulWidget {
+  const DineInLeaderboardScreen({super.key});
 
   @override
-  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
+  State<DineInLeaderboardScreen> createState() => _DineInLeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends State<LeaderboardScreen>
+class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> leaderboardData = [];
   Map<String, dynamic>? currentUserRank;
   bool isLoading = true;
   StreamSubscription? _subscription;
-  bool isDineInMode = false; // Toggle between regular and dine-in leaderboard
+  String weekRange = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -30,34 +29,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   @override
   void initState() {
     super.initState();
+    _calculateWeekRange();
     _setupDataListeners();
   }
 
-  void _setupDataListeners() {
-    if (isDineInMode) {
-      _setupDineInDataListeners();
-    } else {
-      _setupRegularDataListeners();
-    }
-  }
-
-  void _setupRegularDataListeners() {
-    // Listen to points collection changes
-    _subscription = firestore
-        .collection('points')
-        .where('points', isGreaterThan: 0)
-        .orderBy('points', descending: true)
-        .limit(50)
-        .snapshots()
-        .listen((snapshot) {
-      _updateLeaderboardData(snapshot);
+  void _calculateWeekRange() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final friday = monday.add(const Duration(days: 4));
+    
+    final mondayFormatted = '${monday.day}/${monday.month}';
+    final fridayFormatted = '${friday.day}/${friday.month}';
+    
+    setState(() {
+      weekRange = '$mondayFormatted - $fridayFormatted';
     });
-
-    // Initial fetch of winners and general data
-    _refreshData();
   }
 
-  void _setupDineInDataListeners() {
+  void _setupDataListeners() {
     // Listen to posts collection changes for battle posts
     _subscription = firestore
         .collection('posts')
@@ -66,90 +55,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         .limit(100) // Get more posts to ensure we have enough for the week
         .snapshots()
         .listen((snapshot) {
-      _updateDineInLeaderboardData(snapshot);
+      _updateLeaderboardData(snapshot);
     });
-  }
-
-  Future<void> _refreshData() async {
-    await helperController.fetchWinners();
-    await firebaseService.fetchGeneralData();
-    if (mounted) setState(() {});
   }
 
   Future<void> _updateLeaderboardData(QuerySnapshot snapshot) async {
     try {
       final userId = userService.userId;
-      final List<Map<String, dynamic>> data = [];
-      int actualRank = 1; // Track actual rank excluding tastyId
-
-      for (var i = 0; i < snapshot.docs.length; i++) {
-        final pointsDoc = snapshot.docs[i];
-        final pointsData = pointsDoc.data() as Map<String, dynamic>?;
-        final docUserId = pointsDoc.id;
-
-        // Fetch user details
-        final userDoc =
-            await firestore.collection('users').doc(docUserId).get();
-        final userData = userDoc.data() as Map<String, dynamic>?;
-
-        final userMap = {
-          'id': docUserId,
-          'displayName': userData?['displayName'] ?? 'Unknown',
-          'profileImage':
-              userData?['profileImage']?.toString().isNotEmpty == true
-                  ? userData!['profileImage']
-                  : intPlaceholderImage,
-          'points': pointsData?['points'] ?? 0,
-          'rank': actualRank,
-          'subtitle': userData?['bio'] ?? 'TASTY FAN',
-        };
-
-        // Check if this is the current user (for "Your Ranking" section)
-        if (docUserId == userId) {
-          currentUserRank = userMap;
-        }
-
-        // Only add to main leaderboard if not tastyId
-        if (docUserId != tastyId) {
-          data.add(userMap);
-          actualRank++;
-        } else {
-          // If current user is tastyId, still set their rank for "Your Ranking"
-          if (docUserId == userId) {
-            currentUserRank = userMap;
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          leaderboardData = data;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error updating leaderboard: $e');
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _updateDineInLeaderboardData(QuerySnapshot snapshot) async {
-    try {
-      final userId = userService.userId;
-      final Map<String, Map<String, dynamic>> userLikesMap =
-          <String, Map<String, dynamic>>{};
-
+      final Map<String, Map<String, dynamic>> userLikesMap = <String, Map<String, dynamic>>{};
+      
       // Calculate current week's Monday and Friday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
       final friday = monday.add(const Duration(days: 4));
-
+      
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd =
-          DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+      final weekEnd = DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
 
       // Process each battle post
       for (var doc in snapshot.docs) {
@@ -194,25 +116,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
       // Sort users by total likes (descending)
       final sortedUsers = userLikesMap.values.toList()
-        ..sort((a, b) =>
-            (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
+        ..sort((a, b) => (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
 
       for (var userData in sortedUsers) {
         final docUserId = userData['userId'] as String;
-
+        
         // Fetch user details
-        final userDoc =
-            await firestore.collection('users').doc(docUserId).get();
+        final userDoc = await firestore.collection('users').doc(docUserId).get();
         final userDataFromFirestore = userDoc.data() as Map<String, dynamic>?;
 
         final userMap = {
           'id': docUserId,
           'displayName': userDataFromFirestore?['displayName'] ?? 'Unknown',
-          'profileImage':
-              userDataFromFirestore?['profileImage']?.toString().isNotEmpty ==
-                      true
-                  ? userDataFromFirestore!['profileImage']
-                  : intPlaceholderImage,
+          'profileImage': userDataFromFirestore?['profileImage']?.toString().isNotEmpty == true
+              ? userDataFromFirestore!['profileImage']
+              : intPlaceholderImage,
           'totalLikes': userData['totalLikes'],
           'postCount': userData['postCount'],
           'rank': actualRank,
@@ -252,56 +170,25 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     try {
       setState(() => isLoading = true);
 
-      if (isDineInMode) {
-        // Refresh dine-in leaderboard data
-        final snapshot = await firestore
-            .collection('posts')
-            .where('isBattle', isEqualTo: true)
-            .orderBy('createdAt', descending: true)
-            .limit(100)
-            .get();
+      // Manually trigger a refresh of leaderboard data
+      final snapshot = await firestore
+          .collection('posts')
+          .where('isBattle', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
 
-        await _updateDineInLeaderboardData(snapshot);
-      } else {
-        // Refresh winners data
-        await helperController.fetchWinners();
-
-        // Refresh general data (for announce date)
-        await firebaseService.fetchGeneralData();
-
-        // Manually trigger a refresh of leaderboard data
-        final snapshot = await firestore
-            .collection('points')
-            .where('points', isGreaterThan: 0)
-            .orderBy('points', descending: true)
-            .limit(50)
-            .get();
-
-        await _updateLeaderboardData(snapshot);
-      }
+      await _updateLeaderboardData(snapshot);
 
       if (mounted) {
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('Error refreshing data: $e');
+      print('Error refreshing dine-in leaderboard: $e');
       if (mounted) {
         setState(() => isLoading = false);
       }
     }
-  }
-
-  void _toggleLeaderboardMode() {
-    setState(() {
-      isDineInMode = !isDineInMode;
-      isLoading = true;
-      leaderboardData = [];
-      currentUserRank = null;
-    });
-
-    // Cancel current subscription and setup new listeners
-    _subscription?.cancel();
-    _setupDataListeners();
   }
 
   @override
@@ -317,7 +204,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         slivers: [
           // Modern App Bar
           SliverAppBar(
-            expandedHeight: getPercentageHeight(15, context),
+            expandedHeight: getPercentageHeight(12, context),
             pinned: true,
             elevation: 0,
             backgroundColor: isDarkMode ? kDarkGrey : kWhite,
@@ -331,82 +218,34 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   children: [
                     SizedBox(height: getPercentageHeight(4, context)),
                     Text(
-                      isDineInMode ? 'Dine-In Leaderboard' : 'Leaderboard',
+                      'Dine-In Leaderboard',
                       style: textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: isDarkMode ? kWhite : kDarkGrey,
                       ),
                     ),
                     Text(
-                      isDineInMode
-                          ? 'This Week\'s Challenge Champions'
-                          : 'Compete with fellow food lovers',
+                      'This Week\'s Challenge Champions',
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kWhite : kDarkGrey,
                       ),
                     ),
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    // Toggle Switch
+                    SizedBox(height: getPercentageHeight(1, context)),
                     Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context),
+                        horizontal: getPercentageWidth(4, context),
                         vertical: getPercentageHeight(0.5, context),
                       ),
                       decoration: BoxDecoration(
                         color: kWhite.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Points',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: isDineInMode
-                                  ? kWhite.withValues(alpha: 0.6)
-                                  : kWhite,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          GestureDetector(
-                            onTap: _toggleLeaderboardMode,
-                            child: Container(
-                              width: getPercentageWidth(12, context),
-                              height: getPercentageHeight(2.5, context),
-                              decoration: BoxDecoration(
-                                color: isDineInMode
-                                    ? kWhite
-                                    : kWhite.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: AnimatedAlign(
-                                alignment: isDineInMode
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                duration: const Duration(milliseconds: 200),
-                                child: Container(
-                                  width: getPercentageWidth(5, context),
-                                  height: getPercentageWidth(5, context),
-                                  decoration: BoxDecoration(
-                                    color: isDineInMode ? kAccent : kWhite,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text(
-                            'Dine-In',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: isDineInMode
-                                  ? kWhite
-                                  : kWhite.withValues(alpha: 0.6),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'Week: $weekRange',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: kWhite,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -456,7 +295,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
                     Text(
-                      'Loading rankings...',
+                      'Loading challenge rankings...',
                       style: TextStyle(
                         color: isDarkMode ? kWhite : kDarkGrey,
                         fontSize: getTextScale(3.5, context),
@@ -473,33 +312,27 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      isDineInMode
-                          ? Icons.restaurant_outlined
-                          : Icons.leaderboard_outlined,
+                      Icons.restaurant_outlined,
                       size: getIconScale(20, context),
                       color: Colors.grey.withValues(alpha: 0.5),
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
                     Text(
-                      isDineInMode
-                          ? "No challenge posts this week"
-                          : "No users on leaderboard",
+                      "No challenge posts this week",
                       style: TextStyle(
                         fontSize: getTextScale(4, context),
                         color: Colors.grey,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (isDineInMode) ...[
-                      SizedBox(height: getPercentageHeight(1, context)),
-                      Text(
-                        "Start posting your dine-in challenges!",
-                        style: TextStyle(
-                          fontSize: getTextScale(3, context),
-                          color: Colors.grey.withValues(alpha: 0.7),
-                        ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Text(
+                      "Start posting your dine-in challenges!",
+                      style: TextStyle(
+                        fontSize: getTextScale(3, context),
+                        color: Colors.grey.withValues(alpha: 0.7),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -559,13 +392,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           Row(
             children: [
               Icon(
-                isDineInMode ? Icons.restaurant : Icons.person,
+                Icons.restaurant,
                 color: kWhite,
                 size: getIconScale(5, context),
               ),
               SizedBox(width: getPercentageWidth(2, context)),
               Text(
-                isDineInMode ? 'Your Challenge Ranking' : 'Your Ranking',
+                'Your Challenge Ranking',
                 style: TextStyle(
                   color: kWhite.withValues(alpha: 0.9),
                   fontSize: getTextScale(3.5, context),
@@ -606,8 +439,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ),
                 child: CircleAvatar(
                   radius: getResponsiveBoxSize(context, 25, 25),
-                  backgroundImage:
-                      _getImageProvider(currentUserRank!['profileImage']),
+                  backgroundImage: _getImageProvider(currentUserRank!['profileImage']),
                 ),
               ),
               SizedBox(width: getPercentageWidth(3, context)),
@@ -627,9 +459,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      isDineInMode
-                          ? '${currentUserRank!['totalLikes']} likes • ${currentUserRank!['postCount']} posts'
-                          : '${currentUserRank!['points']} points',
+                      '${currentUserRank!['totalLikes']} likes • ${currentUserRank!['postCount']} posts',
                       style: TextStyle(
                         color: kWhite.withValues(alpha: 0.9),
                         fontSize: getTextScale(3.5, context),
@@ -733,20 +563,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                if (isDineInMode && user['postCount'] != null)
-                  Text(
-                    '${user['postCount']} challenge posts',
-                    style: TextStyle(
-                      fontSize: getTextScale(2.5, context),
-                      color: (isDarkMode ? kWhite : kDarkGrey)
-                          .withValues(alpha: 0.6),
-                    ),
+                Text(
+                  '${user['postCount']} challenge posts',
+                  style: TextStyle(
+                    fontSize: getTextScale(2.5, context),
+                    color: (isDarkMode ? kWhite : kDarkGrey)
+                        .withValues(alpha: 0.6),
                   ),
+                ),
               ],
             ),
           ),
 
-          // Points/Likes
+          // Likes
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: getPercentageWidth(3, context),
@@ -756,34 +585,25 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               color: kAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: isDineInMode
-                ? Column(
-                    children: [
-                      Text(
-                        "${user['totalLikes']}",
-                        style: TextStyle(
-                          fontSize: getTextScale(4, context),
-                          fontWeight: FontWeight.bold,
-                          color: kAccent,
-                        ),
-                      ),
-                      Text(
-                        "likes",
-                        style: TextStyle(
-                          fontSize: getTextScale(2.5, context),
-                          color: kAccent.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  )
-                : Text(
-                    "${user['points']}",
-                    style: TextStyle(
-                      fontSize: getTextScale(4, context),
-                      fontWeight: FontWeight.bold,
-                      color: kAccent,
-                    ),
+            child: Column(
+              children: [
+                Text(
+                  "${user['totalLikes']}",
+                  style: TextStyle(
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.bold,
+                    color: kAccent,
                   ),
+                ),
+                Text(
+                  "likes",
+                  style: TextStyle(
+                    fontSize: getTextScale(2.5, context),
+                    color: kAccent.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -877,4 +697,4 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     }
     return AssetImage(intPlaceholderImage);
   }
-}
+} 

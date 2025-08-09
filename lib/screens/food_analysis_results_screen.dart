@@ -23,6 +23,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final DateTime? date;
   final String? mealType;
   final String? screen;
+  final bool? skipAnalysisSave;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -37,6 +38,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.date,
     this.mealType,
     this.screen,
+    this.skipAnalysisSave,
   });
 
   @override
@@ -287,7 +289,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     try {
       // Upload image to Firebase Storage
       String imagePath =
-          'food_analysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'tastyanalysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final uploadTask =
           await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
       final downloadUrl = await uploadTask.ref.getDownloadURL();
@@ -328,19 +330,29 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     });
 
     try {
-      // Upload image to Firebase Storage
-      String imagePath =
-          'food_analysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final uploadTask =
-          await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      String downloadUrl;
 
-      // Save analysis to tastyanalysis collection
-      await geminiService.saveAnalysisToFirestore(
-        analysisResult: _editableAnalysis,
-        userId: userService.userId ?? '',
-        imagePath: downloadUrl,
-      );
+      // Skip image upload and analysis saving if coming from buddy chat (already saved)
+      if (widget.skipAnalysisSave == true) {
+        // For buddy chat, we don't need to upload the image again or save analysis
+        // The analysis is already saved and we have the image URL
+        downloadUrl =
+            'buddy_chat_temp_url'; // Placeholder since we won't use it for post creation
+      } else {
+        // Upload image to Firebase Storage
+        String imagePath =
+            'tastyanalysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final uploadTask =
+            await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
+        downloadUrl = await uploadTask.ref.getDownloadURL();
+
+        // Save analysis to tastyanalysis collection
+        await geminiService.saveAnalysisToFirestore(
+          analysisResult: _editableAnalysis,
+          userId: userService.userId ?? '',
+          imagePath: downloadUrl,
+        );
+      }
 
       // Determine if this is for an existing post or a new analyze & upload flow
       final bool isExistingPostAnalysis =

@@ -146,20 +146,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  void _onNewMessage() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-  }
-
   // Helper method to get only the date part (without time) for comparison
   String _getDateOnly(DateTime dateTime) {
     return DateFormat('yyyy-MM-dd').format(dateTime);
@@ -249,23 +235,13 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.only(
                 right: getPercentageWidth(2, context),
               ),
-              child: ClipOval(
-                child: widget.friend?.profileImage != null &&
+              child: CircleAvatar(
+                backgroundImage: widget.friend?.profileImage != null &&
                         widget.friend!.profileImage!.isNotEmpty &&
                         widget.friend!.profileImage!.contains('http')
-                    ? buildOptimizedNetworkImage(
-                        imageUrl: widget.friend!.profileImage!,
-                        width: getResponsiveBoxSize(context, 28, 28),
-                        height: getResponsiveBoxSize(context, 28, 28),
-                        fit: BoxFit.cover,
-                        isProfileImage: true,
-                      )
-                    : Image.asset(
-                        intPlaceholderImage,
-                        width: getResponsiveBoxSize(context, 28, 28),
-                        height: getResponsiveBoxSize(context, 28, 28),
-                        fit: BoxFit.cover,
-                      ),
+                    ? NetworkImage(widget.friend!.profileImage!)
+                    : AssetImage(intPlaceholderImage) as ImageProvider,
+                radius: getResponsiveBoxSize(context, 15, 15),
               ),
             ),
           ),
@@ -354,58 +330,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> _handleImageSend(List<File> images, String? caption) async {
-    List<String> uploadedUrls = [];
-
-    for (File image in images) {
-      try {
-        final String fileName =
-            'chats/$chatId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final Reference storageRef = firebaseStorage.ref().child(fileName);
-
-        final uploadTask = storageRef.putFile(image);
-        final snapshot = await uploadTask;
-        final imageUrl = await snapshot.ref.getDownloadURL();
-
-        uploadedUrls.add(imageUrl);
-      } catch (e, stack) {
-        print('Error uploading image: \\${e}');
-        print(stack);
-      }
-    }
-
-    final postRef = firestore.collection('posts').doc();
-    final postId = postRef.id;
-    final messageContent =
-        'Shared caption: ${capitalizeFirstLetter(caption ?? '')} /${postId} /${'post'} /${'private'}';
-
-    final post = Post(
-      id: postId,
-      userId: userService.userId ?? '',
-      mediaPaths: uploadedUrls,
-      name: userService.currentUser.value?.displayName ?? '',
-      category: 'general',
-      isBattle: false,
-      battleId: 'private',
-      createdAt: DateTime.now(),
-    );
-
-    WriteBatch batch = firestore.batch();
-    batch.set(postRef, post.toFirestore());
-    batch.update(firestore.collection('users').doc(userService.userId), {
-      'posts': FieldValue.arrayUnion([postRef.id]),
-    });
-    await batch.commit();
-
-    // Send text + images together as a single message or separate depending on your logic
-    await chatController.sendMessage(
-      messageContent: messageContent,
-      imageUrls: uploadedUrls,
-      isPrivate: true,
-    );
-    _onNewMessage();
-  }
-
   Widget _buildInputSection(bool isDarkMode, TextTheme textTheme,
       {bool isDisabled = false, String hint = 'Type your caption...'}) {
     return Padding(
@@ -425,7 +349,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       isScrollControlled: true,
                       builder: (_) {
                         return CustomImagePickerModal(
-                          onSend: _handleImageSend,
+                          onSend: (images, caption) => handleImageSend(
+                              images,
+                              caption,
+                              chatId!,
+                              _scrollController,
+                              chatController),
                         );
                       },
                     );
