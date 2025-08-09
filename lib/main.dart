@@ -45,7 +45,7 @@ void main() async {
       'enableHandwriting': false,
     });
   } catch (e) {
-    print('Warning: Failed to set text input options: $e');
+    print('Platform channel call error: $e');
   }
 
   await dotenv.load(fileName: 'assets/env/.env');

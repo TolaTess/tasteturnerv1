@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
@@ -94,6 +95,18 @@ String timeAgo(Timestamp timestamp) {
   } else {
     return '${(difference.inDays / 365).floor()} year${(difference.inDays / 365).floor() > 1 ? 's' : ''} ago';
   }
+}
+
+Future<bool> loadShowCaloriesPref() async {
+  final prefs = await SharedPreferences.getInstance();
+  const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
+  return prefs.getBool(_showCaloriesPrefKey) ?? true;
+}
+
+Future<void> saveShowCaloriesPref(bool value) async {
+  final prefs = await SharedPreferences.getInstance();
+  const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
+  await prefs.setBool(_showCaloriesPrefKey, value);
 }
 
 //search bar outline

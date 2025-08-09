@@ -9,13 +9,15 @@ import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
+import '../pages/edit_goal.dart';
 import '../pages/program_progress_screen.dart';
+import '../screens/recipes_list_category_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/program_service.dart';
 import '../service/tasty_popup_service.dart';
-import '../widgets/goal_diet_widget.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/program_detail_widget.dart';
+import 'recipe_screen.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -34,10 +36,7 @@ class _ProgramScreenState extends State<ProgramScreen>
           'Healthy Eating';
   bool isLoading = false;
   String aiCoachResponse = '';
-  bool _isLoadingDietGoal = false;
-  List<MacroData> _recommendedIngredients = [];
-  Meal? _featuredMeal;
-  DateTime? _lastPickDate;
+  bool showCaloriesAndGoal = true;
   RxList<Map<String, dynamic>> programTypes = <Map<String, dynamic>>[].obs;
   final GlobalKey _addFeaturedButtonKey = GlobalKey();
   final GlobalKey _addTastyAIButtonKey = GlobalKey();
@@ -56,10 +55,14 @@ class _ProgramScreenState extends State<ProgramScreen>
       _rotationController.reset();
     });
 
-    _pickDietGoalRecommendationsIfNeeded();
     _loadProgramTypes();
     // Load user's enrolled programs
     _programService.loadUserPrograms();
+    loadShowCaloriesPref().then((value) {
+      setState(() {
+        showCaloriesAndGoal = value;
+      });
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
     });
@@ -149,135 +152,6 @@ class _ProgramScreenState extends State<ProgramScreen>
         },
       ];
     }
-  }
-
-  void _pickDietGoalRecommendationsIfNeeded({bool force = false}) {
-    final now = DateTime.now();
-    if (!force && _recommendedIngredients.isNotEmpty && _lastPickDate != null) {
-      final daysSince = now.difference(_lastPickDate!).inDays;
-      if (daysSince < 7) return;
-    }
-    _pickDietGoalRecommendations();
-  }
-
-  void _pickDietGoalRecommendations() {
-    setState(() {
-      _isLoadingDietGoal = true;
-    });
-    Future.delayed(Duration.zero, () {
-      final user = userService.currentUser.value;
-      final String userDiet =
-          user?.settings['dietPreference']?.toString() ?? 'Balanced';
-      final String userGoal =
-          user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
-      final allIngredients = macroManager.ingredient;
-      final allMeals = mealManager.meals;
-      List<MacroData> filteredIngredients = [];
-      List<Meal> filteredMeals = [];
-
-      // Logic for filtering based on user diet and goal
-      // 1. Filter for items that match the user's diet (category match is required)
-      final dietCategory = userDiet.toLowerCase();
-      List<MacroData> dietIngredients = allIngredients
-          .where((i) =>
-              i.categories.any((c) => c.toLowerCase().contains(dietCategory)))
-          .toList();
-      List<Meal> dietMeals = allMeals
-          .where((m) =>
-              m.categories.any((c) => c.toLowerCase().contains(dietCategory)))
-          .toList();
-
-      // 2. Among those, prefer items that also match the user's goal
-      List<MacroData> preferredIngredients = [];
-      List<Meal> preferredMeals = [];
-      if (userGoal.toLowerCase().contains('weightloss') ||
-          userGoal.toLowerCase().contains('lose weight') ||
-          userGoal.toLowerCase().contains('weight loss')) {
-        preferredIngredients = dietIngredients.where((i) {
-          final matchesGoal = i.categories.any((c) =>
-              c.toLowerCase().contains('weightloss') ||
-              c.toLowerCase().contains('weight loss') ||
-              c.toLowerCase().contains('low calorie') ||
-              c.toLowerCase().contains('lowcalorie') ||
-              c.toLowerCase().contains('diet') ||
-              c.toLowerCase().contains('slimming'));
-          final carbsStr = i.macros['carbs']?.toString() ?? '';
-          final carbs = double.tryParse(carbsStr);
-          final isLowCarb = carbs != null ? carbs < 10 : false;
-          return matchesGoal && isLowCarb;
-        }).toList();
-        preferredMeals = dietMeals
-            .where((m) => m.categories.any((c) =>
-                c.toLowerCase().contains('weightloss') ||
-                c.toLowerCase().contains('weight loss') ||
-                c.toLowerCase().contains('low calorie') ||
-                c.toLowerCase().contains('lowcalorie') ||
-                c.toLowerCase().contains('diet') ||
-                c.toLowerCase().contains('slimming')))
-            .toList();
-      } else if (userGoal.toLowerCase().contains('weightgain') ||
-          userGoal.toLowerCase().contains('muscle gain') ||
-          userGoal.contains('weight gain')) {
-        preferredIngredients = dietIngredients.where((i) {
-          final matchesGoal = i.categories.any((c) =>
-              c.toLowerCase().contains('weightgain') ||
-              c.toLowerCase().contains('weight gain') ||
-              c.toLowerCase().contains('high calorie') ||
-              c.toLowerCase().contains('muscle gain') ||
-              c.toLowerCase().contains('bulking') ||
-              c.toLowerCase().contains('mass gain'));
-          final proteinStr = i.macros['protein']?.toString() ?? '';
-          final protein = double.tryParse(proteinStr);
-          final isHighProtein = protein != null ? protein > 10 : false;
-          return matchesGoal && isHighProtein;
-        }).toList();
-        preferredMeals = dietMeals
-            .where((m) => m.categories.any((c) =>
-                c.toLowerCase().contains('weightgain') ||
-                c.toLowerCase().contains('weight gain') ||
-                c.toLowerCase().contains('high calorie') ||
-                c.toLowerCase().contains('muscle gain') ||
-                c.toLowerCase().contains('bulking') ||
-                c.toLowerCase().contains('mass gain')))
-            .toList();
-      } else {
-        preferredIngredients = dietIngredients;
-        preferredMeals = dietMeals;
-      }
-
-      // 3. If not enough preferred, fill from diet-matching only
-      filteredIngredients = [...preferredIngredients];
-      if (filteredIngredients.length < 3) {
-        final extra = dietIngredients
-            .where((i) => !filteredIngredients.contains(i))
-            .toList();
-        filteredIngredients.addAll(extra);
-      }
-      filteredMeals = [...preferredMeals];
-      if (filteredMeals.isEmpty) {
-        final extra =
-            dietMeals.where((m) => !filteredMeals.contains(m)).toList();
-        filteredMeals.addAll(extra);
-      }
-
-      // 4. Fallbacks if still not enough
-      if (filteredIngredients.length < 3) {
-        filteredIngredients = allIngredients;
-      }
-      if (filteredMeals.isEmpty) {
-        filteredMeals = allMeals;
-      }
-
-      filteredIngredients.shuffle();
-      filteredMeals.shuffle();
-
-      setState(() {
-        _recommendedIngredients = filteredIngredients.take(3).toList();
-        _featuredMeal = filteredMeals.isNotEmpty ? filteredMeals.first : null;
-        _lastPickDate = DateTime.now();
-        _isLoadingDietGoal = false;
-      });
-    });
   }
 
   Future<void> _showProgramQuestionnaire(
@@ -606,7 +480,7 @@ class _ProgramScreenState extends State<ProgramScreen>
     final String userGoal =
         user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
     final textTheme = Theme.of(context).textTheme;
-
+    final fontSize = getTextScale(6, context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
@@ -629,47 +503,110 @@ class _ProgramScreenState extends State<ProgramScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Diet/Goal Selector
-              _isLoadingDietGoal
-                  ? Center(
-                      child: Padding(
-                      padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                      child: const CircularProgressIndicator(
-                        color: kAccent,
-                      ),
-                    ))
-                  : GoalDietWidget(
-                      diet: userDiet,
-                      goal: userGoal,
-                      topIngredients: _recommendedIngredients,
-                      featuredMeal: _featuredMeal,
-                      onIngredientTap: (ingredient) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => IngredientDetailsScreen(
-                              item: ingredient,
-                              ingredientItems: fullLabelsList,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Get.to(() => const NutritionSettingsPage(
+                                  isHealthExpand: true,
+                                ));
+                          },
+                          child: Text(
+                            'Your Diet: ',
+                            style: textTheme.displaySmall?.copyWith(
+                              color: kAccent,
+                              fontSize: getTextScale(5, context),
                             ),
                           ),
-                        );
-                      },
-                      onMealTap: (meal) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RecipeDetailScreen(
-                              mealData: meal,
-                              screen: 'recipe',
-                            ),
+                        ),
+                        Text(
+                          userDiet.isNotEmpty
+                              ? capitalizeFirstLetter(userDiet)
+                              : 'Not set',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w100,
                           ),
-                        );
-                      },
-                      onRefresh: _isLoadingDietGoal
-                          ? null
-                          : () =>
-                              _pickDietGoalRecommendationsIfNeeded(force: true),
+                        ),
+                      ],
                     ),
+                  ),
+                  SizedBox(width: getPercentageWidth(4, context)),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        if (showCaloriesAndGoal)
+                          SizedBox(width: getPercentageWidth(1, context)),
+                        if (showCaloriesAndGoal)
+                          GestureDetector(
+                            onTap: () {
+                              Get.to(() => const NutritionSettingsPage(
+                                    isHealthExpand: true,
+                                  ));
+                            },
+                            child: Text(
+                              'Goal: ',
+                              style: textTheme.displaySmall?.copyWith(
+                                color: kAccent,
+                                fontSize: getTextScale(5.5, context),
+                              ),
+                            ),
+                          ),
+                        if (showCaloriesAndGoal)
+                          Text(
+                            userGoal.isNotEmpty
+                                ? userGoal.toLowerCase() == "lose weight"
+                                    ? 'Weight Loss'
+                                    : userGoal.toLowerCase() == "muscle gain"
+                                        ? 'Muscle Gain'
+                                        : capitalizeFirstLetter(userGoal)
+                                : 'Not set',
+                            style: textTheme.titleLarge?.copyWith(
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w100,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              Text(
+                'See Recipes for your $userDiet diet',
+                style: textTheme.displaySmall?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w200,
+                  fontSize: getTextScale(6, context),
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(1.5, context)),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPink,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Get.to(() => RecipeListCategory(
+                        index: 1,
+                        searchIngredient: userDiet.toLowerCase(),
+                        screen: 'categories',
+                        isNoTechnique: true,
+                      ));
+                },
+                icon: const Icon(Icons.restaurant, color: kWhite),
+                label: Text('Recipes', style: textTheme.labelLarge?.copyWith(color: kWhite)),
+              ),
+              SizedBox(height: getPercentageHeight(1.5, context)),
+
               // AI Coach Section
               Text(
                 'Speak to "Tasty" AI Coach',

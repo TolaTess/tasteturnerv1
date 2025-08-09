@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
-import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
@@ -55,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool hasMealPlan = true;
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
-  static const String _showCaloriesPrefKey = 'showCaloriesAndGoal';
 
   @override
   void initState() {
@@ -64,7 +62,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _programService = Get.put(ProgramService());
 
     // _initializeMealData();
-    _loadShowCaloriesPref();
+    loadShowCaloriesPref().then((value) {
+      setState(() {
+        showCaloriesAndGoal = value;
+      });
+    });
     _getAllDisabled().then((value) {
       if (value) {
         allDisabled = value;
@@ -172,38 +174,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         hasMealPlan = hasMealPlan;
       });
     }
-  }
-
-  Future<List<MealWithType>> _loadMealsForUI(
-      String userName, List<Map<String, dynamic>> familyList) async {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    QuerySnapshot snapshot = await firestore
-        .collection('mealPlans')
-        .doc(userService.userId)
-        .collection('date')
-        .where('date', isEqualTo: formattedDate)
-        .get();
-    List<MealWithType> mealWithTypes = [];
-
-    if (snapshot.docs.isNotEmpty) {
-      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
-      final mealsList = data?['meals'] as List<dynamic>? ?? [];
-      mealPlan = data ?? {};
-      for (final item in mealsList) {
-        if (item is String && item.contains('/')) {
-          final parts = item.split('/');
-          final mealId = parts[0];
-          final mealType = parts.length > 1 ? parts[1] : '';
-          final mealMember = parts.length > 2 ? parts[2] : '';
-          final meal = await mealManager.getMealbyMealID(mealId);
-          if (meal != null) {
-            mealWithTypes.add(MealWithType(
-                meal: meal, mealType: mealType, familyMember: mealMember));
-          }
-        }
-      }
-    }
-    return updateMealForFamily(mealWithTypes, userName, familyList);
   }
 
   void _setupDataListeners() {
@@ -339,17 +309,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastUnreadCount = unreadCount; // Update last unread count
   }
 
-  Future<void> _loadShowCaloriesPref() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      showCaloriesAndGoal = prefs.getBool(_showCaloriesPrefKey) ?? true;
-    });
-  }
-
-  Future<void> _saveShowCaloriesPref(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_showCaloriesPrefKey, value);
-  }
 
   @override
   void dispose() {
@@ -883,7 +842,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   setState(() {
                                     showCaloriesAndGoal = !showCaloriesAndGoal;
                                   });
-                                  _saveShowCaloriesPref(showCaloriesAndGoal);
+                                  saveShowCaloriesPref(showCaloriesAndGoal);
                                 },
                                 onEdit: (editedUser, isDarkMode) {
                                   // Implement edit logic, maybe show a dialog

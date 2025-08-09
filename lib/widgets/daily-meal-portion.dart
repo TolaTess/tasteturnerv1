@@ -326,9 +326,10 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final allowedFoods = _getAllowedFoodTypes();
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      height: getPercentageHeight(31, context),
+      height: screenHeight < 700 ? screenHeight * 0.35 : screenHeight * 0.31,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

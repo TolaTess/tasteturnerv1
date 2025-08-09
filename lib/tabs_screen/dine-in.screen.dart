@@ -159,8 +159,8 @@ class _DineInScreenState extends State<DineInScreen> {
       final allCarbs = ingredients
           .where((ingredient) =>
               (ingredient.type.toLowerCase() == 'grain' ||
-              ingredient.type.toLowerCase() == 'vegetable' ||
-              ingredient.type.toLowerCase() == 'carb') &&
+                  ingredient.type.toLowerCase() == 'vegetable' ||
+                  ingredient.type.toLowerCase() == 'carb') &&
               !excludedIngredients.contains(ingredient.title.toLowerCase()))
           .toList();
       allCarbs.shuffle(_random);
@@ -168,7 +168,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
       // Get proteins and shuffle properly
       final allProteins = ingredients
-          .where((ingredient) => 
+          .where((ingredient) =>
               ingredient.type.toLowerCase() == 'protein' &&
               !excludedIngredients.contains(ingredient.title.toLowerCase()))
           .toList();
@@ -806,6 +806,7 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
                   ],
+                  SizedBox(height: getPercentageHeight(10, context)),
                 ],
               ),
             ),
