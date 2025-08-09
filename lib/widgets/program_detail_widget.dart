@@ -5,11 +5,13 @@ import '../helper/utils.dart';
 class ProgramDetailWidget extends StatefulWidget {
   final Map<String, dynamic> program;
   final VoidCallback? onJoinProgram;
+  final bool isEnrolled;
 
   const ProgramDetailWidget({
     super.key,
     required this.program,
     this.onJoinProgram,
+    this.isEnrolled = false,
   });
 
   @override
@@ -47,6 +49,44 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
           children: [
             // Header with program name and close button
             _buildHeader(context, textTheme, isDarkMode),
+
+            // Enrollment status indicator
+            if (widget.isEnrolled)
+              Container(
+                width: double.infinity,
+                margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(5, context),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(3, context),
+                  vertical: getPercentageHeight(1, context),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: getIconScale(4, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Text(
+                      'You are enrolled in this program',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Scrollable content
             Flexible(
@@ -447,7 +487,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                 ),
               ),
               child: Text(
-                'Cancel',
+                widget.isEnrolled ? 'Close' : 'Cancel',
                 style: textTheme.bodyMedium?.copyWith(
                   color: Colors.grey,
                   fontWeight: FontWeight.w600,
@@ -455,32 +495,34 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
               ),
             ),
           ),
-          SizedBox(width: getPercentageWidth(3, context)),
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, 'joined');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kAccent,
-                foregroundColor: kWhite,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (!widget.isEnrolled) ...[
+            SizedBox(width: getPercentageWidth(3, context)),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context, 'joined');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  foregroundColor: kWhite,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(1.5, context),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(
-                  vertical: getPercentageHeight(1.5, context),
-                ),
-              ),
-              child: Text(
-                'Join Program',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: kWhite,
-                  fontWeight: FontWeight.w600,
+                child: Text(
+                  'Join Program',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: kWhite,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

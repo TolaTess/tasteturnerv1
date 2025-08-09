@@ -161,11 +161,33 @@ class _ProgramScreenState extends State<ProgramScreen>
       orElse: () => throw Exception('Program type not found'),
     );
 
+    // Check if user is already enrolled in this program
+    final isEnrolled = _programService.userPrograms.any(
+      (program) => program.programId == programData['programId'],
+    );
+
+    if (isEnrolled) {
+      // User is already enrolled, show enrolled status or redirect to progress
+      final enrolledProgram = _programService.userPrograms.firstWhere(
+        (program) => program.programId == programData['programId'],
+      );
+
+      Get.to(() => ProgramProgressScreen(
+            programId: enrolledProgram.programId,
+            programName: enrolledProgram.name,
+            programDescription: enrolledProgram.description,
+            benefits: enrolledProgram.benefits,
+            duration: enrolledProgram.duration,
+          ));
+      return;
+    }
+
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (context) => ProgramDetailWidget(
         program: programData,
+        isEnrolled: isEnrolled,
       ),
     );
 
@@ -603,7 +625,8 @@ class _ProgramScreenState extends State<ProgramScreen>
                       ));
                 },
                 icon: const Icon(Icons.restaurant, color: kWhite),
-                label: Text('Recipes', style: textTheme.labelLarge?.copyWith(color: kWhite)),
+                label: Text('Recipes',
+                    style: textTheme.labelLarge?.copyWith(color: kWhite)),
               ),
               SizedBox(height: getPercentageHeight(1.5, context)),
 
@@ -698,14 +721,16 @@ class _ProgramScreenState extends State<ProgramScreen>
               // Current enrolled programs section
               _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
 
-              Text(
-                _programService.userPrograms.length > 1
-                    ? 'Explore More Programs'
-                    : 'Customize Your Program',
-                style: textTheme.headlineMedium?.copyWith(
-                  color: accent,
-                ),
-              ),
+              Obx(() => Text(
+                    _programService.userPrograms.length > 1
+                        ? 'Explore More Programs'
+                        : _programService.userPrograms.length == 1
+                            ? 'Explore More Programs'
+                            : 'Customize Your Program',
+                    style: textTheme.headlineMedium?.copyWith(
+                      color: accent,
+                    ),
+                  )),
               SizedBox(height: getPercentageHeight(3, context)),
               Obx(() => SizedBox(
                     height: getPercentageHeight(25, context),
@@ -725,24 +750,34 @@ class _ProgramScreenState extends State<ProgramScreen>
                             ),
                             children: List.generate(
                               programTypes.length,
-                              (index) => OverlappingCard(
-                                title: programTypes[index]['name'] ?? '',
-                                type: programTypes[index]['type'],
-                                subtitle:
-                                    programTypes[index]['description'] ?? '',
-                                color: colors[index % colors.length],
-                                imageUrl: programTypes[index]['image'] != null
-                                    ? 'assets/images/${programTypes[index]['image']}.jpg'
-                                    : null,
-                                width: getPercentageWidth(70, context),
-                                height: getPercentageHeight(25, context),
-                                index: index,
-                                onTap: () => _showProgramQuestionnaire(
-                                  programTypes[index]['type'],
-                                  isDarkMode,
-                                ),
-                                isProgram: true,
-                              ),
+                              (index) {
+                                final programData = programTypes[index];
+                                final isEnrolled =
+                                    _programService.userPrograms.any(
+                                  (program) =>
+                                      program.programId ==
+                                      programData['programId'],
+                                );
+
+                                return OverlappingCard(
+                                  title: programData['name'] ?? '',
+                                  type: programData['type'],
+                                  subtitle: programData['description'] ?? '',
+                                  color: colors[index % colors.length],
+                                  imageUrl: programData['image'] != null
+                                      ? 'assets/images/${programData['image']}.jpg'
+                                      : null,
+                                  width: getPercentageWidth(70, context),
+                                  height: getPercentageHeight(25, context),
+                                  index: index,
+                                  onTap: () => _showProgramQuestionnaire(
+                                    programData['type'],
+                                    isDarkMode,
+                                  ),
+                                  isProgram: true,
+                                  isEnrolled: isEnrolled,
+                                );
+                              },
                             ),
                           ),
                   )),

@@ -133,6 +133,7 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                             onTap: child.onTap,
                             type: child.type,
                             isProgram: widget.isProgram,
+                            isEnrolled: child.isEnrolled,
                           ),
                         ),
                       ),
@@ -171,6 +172,7 @@ class OverlappingCard extends StatefulWidget {
   final bool isRecipe;
   final bool isTechnique;
   final bool isProgram;
+  final bool isEnrolled;
 
   const OverlappingCard({
     Key? key,
@@ -187,6 +189,7 @@ class OverlappingCard extends StatefulWidget {
     this.isRecipe = false,
     this.isTechnique = false,
     this.isProgram = false,
+    this.isEnrolled = false,
   }) : super(key: key);
 
   @override
@@ -411,7 +414,9 @@ class _OverlappingCardState extends State<OverlappingCard>
                                       ? 'View'
                                       : widget.isTechnique == true
                                           ? 'View'
-                                          : 'Join Program',
+                                          : widget.isEnrolled
+                                              ? 'View Progress'
+                                              : 'Join Program',
                                   style: textTheme.labelLarge?.copyWith(
                                     color: isDarkMode ? kDarkGrey : kWhite,
                                     overflow: TextOverflow.ellipsis,
