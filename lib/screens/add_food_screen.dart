@@ -1,37 +1,36 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/pages/edit_goal.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../constants.dart';
 import '../data_models/ingredient_data.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
-import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
+import '../service/calorie_adjustment_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/meal_detail_widget.dart';
 import '../widgets/search_button.dart';
 import 'createrecipe_screen.dart';
-import 'food_analysis_results_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
   final DateTime? date;
+  final String? notAllowedMealType;
 
   const AddFoodScreen({
     super.key,
     this.title = 'Update Goals',
     this.date,
+    this.notAllowedMealType,
   });
 
   @override
@@ -55,6 +54,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final MealApiService _apiService = MealApiService();
   final FoodApiService _macroApiService = FoodApiService();
   final RxBool _isSearching = false.obs;
+  final CalorieAdjustmentService _calorieAdjustmentService =
+      Get.put(CalorieAdjustmentService());
 
   // Replace the food section maps with meal type maps
   final Map<String, List<UserMeal>> breakfastList = {};
@@ -93,6 +94,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   void dispose() {
     _searchController.dispose();
+    // Clear calorie adjustments when leaving the screen
+    _calorieAdjustmentService.clearAdjustments();
     super.dispose();
   }
 
@@ -764,6 +767,57 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         );
                       }
 
+                      // Check for calorie overage after saving
+                      if (mounted) {
+                        final newCalories = _pendingMacroItems.fold<int>(
+                            0, (sum, item) => sum + item.calories);
+
+                        // Get existing calories for this meal type
+                        int existingCalories = 0;
+                        switch (mealType.toLowerCase()) {
+                          case 'breakfast':
+                            existingCalories =
+                                dailyDataController.breakfastCalories.value;
+                            break;
+                          case 'lunch':
+                            existingCalories =
+                                dailyDataController.lunchCalories.value;
+                            break;
+                          case 'dinner':
+                            existingCalories =
+                                dailyDataController.dinnerCalories.value;
+                            break;
+                          case 'snacks':
+                            existingCalories =
+                                dailyDataController.snacksCalories.value;
+                            break;
+                          case 'fruits':
+                            // Fruits might be included in snacks or handled separately
+                            existingCalories =
+                                dailyDataController.snacksCalories.value;
+                            break;
+                        }
+
+                        // Total calories = existing + new
+                        final totalCalories = existingCalories + newCalories;
+
+                        // Debug logging
+                        print('DEBUG: New calories: $newCalories');
+                        print('DEBUG: Existing calories: $existingCalories');
+                        print('DEBUG: Total calories: $totalCalories');
+                        print('DEBUG: Meal type: $mealType');
+                        print(
+                            'DEBUG: Not allowed meal type: ${widget.notAllowedMealType}');
+
+                        await _calorieAdjustmentService
+                            .checkAndShowAdjustmentDialog(
+                          context,
+                          mealType,
+                          totalCalories,
+                          notAllowedMealType: widget.notAllowedMealType,
+                        );
+                      }
+
                       if (mounted) {
                         showTastySnackbar(
                           'Success',
@@ -990,6 +1044,17 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         ),
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(1, context)),
+                Center(
+                  child: Text(
+                    'Your program does not include ${capitalizeFirstLetter(widget.notAllowedMealType ?? '')}',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontSize: getPercentageWidth(3.5, context),
+                          fontWeight: FontWeight.w200,
+                          color: kAccent,
+                        ),
+                  ),
+                ),
 
                 SizedBox(height: getPercentageHeight(1, context)),
 
@@ -998,14 +1063,21 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   height: MediaQuery.of(context).size.height -
                       getPercentageHeight(
                           30, context), // Fixed height for the list area
-                  child: Obx(
-                    () => Column(
-                      children: [
-                        _buildMealCard(
+                  child: Column(
+                    children: [
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.breakfastCalories.value;
+                        dailyDataController.userMealList['Breakfast'];
+
+                        return _buildMealCard(
                           context: context,
                           mealType: 'Breakfast',
-                          recommendedCalories:
-                              getRecommendedCalories('Breakfast', 'addFood'),
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Breakfast', 'addFood',
+                                  notAllowedMealType:
+                                      widget.notAllowedMealType),
                           currentCalories:
                               dailyDataController.breakfastCalories.value,
                           meals:
@@ -1025,67 +1097,152 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               dailyDataController.userMealList['Breakfast'] ??
                                   [],
                               dailyDataController.breakfastCalories.value,
-                              getRecommendedCalories('Breakfast', 'addFood'),
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation(
+                                      'Breakfast', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType),
                               Icons.emoji_food_beverage_outlined,
                             );
                           },
-                        ),
-                        _buildMealCard(
-                          context: context,
-                          mealType: 'Lunch',
-                          recommendedCalories:
-                              getRecommendedCalories('Lunch', 'addFood'),
-                          currentCalories:
-                              dailyDataController.lunchCalories.value,
-                          meals:
-                              dailyDataController.userMealList['Lunch'] ?? [],
-                          icon: Icons.lunch_dining_outlined,
-                          onAdd: () {
-                            setState(() {
-                              foodType = 'Lunch';
-                            });
-                            _showSearchResults(context, 'Lunch');
-                          },
-                          onTap: () {
-                            _showMealDetailModal(
-                              context,
-                              'Lunch',
-                              dailyDataController.userMealList['Lunch'] ?? [],
-                              dailyDataController.lunchCalories.value,
-                              getRecommendedCalories('Lunch', 'addFood'),
-                              Icons.lunch_dining_outlined,
-                            );
-                          },
-                        ),
-                        _buildMealCard(
-                          context: context,
-                          mealType: 'Dinner',
-                          recommendedCalories:
-                              getRecommendedCalories('Dinner', 'addFood'),
-                          currentCalories:
-                              dailyDataController.dinnerCalories.value,
-                          meals:
-                              dailyDataController.userMealList['Dinner'] ?? [],
-                          icon: Icons.dinner_dining_outlined,
-                          onAdd: () {
-                            setState(() {
-                              foodType = 'Dinner';
-                            });
-                            _showSearchResults(context, 'Dinner');
-                          },
-                          onTap: () {
-                            _showMealDetailModal(
-                              context,
-                              'Dinner',
-                              dailyDataController.userMealList['Dinner'] ?? [],
-                              dailyDataController.dinnerCalories.value,
-                              getRecommendedCalories('Dinner', 'addFood'),
-                              Icons.dinner_dining_outlined,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                        );
+                      }),
+                      Obx(() => _buildMealCard(
+                            context: context,
+                            mealType: 'Lunch',
+                            recommendedCalories: _calorieAdjustmentService
+                                .getAdjustedRecommendation('Lunch', 'addFood',
+                                    notAllowedMealType:
+                                        widget.notAllowedMealType),
+                            currentCalories:
+                                dailyDataController.lunchCalories.value,
+                            meals:
+                                dailyDataController.userMealList['Lunch'] ?? [],
+                            icon: Icons.lunch_dining_outlined,
+                            onAdd: () {
+                              setState(() {
+                                foodType = 'Lunch';
+                              });
+                              _showSearchResults(context, 'Lunch');
+                            },
+                            onTap: () {
+                              _showMealDetailModal(
+                                context,
+                                'Lunch',
+                                dailyDataController.userMealList['Lunch'] ?? [],
+                                dailyDataController.lunchCalories.value,
+                                _calorieAdjustmentService
+                                    .getAdjustedRecommendation('Lunch',
+                                        'addFood',
+                                        notAllowedMealType:
+                                            widget.notAllowedMealType),
+                                Icons.lunch_dining_outlined,
+                              );
+                            },
+                          )),
+                      Obx(() => _buildMealCard(
+                            context: context,
+                            mealType: 'Dinner',
+                            recommendedCalories: _calorieAdjustmentService
+                                .getAdjustedRecommendation('Dinner', 'addFood',
+                                    notAllowedMealType:
+                                        widget.notAllowedMealType),
+                            currentCalories:
+                                dailyDataController.dinnerCalories.value,
+                            meals: dailyDataController.userMealList['Dinner'] ??
+                                [],
+                            icon: Icons.dinner_dining_outlined,
+                            onAdd: () {
+                              setState(() {
+                                foodType = 'Dinner';
+                              });
+                              _showSearchResults(context, 'Dinner');
+                            },
+                            onTap: () {
+                              _showMealDetailModal(
+                                context,
+                                'Dinner',
+                                dailyDataController.userMealList['Dinner'] ??
+                                    [],
+                                dailyDataController.dinnerCalories.value,
+                                _calorieAdjustmentService
+                                    .getAdjustedRecommendation('Dinner',
+                                        'addFood',
+                                        notAllowedMealType:
+                                            widget.notAllowedMealType),
+                                Icons.dinner_dining_outlined,
+                              );
+                            },
+                          )),
+                      Obx(() => _buildMealCard(
+                            context: context,
+                            mealType: 'Snacks',
+                            recommendedCalories: _calorieAdjustmentService
+                                .getAdjustedRecommendation('Snacks', 'addFood',
+                                    notAllowedMealType:
+                                        widget.notAllowedMealType),
+                            currentCalories:
+                                dailyDataController.snacksCalories.value,
+                            meals: dailyDataController.userMealList['Snacks'] ??
+                                [],
+                            icon: Icons.fastfood_outlined,
+                            onAdd: () {
+                              setState(() {
+                                foodType = 'Snacks';
+                              });
+                              _showSearchResults(context, 'Snacks');
+                            },
+                            onTap: () {
+                              _showMealDetailModal(
+                                context,
+                                'Snacks',
+                                dailyDataController.userMealList['Snacks'] ??
+                                    [],
+                                dailyDataController.snacksCalories.value,
+                                _calorieAdjustmentService
+                                    .getAdjustedRecommendation('Snacks',
+                                        'addFood',
+                                        notAllowedMealType:
+                                            widget.notAllowedMealType),
+                                Icons.fastfood_outlined,
+                              );
+                            },
+                          )),
+                      Obx(() => _buildMealCard(
+                            context: context,
+                            mealType: 'Fruits',
+                            recommendedCalories: _calorieAdjustmentService
+                                .getAdjustedRecommendation('Fruits', 'addFood',
+                                    notAllowedMealType:
+                                        widget.notAllowedMealType),
+                            currentCalories:
+                                dailyDataController.snacksCalories.value,
+                            meals: dailyDataController.userMealList['Fruits'] ??
+                                [],
+                            icon: Icons.fastfood_outlined,
+                            onAdd: () {
+                              setState(() {
+                                foodType = 'Fruits';
+                              });
+                              _showSearchResults(context, 'Fruits');
+                            },
+                            onTap: () {
+                              _showMealDetailModal(
+                                context,
+                                'Fruits',
+                                dailyDataController.userMealList['Fruits'] ??
+                                    [],
+                                dailyDataController.snacksCalories.value,
+                                _calorieAdjustmentService
+                                    .getAdjustedRecommendation('Fruits',
+                                        'addFood',
+                                        notAllowedMealType:
+                                            widget.notAllowedMealType),
+                                Icons.fastfood_outlined,
+                              );
+                            },
+                          )),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -1275,13 +1432,45 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             ),
                           ),
                           SizedBox(height: getPercentageHeight(0.5, context)),
-                          Text(
-                            recommendedCalories,
-                            style: textTheme.bodyLarge?.copyWith(
-                              color: isDarkMode
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  recommendedCalories,
+                                  style: textTheme.bodyLarge?.copyWith(
+                                    color: isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                              if (_calorieAdjustmentService
+                                  .hasAdjustment(mealType))
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        getPercentageWidth(1.5, context),
+                                    vertical: getPercentageHeight(0.3, context),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color:
+                                          Colors.orange.withValues(alpha: 0.5),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Adjusted',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: Colors.orange[700],
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: getTextScale(2.5, context),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           if (currentCalories > 0)
                             SizedBox(height: getPercentageHeight(1, context)),

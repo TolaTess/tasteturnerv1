@@ -672,7 +672,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           color: isDarkMode
                               ? kAccent
                               : kAccent.withValues(alpha: 0.5),
-                          destinationScreen: AddFoodScreen(date: currentDate),
+                          destinationScreen: AddFoodScreen(
+                            date: currentDate,
+                            notAllowedMealType: _programService.userPrograms
+                                    .isNotEmpty
+                                ? _programService.userPrograms.first.notAllowed
+                                    .join(',')
+                                : null,
+                          ),
                           isDarkMode: isDarkMode,
                         ),
                         //shopping

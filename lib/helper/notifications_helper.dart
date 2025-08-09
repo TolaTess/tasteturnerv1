@@ -273,7 +273,8 @@ num? parseToNumber(dynamic value) {
   return null;
 }
 
-String getRecommendedCalories(String mealType, String screen) {
+String getRecommendedCalories(String mealType, String screen,
+    {String? notAllowedMealType}) {
   final settings = userService.currentUser.value?.settings;
   final foodGoalValue = settings?['foodGoal'];
   final baseTargetCalories = (parseToNumber(foodGoalValue) ?? 2000).toDouble();
@@ -282,21 +283,56 @@ String getRecommendedCalories(String mealType, String screen) {
   final minTotalTarget = baseTargetCalories * 0.8; // Weight loss range
   final maxTotalTarget = baseTargetCalories * 1.0; // Muscle gain range
 
-  // Updated calorie distribution for 3 main meals only (no separate snack allocation)
+  // Updated calorie distribution based on notAllowedMealType
   double percentage = 0.0;
+
+  // Check if both snacks and fruits are not allowed
+  bool isSnacksNotAllowed = notAllowedMealType == 'snack' ||
+      notAllowedMealType == 'snack,fruit' ||
+      notAllowedMealType == 'fruit,snack';
+  bool isFruitsNotAllowed = notAllowedMealType == 'fruit' ||
+      notAllowedMealType == 'snack,fruit' ||
+      notAllowedMealType == 'fruit,snack';
+
   switch (mealType) {
     case 'Breakfast':
-      percentage = 0.25; // 25%
+      percentage = 0.25; // 25% - always the same
       break;
     case 'Lunch':
-      percentage = 0.375; // 37.5%
+      if (isSnacksNotAllowed || isFruitsNotAllowed) {
+        // If snacks or fruits are not allowed, redistribute their calories to main meals
+        percentage = 0.35; // Increased from 32.5% to 35%
+      } else {
+        percentage = 0.325; // 32.5% - normal distribution
+      }
       break;
     case 'Dinner':
-      percentage = 0.375; // 37.5%
+      if (isSnacksNotAllowed || isFruitsNotAllowed) {
+        // If snacks or fruits are not allowed, redistribute their calories to main meals
+        percentage = 0.35; // Increased from 32.5% to 35%
+      } else {
+        percentage = 0.325; // 32.5% - normal distribution
+      }
       break;
     case 'Snacks':
-      // Snacks are now part of lunch/dinner, no separate allocation
-      percentage = 0.0;
+      if (isSnacksNotAllowed) {
+        percentage = 0.0; // Not allowed
+      } else if (isFruitsNotAllowed) {
+        // If only fruits are not allowed, snacks get more calories
+        percentage = 0.10; // decreased from 10% to 5%
+      } else {
+        percentage = 0.05; // 10% - normal distribution
+      }
+      break;
+    case 'Fruits':
+      if (isFruitsNotAllowed) {
+        percentage = 0.0; // Not allowed
+      } else if (isSnacksNotAllowed) {
+        // If only snacks are not allowed, fruits get more calories
+        percentage = 0.10; // decreased from 10% to 5%
+      } else {
+        percentage = 0.05; // 10% - normal distribution
+      }
       break;
   }
 
@@ -308,5 +344,264 @@ String getRecommendedCalories(String mealType, String screen) {
     return 'Recommended ${minMealCalories.round()} - ${maxMealCalories.round()} kcal';
   } else {
     return '${minMealCalories.round()}-${maxMealCalories.round()} kcal';
+  }
+}
+
+/// Shows a dialog when user exceeds recommended calories for a meal type
+/// and offers to adjust subsequent meals to compensate
+Future<bool> showCalorieAdjustmentDialog(
+  BuildContext context,
+  String mealType,
+  int currentCalories,
+  int minRecommended,
+  int maxRecommended,
+) async {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+
+  // Calculate overage
+  final overage = currentCalories - maxRecommended;
+
+  if (overage <= 0) return false; // No overage, no need to show dialog
+
+  // Determine which meal to adjust based on current meal type
+  String adjustmentMealType = '';
+  switch (mealType.toLowerCase()) {
+    case 'breakfast':
+      adjustmentMealType = 'Lunch';
+      break;
+    case 'lunch':
+      adjustmentMealType = 'Dinner';
+      break;
+    case 'dinner':
+      adjustmentMealType = 'Snacks';
+      break;
+    case 'snacks':
+      adjustmentMealType = 'Fruits';
+      break;
+    case 'fruits':
+      adjustmentMealType = 'Breakfast'; // Wrap around to next day
+      break;
+    default:
+      adjustmentMealType = 'Lunch';
+  }
+
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      title: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange,
+            size: getIconScale(6, context),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Expanded(
+            child: Text(
+              'Calorie Adjustment',
+              style: textTheme.titleLarge?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'You\'ve exceeded your $mealType allowance by $overage calories.',
+            style: textTheme.bodyLarge?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+          Container(
+            padding: EdgeInsets.all(getPercentageWidth(3, context)),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.orange.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current: $currentCalories kcal',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'Recommended: $minRecommended - $maxRecommended kcal',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'Overage: $overage kcal',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+          Text(
+            'Would you like to adjust your $adjustmentMealType by reducing it by $overage calories to compensate?',
+            style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode
+                  ? kWhite.withValues(alpha: 0.8)
+                  : kBlack.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'No, Keep Current',
+            style: textTheme.bodyMedium?.copyWith(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kAccent,
+            foregroundColor: kWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(
+            'Yes, Adjust $adjustmentMealType',
+            style: textTheme.bodyMedium?.copyWith(
+              color: kWhite,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return result ?? false;
+}
+
+/// Extracts min and max calories from a recommendation string
+Map<String, int> extractCalorieRange(String recommendation) {
+  // Handle both formats: "Recommended 360 - 450 kcal" and "360-450 kcal"
+  final regex = RegExp(r'(\d+)\s*-\s*(\d+)');
+  final match = regex.firstMatch(recommendation);
+
+  if (match != null) {
+    return {
+      'min': int.parse(match.group(1)!),
+      'max': int.parse(match.group(2)!),
+    };
+  }
+
+  return {'min': 0, 'max': 0};
+}
+
+/// Adjusts the recommended calories for a meal type to compensate for overage
+String getAdjustedRecommendedCalories(
+    String mealType, String screen, int overageCalories,
+    {String? notAllowedMealType}) {
+  final originalRecommendation = getRecommendedCalories(mealType, screen,
+      notAllowedMealType: notAllowedMealType);
+  final range = extractCalorieRange(originalRecommendation);
+
+  if (range['min']! > 0 && range['max']! > 0) {
+    // Reduce both min and max by the overage
+    final adjustedMin =
+        (range['min']! - overageCalories).clamp(0, range['min']!);
+    final adjustedMax =
+        (range['max']! - overageCalories).clamp(0, range['max']!);
+
+    if (screen == 'addFood') {
+      return 'Adjusted: ${adjustedMin.round()} - ${adjustedMax.round()} kcal';
+    } else {
+      return '${adjustedMin.round()}-${adjustedMax.round()} kcal';
+    }
+  }
+
+  return originalRecommendation;
+}
+
+/// Helper function to check calorie overage and show adjustment dialog
+/// This can be used in any screen where meals are added
+Future<void> checkCalorieOverageAndAdjust(
+    BuildContext context, String mealType, int currentCalories,
+    {String? notAllowedMealType}) async {
+  final recommendation = getRecommendedCalories(mealType, 'addFood',
+      notAllowedMealType: notAllowedMealType);
+  final range = extractCalorieRange(recommendation);
+
+  if (range['min']! > 0 && range['max']! > 0) {
+    final overage = currentCalories - range['max']!;
+
+    if (overage > 0) {
+      final shouldAdjust = await showCalorieAdjustmentDialog(
+        context,
+        mealType,
+        currentCalories,
+        range['min']!,
+        range['max']!,
+      );
+
+      if (shouldAdjust) {
+        // Determine which meal to adjust
+        String adjustmentMealType = '';
+        switch (mealType.toLowerCase()) {
+          case 'breakfast':
+            adjustmentMealType = 'Lunch';
+            break;
+          case 'lunch':
+            adjustmentMealType = 'Dinner';
+            break;
+          case 'dinner':
+            adjustmentMealType = 'Snacks';
+            break;
+          case 'snacks':
+            adjustmentMealType = 'Fruits';
+            break;
+          case 'fruits':
+            adjustmentMealType = 'Breakfast';
+            break;
+          default:
+            adjustmentMealType = 'Lunch';
+        }
+
+        // Show confirmation
+        if (context.mounted) {
+          showTastySnackbar(
+            'Adjustment Suggested',
+            'Consider reducing $adjustmentMealType by $overage kcal to compensate',
+            context,
+            backgroundColor: kAccentLight,
+          );
+        }
+      }
+    }
   }
 }
