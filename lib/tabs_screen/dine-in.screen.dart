@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -882,6 +883,7 @@ class _DineInScreenState extends State<DineInScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
+                  FirebaseAnalytics.instance.logEvent(name: 'dine_in_challenge_accepted');
                   _acceptChallenge();
                 },
                 child: Text(

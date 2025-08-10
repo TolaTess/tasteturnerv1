@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -84,6 +85,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
     await notificationService.cancelScheduledNotification(1001);
     int dayIndex = _daysOfWeek.indexOf(day);
     int weekday = dayIndex + 1;
+    FirebaseAnalytics.instance.logEvent(name: 'shopping_day_selected', parameters: {
+      'day': day,
+    });
     await notificationService.scheduleWeeklyReminder(
       id: 1001,
       title: 'Shopping Reminder',

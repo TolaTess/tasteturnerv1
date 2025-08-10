@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -361,7 +362,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           value: isFamilyModeEnabled,
                           onChanged: (value) {
                             setState(() {
-                              isFamilyModeEnabled = value;
+                              isFamilyModeEnabled = value;  
+                              FirebaseAnalytics.instance.logEvent(name: 'family_mode_enabled');
                             });
                           },
                           activeColor: kAccent,

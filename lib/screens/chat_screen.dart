@@ -1,13 +1,11 @@
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:tasteturner/data_models/meal_model.dart';
 import '../constants.dart';
-import '../data_models/post_model.dart';
 import '../data_models/user_data_model.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
@@ -143,6 +141,7 @@ class _ChatScreenState extends State<ChatScreen> {
         },
         SetOptions(merge: true),
       );
+      FirebaseAnalytics.instance.logEvent(name: 'calendar_share_request');
     }
   }
 

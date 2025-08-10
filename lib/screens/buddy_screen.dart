@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -700,6 +701,7 @@ Greet the user warmly and offer guidance based on:
         userInputLower.contains('analyse') ||
         userInputLower.contains('detailed food analysis') ||
         userInputLower.contains('food analysis')) {
+      FirebaseAnalytics.instance.logEvent(name: 'buddy_food_analysis');
       // Add user message to chat
       setState(() {
         messages.add(ChatScreenData(
@@ -722,6 +724,7 @@ Greet the user warmly and offer guidance based on:
     if (userInputLower.contains('option 1') ||
         userInputLower.contains('1') ||
         userInputLower.contains('remix')) {
+      FirebaseAnalytics.instance.logEvent(name: 'buddy_remix_ingredients');
       // Add user message to chat
       setState(() {
         messages.add(ChatScreenData(
@@ -773,6 +776,7 @@ Give 3-4 specific ingredient or cooking suggestions. Be encouraging and practica
         userInputLower.contains('2') ||
         userInputLower.contains('protein') ||
         userInputLower.contains('optimize')) {
+      FirebaseAnalytics.instance.logEvent(name: 'buddy_optimize_nutrition');
       // Add user message to chat
       setState(() {
         messages.add(ChatScreenData(
@@ -870,6 +874,7 @@ Give 3-4 practical tips. Be encouraging!
 
     // Check for spin wheel command
     if (userInputLower.contains('spin') || userInputLower.contains('wheel')) {
+      FirebaseAnalytics.instance.logEvent(name: 'buddy_spin_wheel');
       try {
         // Get ingredients from Firestore first
         final ingredients = await macroManager.getIngredientsByCategory('all');
