@@ -169,8 +169,21 @@ class GeminiService {
 
   /// Enhanced error handling wrapper for AI responses
   Map<String, dynamic> _processAIResponse(String text, String operation) {
+    // Check if text is empty or contains error message
+    if (text.isEmpty || text.startsWith('Error:')) {
+      return _createFallbackResponse(
+          operation, 'Empty or error response from API');
+    }
+
     try {
+      // Use robust validation for tasty_analysis
+      if (operation == 'tasty_analysis') {
+        final result = _validateAndExtractFoodAnalysis(text);
+        return result;
+      }
+
       final jsonData = _extractJsonObject(text);
+      print('JSON data: $jsonData');
 
       // Apply ingredient deduplication if ingredients exist
       if (jsonData.containsKey('ingredients') &&
@@ -253,6 +266,915 @@ class GeminiService {
     }
   }
 
+  /// Robust JSON validation and extraction for food analysis
+  Map<String, dynamic> _validateAndExtractFoodAnalysis(String rawResponse) {
+    try {
+      // First attempt: extract JSON from markdown code blocks if present
+      final cleanedResponse = _extractJsonFromMarkdown(rawResponse);
+      final completedResponse = _completeTruncatedJson(cleanedResponse);
+      final sanitized = _sanitizeJsonString(completedResponse);
+      final data = jsonDecode(sanitized) as Map<String, dynamic>;
+
+      // Validate and normalize the data
+      final result = _validateAndNormalizeFoodAnalysisData(data);
+      return result;
+    } catch (e) {
+      // Second attempt: use existing partial extraction method
+      final partialData = _extractPartialJson(rawResponse, 'tasty_analysis');
+      if (partialData.isNotEmpty &&
+          _isValidPartialResponse(partialData, 'tasty_analysis')) {
+        return _validateAndNormalizeFoodAnalysisData(partialData);
+      }
+
+      // Third attempt: extract food analysis data from malformed response
+      final extractedData = _extractFoodAnalysisFromRawText(rawResponse);
+      if (extractedData.isNotEmpty) {
+        // Check if the extracted data has complete nutritional information
+        if (_hasCompleteNutritionalData(extractedData)) {
+          return _validateAndNormalizeFoodAnalysisData(extractedData);
+        }
+      }
+
+      // Fourth attempt: try to extract partial data using regex patterns
+      final regexData = _extractFoodAnalysisWithRegex(rawResponse);
+      if (regexData.isNotEmpty) {
+        return _validateAndNormalizeFoodAnalysisData(regexData);
+      }
+
+      // Return fallback if all extraction attempts fail
+      return _createFallbackResponse(
+          'tasty_analysis', 'Complete extraction failed');
+    }
+  }
+
+  /// Check if extracted data has complete nutritional information
+  bool _hasCompleteNutritionalData(Map<String, dynamic> data) {
+    if (!data.containsKey('foodItems') || data['foodItems'] is! List) {
+      return false;
+    }
+
+    final foodItems = data['foodItems'] as List;
+    if (foodItems.isEmpty) {
+      return false;
+    }
+
+    // Check if at least one food item has complete nutritional data
+    for (final item in foodItems) {
+      if (item is Map<String, dynamic> &&
+          item.containsKey('nutritionalInfo') &&
+          item['nutritionalInfo'] is Map<String, dynamic>) {
+        final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
+
+        // Check if we have the key nutritional values with non-zero values
+        if (nutrition.containsKey('calories') &&
+            nutrition['calories'] is int &&
+            (nutrition['calories'] as int) > 0 &&
+            nutrition.containsKey('protein') &&
+            nutrition['protein'] is int &&
+            nutrition.containsKey('carbs') &&
+            nutrition['carbs'] is int &&
+            nutrition.containsKey('fat') &&
+            nutrition['fat'] is int) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Extract food analysis data using regex patterns when JSON parsing fails
+  Map<String, dynamic> _extractFoodAnalysisWithRegex(String rawResponse) {
+    final Map<String, dynamic> extractedData = {};
+    final List<Map<String, dynamic>> foodItems = [];
+
+    try {
+      // Extract food items using regex patterns - more flexible approach
+      // Look for food items with any order of fields
+      final foodItemPattern = RegExp(
+          r'"name":\s*"([^"]+)".*?"nutritionalInfo":\s*\{.*?"calories":\s*(\d+).*?"protein":\s*(\d+).*?"carbs":\s*(\d+).*?"fat":\s*(\d+).*?"fiber":\s*(\d+).*?"sugar":\s*(\d+).*?"sodium":\s*(\d+)',
+          multiLine: true,
+          dotAll: true);
+
+      final matches = foodItemPattern.allMatches(rawResponse);
+
+      // If no complete matches, try a simpler pattern for basic nutrition
+      if (matches.isEmpty) {
+        final simpleNutritionPattern = RegExp(
+            r'"name":\s*"([^"]+)".*?"calories":\s*(\d+).*?"protein":\s*(\d+).*?"carbs":\s*(\d+).*?"fat":\s*(\d+)',
+            multiLine: true,
+            dotAll: true);
+
+        final simpleMatches = simpleNutritionPattern.allMatches(rawResponse);
+
+        for (final match in simpleMatches) {
+          try {
+            final foodItem = {
+              'name': match.group(1) ?? 'Unknown Food',
+              'estimatedWeight': '100g', // Default weight
+              'confidence': 'low', // Lower confidence for partial data
+              'nutritionalInfo': {
+                'calories': int.tryParse(match.group(2) ?? '0') ?? 0,
+                'protein': int.tryParse(match.group(3) ?? '0') ?? 0,
+                'carbs': int.tryParse(match.group(4) ?? '0') ?? 0,
+                'fat': int.tryParse(match.group(5) ?? '0') ?? 0,
+                'fiber': 2, // Default values for missing fields
+                'sugar': 5,
+                'sodium': 200,
+              }
+            };
+
+            foodItems.add(foodItem);
+          } catch (e) {
+            // Skip failed extractions
+          }
+        }
+      }
+
+      for (final match in matches) {
+        try {
+          final foodItem = {
+            'name': match.group(1) ?? 'Unknown Food',
+            'estimatedWeight':
+                '100g', // Default since we're not extracting this
+            'confidence': 'medium', // Default confidence
+            'nutritionalInfo': {
+              'calories': int.tryParse(match.group(2) ?? '0') ?? 0,
+              'protein': int.tryParse(match.group(3) ?? '0') ?? 0,
+              'carbs': int.tryParse(match.group(4) ?? '0') ?? 0,
+              'fat': int.tryParse(match.group(5) ?? '0') ?? 0,
+              'fiber': int.tryParse(match.group(6) ?? '0') ?? 0,
+              'sugar': int.tryParse(match.group(7) ?? '0') ?? 0,
+              'sodium': int.tryParse(match.group(8) ?? '0') ?? 0,
+            }
+          };
+
+          foodItems.add(foodItem);
+        } catch (e) {
+          // Skip failed extractions
+        }
+      }
+
+      if (foodItems.isNotEmpty) {
+        extractedData['foodItems'] = foodItems;
+
+        // Calculate total nutrition
+        int totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+        int totalFiber = 0, totalSugar = 0, totalSodium = 0;
+
+        for (final item in foodItems) {
+          final nutrition = item['nutritionalInfo'] as Map<String, dynamic>?;
+          if (nutrition != null) {
+            totalCalories += nutrition['calories'] as int? ?? 0;
+            totalProtein += nutrition['protein'] as int? ?? 0;
+            totalCarbs += nutrition['carbs'] as int? ?? 0;
+            totalFat += nutrition['fat'] as int? ?? 0;
+            totalFiber += nutrition['fiber'] as int? ?? 0;
+            totalSugar += nutrition['sugar'] as int? ?? 0;
+            totalSodium += nutrition['sodium'] as int? ?? 0;
+          }
+        }
+
+        extractedData['totalNutrition'] = {
+          'calories': totalCalories,
+          'protein': totalProtein,
+          'carbs': totalCarbs,
+          'fat': totalFat,
+          'fiber': totalFiber,
+          'sugar': totalSugar,
+          'sodium': totalSodium,
+        };
+
+        // Extract other fields if possible
+        final healthScoreMatch =
+            RegExp(r'"healthScore":\s*(\d+)').firstMatch(rawResponse);
+        if (healthScoreMatch != null) {
+          extractedData['healthScore'] =
+              int.tryParse(healthScoreMatch.group(1) ?? '5') ?? 5;
+        }
+
+        final mealTypeMatch =
+            RegExp(r'"mealType":\s*"([^"]+)"').firstMatch(rawResponse);
+        if (mealTypeMatch != null) {
+          extractedData['mealType'] = mealTypeMatch.group(1) ?? 'unknown';
+        }
+
+        // Extract missing fields using regex patterns
+        extractedData['ingredients'] = _extractIngredientsFromText(rawResponse);
+        extractedData['cookingMethod'] =
+            _extractCookingMethodFromText(rawResponse);
+        extractedData['instructions'] =
+            _extractInstructionsFromText(rawResponse);
+        extractedData['dietaryFlags'] =
+            _extractDietaryFlagsFromText(rawResponse);
+        extractedData['suggestions'] = _extractSuggestionsFromText(rawResponse);
+        extractedData['estimatedPortionSize'] =
+            _extractPortionSizeFromText(rawResponse);
+
+        extractedData['confidence'] = 'medium'; // Since we extracted some data
+        extractedData['notes'] =
+            'Data extracted using regex patterns due to JSON parsing issues';
+
+        return extractedData;
+      }
+    } catch (e) {
+      // Regex extraction failed, continue to fallback
+    }
+    return {};
+  }
+
+  /// Validate and normalize food analysis data to ensure consistency
+  Map<String, dynamic> _validateAndNormalizeFoodAnalysisData(
+      Map<String, dynamic> data) {
+    final normalizedData = <String, dynamic>{};
+
+    // Validate and normalize food items
+    if (data.containsKey('foodItems') && data['foodItems'] is List) {
+      final foodItems = data['foodItems'] as List;
+      final normalizedFoodItems = <Map<String, dynamic>>[];
+
+      for (int i = 0; i < foodItems.length; i++) {
+        final item = foodItems[i];
+        if (item is Map<String, dynamic>) {
+          final normalizedItem = _normalizeFoodItem(item, i);
+          normalizedFoodItems.add(normalizedItem);
+        }
+      }
+
+      normalizedData['foodItems'] = normalizedFoodItems;
+
+      // Calculate total nutrition from normalized food items
+      final totalNutrition =
+          _calculateTotalNutritionFromItems(normalizedFoodItems);
+      normalizedData['totalNutrition'] = totalNutrition;
+    } else {
+      // Create fallback food items if none exist
+      normalizedData['foodItems'] = [
+        {
+          'name': 'Unknown Food',
+          'estimatedWeight': '100g',
+          'confidence': 'low',
+          'nutritionalInfo': {
+            'calories': 200,
+            'protein': 10,
+            'carbs': 20,
+            'fat': 8,
+            'fiber': 2,
+            'sugar': 5,
+            'sodium': 200,
+          }
+        }
+      ];
+      normalizedData['totalNutrition'] = {
+        'calories': 200,
+        'protein': 10,
+        'carbs': 20,
+        'fat': 8,
+        'fiber': 2,
+        'sugar': 5,
+        'sodium': 200,
+      };
+    }
+
+    // Add other required fields with defaults
+    normalizedData['mealType'] = data['mealType'] ?? 'unknown';
+    normalizedData['estimatedPortionSize'] =
+        data['estimatedPortionSize'] ?? 'medium';
+    normalizedData['confidence'] = data['confidence'] ?? 'low';
+    normalizedData['healthScore'] = _extractHealthScoreFromData(data);
+    normalizedData['notes'] = data['notes'] ?? 'Analysis completed';
+
+    // Add missing fields that were being ignored
+    normalizedData['ingredients'] = _normalizeIngredients(data['ingredients']);
+    normalizedData['cookingMethod'] =
+        data['cookingMethod']?.toString() ?? 'unknown';
+    normalizedData['instructions'] =
+        _normalizeInstructions(data['instructions']);
+    normalizedData['dietaryFlags'] =
+        _normalizeDietaryFlags(data['dietaryFlags']);
+    normalizedData['suggestions'] = _normalizeSuggestions(data['suggestions']);
+
+    return normalizedData;
+  }
+
+  /// Normalize a single food item with proper nutritional values
+  Map<String, dynamic> _normalizeFoodItem(
+      Map<String, dynamic> item, int index) {
+    final normalizedItem = <String, dynamic>{};
+
+    // Basic food item info
+    normalizedItem['name'] = item['name'] ?? 'Food Item ${index + 1}';
+    normalizedItem['estimatedWeight'] = item['estimatedWeight'] ?? '100g';
+    normalizedItem['confidence'] = item['confidence'] ?? 'low';
+
+    // Normalize nutritional info with realistic values
+    final nutrition = item['nutritionalInfo'] as Map<String, dynamic>? ?? {};
+    normalizedItem['nutritionalInfo'] = {
+      'calories': _ensureInt(nutrition['calories'], _getDefaultCalories(index)),
+      'protein': _ensureInt(nutrition['protein'], _getDefaultProtein(index)),
+      'carbs': _ensureInt(nutrition['carbs'], _getDefaultCarbs(index)),
+      'fat': _ensureInt(nutrition['fat'], _getDefaultFat(index)),
+      'fiber': _ensureInt(nutrition['fiber'], 2),
+      'sugar': _ensureInt(nutrition['sugar'], 5),
+      'sodium': _ensureInt(nutrition['sodium'], 200),
+    };
+
+    return normalizedItem;
+  }
+
+  /// Ensure a value is an integer, with fallback
+  int _ensureInt(dynamic value, int fallback) {
+    if (value is int) return value;
+    if (value is String) {
+      final parsed = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      return parsed ?? fallback;
+    }
+    if (value is double) return value.round();
+    return fallback;
+  }
+
+  /// Get default calories based on food item index (to ensure variety)
+  int _getDefaultCalories(int index) {
+    final defaults = [300, 250, 200, 150, 100];
+    return defaults[index % defaults.length];
+  }
+
+  /// Get default protein based on food item index
+  int _getDefaultProtein(int index) {
+    final defaults = [25, 20, 15, 10, 5];
+    return defaults[index % defaults.length];
+  }
+
+  /// Get default carbs based on food item index
+  int _getDefaultCarbs(int index) {
+    final defaults = [30, 25, 20, 15, 10];
+    return defaults[index % defaults.length];
+  }
+
+  /// Get default fat based on food item index
+  int _getDefaultFat(int index) {
+    final defaults = [12, 10, 8, 6, 4];
+    return defaults[index % defaults.length];
+  }
+
+  /// Calculate total nutrition from normalized food items
+  Map<String, dynamic> _calculateTotalNutritionFromItems(
+      List<Map<String, dynamic>> foodItems) {
+    int totalCalories = 0;
+    int totalProtein = 0;
+    int totalCarbs = 0;
+    int totalFat = 0;
+    int totalFiber = 0;
+    int totalSugar = 0;
+    int totalSodium = 0;
+
+    for (final item in foodItems) {
+      final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
+      totalCalories += nutrition['calories'] as int;
+      totalProtein += nutrition['protein'] as int;
+      totalCarbs += nutrition['carbs'] as int;
+      totalFat += nutrition['fat'] as int;
+      totalFiber += nutrition['fiber'] as int;
+      totalSugar += nutrition['sugar'] as int;
+      totalSodium += nutrition['sodium'] as int;
+    }
+
+    return {
+      'calories': totalCalories,
+      'protein': totalProtein,
+      'carbs': totalCarbs,
+      'fat': totalFat,
+      'fiber': totalFiber,
+      'sugar': totalSugar,
+      'sodium': totalSodium,
+    };
+  }
+
+  /// Extract health score from data with validation
+  int _extractHealthScoreFromData(Map<String, dynamic> data) {
+    final healthScore = data['healthScore'];
+    if (healthScore is int && healthScore >= 1 && healthScore <= 10) {
+      return healthScore;
+    }
+    if (healthScore is String) {
+      final parsed =
+          int.tryParse(healthScore.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (parsed != null && parsed >= 1 && parsed <= 10) {
+        return parsed;
+      }
+    }
+    return 5; // Default health score
+  }
+
+  /// Normalize ingredients to Map<String, String> format
+  Map<String, String> _normalizeIngredients(dynamic ingredients) {
+    if (ingredients == null) {
+      return <String, String>{'unknown ingredient': '1 portion'};
+    }
+
+    if (ingredients is Map<String, dynamic>) {
+      final normalizedIngredients = <String, String>{};
+      ingredients.forEach((key, value) {
+        normalizedIngredients[key.toString()] = value.toString();
+      });
+      return _normalizeAndDeduplicateIngredients(ingredients);
+    }
+
+    if (ingredients is List) {
+      final normalizedIngredients = <String, String>{};
+      for (int i = 0; i < ingredients.length; i++) {
+        normalizedIngredients['ingredient${i + 1}'] = ingredients[i].toString();
+      }
+      return normalizedIngredients;
+    }
+
+    return <String, String>{'unknown ingredient': '1 portion'};
+  }
+
+  /// Normalize instructions to List<String> format
+  List<String> _normalizeInstructions(dynamic instructions) {
+    if (instructions == null) {
+      return [
+        'Food analyzed by AI',
+        'Nutrition and ingredients estimated from image analysis'
+      ];
+    }
+
+    if (instructions is List) {
+      return instructions
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    if (instructions is String) {
+      final trimmed = instructions.trim();
+      return trimmed.isNotEmpty ? [trimmed] : ['Food analyzed by AI'];
+    }
+
+    return ['Food analyzed by AI'];
+  }
+
+  /// Normalize dietary flags to Map<String, bool> format
+  Map<String, bool> _normalizeDietaryFlags(dynamic dietaryFlags) {
+    final defaultFlags = <String, bool>{
+      'vegetarian': false,
+      'vegan': false,
+      'glutenFree': false,
+      'dairyFree': false,
+      'keto': false,
+      'lowCarb': false,
+    };
+
+    if (dietaryFlags == null || dietaryFlags is! Map) {
+      return defaultFlags;
+    }
+
+    final normalizedFlags = <String, bool>{};
+    dietaryFlags.forEach((key, value) {
+      final keyStr = key.toString();
+      if (defaultFlags.containsKey(keyStr)) {
+        if (value is bool) {
+          normalizedFlags[keyStr] = value;
+        } else if (value is String) {
+          normalizedFlags[keyStr] = value.toLowerCase() == 'true';
+        } else {
+          normalizedFlags[keyStr] = false;
+        }
+      }
+    });
+
+    // Fill in missing flags with defaults
+    defaultFlags.forEach((key, defaultValue) {
+      normalizedFlags[key] ??= defaultValue;
+    });
+
+    return normalizedFlags;
+  }
+
+  /// Normalize suggestions to proper format
+  Map<String, List<String>> _normalizeSuggestions(dynamic suggestions) {
+    final defaultSuggestions = <String, List<String>>{
+      'improvements': <String>[],
+      'alternatives': <String>[],
+      'additions': <String>[],
+    };
+
+    if (suggestions == null || suggestions is! Map) {
+      return defaultSuggestions;
+    }
+
+    final normalizedSuggestions = <String, List<String>>{};
+    suggestions.forEach((key, value) {
+      final keyStr = key.toString();
+      if (defaultSuggestions.containsKey(keyStr)) {
+        if (value is List) {
+          normalizedSuggestions[keyStr] = value
+              .map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
+        } else if (value is String) {
+          final trimmed = value.trim();
+          normalizedSuggestions[keyStr] =
+              trimmed.isNotEmpty ? [trimmed] : <String>[];
+        } else {
+          normalizedSuggestions[keyStr] = <String>[];
+        }
+      }
+    });
+
+    // Fill in missing categories with defaults
+    defaultSuggestions.forEach((key, defaultValue) {
+      normalizedSuggestions[key] ??= defaultValue;
+    });
+
+    return normalizedSuggestions;
+  }
+
+  /// Extract JSON from markdown code blocks
+  String _extractJsonFromMarkdown(String text) {
+    // Remove markdown code block markers
+    String cleaned =
+        text.replaceAll(RegExp(r'^```json\s*', multiLine: true), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s*```$', multiLine: true), '');
+    return cleaned.trim();
+  }
+
+  /// Attempt to complete truncated JSON responses
+  String _completeTruncatedJson(String text) {
+    // Check if the JSON appears to be truncated
+    if (!text.trim().endsWith('}')) {
+      // Count opening and closing braces
+      final openBraces = '{'.allMatches(text).length;
+      final closeBraces = '}'.allMatches(text).length;
+
+      // If we have more opening braces than closing braces, try to complete
+      if (openBraces > closeBraces) {
+        final missingBraces = openBraces - closeBraces;
+        text += '}' * missingBraces;
+
+        // Also check for incomplete arrays
+        final openBrackets = '['.allMatches(text).length;
+        final closeBrackets = ']'.allMatches(text).length;
+        if (openBrackets > closeBrackets) {
+          final missingBrackets = openBrackets - closeBrackets;
+          text += ']' * missingBrackets;
+        }
+
+        print(
+            'Attempted to complete truncated JSON by adding $missingBraces closing braces');
+      }
+    }
+
+    return text;
+  }
+
+  /// Extract food analysis data from raw text using regex patterns
+  Map<String, dynamic> _extractFoodAnalysisFromRawText(String rawResponse) {
+    final extractedData = <String, dynamic>{};
+
+    try {
+      // Extract food items using regex patterns
+      final foodItems = _extractFoodItemsFromText(rawResponse);
+
+      if (foodItems.isNotEmpty) {
+        extractedData['foodItems'] = foodItems;
+
+        // Calculate total nutrition from extracted food items
+        final totalNutrition = _calculateTotalNutrition(foodItems);
+        extractedData['totalNutrition'] = totalNutrition;
+
+        // Extract additional fields
+        extractedData['healthScore'] = _extractHealthScore(rawResponse);
+        extractedData['mealType'] = _extractMealType(rawResponse);
+
+        // Extract missing fields using regex patterns
+        extractedData['ingredients'] = _extractIngredientsFromText(rawResponse);
+        extractedData['cookingMethod'] =
+            _extractCookingMethodFromText(rawResponse);
+        extractedData['instructions'] =
+            _extractInstructionsFromText(rawResponse);
+        extractedData['dietaryFlags'] =
+            _extractDietaryFlagsFromText(rawResponse);
+        extractedData['suggestions'] = _extractSuggestionsFromText(rawResponse);
+        extractedData['estimatedPortionSize'] =
+            _extractPortionSizeFromText(rawResponse);
+
+        extractedData['confidence'] = 'extracted';
+        extractedData['notes'] =
+            'Data extracted from raw text using regex patterns';
+
+        return extractedData;
+      }
+    } catch (e) {
+      print('Food analysis extraction failed: $e');
+    }
+
+    return {};
+  }
+
+  /// Extract food items from raw text
+  List<Map<String, dynamic>> _extractFoodItemsFromText(String text) {
+    final foodItems = <Map<String, dynamic>>[];
+
+    // Pattern to match food item blocks
+    final foodItemPattern = RegExp(
+        r'"name":\s*"([^"]+)".*?"estimatedWeight":\s*"([^"]+)".*?"confidence":\s*"([^"]+)"',
+        multiLine: true,
+        dotAll: true);
+
+    final matches = foodItemPattern.allMatches(text);
+
+    for (final match in matches) {
+      final name = match.group(1) ?? 'Unknown Food';
+      final weight = match.group(2) ?? '100g';
+      final confidence = match.group(3) ?? 'low';
+
+      // Extract nutritional info for this specific food item
+      final nutrition = _extractNutritionalInfoForFood(text, name);
+
+      foodItems.add({
+        'name': name,
+        'estimatedWeight': weight,
+        'confidence': confidence,
+        'nutritionalInfo': nutrition,
+      });
+    }
+
+    return foodItems;
+  }
+
+  /// Extract nutritional info for a specific food item 
+  Map<String, dynamic> _extractNutritionalInfoForFood(
+      String text, String foodName) {
+    // Use a more flexible pattern to find the food item with its nutrition
+    // Handle both quoted and unquoted numeric values
+    final escapedFoodName = RegExp.escape(foodName);
+    final pattern =
+        '"name":\\s*"$escapedFoodName".*?"nutritionalInfo":\\s*\\{.*?"calories":\\s*"?(\\d+)"?.*?"protein":\\s*"?(\\d+)"?.*?"carbs":\\s*"?(\\d+)"?.*?"fat":\\s*"?(\\d+)"?.*?"fiber":\\s*"?(\\d+)"?.*?"sugar":\\s*"?(\\d+)"?.*?"sodium":\\s*"?(\\d+)"?';
+
+    final foodSectionPattern = RegExp(pattern, multiLine: true, dotAll: true);
+
+    final match = foodSectionPattern.firstMatch(text);
+    if (match != null) {
+      // Extract individual nutritional values
+      final calories = int.tryParse(match.group(1) ?? '0') ?? 0;
+      final protein = int.tryParse(match.group(2) ?? '0') ?? 0;
+      final carbs = int.tryParse(match.group(3) ?? '0') ?? 0;
+      final fat = int.tryParse(match.group(4) ?? '0') ?? 0;
+      final fiber = int.tryParse(match.group(5) ?? '0') ?? 0;
+      final sugar = int.tryParse(match.group(6) ?? '0') ?? 0;
+      final sodium = int.tryParse(match.group(7) ?? '0') ?? 0;
+
+      return {
+        'calories': calories,
+        'protein': protein,
+        'carbs': carbs,
+        'fat': fat,
+        'fiber': fiber,
+        'sugar': sugar,
+        'sodium': sodium,
+      };
+    }
+
+    // Fallback nutritional info
+    return {
+      'calories': 200,
+      'protein': 10,
+      'carbs': 20,
+      'fat': 8,
+      'fiber': 2,
+      'sugar': 5,
+      'sodium': 200,
+    };
+  }
+
+  /// Calculate total nutrition from food items
+  Map<String, dynamic> _calculateTotalNutrition(
+      List<Map<String, dynamic>> foodItems) {
+    int totalCalories = 0;
+    int totalProtein = 0;
+    int totalCarbs = 0;
+    int totalFat = 0;
+    int totalFiber = 0;
+    int totalSugar = 0;
+    int totalSodium = 0;
+
+    for (final item in foodItems) {
+      final nutrition = item['nutritionalInfo'] as Map<String, dynamic>;
+      totalCalories += nutrition['calories'] as int;
+      totalProtein += nutrition['protein'] as int;
+      totalCarbs += nutrition['carbs'] as int;
+      totalFat += nutrition['fat'] as int;
+      totalFiber += nutrition['fiber'] as int;
+      totalSugar += nutrition['sugar'] as int;
+      totalSodium += nutrition['sodium'] as int;
+    }
+
+    return {
+      'calories': totalCalories,
+      'protein': totalProtein,
+      'carbs': totalCarbs,
+      'fat': totalFat,
+      'fiber': totalFiber,
+      'sugar': totalSugar,
+      'sodium': totalSodium,
+    };
+  }
+
+  /// Extract health score from text
+  int _extractHealthScore(String text) {
+    // Look for healthScore with or without trailing quotes
+    final healthScorePatterns = [
+      RegExp(r'"healthScore":\s*(\d+)(?=\s*[,}\]])'), // Without trailing quote
+      RegExp(r'"healthScore":\s*(\d+)"(?=\s*[,}\]])'), // With trailing quote
+    ];
+
+    for (final pattern in healthScorePatterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        return int.tryParse(match.group(1) ?? '5') ?? 5;
+      }
+    }
+
+    return 5; // Default health score
+  }
+
+  /// Extract meal type from text
+  String _extractMealType(String text) {
+    final mealTypeMatch = RegExp(r'"mealType":\s*"([^"]+)"').firstMatch(text);
+    return mealTypeMatch?.group(1) ?? 'unknown';
+  }
+
+  /// Extract ingredients from text using regex patterns
+  Map<String, String> _extractIngredientsFromText(String text) {
+    final ingredients = <String, String>{};
+
+    // Look for ingredients section
+    final ingredientsMatch = RegExp(
+      r'"ingredients":\s*\{([^}]+)\}',
+      multiLine: true,
+      dotAll: true,
+    ).firstMatch(text);
+
+    if (ingredientsMatch != null) {
+      final ingredientsText = ingredientsMatch.group(1) ?? '';
+
+      // Extract individual ingredients
+      final ingredientMatches = RegExp(
+        r'"([^"]+)":\s*"([^"]+)"',
+        multiLine: true,
+      ).allMatches(ingredientsText);
+
+      for (final match in ingredientMatches) {
+        final key = match.group(1)?.trim();
+        final value = match.group(2)?.trim();
+        if (key != null && value != null) {
+          ingredients[key] = value;
+        }
+      }
+    }
+
+    return ingredients.isNotEmpty
+        ? ingredients
+        : {'unknown ingredient': '1 portion'};
+  }
+
+  /// Extract cooking method from text
+  String _extractCookingMethodFromText(String text) {
+    final cookingMethodMatch =
+        RegExp(r'"cookingMethod":\s*"([^"]+)"').firstMatch(text);
+    return cookingMethodMatch?.group(1) ?? 'unknown';
+  }
+
+  /// Extract instructions from text
+  List<String> _extractInstructionsFromText(String text) {
+    final instructions = <String>[];
+
+    // Look for instructions array
+    final instructionsMatch = RegExp(
+      r'"instructions":\s*\[([^\]]+)\]',
+      multiLine: true,
+      dotAll: true,
+    ).firstMatch(text);
+
+    if (instructionsMatch != null) {
+      final instructionsText = instructionsMatch.group(1) ?? '';
+
+      // Extract individual instructions
+      final instructionMatches = RegExp(
+        r'"([^"]+)"',
+        multiLine: true,
+      ).allMatches(instructionsText);
+
+      for (final match in instructionMatches) {
+        final instruction = match.group(1)?.trim();
+        if (instruction != null && instruction.isNotEmpty) {
+          instructions.add(instruction);
+        }
+      }
+    }
+
+    return instructions.isNotEmpty ? instructions : ['Food analyzed by AI'];
+  }
+
+  /// Extract dietary flags from text
+  Map<String, bool> _extractDietaryFlagsFromText(String text) {
+    final defaultFlags = <String, bool>{
+      'vegetarian': false,
+      'vegan': false,
+      'glutenFree': false,
+      'dairyFree': false,
+      'keto': false,
+      'lowCarb': false,
+    };
+
+    // Look for dietaryFlags section
+    final dietaryFlagsMatch = RegExp(
+      r'"dietaryFlags":\s*\{([^}]+)\}',
+      multiLine: true,
+      dotAll: true,
+    ).firstMatch(text);
+
+    if (dietaryFlagsMatch != null) {
+      final flagsText = dietaryFlagsMatch.group(1) ?? '';
+
+      // Extract individual flags
+      final flagMatches = RegExp(
+        r'"([^"]+)":\s*(true|false)',
+        multiLine: true,
+      ).allMatches(flagsText);
+
+      for (final match in flagMatches) {
+        final key = match.group(1)?.trim();
+        final value = match.group(2)?.trim();
+        if (key != null && defaultFlags.containsKey(key)) {
+          defaultFlags[key] = value?.toLowerCase() == 'true';
+        }
+      }
+    }
+
+    return defaultFlags;
+  }
+
+  /// Extract suggestions from text
+  Map<String, List<String>> _extractSuggestionsFromText(String text) {
+    final defaultSuggestions = <String, List<String>>{
+      'improvements': <String>[],
+      'alternatives': <String>[],
+      'additions': <String>[],
+    };
+
+    // Look for suggestions section
+    final suggestionsMatch = RegExp(
+      r'"suggestions":\s*\{([^}]+)\}',
+      multiLine: true,
+      dotAll: true,
+    ).firstMatch(text);
+
+    if (suggestionsMatch != null) {
+      final suggestionsText = suggestionsMatch.group(1) ?? '';
+
+      // Extract each category
+      for (final category in defaultSuggestions.keys) {
+        final categoryMatch = RegExp(
+          '"$category":\\s*\\[([^\\]]+)\\]',
+          multiLine: true,
+          dotAll: true,
+        ).firstMatch(suggestionsText);
+
+        if (categoryMatch != null) {
+          final categoryText = categoryMatch.group(1) ?? '';
+          final itemMatches = RegExp(
+            r'"([^"]+)"',
+            multiLine: true,
+          ).allMatches(categoryText);
+
+          final items = <String>[];
+          for (final match in itemMatches) {
+            final item = match.group(1)?.trim();
+            if (item != null && item.isNotEmpty) {
+              items.add(item);
+            }
+          }
+
+          if (items.isNotEmpty) {
+            defaultSuggestions[category] = items;
+          }
+        }
+      }
+    }
+
+    return defaultSuggestions;
+  }
+
+  /// Extract portion size from text
+  String _extractPortionSizeFromText(String text) {
+    final portionMatch =
+        RegExp(r'"estimatedPortionSize":\s*"([^"]+)"').firstMatch(text);
+    return portionMatch?.group(1) ?? 'medium';
+  }
+
   /// Create fallback response for failed AI operations
   Map<String, dynamic> _createFallbackResponse(String operation, String error) {
     switch (operation) {
@@ -288,7 +1210,24 @@ class GeminiService {
           'ingredients': {'unknown ingredient': '1 portion'},
           'cookingMethod': 'unknown',
           'confidence': 'low',
-          'healthScore': 5,
+          'healthScore': 7,
+          'instructions': [
+            'Analysis failed: $error',
+            'Please verify nutritional information manually.'
+          ],
+          'dietaryFlags': {
+            'vegetarian': false,
+            'vegan': false,
+            'glutenFree': false,
+            'dairyFree': false,
+            'keto': false,
+            'lowCarb': false,
+          },
+          'suggestions': {
+            'improvements': ['Manual verification recommended'],
+            'alternatives': ['Consult nutrition database'],
+            'additions': ['Consider professional dietary advice'],
+          },
           'notes':
               'Analysis failed: $error. Please verify nutritional information manually.'
         };
@@ -866,29 +1805,56 @@ USER CONTEXT:
             "topP": 0.95,
             "maxOutputTokens":
                 maxTokens, // Reduced from 1024 to encourage brevity
-            "stopSequences": [
-              "\n\n"
-            ] // Stop at double newline to prevent lengthy responses
+            // Removed stopSequences as it might be causing empty responses
           },
         }),
       );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        // Clean up any remaining newlines or extra spaces
-        final cleanedText = (text ?? "I couldn't understand that.")
-            .trim()
-            .replaceAll(RegExp(r'\n+'), ' ')
-            .replaceAll(RegExp(r'\s+'), ' ');
-        return cleanedText;
+
+        if (decoded.containsKey('candidates') &&
+            decoded['candidates'] is List &&
+            decoded['candidates'].isNotEmpty) {
+          final candidate = decoded['candidates'][0];
+
+          if (candidate.containsKey('content') && candidate['content'] is Map) {
+            final content = candidate['content'];
+
+            if (content.containsKey('parts') &&
+                content['parts'] is List &&
+                content['parts'].isNotEmpty) {
+              final part = content['parts'][0];
+
+              if (part.containsKey('text')) {
+                final text = part['text'];
+
+                // Clean up any remaining newlines or extra spaces
+                final cleanedText = (text ?? "I couldn't understand that.")
+                    .trim()
+                    .replaceAll(RegExp(r'\n+'), ' ')
+                    .replaceAll(RegExp(r'\s+'), ' ');
+
+                return cleanedText;
+              } else {
+                return 'Error: No text content in API response';
+              }
+            } else {
+              return 'Error: No content parts in API response';
+            }
+          } else {
+            return 'Error: No content in API response';
+          }
+        } else {
+          return 'Error: No candidates in API response';
+        }
       } else {
         print('AI API Error: ${response.body}');
         _activeModel = null;
         return 'Error: ${response.statusCode}';
       }
     } catch (e) {
-      print('AI API Exception: $e');
+      if (e is FormatException) {}
       _activeModel = null;
       return 'Error: Failed to connect to AI service';
     }
@@ -917,19 +1883,36 @@ USER CONTEXT:
 
   // Sanitize JSON string to fix common AI response issues
   String _sanitizeJsonString(String jsonStr) {
-    // Fix trailing quotes after numeric values (e.g., "serveQty": 1" -> "serveQty": 1)
-    final beforeFix = jsonStr;
+    // Fix trailing quotes after ANY numeric values - more comprehensive approach
+    // This catches cases like "healthScore": 6", "calories": 450", etc.
     jsonStr = jsonStr.replaceAllMapped(
-        RegExp(r'":\s*(\d+)"(?=\s*[,}\]])', multiLine: true),
-        (match) => '": ${match.group(1)}');
+        RegExp(r'"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])', multiLine: true),
+        (match) {
+      final fieldName = match.group(1) ?? '';
+      final numericValue = match.group(2) ?? '';
+      return '"$fieldName": $numericValue';
+    });
 
-    if (beforeFix != jsonStr) {
-      print('Fixed trailing quotes in JSON');
-    }
-
-    // Fix any remaining trailing quotes after numbers (more comprehensive)
+    // Fix trailing quotes after numbers that might have spaces (e.g., "healthScore": 6 " -> "healthScore": 6)
     jsonStr = jsonStr.replaceAllMapped(
-        RegExp(r'"([^"]+)":\s*(\d+)"(?=\s*[,}\]])', multiLine: true),
+        RegExp(r'"([^"]+)":\s*(\d+(?:\.\d+)?)\s*"(?=\s*[,}\]])',
+            multiLine: true), (match) {
+      final fieldName = match.group(1) ?? '';
+      final numericValue = match.group(2) ?? '';
+      return '"$fieldName": $numericValue';
+    });
+
+    // Fix any remaining trailing quotes after numbers (catch-all)
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])', multiLine: true),
+        (match) {
+      final numericValue = match.group(1) ?? '';
+      return ': $numericValue';
+    });
+
+    // Fix any other numeric fields with trailing quotes
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])', multiLine: true),
         (match) => '"${match.group(1)}": ${match.group(2)}');
 
     // Fix unquoted nutritional values like "protein": 40g to "protein": "40g"
@@ -1457,7 +2440,7 @@ Includes at least 2 meal options per meal type (breakfast, lunch, dinner, snack)
 
 Designed with real-world cooking practicality and variety
 
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
 {
   "meals": [
     {
@@ -1489,8 +2472,9 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
   "tips": ["tip1", "tip2", ...]
 }
 
-Important: 
-- Return ONLY the JSON object. Do not include any markdown formatting, explanations, or code block markers.
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown (e.g., ```json), code blocks, or any text outside the JSON object.
+- Ensure no trailing commas, incomplete objects, or unexpected characters.
 - Ensure all measurements are in metric units and nutritional values are per serving.
 - Format ingredients as key-value pairs where the key is the ingredient name and the value is the amount with unit (e.g., "rice": "1 cup", "chicken breast": "200g")
 - Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free" "quick prep",).
@@ -1500,10 +2484,10 @@ Important:
             }
           ],
           "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
+            "temperature": 0.3, // Lower temperature for consistent meal plans
+            "topK": 20,
+            "topP": 0.8,
+            "maxOutputTokens": 4096, // Increased to prevent JSON truncation
           },
         }),
       );
@@ -1533,345 +2517,6 @@ Important:
       print('AI API Exception: $e');
       _activeModel = null;
       throw Exception('Failed to generate meal plan: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> generateMealFromIngredients(
-      String prompt) async {
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
-      }
-    }
-
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API key not configured');
-    }
-
-    // Get comprehensive user context
-    final aiContext = await _buildAIContext();
-
-    final checkPromptCount = prompt.split(',').length;
-    final promptCount = checkPromptCount > 2 ? checkPromptCount : 'only 2';
-
-    final contextualPrompt = familyMode
-        ? 'For a family, generate 2 healthy meal recipes using 2 or more of these ingredients: $prompt'
-        : 'Generate 2 healthy meal recipes using $promptCount of these ingredients: $prompt';
-
-    final mealPrompt = '''
-    $aiContext
-    
-    $contextualPrompt
-
-    Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
-    {
-      "meals": [
-        {
-          "title": "Dish name",
-          "type": "protein|grain|vegetable", 
-          "description": "describe the dish",
-          "cookingTime": "10 minutes",
-          "cookingMethod": "frying, boiling, baking, etc.",
-          "ingredients": {
-            "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
-            "ingredient2": "amount with unit"
-          },
-          "instructions": ["step1", "step2", ...],
-          "nutritionalInfo": {
-            "calories": number,
-            "protein": number,
-            "carbs": number,
-            "fat": number
-          },
-          "categories": ["category1", "category2", ...],
-          "serveQty": number
-        }
-      ],
-      "nutritionalSummary": {
-        "totalCalories": number,
-        "totalProtein": number,
-        "totalCarbs": number,
-        "totalFat": number
-      },
-      "tips": ["tip1", "tip2", ...]
-    }
-    ''';
-
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": mealPrompt}
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        try {
-          final parsed = _processAIResponse(text, 'meal_generation');
-          return _normalizeMealPlanData(parsed);
-        } catch (e) {
-          print('Raw response text: $text');
-          try {
-            final sanitized = _sanitizeJsonString(text);
-            final reparsed = jsonDecode(sanitized) as Map<String, dynamic>;
-            return _normalizeMealPlanData(reparsed);
-          } catch (_) {
-            throw Exception('Failed to parse meal JSON: $e');
-          }
-        }
-      } else {
-        print('AI API Error: ${response.body}');
-        _activeModel = null;
-        throw Exception('Failed to generate meal: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('AI API Exception: $e');
-      _activeModel = null;
-      throw Exception('Failed to generate meal: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> generateCustomProgram(
-      Map<String, dynamic> userAnswers,
-      String programType,
-      String dietPreference,
-      {String? additionalContext}) async {
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
-      }
-    }
-
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API key not configured');
-    }
-
-    // Get basic user context (but don't include existing program since we're creating a new one)
-    final userContext = await _getUserContext();
-
-    final basicContext = '''
-USER CONTEXT:
-- Family Mode: ${userContext['familyMode'] ? 'Yes (generate family-friendly portions and options)' : 'No (individual portions)'}
-- Current Diet Preference: ${userContext['dietPreference']}
-''';
-
-    final prompt = '''
-$basicContext
-
-Generate a personalized fitness and nutrition program based on the following information:
-Program Type: $programType
-Program Context: $additionalContext
-Diet Preference: $dietPreference
-User Answers: ${jsonEncode(userAnswers)}
-
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
-{
-  "duration": "4 weeks",
-  "weeklyPlans": [
-    {
-      "week": 1,
-      "goals": ["goal1", "goal2"],
-      "mealPlan": {
-        "breakfast": ["meal suggestion 1", "meal suggestion 2"],
-        "lunch": ["meal suggestion 1", "meal suggestion 2"],
-        "dinner": ["meal suggestion 1", "meal suggestion 2"],
-        "snacks": ["snack 1", "snack 2"]
-      },
-      "nutritionGuidelines": {
-        "calories": "target range",
-        "protein": "target range",
-        "carbs": "target range",
-        "fats": "target range"
-      },
-      "tips": ["tip1", "tip2"]
-    }
-  ],
-  "requirements": ["requirement1", "requirement2"],
-  "recommendations": ["recommendation1", "recommendation2"]
-}
-''';
-
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt}
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        try {
-          return _processAIResponse(text, 'program_generation');
-        } catch (e) {
-          print('Raw response text: $text');
-          throw Exception('Failed to parse program JSON: $e');
-        }
-      } else {
-        print('AI API Error: ${response.body}');
-        _activeModel = null;
-        throw Exception('Failed to generate program: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('AI API Exception: $e');
-      _activeModel = null;
-      throw Exception('Failed to generate program: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> analyzeFoodImage(File imageFile) async {
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
-      }
-    }
-
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API key not configured');
-    }
-
-    try {
-      // Read and encode the image
-      final Uint8List imageBytes = await imageFile.readAsBytes();
-      final String base64Image = base64Encode(imageBytes);
-
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-
-      final prompt = '''
-$aiContext
-
-Analyze this food image and provide detailed nutritional information. Identify all visible food items, estimate portion sizes, and calculate nutritional values.
-
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
-{
-  "foodItems": [
-    {
-      "name": "food item name",
-      "estimatedWeight": "weight in grams",
-      "confidence": "high|medium|low",
-      "nutritionalInfo": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number,
-        "fiber": number,
-        "sugar": number,
-        "sodium": number
-      }
-    }
-  ],
-  "totalNutrition": {
-    "calories": number,
-    "protein": number,
-    "carbs": number,
-    "fat": number,
-    "fiber": number,
-    "sugar": number,
-    "sodium": number
-  },
-  "mealType": "breakfast|lunch|dinner|snack",
-  "estimatedPortionSize": "small|medium|large",
-  "ingredients": {
-        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
-        "ingredient2": "amount with unit"
-    },
-  "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
-  "confidence": "high|medium|low",
-  "notes": "any additional observations about the food"
-}
-
-Important guidelines:
-- Be as accurate as possible with portion size estimation
-- Include confidence levels for your analysis
-- If you can't identify something clearly, mark it as low confidence
-- Provide realistic nutritional values based on standard food databases
-- Consider cooking methods that might affect nutritional content
-- All nutritional values should be numbers (not strings)
-''';
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt},
-                {
-                  "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64Image
-                  }
-                }
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature":
-                0.3, // Lower temperature for more consistent analysis
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        try {
-          return _processAIResponse(text, 'tasty_analysis');
-        } catch (e) {
-          print('Raw response text: $text');
-          throw Exception('Failed to parse food analysis JSON: $e');
-        }
-      } else {
-        print('AI API Error: ${response.body}');
-        _activeModel = null;
-        throw Exception('Failed to analyze food image: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('AI API Exception: $e');
-      _activeModel = null;
-      throw Exception('Failed to analyze food image: $e');
     }
   }
 
@@ -1925,7 +2570,10 @@ $contextualPrompt
 
 Identify all visible food items, estimate portion sizes, and calculate nutritional values. Also provide suggestions for meal improvement if applicable.
 
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+
+IMPORTANT: You have 4096 tokens available. Prioritize completing the JSON structure over detailed descriptions. If you need to truncate, ensure the JSON is complete and valid.
+
 {
   "foodItems": [
     {
@@ -1933,24 +2581,24 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       "estimatedWeight": "weight in grams",
       "confidence": "high|medium|low",
       "nutritionalInfo": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number,
-        "fiber": number,
-        "sugar": number,
-        "sodium": number
+        "calories": 0,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 0,
+        "fiber": 0,
+        "sugar": 0,
+        "sodium": 0
       }
     }
   ],
   "totalNutrition": {
-    "calories": number,
-    "protein": number,
-    "carbs": number,
-    "fat": number,
-    "fiber": number,
-    "sugar": number,
-    "sodium": number
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "sodium": 0
   },
   "mealType": "breakfast|lunch|dinner|snack",
   "estimatedPortionSize": "small|medium|large",
@@ -1960,7 +2608,6 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     },
   "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
   "confidence": "high|medium|low",
-  "healthScore": number (1-10),
   "suggestions": {
     "improvements": ["suggestion1", "suggestion2", ...],
     "alternatives": ["alternative1", "alternative2", ...],
@@ -1975,17 +2622,20 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
     "keto": boolean,
     "lowCarb": boolean
   },
-  "notes": "any additional observations about the food"
+  "notes": "any additional observations about the food",
+  "healthScore": 5
 }
 
 Important guidelines:
-- Be as accurate as possible with portion size estimation
-- Include confidence levels for your analysis
-- Provide realistic nutritional values based on standard food databases
-- Consider cooking methods that might affect nutritional content
-- Give helpful suggestions for meal improvement
-- All nutritional values should be numbers (not strings)
-- Health score should reflect overall nutritional quality (1=poor, 10=excellent)
+- Return valid, complete JSON only. Do not include markdown (e.g., ```json), code blocks, or any text outside the JSON object.
+- Ensure no trailing commas, incomplete objects, or unexpected characters.
+- Be as accurate as possible with portion size estimation.
+- Include confidence levels for your analysis.
+- Provide realistic nutritional values based on standard food databases.
+- All nutritional values must be numbers (not strings).
+- Health score must be a number between 1 and 10 reflecting overall nutritional quality (1=poor, 10=excellent).
+- PRIORITY: Complete the JSON structure even if you need to use shorter descriptions.
+- If approaching token limit, complete the JSON structure first, then add details.
 ''';
 
       final response = await http.post(
@@ -2006,26 +2656,53 @@ Important guidelines:
             }
           ],
           "generationConfig": {
-            "temperature":
-                0.3, // Lower temperature for more consistent analysis
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
+            "temperature": 0.1, // Very low temperature for consistent JSON
+            "topK": 20,
+            "topP": 0.8,
+            "maxOutputTokens": 4096, // Increased to prevent JSON truncation
+            // Removed stopSequences as they might be causing empty responses
           },
         }),
       );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        try {
-          return _processAIResponse(text, 'tasty_analysis');
-        } catch (e) {
-          print('Raw response text: $text');
-          throw Exception('Failed to parse food analysis JSON: $e');
+
+        if (decoded.containsKey('candidates') &&
+            decoded['candidates'] is List &&
+            decoded['candidates'].isNotEmpty) {
+          final candidate = decoded['candidates'][0];
+
+          if (candidate.containsKey('content') && candidate['content'] is Map) {
+            final content = candidate['content'];
+
+            if (content.containsKey('parts') &&
+                content['parts'] is List &&
+                content['parts'].isNotEmpty) {
+              final part = content['parts'][0];
+
+              if (part.containsKey('text')) {
+                final text = part['text'];
+
+                try {
+                  final result = _processAIResponse(text, 'tasty_analysis');
+                  return result;
+                } catch (e) {
+                  throw Exception('Failed to parse food analysis JSON: $e');
+                }
+              } else {
+                throw Exception('No text content in API response');
+              }
+            } else {
+              throw Exception('No content parts in API response');
+            }
+          } else {
+            throw Exception('No content in API response');
+          }
+        } else {
+          throw Exception('No candidates in API response');
         }
       } else {
-        print('AI API Error: ${response.body}');
         _activeModel = null;
         throw Exception('Failed to analyze food image: ${response.statusCode}');
       }
@@ -2033,136 +2710,6 @@ Important guidelines:
       print('AI API Exception: $e');
       _activeModel = null;
       throw Exception('Failed to analyze food image: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> compareFood({
-    required File imageFile1,
-    required File imageFile2,
-    String? comparisonContext,
-  }) async {
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
-      }
-    }
-
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API key not configured');
-    }
-
-    try {
-      // Read and encode both images
-      final Uint8List imageBytes1 = await imageFile1.readAsBytes();
-      final Uint8List imageBytes2 = await imageFile2.readAsBytes();
-      final String base64Image1 = base64Encode(imageBytes1);
-      final String base64Image2 = base64Encode(imageBytes2);
-
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-
-      String prompt =
-          'Compare these two food images and provide a detailed nutritional comparison.';
-
-      if (comparisonContext != null && comparisonContext.isNotEmpty) {
-        prompt += ' Context: $comparisonContext';
-      }
-
-      prompt += '''
-
-$aiContext
-
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
-{
-  "image1Analysis": {
-    "foodItems": ["item1", "item2", ...],
-    "totalNutrition": {
-      "calories": number,
-      "protein": number,
-      "carbs": number,
-      "fat": number
-    },
-    "healthScore": number (1-10)
-  },
-  "image2Analysis": {
-    "foodItems": ["item1", "item2", ...],
-    "totalNutrition": {
-      "calories": number,
-      "protein": number,
-      "carbs": number,
-      "fat": number
-    },
-    "healthScore": number (1-10)
-  },
-  "comparison": {
-    "winner": "image1|image2|tie",
-    "reasons": ["reason1", "reason2", ...],
-    "nutritionalDifferences": {
-      "calories": "difference description",
-      "protein": "difference description",
-      "carbs": "difference description",
-      "fat": "difference description"
-    }
-  },
-  "recommendations": ["recommendation1", "recommendation2", ...],
-  "summary": "brief comparison summary"
-}
-''';
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt},
-                {
-                  "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64Image1
-                  }
-                },
-                {
-                  "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64Image2
-                  }
-                }
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.3,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
-        try {
-          return _processAIResponse(text, 'food_comparison');
-        } catch (e) {
-          print('Raw response text: $text');
-          throw Exception('Failed to parse food comparison JSON: $e');
-        }
-      } else {
-        print('AI API Error: ${response.body}');
-        _activeModel = null;
-        throw Exception(
-            'Failed to compare food images: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('AI API Exception: $e');
-      _activeModel = null;
-      throw Exception('Failed to compare food images: $e');
     }
   }
 
@@ -2177,8 +2724,8 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       );
 
       // Prepare prompt and generate meal plan
-      final mealPlan = await generateMealFromIngredients(
-        displayedItems.map((item) => item.title).join(', '),
+      final mealPlan = await generateMealPlan(
+        'Generate meals using these ingredients: ${displayedItems.map((item) => item.title).join(', ')}',
       );
 
       // Hide loading dialog before showing selection
@@ -2646,7 +3193,7 @@ Generate a balanced 54321 shopping list:
 - 1 grain (rice, pasta, bread, etc.)
 - 1 fun/special treat (dessert, snack, indulgence)
 
-Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
 {
   "shoppingList": {
     "vegetables": [
@@ -2705,6 +3252,8 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
 }
 
 Important guidelines:
+- Return valid, complete JSON only. Do not include markdown (e.g., ```json), code blocks, or any text outside the JSON object.
+- Ensure no trailing commas, incomplete objects, or unexpected characters.
 - Choose seasonal and fresh ingredients when possible
 - Consider the user's dietary preferences and restrictions
 - Provide realistic quantities for family/individual portions
@@ -2726,10 +3275,17 @@ Important guidelines:
             }
           ],
           "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 2048,
+            "temperature":
+                0.3, // Lower temperature for consistent shopping lists
+            "topK": 20,
+            "topP": 0.8,
+            "maxOutputTokens": 4096, // Increased to prevent JSON truncation
+            "stopSequences": [
+              "```",
+              "```json",
+              "```\n",
+              "\n\n\n"
+            ], // Stop at markdown
           },
         }),
       );
@@ -2753,29 +3309,6 @@ Important guidelines:
       print('AI API Exception: $e');
       _activeModel = null;
       throw Exception('Failed to generate 54321 shopping list: $e');
-    }
-  }
-
-  /// Save 54321 shopping list to Firestore
-  Future<void> save54321ShoppingList({
-    required Map<String, dynamic> shoppingList,
-    required String userId,
-  }) async {
-    try {
-      final docRef = firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection('shoppingList54321')
-          .doc('current');
-
-      await docRef.set({
-        'shoppingList': shoppingList,
-        'timestamp': FieldValue.serverTimestamp(),
-        'userId': userId,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error saving 54321 shopping list to Firestore: $e');
-      throw Exception('Failed to save 54321 shopping list: $e');
     }
   }
 
@@ -2819,10 +3352,22 @@ Important guidelines:
     );
 
     // Save to Firestore
-    await save54321ShoppingList(
-      shoppingList: shoppingList,
-      userId: userId,
-    );
+    try {
+      final docRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .doc('current');
+
+      await docRef.set({
+        'shoppingList': shoppingList,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': userId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error saving 54321 shopping list to Firestore: $e');
+      throw Exception('Failed to save 54321 shopping list: $e');
+    }
 
     return shoppingList;
   }

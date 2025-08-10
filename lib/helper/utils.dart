@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tasteturner/helper/helper_functions.dart';
 
 import '../constants.dart';
 import '../data_models/macro_data.dart';
@@ -444,7 +445,7 @@ Future<void> handleDetailedFoodAnalysis(
             analysisResult: analysisResult,
             isAnalyzeAndUpload: false,
             date: DateTime.now(),
-            mealType: 'Lunch', // Default meal type
+            mealType: getMealTimeOfDay(), // Default meal type
             skipAnalysisSave:
                 true, // Skip saving since it's already saved in buddy chat
           ),

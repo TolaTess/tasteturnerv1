@@ -480,14 +480,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         borderRadius: BorderRadius.circular(15),
                         onTap: () async {
                           if (canUseAI()) {
-                            final canGenerate =
-                                await checkMealPlanGenerationLimit(context);
-                            if (canGenerate) {
-                              _navigateToChooseDietWithUser(context);
-                            } else {
-                              showGenerationLimitDialog(context,
-                                  isDarkMode: isDarkMode);
-                            }
+                            _navigateToChooseDietWithUser(context);
                           } else {
                             Navigator.push(
                               context,

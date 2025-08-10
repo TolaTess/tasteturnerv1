@@ -525,6 +525,102 @@ class _TastyScreenState extends State<TastyScreen> {
     return 'the meal items';
   }
 
+  // Helper method to validate and handle food analysis data
+  Map<String, dynamic> _validateFoodAnalysisData(
+      Map<String, dynamic>? analysisData) {
+    if (analysisData == null) {
+      return {
+        'foodItems': [
+          {
+            'name': 'Unknown Food',
+            'estimatedWeight': '100g',
+            'confidence': 'low',
+            'nutritionalInfo': {
+              'calories': 200,
+              'protein': 10,
+              'carbs': 20,
+              'fat': 8,
+              'fiber': 2,
+              'sugar': 5,
+              'sodium': 200
+            }
+          }
+        ],
+        'totalNutrition': {
+          'calories': 200,
+          'protein': 10,
+          'carbs': 20,
+          'fat': 8,
+          'fiber': 2,
+          'sugar': 5,
+          'sodium': 200
+        },
+        'confidence': 'low',
+        'notes': 'Analysis data was invalid or missing'
+      };
+    }
+
+    // Ensure required fields exist
+    if (!analysisData.containsKey('foodItems') ||
+        !analysisData.containsKey('totalNutrition')) {
+      return _validateFoodAnalysisData(null); // Return fallback
+    }
+
+    // Validate food items structure
+    final foodItems = analysisData['foodItems'] as List?;
+    if (foodItems == null || foodItems.isEmpty) {
+      return _validateFoodAnalysisData(null); // Return fallback
+    }
+
+    // Validate each food item
+    final validatedFoodItems = <Map<String, dynamic>>[];
+    for (final item in foodItems) {
+      if (item is Map<String, dynamic>) {
+        final validatedItem = {
+          'name': item['name'] ?? 'Unknown Food',
+          'estimatedWeight': item['estimatedWeight'] ?? '100g',
+          'confidence': item['confidence'] ?? 'low',
+          'nutritionalInfo': {
+            'calories': item['nutritionalInfo']?['calories'] ?? 200,
+            'protein': item['nutritionalInfo']?['protein'] ?? 10,
+            'carbs': item['nutritionalInfo']?['carbs'] ?? 20,
+            'fat': item['nutritionalInfo']?['fat'] ?? 8,
+            'fiber': item['nutritionalInfo']?['fiber'] ?? 2,
+            'sugar': item['nutritionalInfo']?['sugar'] ?? 5,
+            'sodium': item['nutritionalInfo']?['sodium'] ?? 200,
+          }
+        };
+        validatedFoodItems.add(validatedItem);
+      }
+    }
+
+    // Validate total nutrition
+    final totalNutrition =
+        analysisData['totalNutrition'] as Map<String, dynamic>? ?? {};
+    final validatedTotalNutrition = {
+      'calories': totalNutrition['calories'] ?? 200,
+      'protein': totalNutrition['protein'] ?? 10,
+      'carbs': totalNutrition['carbs'] ?? 20,
+      'fat': totalNutrition['fat'] ?? 8,
+      'fiber': totalNutrition['fiber'] ?? 2,
+      'sugar': totalNutrition['sugar'] ?? 5,
+      'sodium': totalNutrition['sodium'] ?? 200,
+    };
+
+    return {
+      'foodItems': validatedFoodItems,
+      'totalNutrition': validatedTotalNutrition,
+      'mealType': analysisData['mealType'] ?? 'unknown',
+      'estimatedPortionSize': analysisData['estimatedPortionSize'] ?? 'medium',
+      'ingredients':
+          analysisData['ingredients'] ?? {'unknown ingredient': '1 portion'},
+      'cookingMethod': analysisData['cookingMethod'] ?? 'unknown',
+      'confidence': analysisData['confidence'] ?? 'low',
+      'healthScore': analysisData['healthScore'] ?? 5,
+      'notes': analysisData['notes'] ?? 'Analysis completed successfully'
+    };
+  }
+
   // Helper method to send remix response
   Future<void> _sendRemixResponse(
       String prompt,
@@ -533,11 +629,13 @@ class _TastyScreenState extends State<TastyScreen> {
       String chatId,
       List<ChatScreenData> messages) async {
     try {
+      print('🔍 DEBUG: Sending remix prompt: $prompt');
       final response = await geminiService.getResponse(
         prompt,
         512,
         role: buddyAiRole,
       );
+      print('🔍 DEBUG: Remix response received: "$response"');
 
       setState(() {
         messages.add(ChatScreenData(
@@ -643,20 +741,19 @@ Greet the user warmly and offer guidance based on:
 
       if (analysisId != null) {
         final analysisData = await getFoodAnalysisData(analysisId);
-        if (analysisData != null) {
-          // Create remix suggestions based on actual analyzed ingredients
-          final ingredients = _extractIngredientsFromAnalysis(analysisData);
-          final remixPrompt = """
+        final validatedData = _validateFoodAnalysisData(analysisData);
+        // Create remix suggestions based on actual analyzed ingredients
+        final ingredients = _extractIngredientsFromAnalysis(validatedData);
+        final remixPrompt = """
 User wants to remix their meal containing: $ingredients
 
 For their ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals.
 
 Give 3-4 specific ingredient substitutions or cooking method improvements. Be encouraging and practical!
 """;
-          await _sendRemixResponse(
-              remixPrompt, userContext, currentUserId, chatId!, messages);
-          return;
-        }
+        await _sendRemixResponse(
+            remixPrompt, userContext, currentUserId, chatId!, messages);
+        return;
       }
 
       // Fallback if no analysis data
@@ -702,16 +799,16 @@ Give 3-4 specific ingredient or cooking suggestions. Be encouraging and practica
       String optimizePrompt;
       if (analysisId != null) {
         final analysisData = await getFoodAnalysisData(analysisId);
-        if (analysisData != null) {
-          final totalNutrition =
-              analysisData['totalNutrition'] as Map<String, dynamic>? ?? {};
-          final calories = totalNutrition['calories'] ?? 'unknown';
-          final protein = totalNutrition['protein'] ?? 'unknown';
-          final carbs = totalNutrition['carbs'] ?? 'unknown';
-          final fat = totalNutrition['fat'] ?? 'unknown';
-          final ingredients = _extractIngredientsFromAnalysis(analysisData);
+        final validatedData = _validateFoodAnalysisData(analysisData);
+        final totalNutrition =
+            validatedData['totalNutrition'] as Map<String, dynamic>? ?? {};
+        final calories = totalNutrition['calories'] ?? 'unknown';
+        final protein = totalNutrition['protein'] ?? 'unknown';
+        final carbs = totalNutrition['carbs'] ?? 'unknown';
+        final fat = totalNutrition['fat'] ?? 'unknown';
+        final ingredients = _extractIngredientsFromAnalysis(validatedData);
 
-          optimizePrompt = """
+        optimizePrompt = """
 User wants to optimize their meal containing: $ingredients
 Current nutrition: ${calories}cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat
 
@@ -721,15 +818,6 @@ Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMus
 
 Give 3-4 specific improvements based on the actual nutrition data. Be encouraging!
 """;
-        } else {
-          optimizePrompt = """
-User wants to optimize their meal for ${userContext['fitnessGoal']} goals.
-
-Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
-
-Give 3-4 practical tips. Be encouraging!
-""";
-        }
       } else {
         optimizePrompt = """
 User wants to optimize their meal for ${userContext['fitnessGoal']} goals.
@@ -759,7 +847,6 @@ Give 3-4 practical tips. Be encouraging!
         _onNewMessage();
         await _saveMessageToFirestore(response, 'buddy');
       } catch (e) {
-        print("Error getting optimization suggestions: $e");
         final fallbackMessage = isWeightLoss
             ? "Great choice! To reduce calories while keeping protein high, try: using lean proteins like chicken breast or fish, adding more vegetables to increase volume, using cooking sprays instead of oils, and choosing Greek yogurt over regular yogurt. These swaps will help you feel full while staying on track! 💪"
             : isMuscleBuild
@@ -835,7 +922,6 @@ Give 3-4 practical tips. Be encouraging!
           );
         }
       } catch (e) {
-        print("Error loading spin wheel: $e");
         showTastySnackbar(
           'Please try again.',
           'Failed to load ingredients. Please try again.',
@@ -864,7 +950,6 @@ Give 3-4 practical tips. Be encouraging!
 
       // Only trigger Gemini if the last message is from the user
       if (messages.isNotEmpty && messages.last.senderId != currentUserId) {
-        print('Skipping AI response - last message was not from user');
         return;
       }
     }

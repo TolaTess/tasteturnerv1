@@ -416,7 +416,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       {
         'title': 'Chat with Tasty AI',
         'description':
-            'Get personalized meal plans and recipe ideas from Tasty AI',
+            'Get personalized meal plans, shopping lists and recipe ideas from Tasty AI',
         'icon': Icons.chat_bubble
       }
     ];
