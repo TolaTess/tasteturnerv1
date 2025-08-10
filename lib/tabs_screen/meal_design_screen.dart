@@ -67,7 +67,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     super.initState();
 
     // Initialize MealPlanController
-    _mealPlanController = Get.find<MealPlanController>();
+    try {
+      _mealPlanController = Get.find<MealPlanController>();
+    } catch (e) {
+      // If not found, put it
+      _mealPlanController = Get.put(MealPlanController());
+    }
 
     _tabController = TabController(
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);

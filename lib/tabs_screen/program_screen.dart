@@ -217,6 +217,12 @@ class _ProgramScreenState extends State<ProgramScreen>
   }
 
   Future<void> askAICoach() async {
+    if (!canUseAI()) {
+      final isDarkMode = getThemeProvider(context).isDarkMode;
+      showPremiumRequiredDialog(context, isDarkMode);
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });

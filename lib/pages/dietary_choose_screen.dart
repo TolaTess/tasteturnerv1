@@ -497,6 +497,12 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   // Prepare the prompt for Gemini
   Future<void> _generateMealPlan() async {
+    if (!canUseAI()) {
+      final isDarkMode = getThemeProvider(context).isDarkMode;
+      showPremiumRequiredDialog(context, isDarkMode);
+      return;
+    }
+
     try {
       // Show loading indicator
       _showLoadingDialog();
@@ -618,7 +624,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
         : selectedAllergies.toList();
 
     final familyMemberAgeGroup = widget.familyMemberType ?? 'adult';
-
 
     return '''
 IMPORTANT: This meal plan is for a ${familyMemberAgeGroup}. Consider age-appropriate:

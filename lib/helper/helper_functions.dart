@@ -1011,6 +1011,14 @@ Future<void> handleCameraAction({
     );
 
     try {
+      // Check premium access for AI analysis
+      if (!canUseAI()) {
+        Navigator.pop(context); // Close analysis loading dialog
+        showPremiumRequiredDialog(context, isDarkMode);
+        onError?.call();
+        return;
+      }
+
       // Analyze the image
       final analysisResult = await geminiService.analyzeFoodImageWithContext(
         imageFile: File(croppedImage.path),

@@ -316,8 +316,10 @@ class MacroManager extends GetxController {
 
   Future<void> refreshShoppingLists(String userId, String weekId) async {
     try {
-      // Re-fetch the shopping list data to update the UI
-      _listenToShoppingList(userId);
+      // Use Future.delayed to avoid calling during build phase
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _listenToShoppingList(userId);
+      });
     } catch (e) {
       print('Error refreshing shopping lists: $e');
     }

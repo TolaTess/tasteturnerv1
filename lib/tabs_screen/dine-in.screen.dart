@@ -1123,6 +1123,11 @@ class _DineInScreenState extends State<DineInScreen> {
                             Expanded(
                               child: GestureDetector(
                                 onTap: () async {
+                                  if (!canUseAI()) {
+                                    showPremiumRequiredDialog(context, isDarkMode);
+                                    return;
+                                  }
+
                                   try {
                                     final meal = await geminiService
                                         .generateMealsFromIngredients(
@@ -1695,6 +1700,11 @@ class _DineInScreenState extends State<DineInScreen> {
                             flex: 1,
                             child: GestureDetector(
                               onTap: () async {
+                                if (!canUseAI()) {
+                                  showPremiumRequiredDialog(context, isDarkMode);
+                                  return;
+                                }
+
                                 try {
                                   final meal = await geminiService
                                       .generateMealsFromIngredients(
