@@ -63,7 +63,7 @@ void main() async {
   Get.lazyPut(() => MealPlanController());
   Get.lazyPut(() => PostController());
   Get.lazyPut(() => PostService());
-  Get.lazyPut(() => NutritionController());
+  Get.put(NutritionController());
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => FriendController());

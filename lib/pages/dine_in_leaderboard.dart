@@ -12,7 +12,8 @@ class DineInLeaderboardScreen extends StatefulWidget {
   const DineInLeaderboardScreen({super.key});
 
   @override
-  State<DineInLeaderboardScreen> createState() => _DineInLeaderboardScreenState();
+  State<DineInLeaderboardScreen> createState() =>
+      _DineInLeaderboardScreenState();
 }
 
 class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
@@ -22,6 +23,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   bool isLoading = true;
   StreamSubscription? _subscription;
   String weekRange = '';
+  String ingredient = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -31,16 +33,27 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     super.initState();
     _calculateWeekRange();
     _setupDataListeners();
+    _loadChallengeData();
+  }
+
+  Future<void> _loadChallengeData() async {
+    await firebaseService.fetchGeneralData();
+    final challengeDetails = firebaseService.generalData['challenge_details'];
+    if (challengeDetails != null && challengeDetails is String) {
+      setState(() {
+        ingredient = challengeDetails.split(',').sublist(1).join(', ');
+      });
+    }
   }
 
   void _calculateWeekRange() {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final sunday = monday.add(const Duration(days: 6));
-    
+
     final mondayFormatted = '${monday.day}/${monday.month}';
     final sundayFormatted = '${sunday.day}/${sunday.month}';
-    
+
     setState(() {
       weekRange = '$mondayFormatted - $sundayFormatted';
     });
@@ -62,16 +75,18 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   Future<void> _updateLeaderboardData(QuerySnapshot snapshot) async {
     try {
       final userId = userService.userId;
-      final Map<String, Map<String, dynamic>> userLikesMap = <String, Map<String, dynamic>>{};
-      
+      final Map<String, Map<String, dynamic>> userLikesMap =
+          <String, Map<String, dynamic>>{};
+
       // Calculate current week's Monday and Friday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
       final sunday = monday.add(const Duration(days: 6));
-      
+
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
+      final weekEnd =
+          DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
       // Process each battle post
       for (var doc in snapshot.docs) {
@@ -116,21 +131,25 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
 
       // Sort users by total likes (descending)
       final sortedUsers = userLikesMap.values.toList()
-        ..sort((a, b) => (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
+        ..sort((a, b) =>
+            (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
 
       for (var userData in sortedUsers) {
         final docUserId = userData['userId'] as String;
-        
+
         // Fetch user details
-        final userDoc = await firestore.collection('users').doc(docUserId).get();
+        final userDoc =
+            await firestore.collection('users').doc(docUserId).get();
         final userDataFromFirestore = userDoc.data() as Map<String, dynamic>?;
 
         final userMap = {
           'id': docUserId,
           'displayName': userDataFromFirestore?['displayName'] ?? 'Unknown',
-          'profileImage': userDataFromFirestore?['profileImage']?.toString().isNotEmpty == true
-              ? userDataFromFirestore!['profileImage']
-              : intPlaceholderImage,
+          'profileImage':
+              userDataFromFirestore?['profileImage']?.toString().isNotEmpty ==
+                      true
+                  ? userDataFromFirestore!['profileImage']
+                  : intPlaceholderImage,
           'totalLikes': userData['totalLikes'],
           'postCount': userData['postCount'],
           'rank': actualRank,
@@ -240,12 +259,23 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                         color: kWhite.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        'Week: $weekRange',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: kWhite,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Week: $weekRange',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Ingredients: ${capitalizeFirstLetter(ingredient)}',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -439,7 +469,8 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                 ),
                 child: CircleAvatar(
                   radius: getResponsiveBoxSize(context, 25, 25),
-                  backgroundImage: _getImageProvider(currentUserRank!['profileImage']),
+                  backgroundImage:
+                      _getImageProvider(currentUserRank!['profileImage']),
                 ),
               ),
               SizedBox(width: getPercentageWidth(3, context)),
@@ -697,4 +728,4 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     }
     return AssetImage(intPlaceholderImage);
   }
-} 
+}

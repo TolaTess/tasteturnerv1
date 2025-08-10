@@ -189,7 +189,11 @@ class _BuddyTabState extends State<BuddyTab> {
     }
 
     // Navigate to choose diet screen with family member name
-    navigateToChooseDiet(context, familyMemberName: familyMemberName, familyMemberKcal: familyMemberKcal, familyMemberGoal: familyMemberGoal, familyMemberType: familyMemberType);
+    navigateToChooseDiet(context,
+        familyMemberName: familyMemberName,
+        familyMemberKcal: familyMemberKcal,
+        familyMemberGoal: familyMemberGoal,
+        familyMemberType: familyMemberType);
   }
 
   Future<List<Map<String, dynamic>>> _fetchMealsFromIds(
@@ -746,7 +750,12 @@ class _BuddyTabState extends State<BuddyTab> {
                               // final goal = userService.currentUser.value
                               //         ?.settings['fitnessGoal'] ??
                               //     'Healthy Eating';
-                              String bio = getRandomMealTypeBio(familyMemberGoal ?? userService.currentUser.value?.settings['fitnessGoal'] ?? 'Healthy Eating', diet);
+                              String bio = getRandomMealTypeBio(
+                                  familyMemberGoal ??
+                                      userService.currentUser.value
+                                          ?.settings['fitnessGoal'] ??
+                                      'Healthy Eating',
+                                  diet);
                               List<String> parts = bio.split(': ');
                               return Column(
                                 children: [
@@ -1239,7 +1248,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         : null,
                   ),
                 ),
-                onTap: () => Navigator.pop(context, 'bf'),
+                onTap: () => Navigator.pop(context, 'breakfast'),
               ),
               ListTile(
                 title: Text(
@@ -1250,7 +1259,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         : null,
                   ),
                 ),
-                onTap: () => Navigator.pop(context, 'lh'),
+                onTap: () => Navigator.pop(context, 'lunch'),
               ),
               ListTile(
                 title: Text(
@@ -1261,7 +1270,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         : null,
                   ),
                 ),
-                onTap: () => Navigator.pop(context, 'dn'),
+                onTap: () => Navigator.pop(context, 'dinner'),
               ),
               ListTile(
                 title: Text(
@@ -1272,7 +1281,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         : null,
                   ),
                 ),
-                onTap: () => Navigator.pop(context, 'sk'),
+                onTap: () => Navigator.pop(context, 'snacks'),
               ),
             ],
           ),
@@ -1280,8 +1289,23 @@ class _BuddyTabState extends State<BuddyTab> {
       );
 
       if (mealType != null && context.mounted) {
-        // Add meal to the selected date with the selected type
-        final mealId = '${meal.mealId}/$mealType';
+        // Get family member name if in family mode
+        String familyMemberName = '';
+        if (familyMode &&
+            selectedUserIndex > 0 &&
+            _familyMemberCategories.isNotEmpty) {
+          familyMemberName =
+              _familyMemberCategories[selectedUserIndex]['name'] ?? '';
+        }
+
+        // Create meal ID with format: "mealid/mealtype/familyname"
+        String mealId;
+        if (familyMode && familyMemberName.isNotEmpty) {
+          mealId = '${meal.mealId}/$mealType/$familyMemberName';
+        } else {
+          mealId = '${meal.mealId}/$mealType';
+        }
+
         await helperController.saveMealPlanBuddy(
           userService.userId ?? '',
           formattedDate,
@@ -1290,11 +1314,15 @@ class _BuddyTabState extends State<BuddyTab> {
         );
 
         if (context.mounted) {
+          String successMessage =
+              'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${getMealTypeLabel(mealType)}';
+          if (familyMode && familyMemberName.isNotEmpty) {
+            successMessage += ' for $familyMemberName';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${getMealTypeLabel(mealType)}',
-              ),
+              content: Text(successMessage),
             ),
           );
         }

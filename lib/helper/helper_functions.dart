@@ -891,12 +891,23 @@ List<MealWithType> updateMealForFamily(List<MealWithType> personalMeals,
     return [];
   }
 
-  // Otherwise return meals matching the selected family name
-  return personalMeals
-      .where((meal) =>
-          meal.familyMember.toLowerCase() == familyName.toLowerCase() ||
-          meal.familyMember.isEmpty)
-      .toList();
+  // For family members, only show meals that specifically belong to them
+  // Meals without family name should only be shown to the main user
+  if (familyName.toLowerCase() ==
+      userService.currentUser.value?.displayName?.toLowerCase()) {
+    // Main user sees their own meals (with family name) and meals without family name
+    return personalMeals
+        .where((meal) =>
+            meal.familyMember.toLowerCase() == familyName.toLowerCase() ||
+            meal.familyMember.isEmpty)
+        .toList();
+  } else {
+    // Family members only see meals that specifically belong to them
+    return personalMeals
+        .where((meal) =>
+            meal.familyMember.toLowerCase() == familyName.toLowerCase())
+        .toList();
+  }
 }
 
 final colors = [

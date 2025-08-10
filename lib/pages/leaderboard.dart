@@ -7,7 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/user_profile_screen.dart';
-import 'dine_in_leaderboard.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -110,7 +109,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         }
 
         // Only add to main leaderboard if not tastyId
-        if (docUserId != tastyId) {
+        if (docUserId != tastyId && docUserId != tastyId2) {
           data.add(userMap);
           actualRank++;
         } else {
@@ -144,12 +143,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       // Calculate current week's Monday and Friday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
-      final friday = monday.add(const Duration(days: 4));
+      final sunday = monday.add(const Duration(days: 6));
 
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd =
-          DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
       // Process each battle post
       for (var doc in snapshot.docs) {

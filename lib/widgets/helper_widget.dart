@@ -339,6 +339,23 @@ class SearchContentGridState extends State<SearchContentGrid> {
     final isVideo = item['isVideo'] ?? false;
     final isPremium = item['isPremium'] ?? false;
 
+    final String? mediaPath = mediaPaths != null && mediaPaths.isNotEmpty
+        ? mediaPaths.first as String
+        : extPlaceholderImage;
+
+    final isDietCompatible = item['category']!.toLowerCase() ==
+        userService.currentUser.value?.settings['dietPreference'].toLowerCase();
+
+    // Helper function to check if URL is video
+    bool _isVideoUrl(String url) {
+      final videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'];
+      return videoExtensions.any((ext) => url.toLowerCase().contains(ext));
+    }
+
+    final bool isMediaVideo =
+        isVideo || (mediaPath != null && _isVideoUrl(mediaPath));
+
+
     return GestureDetector(
       onTap: () {
         if (widget.listType == "meals") {
@@ -414,6 +431,63 @@ class SearchContentGridState extends State<SearchContentGrid> {
                     ),
                   ),
                 ),
+
+              // ✅ Multiple Images Overlay Icon
+              if (mediaPaths != null && mediaPaths.length > 1 && !isMediaVideo)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.content_copy,
+                      color: Colors.white,
+                      size: getPercentageWidth(3.5, context),
+                    ),
+                  ),
+                ),
+
+              // ✅ Video Play Icon (for non-video content that is actually video)
+              if (isMediaVideo)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: getPercentageWidth(3.5, context),
+                    ),
+                  ),
+                ),
+
+              //add diet compatibility indicator
+              if (isDietCompatible)
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      color: kWhite,
+                      size: getPercentageWidth(3.5, context),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -483,7 +557,6 @@ class _ChallengePostsHorizontalListState
             vertical: getPercentageHeight(2, context),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [

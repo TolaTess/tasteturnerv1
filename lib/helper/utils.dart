@@ -1367,12 +1367,16 @@ String getRandomWelcomeMessage() {
 String getMealTypeLabel(String type) {
   switch (type.toLowerCase()) {
     case 'bf':
+    case 'breakfast':
       return 'Breakfast';
     case 'lh':
+    case 'lunch':
       return 'Lunch';
     case 'dn':
+    case 'dinner':
       return 'Dinner';
     case 'sk':
+    case 'snacks':
       return 'Snacks';
     default:
       return 'Meal';

@@ -432,11 +432,21 @@ class HelperController extends GetxController {
 
     final docSnapshot = await docRef.get();
 
-    // If selectedMealIds is empty and doc exists, keep existing meals
-    final List<String> mealsToSave =
-        selectedMealIds.isEmpty && docSnapshot.exists
-            ? (docSnapshot.data()?['meals'] as List<dynamic>).cast<String>()
-            : selectedMealIds;
+    // Get existing meals from the document
+    List<String> existingMeals = [];
+    if (docSnapshot.exists) {
+      existingMeals =
+          (docSnapshot.data()?['meals'] as List<dynamic>?)?.cast<String>() ??
+              [];
+    }
+
+    // Combine existing meals with new meals, avoiding duplicates
+    List<String> mealsToSave = List.from(existingMeals);
+    for (String newMealId in selectedMealIds) {
+      if (!mealsToSave.contains(newMealId)) {
+        mealsToSave.add(newMealId);
+      }
+    }
 
     await docRef.set({
       'userId': userId,
