@@ -8,6 +8,7 @@ import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
+import '../pages/dine_in_leaderboard.dart';
 import '../pages/recipe_card_flex.dart';
 import '../service/post_service.dart';
 
@@ -176,11 +177,11 @@ class SearchContentGridState extends State<SearchContentGrid> {
     // Calculate current week's Monday and Friday
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
-    final friday = monday.add(const Duration(days: 4));
+    final sunday = monday.add(const Duration(days: 6));
 
     // Set time to start of Monday and end of Friday
     final weekStart = DateTime(monday.year, monday.month, monday.day);
-    final weekEnd = DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+    final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
     return posts.where((post) {
       // Keep the post if it's not a battle post
@@ -481,19 +482,58 @@ class _ChallengePostsHorizontalListState
             horizontal: getPercentageWidth(4, context),
             vertical: getPercentageHeight(2, context),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.emoji_events,
-                color: kAccent,
-                size: getIconScale(4, context),
+              Row(
+                children: [
+                  Icon(
+                    Icons.emoji_events,
+                    color: kAccent,
+                    size: getIconScale(4, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Row(
+                    children: [
+                      Text(
+                        'This Week\'s Challenges',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? kWhite : kBlack,
+                        ),
+                      ),
+                      Text(
+                        ' (Like to vote)',
+                        style: textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: getTextScale(3.5, context),
+                          color: kAccentLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              SizedBox(width: getPercentageWidth(2, context)),
-              Text(
-                'This Week\'s Challenges',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? kWhite : kBlack,
+              SizedBox(height: getPercentageHeight(1, context)),
+              GestureDetector(
+                onTap: () {
+                  Get.to(() => const DineInLeaderboardScreen());
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(1, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'View Dine In leaderboard to see who\'s winning!',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: kAccent,
+                    ),
+                  ),
                 ),
               ),
             ],

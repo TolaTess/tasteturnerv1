@@ -217,12 +217,11 @@ class PostService extends GetxService {
       // Calculate current week's Monday and Friday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
-      final friday = monday.add(const Duration(days: 4));
+      final sunday = monday.add(const Duration(days: 6));
 
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd =
-          DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
       final HttpsCallable callable =
           _functions.httpsCallable('getChallengePostsForWeek');

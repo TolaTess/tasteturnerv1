@@ -36,13 +36,13 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   void _calculateWeekRange() {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
-    final friday = monday.add(const Duration(days: 4));
+    final sunday = monday.add(const Duration(days: 6));
     
     final mondayFormatted = '${monday.day}/${monday.month}';
-    final fridayFormatted = '${friday.day}/${friday.month}';
+    final sundayFormatted = '${sunday.day}/${sunday.month}';
     
     setState(() {
-      weekRange = '$mondayFormatted - $fridayFormatted';
+      weekRange = '$mondayFormatted - $sundayFormatted';
     });
   }
 
@@ -67,11 +67,11 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
       // Calculate current week's Monday and Friday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
-      final friday = monday.add(const Duration(days: 4));
+      final sunday = monday.add(const Duration(days: 6));
       
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd = DateTime(friday.year, friday.month, friday.day, 23, 59, 59);
+      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
       // Process each battle post
       for (var doc in snapshot.docs) {
