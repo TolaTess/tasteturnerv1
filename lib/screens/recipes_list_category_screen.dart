@@ -207,12 +207,9 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
   String _getSearchTarget() {
     // Priority order: search query > selected category (family mode) > search ingredient > general
-    final isFamilyMode = userService.currentUser.value?.familyMode ?? false;
     if (searchQuery.isNotEmpty) {
       return searchQuery;
-    } else if (isFamilyMode &&
-        selectedCategory.isNotEmpty &&
-        selectedCategory != 'general') {
+    } else if (selectedCategory.isNotEmpty && selectedCategory != 'general') {
       return selectedCategory;
     } else if (widget.searchIngredient.isNotEmpty) {
       return widget.searchIngredient;
@@ -603,7 +600,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                               );
                             }),
 
-                      SizedBox(height: getPercentageHeight(2, context)),
+                      SizedBox(height: getPercentageHeight(3, context)),
 
                       if (categoryDatas.isNotEmpty) ...[
                         CategorySelector(

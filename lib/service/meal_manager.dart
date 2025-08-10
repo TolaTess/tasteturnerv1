@@ -19,7 +19,7 @@ class MealManager extends GetxController {
     fetchMeals();
   }
 
-  // Fetch meals from Firestore
+  // Fetch meals from Firestore, excluding duplicates by title
   Future<void> fetchMeals() async {
     try {
       final snapshot = await firestore.collection('meals').get();
@@ -27,11 +27,22 @@ class MealManager extends GetxController {
         _meals.value = [];
         return;
       }
+
+      // Use a map to track seen titles and keep only first occurrence
+      final seenTitles = <String, bool>{};
       _meals.value = snapshot.docs
           .map((doc) {
             try {
               final data = doc.data();
-              return Meal.fromJson(doc.id, data);
+              final meal = Meal.fromJson(doc.id, data);
+              
+              // Skip if we've seen this title before
+              if (seenTitles[meal.title.toLowerCase()] == true) {
+                return null;
+              }
+              
+              seenTitles[meal.title.toLowerCase()] = true;
+              return meal;
             } catch (e) {
               return null;
             }
