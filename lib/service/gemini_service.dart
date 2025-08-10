@@ -245,6 +245,11 @@ class GeminiService {
               'Missing required fields: image1Analysis or image2Analysis');
         }
         break;
+      case '54321_shopping':
+        if (!data.containsKey('shoppingList')) {
+          throw Exception('Missing required field: shoppingList');
+        }
+        break;
     }
   }
 
@@ -450,6 +455,131 @@ class GeminiService {
           },
           'recommendations': ['Manual verification needed'],
           'summary': 'Comparison failed, please verify manually'
+        };
+      case '54321_shopping':
+        return {
+          'shoppingList': {
+            'vegetables': [
+              {
+                'name': 'Spinach',
+                'amount': '1 bunch',
+                'category': 'vegetable',
+                'notes': 'Fresh and crisp'
+              },
+              {
+                'name': 'Carrots',
+                'amount': '500g',
+                'category': 'vegetable',
+                'notes': 'Organic if possible'
+              },
+              {
+                'name': 'Bell Peppers',
+                'amount': '3 pieces',
+                'category': 'vegetable',
+                'notes': 'Mixed colors'
+              },
+              {
+                'name': 'Broccoli',
+                'amount': '1 head',
+                'category': 'vegetable',
+                'notes': 'Fresh green'
+              },
+              {
+                'name': 'Tomatoes',
+                'amount': '4 pieces',
+                'category': 'vegetable',
+                'notes': 'Ripe and firm'
+              }
+            ],
+            'fruits': [
+              {
+                'name': 'Bananas',
+                'amount': '1 bunch',
+                'category': 'fruit',
+                'notes': 'Yellow with green tips'
+              },
+              {
+                'name': 'Apples',
+                'amount': '6 pieces',
+                'category': 'fruit',
+                'notes': 'Crisp and sweet'
+              },
+              {
+                'name': 'Oranges',
+                'amount': '4 pieces',
+                'category': 'fruit',
+                'notes': 'Juicy and fresh'
+              },
+              {
+                'name': 'Berries',
+                'amount': '250g',
+                'category': 'fruit',
+                'notes': 'Mixed berries'
+              }
+            ],
+            'proteins': [
+              {
+                'name': 'Chicken Breast',
+                'amount': '500g',
+                'category': 'protein',
+                'notes': 'Skinless and boneless'
+              },
+              {
+                'name': 'Eggs',
+                'amount': '12 pieces',
+                'category': 'protein',
+                'notes': 'Fresh farm eggs'
+              },
+              {
+                'name': 'Salmon',
+                'amount': '300g',
+                'category': 'protein',
+                'notes': 'Wild caught if available'
+              }
+            ],
+            'sauces': [
+              {
+                'name': 'Olive Oil',
+                'amount': '250ml',
+                'category': 'sauce',
+                'notes': 'Extra virgin'
+              },
+              {
+                'name': 'Hummus',
+                'amount': '200g',
+                'category': 'sauce',
+                'notes': 'Classic or flavored'
+              }
+            ],
+            'grains': [
+              {
+                'name': 'Brown Rice',
+                'amount': '500g',
+                'category': 'grain',
+                'notes': 'Organic whole grain'
+              }
+            ],
+            'treats': [
+              {
+                'name': 'Dark Chocolate',
+                'amount': '100g',
+                'category': 'treat',
+                'notes': '70% cocoa or higher'
+              }
+            ]
+          },
+          'totalItems': 16,
+          'estimatedCost': '\$50-70',
+          'tips': [
+            'Buy seasonal produce for better prices',
+            'Check for sales on proteins',
+            'Store vegetables properly to extend freshness'
+          ],
+          'mealIdeas': [
+            'Grilled chicken with roasted vegetables',
+            'Salmon with rice and steamed broccoli',
+            'Egg scramble with fresh vegetables'
+          ]
         };
       default:
         return {'error': true, 'message': 'Operation failed: $error'};
@@ -1021,10 +1151,8 @@ USER CONTEXT:
           // Print nutritional info for debugging
           final nutrition = meal['nutritionalInfo'] as Map<String, dynamic>?;
           if (nutrition != null) {
-          } else {
-          }
-        } else if (meal != null) {
-        }
+          } else {}
+        } else if (meal != null) {}
       } catch (e) {
         print('Failed to extract meal from section: $e');
         print(
@@ -1276,6 +1404,8 @@ USER CONTEXT:
       case 'food_comparison':
         return data.containsKey('image1Analysis') ||
             data.containsKey('image2Analysis');
+      case '54321_shopping':
+        return data.containsKey('shoppingList');
       default:
         return data.isNotEmpty;
     }
@@ -2470,6 +2600,231 @@ Return ONLY a raw JSON object (no markdown, no code blocks) with the following s
       print('Error adding analyzed meal to daily: $e');
       throw Exception('Failed to add meal to daily: $e');
     }
+  }
+
+  Future<Map<String, dynamic>> generate54321ShoppingList({
+    String? dietaryRestrictions,
+    String? additionalContext,
+  }) async {
+    // Initialize model if not already done
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        throw Exception('No suitable AI model available');
+      }
+    }
+
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('API key not configured');
+    }
+
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+
+    String contextualPrompt = 'Generate a 54321 shopping list with:';
+
+    if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
+      contextualPrompt +=
+          ' Consider dietary restrictions: $dietaryRestrictions.';
+    }
+
+    if (additionalContext != null && additionalContext.isNotEmpty) {
+      contextualPrompt += ' Additional context: $additionalContext.';
+    }
+
+    final prompt = '''
+$aiContext
+
+$contextualPrompt
+
+Generate a balanced 54321 shopping list:
+- 5 vegetables (fresh, seasonal, diverse)
+- 4 fruits (fresh, seasonal, variety)
+- 3 protein sources (meat, fish, eggs, legumes, etc.)
+- 2 sauces/spreads (condiments, dressings, spreads)
+- 1 grain (rice, pasta, bread, etc.)
+- 1 fun/special treat (dessert, snack, indulgence)
+
+Return ONLY a raw JSON object (no markdown, no code blocks) with the following structure:
+{
+  "shoppingList": {
+    "vegetables": [
+      {
+        "name": "vegetable name",
+        "amount": "quantity with unit (e.g., '1 bunch', '500g')",
+        "category": "vegetable",
+        "notes": "optional preparation or selection tips"
+      }
+    ],
+    "fruits": [
+      {
+        "name": "fruit name",
+        "amount": "quantity with unit",
+        "category": "fruit",
+        "notes": "optional notes"
+      }
+    ],
+    "proteins": [
+      {
+        "name": "protein name",
+        "amount": "quantity with unit",
+        "category": "protein",
+        "notes": "optional notes"
+      }
+    ],
+    "sauces": [
+      {
+        "name": "sauce/spread name",
+        "amount": "quantity with unit",
+        "category": "sauce",
+        "notes": "optional notes"
+      }
+    ],
+    "grains": [
+      {
+        "name": "grain name",
+        "amount": "quantity with unit",
+        "category": "grain",
+        "notes": "optional notes"
+      }
+    ],
+    "treats": [
+      {
+        "name": "treat name",
+        "amount": "quantity with unit",
+        "category": "treat",
+        "notes": "optional notes"
+      }
+    ]
+  },
+  "totalItems": 16,
+  "estimatedCost": "estimated cost range",
+  "tips": ["tip1", "tip2", "tip3"],
+  "mealIdeas": ["meal idea 1", "meal idea 2", "meal idea 3"]
+}
+
+Important guidelines:
+- Choose seasonal and fresh ingredients when possible
+- Consider the user's dietary preferences and restrictions
+- Provide realistic quantities for family/individual portions
+- Include variety and balance in each category
+- Make the treat reasonable but enjoyable
+- All items should be commonly available in grocery stores
+''';
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt}
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 2048,
+          },
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
+        try {
+          return _processAIResponse(text, '54321_shopping');
+        } catch (e) {
+          print('Raw response text: $text');
+          throw Exception('Failed to parse 54321 shopping list JSON: $e');
+        }
+      } else {
+        print('AI API Error: ${response.body}');
+        _activeModel = null;
+        throw Exception(
+            'Failed to generate 54321 shopping list: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('AI API Exception: $e');
+      _activeModel = null;
+      throw Exception('Failed to generate 54321 shopping list: $e');
+    }
+  }
+
+  /// Save 54321 shopping list to Firestore
+  Future<void> save54321ShoppingList({
+    required Map<String, dynamic> shoppingList,
+    required String userId,
+  }) async {
+    try {
+      final docRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .doc('current');
+
+      await docRef.set({
+        'shoppingList': shoppingList,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': userId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error saving 54321 shopping list to Firestore: $e');
+      throw Exception('Failed to save 54321 shopping list: $e');
+    }
+  }
+
+  /// Get the latest 54321 shopping list from Firestore
+  Future<Map<String, dynamic>?> get54321ShoppingList(String userId) async {
+    try {
+      final docRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .doc('current');
+
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        return data['shoppingList'] as Map<String, dynamic>?;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error getting 54321 shopping list from Firestore: $e');
+      return null;
+    }
+  }
+
+  /// Generate and save 54321 shopping list
+  Future<Map<String, dynamic>> generateAndSave54321ShoppingList({
+    String? dietaryRestrictions,
+    String? additionalContext,
+  }) async {
+    final userId = userService.userId;
+    if (userId == null) {
+      throw Exception('User ID not found');
+    }
+
+    // Generate the shopping list
+    final shoppingList = await generate54321ShoppingList(
+      dietaryRestrictions: dietaryRestrictions,
+      additionalContext: additionalContext,
+    );
+
+    // Save to Firestore
+    await save54321ShoppingList(
+      shoppingList: shoppingList,
+      userId: userId,
+    );
+
+    return shoppingList;
   }
 }
 

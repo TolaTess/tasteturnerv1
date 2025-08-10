@@ -283,7 +283,8 @@ class MacroManager extends GetxController {
     }
   }
 
-  Future<void> removeFromShoppingList(String userId, MacroData item) async {
+  Future<void> removeFromShoppingList(String userId, MacroData item,
+      {bool isManual = false}) async {
     try {
       if (item.id == null) {
         return;
@@ -294,15 +295,31 @@ class MacroManager extends GetxController {
           .collection('userMeals')
           .doc(userId)
           .collection('shoppingList')
-          .doc('week_$currentWeek');
+          .doc(currentWeek);
 
-      // Remove the ingredient id from the map
+      // Determine which field to update based on whether it's manual or generated
+      final fieldToUpdate = isManual ? 'manualItems' : 'generatedItems';
+
+      // Remove the ingredient id from the appropriate map
       await userMealsRef.set({
-        'items': {item.id!: FieldValue.delete()},
+        fieldToUpdate: {item.id!: FieldValue.delete()},
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Refresh the shopping lists after deletion
+      await refreshShoppingLists(userId, currentWeek);
     } catch (e) {
+      print('Error removing item from shopping list: $e');
       return;
+    }
+  }
+
+  Future<void> refreshShoppingLists(String userId, String weekId) async {
+    try {
+      // Re-fetch the shopping list data to update the UI
+      _listenToShoppingList(userId);
+    } catch (e) {
+      print('Error refreshing shopping lists: $e');
     }
   }
 
