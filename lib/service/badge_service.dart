@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../data_models/badge_system_model.dart';
+import '../helper/utils.dart';
 
 class BadgeService extends GetxController {
   static BadgeService instance = Get.find();
@@ -32,7 +33,6 @@ class BadgeService extends GetxController {
 
       availableBadges.value =
           snapshot.docs.map((doc) => Badge.fromFirestore(doc.data())).toList();
-      print('availableBadges 1: ${availableBadges.length}');
     } catch (e) {
       print('Error loading badges: $e');
     }
@@ -60,8 +60,39 @@ class BadgeService extends GetxController {
       // Load points and streak
       await loadUserPoints(userId);
       await loadUserStreak(userId);
+
+      // Check for first 100 users badge if user has a userNumber
+      await _checkFirst100UsersBadge(userId);
     } catch (e) {
       print('Error loading user progress: $e');
+    }
+  }
+
+  /// Check if user qualifies for first 100 users badge
+  Future<void> _checkFirst100UsersBadge(String userId) async {
+    try {
+      final userNumber = await _getUserNumberCount(userId);
+      if (userNumber > 0 && userNumber <= 100) {
+        await checkBadgeProgress(userId, 'user_number');
+      }
+    } catch (e) {
+      print('Error checking first 100 users badge: $e');
+    }
+  }
+
+  /// Assign user number to existing users who don't have one
+  Future<void> assignUserNumberToExistingUser(String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        if (userData['userNumber'] == null) {
+          // User doesn't have a userNumber, assign one
+          await assignUserNumberAndCheckBadge(userId);
+        }
+      }
+    } catch (e) {
+      print('Error assigning user number to existing user: $e');
     }
   }
 
@@ -305,8 +336,19 @@ class BadgeService extends GetxController {
       final newProgress =
           await _calculateProgress(userId, badge, currentProgress, actionData);
 
+      // Special handling for user_number badges
+      bool shouldAwardBadge = false;
+      if (badge.criteria.type == 'user_number') {
+        // For user_number badges, award if user number is within the target range
+        shouldAwardBadge =
+            newProgress > 0 && newProgress <= badge.criteria.target;
+      } else {
+        // For other badges, use the standard logic
+        shouldAwardBadge = newProgress >= badge.criteria.target;
+      }
+
       // Check if badge is earned
-      if (newProgress >= badge.criteria.target) {
+      if (shouldAwardBadge) {
         await _awardBadge(userId, badge);
       } else {
         await _updateProgress(userId, badge, newProgress);
@@ -359,8 +401,54 @@ class BadgeService extends GetxController {
         return await _getPerfectDaysCount(
             userId, badge.criteria.requirement == 'consecutive');
 
+      case 'user_number':
+        return await _getUserNumberCount(userId);
+
       default:
         return currentProgress?.currentProgress ?? 0;
+    }
+  }
+
+  Future<int> _getUserNumberCount(String userId) async {
+    try {
+      final snapshot = await _firestore.collection('users').doc(userId).get();
+      return snapshot.data()?['userNumber'] ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// Assign a user number to a new user and check for first 100 users badge
+  Future<void> assignUserNumberAndCheckBadge(String userId) async {
+    try {
+      // Get the current user count from a counter document
+      final counterDoc =
+          await _firestore.collection('counters').doc('users').get();
+      int userNumber = 1; // Default to 1 if no counter exists
+
+      if (counterDoc.exists) {
+        userNumber = (counterDoc.data()?['count'] ?? 0) + 1;
+      }
+
+      // Update the counter
+      await _firestore.collection('counters').doc('users').set({
+        'count': userNumber,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Assign the user number to the user
+      await _firestore.collection('users').doc(userId).update({
+        'userNumber': userNumber,
+      });
+
+      // Check if this user qualifies for the first 100 users badge
+      if (userNumber <= 100) {
+        await checkBadgeProgress(userId, 'user_number');
+      }
+
+      print('Assigned user number $userNumber to user $userId');
+    } catch (e) {
+      print('Error assigning user number: $e');
     }
   }
 
@@ -611,8 +699,8 @@ class BadgeService extends GetxController {
   Future<int> _getBattlesParticipatedCount(String userId) async {
     try {
       final snapshot = await _firestore
-          .collection('battle_votes')
-          .where('userId', isEqualTo: userId)
+          .collection('battle_participants')
+          .where('userId', arrayContains: userId)
           .get();
 
       return snapshot.docs.length;
@@ -622,9 +710,15 @@ class BadgeService extends GetxController {
   }
 
   Future<int> _getBattlesWonCount(String userId) async {
-    // This would need to be implemented based on your battle results structure
-    // For now, returning 0 as placeholder
-    return 0;
+    try {
+      final snapshot = await _firestore
+          .collection('battle_winners')
+          .where('userId', arrayContains: userId)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      return 0;
+    }
   }
 
   Future<int> _getUniqueRecipesCount(String userId) async {
@@ -791,20 +885,6 @@ class BadgeService extends GetxController {
   }
 
   bool _isVegetable(String itemName) {
-    const vegetables = [
-      'carrot',
-      'broccoli',
-      'spinach',
-      'lettuce',
-      'tomato',
-      'cucumber',
-      'pepper',
-      'onion',
-      'garlic',
-      'celery',
-      'kale',
-      'cabbage'
-    ];
     return vegetables.any((veg) => itemName.contains(veg));
   }
 

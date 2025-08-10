@@ -24,6 +24,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   StreamSubscription? _subscription;
   String weekRange = '';
   String ingredient = '';
+  String challengeEndDate = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -42,7 +43,22 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     if (challengeDetails != null && challengeDetails is String) {
       setState(() {
         ingredient = challengeDetails.split(',').sublist(1).join(', ');
+        challengeEndDate = challengeDetails.split(',')[0];
       });
+      // Parse the end date for scheduling the points award
+      try {
+        final endDateParts = challengeEndDate.split('-');
+        if (endDateParts.length == 3) {
+          final day = int.parse(endDateParts[0]);
+          final month = int.parse(endDateParts[1]);
+          final year = int.parse(endDateParts[2]);
+          final endDateTime =
+              DateTime(year, month, day, 12, 0); // 12 PM on end date
+          _schedulePointsAward(endDateTime);
+        }
+      } catch (e) {
+        print('Error parsing challenge end date: $e');
+      }
     }
   }
 
@@ -146,8 +162,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
           'id': docUserId,
           'displayName': userDataFromFirestore?['displayName'] ?? 'Unknown',
           'profileImage':
-              userDataFromFirestore?['profileImage']?.toString().isNotEmpty ==
-                      true
+              userDataFromFirestore?['profileImage']?.isNotEmpty == true
                   ? userDataFromFirestore!['profileImage']
                   : intPlaceholderImage,
           'totalLikes': userData['totalLikes'],
@@ -177,6 +192,37 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
         setState(() => isLoading = false);
       }
     }
+  }
+
+  void _schedulePointsAward(DateTime endDateTime) {
+    final now = DateTime.now();
+    final durationUntilEnd = endDateTime.difference(now);
+    if (durationUntilEnd.isNegative) {
+      print('Challenge end date is in the past, no points will be awarded.');
+      return;
+    }
+    Timer(durationUntilEnd, () async {
+      final winner = leaderboardData.isNotEmpty ? leaderboardData.first : null;
+      if (winner == null) {
+        print('No winner found, no points will be awarded.');
+        return;
+      }
+      final winnerId = winner['id'];
+      const pointsToAward = 100;
+      await badgeService.awardPoints(winnerId, pointsToAward,
+          reason: "Dine-In Challenge Winner");
+             //save into battle_votes collection
+        await firestore
+            .collection('battle_winners')
+            .doc(endDateTime.toString())
+            .set({
+          'battleId': 'dine-in-challenge',
+          'userId': [
+            winnerId,
+          ],
+          'timestamp': DateTime.now(),
+        });
+    });
   }
 
   @override
@@ -394,7 +440,6 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   }
 
   Widget _buildCurrentUserCard() {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
     if (currentUserRank == null) return const SizedBox.shrink();
 
     return Container(

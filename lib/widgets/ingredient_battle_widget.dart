@@ -233,23 +233,59 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
             'count': topIngredientCount,
           },
         );
-        _showBadge.value = true;
-        _badgeTitle.value = 'Veggie Lover';
       }
 
-      // Check if we have a good variety (Food Explorer equivalent)
-      if (sortedIngredients.length >= 5) {
-        _showBadge.value = true;
-        _badgeTitle.value = 'Food Explorer';
+      // Check for unique recipes if multiple ingredients used
+      if (sortedIngredients.length >= 3) {
+        await _badgeService.checkBadgeProgress(
+          userId,
+          'unique_recipes_tried',
+        );
       }
 
-      // Check for high usage (Ingredient Master equivalent)
-      if (topIngredientCount >= 10) {
-        _showBadge.value = true;
-        _badgeTitle.value = 'Ingredient Master';
-      }
+      // Check if any badges were recently earned to show notification
+      await _checkForRecentBadges(userId);
     } catch (e) {
       print('Error checking/awarding badges: $e');
+    }
+  }
+
+  /// Check if any badges were recently earned and show the most recent one
+  Future<void> _checkForRecentBadges(String userId) async {
+    try {
+      // Find the most recently earned badge (within last 24 hours)
+      final recentBadges = _badgeService.earnedBadges.where((badge) {
+        try {
+          final progress = _badgeService.userProgress
+              .firstWhere((p) => p.badgeId == badge.id && p.isEarned);
+          if (progress.earnedAt != null) {
+            final timeDifference =
+                DateTime.now().difference(progress.earnedAt!);
+            return timeDifference.inHours <= 24;
+          }
+        } catch (e) {
+          // No matching progress found
+        }
+        return false;
+      }).toList();
+
+      if (recentBadges.isNotEmpty) {
+        // Show the most recent relevant badge
+        final relevantBadges = recentBadges
+            .where((badge) =>
+                badge.criteria.type == 'unique_ingredients_logged' ||
+                badge.criteria.type == 'ingredient_category_logged' ||
+                badge.criteria.type == 'unique_recipes_tried')
+            .toList();
+
+        if (relevantBadges.isNotEmpty) {
+          final badge = relevantBadges.first;
+          _showBadge.value = true;
+          _badgeTitle.value = badge.title;
+        }
+      }
+    } catch (e) {
+      print('Error checking recent badges: $e');
     }
   }
 

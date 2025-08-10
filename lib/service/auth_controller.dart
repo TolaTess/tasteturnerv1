@@ -13,6 +13,7 @@ import '../screens/onboarding_screen.dart';
 import '../screens/splash_screen.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'badge_service.dart';
 
 class AuthController extends GetxController {
   static AuthController instance = Get.find();
@@ -58,6 +59,10 @@ class AuthController extends GetxController {
         try {
           // Start listening to user data instead of one-time fetch
           listenToUserData(user.uid);
+
+          // Check and assign user number if needed (for first 100 users badge)
+          await BadgeService.instance.assignUserNumberToExistingUser(user.uid);
+
           await _setLoggedIn(true);
           Get.offAll(() => const BottomNavSec());
         } catch (e) {

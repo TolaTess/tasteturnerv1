@@ -829,7 +829,7 @@ class _DineInScreenState extends State<DineInScreen> {
                   '• Create a visually stunning dish\n'
                   '• Take a high-quality photo\n'
                   '• Submit before the end of the week\n\n'
-                  '• Upload a photo of your meal to earn 50 points\n\n'
+                  '• Upload a photo of your meal to earn 30 points\n\n'
                   '🏆 Challenge ends: ${challengeDate ?? 'This week'} \n\n'
                   'Good luck!',
                   style: textTheme.bodyMedium?.copyWith(

@@ -455,8 +455,17 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       if (widget.battleCategory == 'Weekly Challenge' &&
           widget.isMainPost == false &&
           widget.battleId.isNotEmpty) {
-        await badgeService.awardPoints(userService.userId ?? '', 50,
-            reason: 'Weekly Challenge');
+        //save into battle_votes collection
+        await firestore
+            .collection('battle_participants')
+            .doc(DateTime.now().toString())
+            .set({
+          'battleId': widget.battleId,
+          'userId': [
+            userService.userId ?? '',
+          ],
+          'timestamp': DateTime.now(),
+        });
       }
 
       setState(() {

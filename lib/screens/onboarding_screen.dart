@@ -12,6 +12,7 @@ import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
+import '../service/badge_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -175,6 +176,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               newUser.toMap(),
               SetOptions(merge: true),
             );
+
+        // Assign user number and check for first 100 users badge
+        await BadgeService.instance.assignUserNumberAndCheckBadge(widget.userId);
 
         // Set current user
         userService.setUser(newUser);
