@@ -44,6 +44,7 @@ class _DineInScreenState extends State<DineInScreen> {
     _loadSavedMeal();
     _loadChallengeData();
     _generateIngredientPair();
+    _checkChallengeNotification();
   }
 
   // Local storage keys
@@ -57,6 +58,12 @@ class _DineInScreenState extends State<DineInScreen> {
       'dine_in_challenge_ingredients';
   static const String _challengeDateKey = 'dine_in_challenge_date';
   static const String _isChallengeModeKey = 'dine_in_is_challenge_mode';
+
+  // Notification storage keys
+  static const String _lastChallengeNotificationKey =
+      'dine_in_last_challenge_notification';
+  static const String _challengeNotificationEnabledKey =
+      'dine_in_challenge_notification_enabled';
 
   // Save meal to local storage
   Future<void> _saveMealToStorage() async {
@@ -258,6 +265,9 @@ class _DineInScreenState extends State<DineInScreen> {
 
           // Load saved challenge data
           await _loadSavedChallengeData();
+
+          // Check for challenge notification after loading data
+          await _checkChallengeNotification();
         }
       }
     } catch (e) {
@@ -334,6 +344,124 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
+  // Check if challenge notification should be sent
+  Future<void> _checkChallengeNotification() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Check if notifications are enabled (default to true)
+      final notificationsEnabled =
+          prefs.getBool(_challengeNotificationEnabledKey) ?? true;
+      if (!notificationsEnabled) return;
+
+      // Get current date
+      final now = DateTime.now();
+
+      // Check if today is Monday
+      if (now.weekday != DateTime.monday) return;
+
+      // Get the last notification date
+      final lastNotificationDate =
+          prefs.getString(_lastChallengeNotificationKey);
+      if (lastNotificationDate != null) {
+        final lastDate = DateTime.parse(lastNotificationDate);
+        // If we already sent a notification this week, don't send another
+        if (now.difference(lastDate).inDays < 7) return;
+      }
+
+      // Check if there's a challenge date this week
+      if (challengeDate != null) {
+        try {
+          // Parse challenge date (format: "DD-MM-YYYY")
+          final challengeParts = challengeDate!.split('-');
+          if (challengeParts.length == 3) {
+            final challengeDay = int.parse(challengeParts[0]);
+            final challengeMonth = int.parse(challengeParts[1]);
+            final challengeYear = int.parse(challengeParts[2]);
+
+            final challengeDateTime =
+                DateTime(challengeYear, challengeMonth, challengeDay);
+
+            // Check if challenge ends this Sunday
+            final thisSunday = _getThisWeekSunday();
+
+            if (challengeDateTime.isAtSameMomentAs(thisSunday)) {
+              // Send notification
+              await _sendChallengeNotification();
+
+              // Save notification date
+              await prefs.setString(
+                  _lastChallengeNotificationKey, now.toIso8601String());
+            }
+          }
+        } catch (e) {
+          print('Error parsing challenge date: $e');
+        }
+      }
+    } catch (e) {
+      print('Error checking challenge notification: $e');
+    }
+  }
+
+  // Get this week's Sunday
+  DateTime _getThisWeekSunday() {
+    final now = DateTime.now();
+    final daysUntilSunday = DateTime.sunday - now.weekday;
+    return now.add(Duration(days: daysUntilSunday));
+  }
+
+  // Send challenge notification
+  Future<void> _sendChallengeNotification() async {
+    try {
+      await notificationService.showNotification(
+        id: 1001, // Unique ID for challenge notifications
+        title: 'Weekly Challenge Reminder! 🏆',
+        body:
+            'Your Dine-In challenge ends this Sunday! Don\'t forget to upload your creation.',
+      );
+      print('Challenge notification sent successfully');
+    } catch (e) {
+      print('Error sending challenge notification: $e');
+    }
+  }
+
+  // Get notification status
+  Future<bool> _getNotificationStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_challengeNotificationEnabledKey) ?? true;
+    } catch (e) {
+      print('Error getting notification status: $e');
+      return true;
+    }
+  }
+
+  // Toggle challenge notifications
+  Future<void> _toggleChallengeNotifications(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_challengeNotificationEnabledKey, enabled);
+
+      if (enabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Challenge notifications enabled'),
+            backgroundColor: kAccent,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Challenge notifications disabled'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling challenge notifications: $e');
+    }
+  }
+
   // Show challenge ingredient selection dialog
   void _showChallengeSelectionDialog() {
     if (challengeIngredients.isEmpty) {
@@ -358,7 +486,7 @@ class _DineInScreenState extends State<DineInScreen> {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             title: Text(
-              'Select 2 Challenge Ingredients',
+              'Select Ingredients',
               style: textTheme.titleLarge?.copyWith(color: kAccent),
             ),
             content: SizedBox(
@@ -678,46 +806,92 @@ class _DineInScreenState extends State<DineInScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text(
-          'Weekly Challenge Details',
-          style: textTheme.titleLarge?.copyWith(color: kAccent),
-        ),
-        content: Text(
-          '• Use only the selected ingredients plus:\n'
-          '  - Onions\n'
-          '  - Herbs\n'
-          '  - Spices\n\n'
-          '• Create a visually stunning dish\n'
-          '• Take a high-quality photo\n'
-          '• Submit before the end of the week\n\n'
-          '🏆 Challenge ends: ${challengeDate ?? 'This week'} \n\n'
-          'Good luck!',
-          style: textTheme.bodyMedium?.copyWith(
-            color: isDarkMode ? kWhite : kBlack,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: textTheme.bodyMedium?.copyWith(color: kAccentLight),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: Text(
+              'Weekly Challenge Details',
+              style: textTheme.titleLarge?.copyWith(color: kAccent),
             ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _acceptChallenge();
-            },
-            child: Text(
-              'Join Challenge',
-              style: textTheme.bodyMedium?.copyWith(color: kAccent),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '• Use only the selected ingredients plus:\n'
+                  '  - Onions\n'
+                  '  - Herbs\n'
+                  '  - Spices\n\n'
+                  '• Create a visually stunning dish\n'
+                  '• Take a high-quality photo\n'
+                  '• Submit before the end of the week\n\n'
+                  '• Upload a photo of your meal to earn 50 points\n\n'
+                  '🏆 Challenge ends: ${challengeDate ?? 'This week'} \n\n'
+                  'Good luck!',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                // Notification toggle
+                FutureBuilder<bool>(
+                  future: _getNotificationStatus(),
+                  builder: (context, snapshot) {
+                    final notificationsEnabled = snapshot.data ?? true;
+                    return Row(
+                      children: [
+                        Icon(
+                          Icons.notifications,
+                          color: notificationsEnabled ? kAccent : kLightGrey,
+                          size: getIconScale(6, context),
+                        ),
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        Expanded(
+                          child: Text(
+                            'Monday reminders',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
+                          ),
+                        ),
+                        Switch(
+                          value: notificationsEnabled,
+                          onChanged: (value) {
+                            setDialogState(() {});
+                            _toggleChallengeNotifications(value);
+                          },
+                          activeColor: kAccent,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: textTheme.bodyMedium?.copyWith(color: kAccentLight),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _acceptChallenge();
+                },
+                child: Text(
+                  'Join Challenge',
+                  style: textTheme.bodyMedium?.copyWith(color: kAccent),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1124,7 +1298,8 @@ class _DineInScreenState extends State<DineInScreen> {
                               child: GestureDetector(
                                 onTap: () async {
                                   if (!canUseAI()) {
-                                    showPremiumRequiredDialog(context, isDarkMode);
+                                    showPremiumRequiredDialog(
+                                        context, isDarkMode);
                                     return;
                                   }
 
@@ -1701,7 +1876,8 @@ class _DineInScreenState extends State<DineInScreen> {
                             child: GestureDetector(
                               onTap: () async {
                                 if (!canUseAI()) {
-                                  showPremiumRequiredDialog(context, isDarkMode);
+                                  showPremiumRequiredDialog(
+                                      context, isDarkMode);
                                   return;
                                 }
 

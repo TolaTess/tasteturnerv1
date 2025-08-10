@@ -23,7 +23,6 @@ import '../widgets/goal_dash_card.dart';
 import '../widgets/milestone_tracker.dart';
 import '../widgets/second_nav_widget.dart';
 import '../pages/family_member.dart';
-import '../pages/profile_edit_screen.dart';
 import '../data_models/user_data_model.dart';
 import 'dine-in.screen.dart';
 import 'recipe_screen.dart';

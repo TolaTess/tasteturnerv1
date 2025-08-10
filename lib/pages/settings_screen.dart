@@ -82,7 +82,7 @@ class SettingsScreen extends StatelessWidget {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              const HelpSupport(),
+                                              const HelpScreen(),
                                         ),
                                       );
                                       break;

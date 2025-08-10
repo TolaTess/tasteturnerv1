@@ -435,9 +435,9 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         category:
             selectedCategory, // Use actual selected category for all posts
         isBattle:
-            widget.isMainPost && widget.battleCategory == 'Dine-In Challenge'
-                ? false
-                : true,
+            !widget.isMainPost && widget.battleCategory == 'Weekly Challenge'
+                ? true
+                : false,
         battleId: widget.battleId, // Keep battleId for categorization
         isVideo: _isVideo,
       );
@@ -455,7 +455,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       if (widget.battleCategory == 'Weekly Challenge' &&
           widget.isMainPost == false &&
           widget.battleId.isNotEmpty) {
-        await badgeService.awardPoints(userService.userId ?? '', 15,
+        await badgeService.awardPoints(userService.userId ?? '', 50,
             reason: 'Weekly Challenge');
       }
 
