@@ -286,7 +286,7 @@ class PostController extends GetxController {
 
       WriteBatch batch = firestore.batch();
       batch.set(postRef, updatedPost.toFirestore());
-      batch.update(firestore.collection('users').doc(userId), {
+      batch.update(firestore.collection('usersPosts').doc(userId), {
         'posts': FieldValue.arrayUnion([postRef.id]),
       });
       await batch.commit();
@@ -314,7 +314,7 @@ class PostController extends GetxController {
       await deleteImagesFromStorage(mediaPaths);
 
       // Remove post ID from user's posts array
-      await firestore.collection('users').doc(userId).update({
+      await firestore.collection('usersPosts').doc(userId).update({
         'posts': FieldValue.arrayRemove([postId]),
       });
 

@@ -182,7 +182,7 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
 
     WriteBatch batch = firestore.batch();
     batch.set(postRef, post.toFirestore());
-    batch.update(firestore.collection('users').doc(userService.userId), {
+    batch.update(firestore.collection('usersPosts').doc(userService.userId), {
       'posts': FieldValue.arrayUnion([postRef.id]),
     });
     await batch.commit();

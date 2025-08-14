@@ -292,7 +292,10 @@ class _ProgramScreenState extends State<ProgramScreen>
                           'programId': program.programId,
                           ...programDoc.data()!,
                         };
-                        Get.to(() => ProgramDetailWidget(program: programData));
+                        Get.to(() => ProgramDetailWidget(
+                              program: programData,
+                              isEnrolled: true,
+                            ));
                       } else {
                         // Fallback to basic program data
                         final programData = {
@@ -307,7 +310,9 @@ class _ProgramScreenState extends State<ProgramScreen>
                           'options': [],
                           'duration': program.duration,
                         };
-                        Get.to(() => ProgramDetailWidget(program: programData));
+                        Get.to(() => ProgramDetailWidget(
+                              program: programData,
+                            ));
                       }
                     } catch (e) {
                       Get.snackbar(

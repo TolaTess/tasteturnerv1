@@ -10,7 +10,6 @@ import '../helper/utils.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/helper_widget.dart';
 import '../widgets/icon_widget.dart';
-import '../widgets/loading_screen.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/title_section.dart';
 import '../service/post_service.dart';

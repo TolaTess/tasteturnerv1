@@ -630,13 +630,11 @@ class _TastyScreenState extends State<TastyScreen> {
       String chatId,
       List<ChatScreenData> messages) async {
     try {
-      print('🔍 DEBUG: Sending remix prompt: $prompt');
       final response = await geminiService.getResponse(
         prompt,
         512,
         role: buddyAiRole,
       );
-      print('🔍 DEBUG: Remix response received: "$response"');
 
       setState(() {
         messages.add(ChatScreenData(

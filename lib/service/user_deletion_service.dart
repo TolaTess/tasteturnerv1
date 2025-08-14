@@ -345,7 +345,7 @@ class UserDeletionService extends GetxController {
 
       // Remove from posts arrays
       final usersWithPosts = await firestore
-          .collection('users')
+          .collection('usersPosts')
           .where('posts', arrayContains: userId)
           .get();
 

@@ -8,13 +8,11 @@ class UserModel {
   String? profileImage;
   List<String> following;
   DateTime? freeTrialDate;
-
   Map<String, dynamic> settings;
   Map<String, dynamic> preferences;
   String? userType;
   bool isPremium;
   DateTime? created_At;
-
   final bool? familyMode;
   final List<FamilyMember>? familyMembers;
 
