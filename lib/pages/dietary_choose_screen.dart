@@ -509,7 +509,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
-      final mealPlan = await geminiService.generateMealPlan(prompt);
+      final mealPlan =
+          await geminiService.generateMealPlan(prompt, mealPlanContext);
 
       final userId = userService.userId;
       if (userId == null) throw Exception('User ID not found');

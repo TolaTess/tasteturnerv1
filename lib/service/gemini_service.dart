@@ -60,6 +60,245 @@ class GeminiService {
   String? _lastUserId;
   DateTime? _lastContextFetch;
 
+  // Enhanced error handling for production
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
+  static const Duration _backoffMultiplier = Duration(seconds: 1);
+
+  // Track API health
+  static bool _isApiHealthy = true;
+  static DateTime? _lastApiError;
+  static int _consecutiveErrors = 0;
+  static const int _maxConsecutiveErrors = 5;
+  static const Duration _apiRecoveryTime = Duration(minutes: 10);
+
+  /// Check if API is currently healthy
+  bool get isApiHealthy {
+    if (!_isApiHealthy && _lastApiError != null) {
+      final timeSinceLastError = DateTime.now().difference(_lastApiError!);
+      if (timeSinceLastError > _apiRecoveryTime) {
+        _isApiHealthy = true;
+        _consecutiveErrors = 0;
+      }
+    }
+    return _isApiHealthy;
+  }
+
+  /// Enhanced API call with retry logic and fallback
+  Future<Map<String, dynamic>> _makeApiCallWithRetry({
+    required String endpoint,
+    required Map<String, dynamic> body,
+    required String operation,
+    int retryCount = 0,
+  }) async {
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('API key not configured');
+    }
+
+    // Check if API is healthy
+    if (!isApiHealthy) {
+      throw Exception('API temporarily unavailable. Please try again later.');
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/$endpoint?key=$apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30)); // Add timeout
+
+      if (response.statusCode == 200) {
+        // Reset error tracking on success
+        _consecutiveErrors = 0;
+        _isApiHealthy = true;
+
+        final decoded = jsonDecode(response.body);
+        return decoded;
+      } else {
+        // Handle specific error codes
+        final errorResponse = jsonDecode(response.body);
+        final errorCode = response.statusCode;
+        final errorMessage =
+            errorResponse['error']?['message'] ?? 'Unknown error';
+
+        // Log error for monitoring
+        print('AI API Error: $errorCode - $errorMessage');
+
+        // Handle specific error types
+        switch (errorCode) {
+          case 503:
+            // Service overloaded - retry with exponential backoff
+            if (retryCount < _maxRetries) {
+              final delay = _retryDelay + (_backoffMultiplier * retryCount);
+              await Future.delayed(delay);
+              return _makeApiCallWithRetry(
+                endpoint: endpoint,
+                body: body,
+                operation: operation,
+                retryCount: retryCount + 1,
+              );
+            }
+            _handleApiError(
+                'Service temporarily overloaded. Please try again in a few minutes.');
+            break;
+
+          case 429:
+            // Rate limited - retry with longer delay
+            if (retryCount < _maxRetries) {
+              await Future.delayed(Duration(seconds: 5 * (retryCount + 1)));
+              return _makeApiCallWithRetry(
+                endpoint: endpoint,
+                body: body,
+                operation: operation,
+                retryCount: retryCount + 1,
+              );
+            }
+            _handleApiError('Rate limit exceeded. Please try again later.');
+            break;
+
+          case 401:
+            // Authentication error
+            _handleApiError(
+                'Authentication failed. Please check your API configuration.');
+            break;
+
+          case 400:
+            // Bad request - don't retry
+            throw Exception('Invalid request: $errorMessage');
+
+          default:
+            // Other errors - retry if appropriate
+            if (retryCount < _maxRetries && errorCode >= 500) {
+              await Future.delayed(_retryDelay);
+              return _makeApiCallWithRetry(
+                endpoint: endpoint,
+                body: body,
+                operation: operation,
+                retryCount: retryCount + 1,
+              );
+            }
+            _handleApiError('Service error: $errorMessage');
+        }
+
+        throw Exception('Failed to $operation: $errorCode - $errorMessage');
+      }
+    } catch (e) {
+      _handleApiError('Connection error: ${e.toString()}');
+      throw Exception('Failed to $operation: ${e.toString()}');
+    }
+  }
+
+  /// Handle API errors and update health status
+  void _handleApiError(String message) {
+    _consecutiveErrors++;
+    _lastApiError = DateTime.now();
+
+    if (_consecutiveErrors >= _maxConsecutiveErrors) {
+      _isApiHealthy = false;
+      print(
+          'API marked as unhealthy after $_consecutiveErrors consecutive errors');
+    }
+
+    print('API Error: $message');
+  }
+
+  /// Get fallback meal suggestions when AI is unavailable
+  Future<Map<String, dynamic>> _getFallbackMeals(String prompt) async {
+    // Simple keyword-based fallback
+    final keywords = prompt.toLowerCase().split(' ');
+
+    // Pre-defined meal templates based on common keywords
+    final fallbackMeals = [
+      {
+        'title': 'Quick Pasta Primavera',
+        'ingredients': {
+          'pasta': '200g',
+          'vegetables': 'mixed',
+          'olive oil': '2 tbsp'
+        },
+        'instructions': ['Boil pasta', 'Sauté vegetables', 'Combine and serve'],
+        'nutritionalInfo': {
+          'calories': 350,
+          'protein': 12,
+          'carbs': 45,
+          'fat': 8
+        },
+        'categories': ['quick', 'vegetarian'],
+        'cookingTime': '15 minutes',
+        'cookingMethod': 'stovetop'
+      },
+      {
+        'title': 'Simple Grilled Chicken Salad',
+        'ingredients': {
+          'chicken breast': '150g',
+          'lettuce': '1 head',
+          'tomatoes': '2'
+        },
+        'instructions': ['Grill chicken', 'Chop vegetables', 'Assemble salad'],
+        'nutritionalInfo': {
+          'calories': 280,
+          'protein': 35,
+          'carbs': 8,
+          'fat': 12
+        },
+        'categories': ['healthy', 'protein-rich'],
+        'cookingTime': '20 minutes',
+        'cookingMethod': 'grill'
+      },
+      {
+        'title': 'Easy Vegetable Stir Fry',
+        'ingredients': {
+          'vegetables': 'mixed',
+          'soy sauce': '2 tbsp',
+          'oil': '1 tbsp'
+        },
+        'instructions': ['Heat oil', 'Stir fry vegetables', 'Add sauce'],
+        'nutritionalInfo': {
+          'calories': 200,
+          'protein': 6,
+          'carbs': 25,
+          'fat': 10
+        },
+        'categories': ['vegetarian', 'quick'],
+        'cookingTime': '10 minutes',
+        'cookingMethod': 'stir fry'
+      }
+    ];
+
+    // Filter meals based on keywords
+    List<Map<String, dynamic>> filteredMeals = fallbackMeals;
+
+    if (keywords.contains('quick') || keywords.contains('fast')) {
+      filteredMeals = filteredMeals
+          .where((meal) =>
+              meal['cookingTime'].toString().contains('10') ||
+              meal['cookingTime'].toString().contains('15'))
+          .toList();
+    }
+
+    if (keywords.contains('vegetarian') || keywords.contains('vegan')) {
+      filteredMeals = filteredMeals
+          .where((meal) => meal['categories'].contains('vegetarian'))
+          .toList();
+    }
+
+    if (keywords.contains('protein') || keywords.contains('meat')) {
+      filteredMeals = filteredMeals
+          .where((meal) => meal['categories'].contains('protein-rich'))
+          .toList();
+    }
+
+    return {
+      'meals': filteredMeals.isNotEmpty ? filteredMeals : fallbackMeals,
+      'source': 'fallback',
+      'message':
+          'AI service temporarily unavailable. Here are some suggested meals:'
+    };
+  }
+
   /// Normalize and deduplicate ingredients to prevent variations like "sesameseed" vs "sesame seed"
   Map<String, String> _normalizeAndDeduplicateIngredients(
       Map<String, dynamic> ingredients) {
@@ -208,9 +447,6 @@ class GeminiService {
 
       return jsonData;
     } catch (e) {
-      print('Error processing AI response for $operation: $e');
-      print('Raw response text: $text');
-
       // Try to extract partial JSON if possible
       try {
         final partialJson = _extractPartialJson(text, operation);
@@ -904,7 +1140,7 @@ class GeminiService {
     return foodItems;
   }
 
-  /// Extract nutritional info for a specific food item 
+  /// Extract nutritional info for a specific food item
   Map<String, dynamic> _extractNutritionalInfoForFood(
       String text, String foodName) {
     // Use a more flexible pattern to find the food item with its nutrition
@@ -2394,31 +2630,24 @@ USER CONTEXT:
     }
   }
 
-  Future<Map<String, dynamic>> generateMealPlan(String prompt) async {
+  Future<Map<String, dynamic>> generateMealPlan(
+      String prompt, String contextInformation) async {
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
       if (!initialized) {
-        throw Exception('No suitable AI model available');
+        // Try fallback if model initialization fails
+        return await _getFallbackMeals(prompt);
       }
-    }
-
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API key not configured');
     }
 
     // Get comprehensive user context
     final aiContext = await _buildAIContext();
 
-    final contextualPrompt =
-        'Generate a detailed meal plan based on the following requirements: $prompt';
-
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/${_activeModel}:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        body: {
           "contents": [
             {
               "parts": [
@@ -2428,17 +2657,9 @@ You are a professional nutritionist and meal planner.
 
 $aiContext
 
-$contextualPrompt
+$prompt
 
-Generate a 7-day meal plan that is:
-
-Balanced and diverse
-
-Aligned with the specified diet type
-
-Includes at least 2 meal options per meal type (breakfast, lunch, dinner, snack) per day
-
-Designed with real-world cooking practicality and variety
+$contextInformation
 
 Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
 {
@@ -2447,6 +2668,8 @@ Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no tr
       "title": "Dish name",
       "type": "protein|grain|vegetable",
       "mealType": "breakfast | lunch | dinner | snack",
+      "cookingTime": "time in minutes",
+      "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
       "ingredients": {
         "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
         "ingredient2": "amount with unit"
@@ -2489,34 +2712,30 @@ Important guidelines:
             "topP": 0.8,
             "maxOutputTokens": 4096, // Increased to prevent JSON truncation
           },
-        }),
+        },
+        operation: 'generate meal plan',
       );
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final text = decoded['candidates'][0]['content']['parts'][0]['text'];
+      final text = response['candidates'][0]['content']['parts'][0]['text'];
+      try {
+        final parsed = _processAIResponse(text, 'meal_plan');
+        return _normalizeMealPlanData(parsed);
+      } catch (e) {
+        // Attempt sanitization + parse once more
         try {
-          final parsed = _processAIResponse(text, 'meal_plan');
-          return _normalizeMealPlanData(parsed);
-        } catch (e) {
-          // Attempt sanitization + parse once more
-          try {
-            final sanitized = _sanitizeJsonString(text);
-            final reparsed = jsonDecode(sanitized) as Map<String, dynamic>;
-            return _normalizeMealPlanData(reparsed);
-          } catch (_) {
-            throw Exception('Failed to parse meal plan JSON: $e');
-          }
+          final sanitized = _sanitizeJsonString(text);
+          final reparsed = jsonDecode(sanitized) as Map<String, dynamic>;
+          return _normalizeMealPlanData(reparsed);
+        } catch (_) {
+          throw Exception('Failed to parse meal plan JSON: $e');
         }
-      } else {
-        print('AI API Error: ${response.body}');
-        _activeModel = null;
-        throw Exception('Failed to generate meal plan: ${response.statusCode}');
       }
     } catch (e) {
       print('AI API Exception: $e');
       _activeModel = null;
-      throw Exception('Failed to generate meal plan: $e');
+
+      // Return fallback meals if AI fails
+      return await _getFallbackMeals(prompt);
     }
   }
 
@@ -2725,7 +2944,8 @@ Important guidelines:
 
       // Prepare prompt and generate meal plan
       final mealPlan = await generateMealPlan(
-        'Generate meals using these ingredients: ${displayedItems.map((item) => item.title).join(', ')}',
+        'Generate 2 meals using these ingredients: ${displayedItems.map((item) => item.title).join(', ')}',
+        'Stay within the ingredients provided',
       );
 
       // Hide loading dialog before showing selection
@@ -2769,8 +2989,8 @@ Important guidelines:
                       final meal = meals[index];
                       final title = meal['title'] ?? 'Untitled';
 
-                      String cookingTime = meal['cookingTime'] ?? '';
-                      String cookingMethod = meal['cookingMethod'] ?? '';
+                      final categories =
+                          (meal['categories'] as List<dynamic>?) ?? [];
 
                       return Card(
                         color: colors[index % colors.length],
@@ -2783,25 +3003,14 @@ Important guidelines:
                               color: isDarkMode ? kWhite : kDarkGrey,
                             ),
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (cookingTime.isNotEmpty)
-                                Text(
-                                  'Cooking Time: $cookingTime',
+                          subtitle: categories.isNotEmpty
+                              ? Text(
+                                  'Categories: ${categories.join(', ')}',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey,
                                   ),
-                                ),
-                              if (cookingMethod.isNotEmpty)
-                                Text(
-                                  'Method: $cookingMethod',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                  ),
-                                ),
-                            ],
-                          ),
+                                )
+                              : null,
                           onTap: isProcessing
                               ? null
                               : () async {

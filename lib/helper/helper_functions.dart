@@ -477,7 +477,7 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
   try {
     final existingDoc = await docRef.get();
     if (existingDoc.exists) {
-      final existingData = existingDoc.data() as Map<String, dynamic>?;
+      final existingData = existingDoc.data();
       final generations = existingData?['generations'] as List<dynamic>?;
       if (generations != null) {
         existingGenerations =
@@ -493,7 +493,7 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
     'mealIds': mealIds,
     'timestamp':
         Timestamp.fromDate(DateTime.now()), // Use client-side Timestamp
-    'diet': selectedDiet ?? 'general',
+    'diet': selectedDiet,
     'familyMemberName': familyMemberName, // Add family member name if provided
   };
 
@@ -764,6 +764,7 @@ Future<XFile?> cropImage(
     builder: (context) {
       final textTheme = Theme.of(context).textTheme;
       return AlertDialog(
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
           width: 350,
@@ -789,7 +790,7 @@ Future<XFile?> cropImage(
               width: size,
               height: size,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: kAccent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -797,8 +798,15 @@ Future<XFile?> cropImage(
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel', style: textTheme.bodyMedium),
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text('Cancel',
+                style: textTheme.bodyMedium?.copyWith(
+                    color: getThemeProvider(context).isDarkMode
+                        ? kWhite
+                        : kDarkGrey)),
           ),
           TextButton(
             onPressed: () => controller.crop(),
@@ -987,6 +995,7 @@ Future<void> handleCameraAction({
         await cropImage(pickedImages.first, context, isDarkMode);
     if (croppedImage == null) {
       Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); // Navigate back to previous page
       return;
     }
 
@@ -1404,4 +1413,366 @@ Future<bool> showPostDialog(BuildContext context) async {
         ),
       ) ??
       false; // Default to false if dialog is dismissed
+}
+
+Future<Map<String, dynamic>?> showCategoryInputDialog(BuildContext context,
+    {required String label}) async {
+  // Validate the label parameter and use 'general' as fallback if empty
+  final sanitizedLabel = label.trim().isEmpty ? 'general' : label.trim();
+
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+
+  // Check if in family mode
+  final isFamilyMode = userService.currentUser.value?.familyMode ?? false;
+
+  if (!isFamilyMode) {
+    // In non-family mode, return immediately with just the category
+    return {
+      'categories': [sanitizedLabel],
+      'familyMember': null,
+      'ageGroup': null,
+    };
+  }
+
+  // In family mode, show family member selection
+  String? selectedFamilyMember;
+  String? selectedAgeGroup;
+
+  // Get family members
+  final familyMembers = userService.currentUser.value?.familyMembers ?? [];
+
+  return await showDialog<Map<String, dynamic>>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            title: Text(
+              'Select Family Member',
+              style: textTheme.displaySmall?.copyWith(
+                fontSize: getPercentageWidth(7, context),
+                color: kAccent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Generate $label meals',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode
+                          ? kWhite.withOpacity(0.8)
+                          : kBlack.withOpacity(0.7),
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Family member selection
+                  if (familyMembers.isNotEmpty) ...[
+                    Text(
+                      'Select Family Member:',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(
+                      height: getPercentageHeight(15, context),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: familyMembers.length,
+                        itemBuilder: (context, index) {
+                          final member = familyMembers[index];
+                          final isSelected =
+                              selectedFamilyMember == member.name;
+
+                          return Card(
+                            color: isSelected
+                                ? kAccent.withOpacity(0.2)
+                                : kAccent.withOpacity(0.1),
+                            child: ListTile(
+                              title: Text(
+                                capitalizeFirstLetter(member.name ?? 'Unknown'),
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                  fontSize: getTextScale(3.5, context),
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Age Group: ${member.ageGroup ?? 'Unknown'}',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode
+                                      ? kWhite.withOpacity(0.7)
+                                      : kBlack.withOpacity(0.7),
+                                  fontSize: getTextScale(3, context),
+                                ),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  selectedFamilyMember = member.name;
+                                  selectedAgeGroup = member.ageGroup;
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      'No family members found',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: selectedFamilyMember == null
+                    ? null
+                    : () {
+                        Navigator.of(context).pop({
+                          'categories': [sanitizedLabel],
+                          'familyMember': selectedFamilyMember,
+                          'ageGroup': selectedAgeGroup,
+                        });
+                      },
+                child: Text(
+                  'Generate Meals',
+                  style: TextStyle(
+                    color: selectedFamilyMember == null ? Colors.grey : kAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<List<String>?> showIngredientInputDialog(BuildContext context,
+    {String? initialIngredient}) async {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+  final TextEditingController ingredientController = TextEditingController();
+  List<String> ingredients = [];
+
+  // Add initial ingredient if provided and not empty/generic
+  if (initialIngredient != null &&
+      initialIngredient.trim().isNotEmpty &&
+      initialIngredient.toLowerCase() != 'general' &&
+      initialIngredient.toLowerCase() != 'all' &&
+      initialIngredient != 'myMeals') {
+    // Sanitize the ingredient to prevent issues
+    final sanitizedIngredient = initialIngredient.trim();
+    if (sanitizedIngredient.isNotEmpty) {
+      ingredients.add(sanitizedIngredient);
+    }
+  }
+
+  return await showDialog<List<String>>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            title: Text(
+              'Add Ingredients',
+              style: textTheme.displaySmall?.copyWith(
+                fontSize: getPercentageWidth(7, context),
+                color: kAccent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Enter ingredients you want in your meal (one at a time)',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode
+                          ? kWhite.withOpacity(0.8)
+                          : kBlack.withOpacity(0.7),
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Input field for new ingredient
+                  TextField(
+                    controller: ingredientController,
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter ingredient...',
+                      hintStyle: TextStyle(
+                        color: isDarkMode
+                            ? kWhite.withOpacity(0.5)
+                            : kBlack.withOpacity(0.5),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: kAccent.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: kAccent),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.add, color: kAccent),
+                        onPressed: () {
+                          final ingredient = ingredientController.text.trim();
+                          if (ingredient.isNotEmpty &&
+                              !ingredients.contains(ingredient)) {
+                            setState(() {
+                              ingredients.add(ingredient);
+                              ingredientController.clear();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    onSubmitted: (value) {
+                      final ingredient = value.trim();
+                      if (ingredient.isNotEmpty &&
+                          !ingredients.contains(ingredient)) {
+                        setState(() {
+                          ingredients.add(ingredient);
+                          ingredientController.clear();
+                        });
+                      }
+                    },
+                  ),
+
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Display added ingredients
+                  if (ingredients.isNotEmpty) ...[
+                    Text(
+                      'Added Ingredients:',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(
+                      height: getPercentageHeight(15, context),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: ingredients.length,
+                        itemBuilder: (context, index) {
+                          return Card(
+                            color: kAccent.withOpacity(0.1),
+                            child: ListTile(
+                              title: Text(
+                                ingredients[index],
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                  fontSize: getTextScale(3.5, context),
+                                ),
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(
+                                  Icons.remove_circle,
+                                  color: Colors.red.withOpacity(0.7),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    ingredients.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: ingredients.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).pop(ingredients);
+                      },
+                child: Text(
+                  'Generate Meals',
+                  style: TextStyle(
+                    color: ingredients.isEmpty ? Colors.grey : kAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }

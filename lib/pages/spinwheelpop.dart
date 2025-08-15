@@ -255,7 +255,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         });
       }
     } else {
-      _updateIngredientListByType();
+      _ingredientList = updateIngredientListByType(
+              widget.ingredientList, selectedCategoryIngredient)
+          .map((ingredient) => ingredient.title)
+          .toList();
     }
   }
 
@@ -279,63 +282,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           _mealList = newMealList.map((meal) => meal.title).take(10).toList();
         } else {
           _mealList = newMealList.map((meal) => meal.title).toList();
-        }
-      });
-    }
-  }
-
-  void _updateIngredientListByType() async {
-    if (!mounted) return;
-
-    if (selectedCategoryIngredient.isEmpty ||
-        selectedCategoryIngredient == 'all' ||
-        selectedCategoryIngredient == 'general') {
-      setState(() {
-        _ingredientList = widget.ingredientList
-            .map((ingredient) => ingredient.title)
-            .take(20)
-            .toList();
-      });
-    } else {
-      final newIngredientList = widget.ingredientList.where((ingredient) {
-        final selectedCategory = selectedCategoryIngredient.toLowerCase();
-
-        // Check if the ingredient type matches or contains the category
-        if (ingredient.type.toLowerCase().contains(selectedCategory)) {
-          return true;
-        }
-
-        // Check if any of the ingredient's categories contain the selected category
-        if (ingredient.categories.any(
-            (category) => category.toLowerCase().contains(selectedCategory))) {
-          return true;
-        }
-
-        // Additional checks for common ingredient mappings
-        switch (selectedCategory) {
-          case 'protein':
-            return ingredient.type.toLowerCase().contains('protein');
-
-          case 'grain':
-            return ingredient.type.toLowerCase().contains('grain');
-          case 'vegetable':
-            return ingredient.type.toLowerCase().contains('vegetable');
-          case 'fruit':
-            return ingredient.type.toLowerCase().contains('fruit');
-          default:
-            return false;
-        }
-      }).toList();
-
-      setState(() {
-        if (newIngredientList.length > 10) {
-          _ingredientList = newIngredientList
-              .map((ingredient) => ingredient.title)
-              .take(10)
-              .toList();
-        } else {
-          _ingredientList =
-              newIngredientList.map((ingredient) => ingredient.title).toList();
         }
       });
     }
@@ -498,7 +444,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             playSound: _playSound,
             stopSound: _stopSound,
             funMode: _funMode,
-          ),
+            selectedCategory: selectedCategoryIngredient,
+            ),
         ),
       ],
     );

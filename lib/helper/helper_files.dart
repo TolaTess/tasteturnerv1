@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import '../constants.dart';
+import '../data_models/macro_data.dart';
 import '../pages/dietary_choose_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -134,3 +135,52 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
     ),
   );
 }
+
+  List<MacroData> updateIngredientListByType(
+    List<MacroData> ingredientList,
+    String selectedCategory,
+  ) {
+    if (selectedCategory.isEmpty ||
+        selectedCategory == 'all' ||
+        selectedCategory == 'general') {
+      final shuffledIngredients = List<MacroData>.from(ingredientList);
+      shuffledIngredients.shuffle();
+      return shuffledIngredients.take(20).toList();
+    }
+
+    final newIngredientList = ingredientList.where((ingredient) {
+      final selectedCategoryLower = selectedCategory.toLowerCase();
+
+      // Check if the ingredient type matches or contains the category
+      if (ingredient.type.toLowerCase().contains(selectedCategoryLower)) {
+        return true;
+      }
+
+      // Check if any of the ingredient's categories contain the selected category
+      if (ingredient.categories.any(
+          (category) => category.toLowerCase().contains(selectedCategoryLower))) {
+        return true;
+      }
+
+      // Additional checks for common ingredient mappings
+      switch (selectedCategoryLower) {
+        case 'protein':
+          return ingredient.type.toLowerCase().contains('protein');
+        case 'grain':
+          return ingredient.type.toLowerCase().contains('grain');
+        case 'vegetable':
+          return ingredient.type.toLowerCase().contains('vegetable');
+        case 'fruit':
+          return ingredient.type.toLowerCase().contains('fruit');
+        default:
+          return false;
+      }
+    }).toList();
+
+    // Shuffle the filtered list for randomization
+    newIngredientList.shuffle();
+
+    return newIngredientList.length > 20
+        ? newIngredientList.take(20).toList()
+        : newIngredientList.toList();
+  }

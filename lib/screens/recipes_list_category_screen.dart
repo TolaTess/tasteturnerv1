@@ -670,6 +670,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   onMealToggle: toggleMealSelection,
                   screen: widget.screen,
                   onRecipeTap: _navigateToRecipeDetail,
+                  label: selectedCategory,  
                 ),
               ],
             ),

@@ -279,8 +279,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
   String _getHealthScoreDescription(int score) {
     if (score >= 8) return 'Excellent nutritional choice!';
-    if (score >= 6) return 'Good with room for improvement';
-    return 'Consider healthier alternatives';
+    if (score >= 6)
+      return 'Good with room for improvement, check AI suggestions';
+    return 'Consider healthier alternatives, check AI Alternatives';
   }
 
   Future<void> _createMealOnly() async {

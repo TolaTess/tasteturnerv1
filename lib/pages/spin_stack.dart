@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import 'package:tasteturner/helper/helper_files.dart';
 import 'package:tasteturner/widgets/ingredient_features.dart';
 
 import '../constants.dart';
@@ -13,7 +13,6 @@ import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
-import '../widgets/loading_screen.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/spinning_math.dart';
 
@@ -26,6 +25,7 @@ class SpinWheelWidget extends StatefulWidget {
   final VoidCallback playSound;
   final VoidCallback stopSound;
   final bool funMode;
+  final String? selectedCategory;
 
   SpinWheelWidget({
     super.key,
@@ -37,6 +37,7 @@ class SpinWheelWidget extends StatefulWidget {
     required this.playSound,
     required this.stopSound,
     this.funMode = false,
+    this.selectedCategory,
   });
 
   @override
@@ -212,29 +213,39 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   }
 
   void _maintainAvailableLabels() {
-    print('availableLabels: ${availableLabels.length}');
-    print('acceptedItems: ${acceptedItems.length}');
     availableLabels.removeWhere((label) => acceptedItems.contains(label));
-
     while (availableLabels.length < 10 && fullLabelsList.isNotEmpty) {
-      MacroData? newLabel = fullLabelsList.firstWhere(
-        (item) =>
-            !acceptedItems.contains(item.title) &&
-            !availableLabels.contains(item.title),
-      );
+      if (widget.selectedCategory != null) {
+        final newLabels = updateIngredientListByType(
+            fullLabelsList, widget.selectedCategory!);
+        fullLabelsList = newLabels;
+      }
+      // Find the first available label that hasn't been used
+      final availableNewLabels = fullLabelsList
+          .where(
+            (item) =>
+                !acceptedItems.contains(item.title) &&
+                !availableLabels.contains(item.title) &&
+                item.title.isNotEmpty,
+          )
+          .toList();
 
-      if (newLabel.title.isNotEmpty) {
-        availableLabels.add(newLabel.title);
-      } else {
+      if (availableNewLabels.isEmpty) {
+        // No more available labels found
         break;
       }
+
+      // Add a random available label for variety
+      final random = Random();
+      final randomIndex = random.nextInt(availableNewLabels.length);
+      availableLabels.add(availableNewLabels[randomIndex].title);
     }
   }
 
   void _tryAgainLabel() {
     setState(() {
       availableLabels.remove(selectedLabel);
-      if (widget.customLabels == null || widget.customLabels!.isEmpty) {
+      if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
         _maintainAvailableLabels();
       }
       selectedLabel = null;
@@ -247,7 +258,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         acceptedItems.add(label);
       }
       availableLabels.remove(label);
-      if (widget.customLabels == null || widget.customLabels!.isEmpty) {
+      if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
         _maintainAvailableLabels();
       }
       selectedLabel = null;
@@ -399,7 +410,6 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
       widget.acceptedItems.removeAt(index);
     });
   }
-
 
   @override
   Widget build(BuildContext context) {

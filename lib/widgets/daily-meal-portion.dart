@@ -378,7 +378,11 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      height: screenHeight < 700 ? screenHeight * 0.35 : screenHeight * 0.31,
+      height: screenHeight < 700
+          ? screenHeight * 0.35
+          : screenHeight > 800 && screenHeight < 1000
+              ? screenHeight * 0.31
+              : screenHeight * 0.35,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
