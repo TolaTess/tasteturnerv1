@@ -53,8 +53,6 @@ class _SpinScreenState extends State<SpinScreen>
                 title.contains(excluded.toLowerCase()));
           }).toList();
 
-          print(ingredients.length);
-          print(ingredientList.length);
           macroList = uniqueTypes;
           mealList = mealListData;
         });

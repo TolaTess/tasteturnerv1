@@ -11,6 +11,7 @@ import '../helper/helper_files.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
+import '../tabs_screen/shopping_tab.dart';
 import '../widgets/category_selector.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
@@ -318,7 +319,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   'Take a Spin!',
                   style: textTheme.displaySmall?.copyWith(color: kAccent),
                 ),
-                SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(height: getPercentageHeight(1, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -362,7 +363,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 ),
                 Expanded(
                   child: showIngredientSpin
-                      ? _buildIngredientSpinView(isDarkMode)
+                      ? _buildIngredientSpinView(isDarkMode, textTheme)
                       : _buildMealSpinView(
                           isDarkMode,
                           categoryDatasMeal,
@@ -378,10 +379,10 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     );
   }
 
-  Widget _buildIngredientSpinView(bool isDarkMode) {
+  Widget _buildIngredientSpinView(bool isDarkMode, TextTheme textTheme) {
     return Column(
       children: [
-        SizedBox(height: getPercentageHeight(3, context)),
+        SizedBox(height: getPercentageHeight(2, context)),
 
         //category options
         Row(
@@ -435,6 +436,33 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         // Removed custom mode checkbox row
         //const SizedBox(height: 15),
         // Spin wheel below macros
+
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        const ShoppingTab(is54321View: true)));
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(2, context),
+              vertical: getPercentageHeight(1.3, context),
+            ),
+            decoration: BoxDecoration(
+              color: kAccent.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'Quick Shopping List using 54321 method?',
+              style: textTheme.bodyMedium?.copyWith(color: kAccent),
+            ),
+          ),
+        ),
+
+        SizedBox(height: getPercentageHeight(1, context)),
+
         Expanded(
           child: SpinWheelWidget(
             key: _addSpinButtonKey,
@@ -445,7 +473,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             stopSound: _stopSound,
             funMode: _funMode,
             selectedCategory: selectedCategoryIngredient,
-            ),
+          ),
         ),
       ],
     );

@@ -13,7 +13,8 @@ import '../widgets/ingredient_features.dart';
 import '../screens/premium_screen.dart';
 
 class ShoppingTab extends StatefulWidget {
-  const ShoppingTab({super.key});
+  final bool is54321View;
+  const ShoppingTab({super.key, this.is54321View = false});
 
   @override
   State<ShoppingTab> createState() => _ShoppingTabState();
@@ -59,7 +60,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _is54321View = prefs.getBool('shopping_54321_view') ?? false;
+        // If widget.is54321View is true, it should override shared preferences
+        _is54321View = widget.is54321View ||
+            (prefs.getBool('shopping_54321_view') ?? false);
       });
     }
   }
@@ -85,7 +88,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
     await notificationService.cancelScheduledNotification(1001);
     int dayIndex = _daysOfWeek.indexOf(day);
     int weekday = dayIndex + 1;
-    FirebaseAnalytics.instance.logEvent(name: 'shopping_day_selected', parameters: {
+    FirebaseAnalytics.instance
+        .logEvent(name: 'shopping_day_selected', parameters: {
       'day': day,
     });
     await notificationService.scheduleWeeklyReminder(
