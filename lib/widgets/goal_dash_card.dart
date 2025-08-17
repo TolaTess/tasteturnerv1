@@ -234,7 +234,7 @@ class UserDetailsSection extends StatelessWidget {
                   ),
                   if (targetCalories > 0 && showCaloriesAndGoal)
                     Text(
-                      '${targetCalories.toStringAsFixed(0)} kcal',
+                      '${(targetCalories - eatenCalories).abs().toStringAsFixed(0)} kcal',
                       style: textTheme.bodyMedium
                           ?.copyWith(fontSize: getPercentageWidth(3, context)),
                     ),

@@ -66,9 +66,16 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     // Set default for meal category
     final categoryDatasMeal = helperController.headers;
     if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
-      selectedCategoryIdMeal = categoryDatasMeal[1]['id'] ?? '';
+      // Add meal times to start of the list
+      categoryDatasMeal.insertAll(0, [
+        {'id': '1', 'name': 'breakfast'},
+        {'id': '2', 'name': 'lunch'}, 
+        {'id': '3', 'name': 'dinner'},
+      ]);
+      selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
+
       // Safely extract the name
-      final nameData = categoryDatasMeal[1]['name'];
+      final nameData = categoryDatasMeal[0]['name'];
       if (nameData is String) {
         selectedCategoryMeal = nameData;
       } else if (nameData is Map<String, dynamic>) {
