@@ -191,7 +191,6 @@ List<MacroData> updateIngredientListByType(
 
   // Shuffle the filtered list for randomization
   newIngredientList.shuffle();
-  print(newIngredientList.map((e) => e.title).toList());
 
   return newIngredientList.length > 20
       ? newIngredientList.take(20).toList()
