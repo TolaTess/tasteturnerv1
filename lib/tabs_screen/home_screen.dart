@@ -514,9 +514,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         );
       }
-      // final announceDate =
-      //     DateTime.parse(firebaseService.generalData['isAnnounceDate']);
-      // final isAnnounceShow = isDateTodayAfterTime(announceDate);
 
       // Safely access user data with null checks
       familyMode = currentUser.familyMode ?? false;

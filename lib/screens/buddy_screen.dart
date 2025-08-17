@@ -681,6 +681,60 @@ Greet the user warmly and offer guidance based on:
 """;
   }
 
+  // Helper method to send system message to Gemini AI (without saving the prompt to Firestore)
+  Future<void> _sendSystemMessageToGemini(String systemPrompt) async {
+    if (chatId == null || !canUseAI()) return;
+
+    try {
+      // Create a proper welcome message prompt instead of passing the system prompt directly
+      final welcomePrompt = """
+Based on the following user context, create a warm, personalized welcome message:
+
+${systemPrompt}
+
+Respond with only a friendly, encouraging welcome message that addresses the user by name and offers to help with their nutrition goals. Do not include any of the context information in your response.
+""";
+
+      final response = await geminiService.getResponse(
+        welcomePrompt,
+        512,
+        role: buddyAiRole,
+      );
+
+      if (response.contains("Error") || response.isEmpty) {
+        throw Exception("Failed to generate response");
+      }
+
+      setState(() {
+        chatController.messages.add(ChatScreenData(
+          messageContent: response,
+          senderId: 'buddy',
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(response, 'buddy');
+    } catch (e) {
+      print("Error getting AI response for system message: $e");
+      // Add a fallback welcome message
+      final fallbackMessage =
+          "👋 Hey there! I'm Tasty, your AI nutrition buddy! How can I help you today?";
+      setState(() {
+        chatController.messages.add(ChatScreenData(
+          messageContent: fallbackMessage,
+          senderId: 'buddy',
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        ));
+      });
+      _onNewMessage();
+      await _saveMessageToFirestore(fallbackMessage, 'buddy');
+    }
+  }
+
   // Helper method to send message to Gemini AI and save to Firestore
   Future<void> _sendMessageToGemini(String userInput,
       {bool isSystemMessage = false}) async {
@@ -936,6 +990,9 @@ Give 3-4 practical tips. Be encouraging!
 
     // Add user messages to UI and Firestore first
     if (!isSystemMessage) {
+      // Remove any system messages when user starts interacting
+      _removeSystemMessages();
+
       // Add message to UI
       setState(() {
         messages.add(ChatScreenData(
@@ -957,7 +1014,7 @@ Give 3-4 practical tips. Be encouraging!
       }
     }
 
-    // Only trigger Gemini if the last message is from the user
+    // Only trigger Gemini if the last message is from the user OR if it's a system message
     if (isSystemMessage ||
         (messages.isNotEmpty && messages.last.senderId == currentUserId)) {
       try {
@@ -1041,22 +1098,29 @@ Give 3-4 practical tips. Be encouraging!
       chatController.chatId = chatId!;
       chatController.listenToMessages();
       chatController.markMessagesAsRead(chatId!, 'buddy');
-      // Show a Gemini welcome message once per day, or system message if not needed
+
+      // Wait a bit for messages to load, then decide what to show
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final messages = chatController.messages;
+        // Give messages time to load from Firestore
+        await Future.delayed(const Duration(milliseconds: 500));
+
         final now = DateTime.now();
         final lastWelcome = await _getLastGeminiWelcomeDate();
         final isToday = lastWelcome != null &&
             lastWelcome.year == now.year &&
             lastWelcome.month == now.month &&
             lastWelcome.day == now.day;
+
+        // First visit of the day: Send AI-generated welcome message
         if (!isToday) {
           final userContext = _getUserContext();
           final initialPrompt = _createInitialPrompt(userContext);
-          await _sendMessageToGemini(initialPrompt, isSystemMessage: true);
+          await _sendSystemMessageToGemini(initialPrompt);
           await _setLastGeminiWelcomeDate(now);
-        } else if (messages.isEmpty ||
-            messages.last.senderId != userService.userId) {
+        }
+        // Return visit same day: Always show system message if AI was last sender or no messages
+        else {
+          // Always show welcome message on return visits - AI should always greet the user
           _showSystemMessage();
         }
       });
@@ -1070,11 +1134,10 @@ Give 3-4 practical tips. Be encouraging!
         chatController.markMessagesAsRead(chatId!, 'buddy');
       });
 
-      // ONLY send welcome message for completely new chats
-      _showSystemMessage();
+      // For completely new chats: Send AI-generated welcome message
       final userContext = _getUserContext();
       final initialPrompt = _createInitialPrompt(userContext);
-      await _sendMessageToGemini(initialPrompt, isSystemMessage: true);
+      await _sendSystemMessageToGemini(initialPrompt);
       await _setLastGeminiWelcomeDate(DateTime.now());
     }
   }
@@ -1084,10 +1147,8 @@ Give 3-4 practical tips. Be encouraging!
     final randomMessage =
         _welcomeMessages[DateTime.now().microsecond % _welcomeMessages.length];
 
-    // Only send if last message is not a system message or is different
-    if (messages.isNotEmpty &&
-        messages.last.senderId == 'systemMessage' &&
-        messages.last.messageContent == randomMessage) {
+    // Don't add system message if there's already one at the end
+    if (messages.isNotEmpty && messages.last.senderId == 'systemMessage') {
       return;
     }
 
@@ -1101,7 +1162,15 @@ Give 3-4 practical tips. Be encouraging!
       ));
     });
     _onNewMessage();
-    _saveMessageToFirestore(randomMessage, 'systemMessage');
+    // Note: System messages are NOT saved to Firestore - they're UI-only
+  }
+
+  // Remove system messages from UI when user starts interacting
+  void _removeSystemMessages() {
+    setState(() {
+      chatController.messages
+          .removeWhere((message) => message.senderId == 'systemMessage');
+    });
   }
 
   // Move this outside the build method

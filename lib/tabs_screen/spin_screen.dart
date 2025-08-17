@@ -37,9 +37,24 @@ class _SpinScreenState extends State<SpinScreen>
 
       final mealListData = await mealManager.fetchMealsByCategory('all');
 
+      await firebaseService.fetchGeneralData();
+      final excludedIngredients = firebaseService
+          .generalData['excludeIngredients']
+          .toString()
+          .split(',');
+      print(excludedIngredients);
+
       if (mounted) {
         setState(() {
-          ingredientList = ingredients;
+          ingredientList = ingredients.where((ingredient) {
+            final title = ingredient.title.toLowerCase();
+            return !excludedIngredients.any((excluded) =>
+                title == excluded.toLowerCase() ||
+                title.contains(excluded.toLowerCase()));
+          }).toList();
+
+          print(ingredients.length);
+          print(ingredientList.length);
           macroList = uniqueTypes;
           mealList = mealListData;
         });
