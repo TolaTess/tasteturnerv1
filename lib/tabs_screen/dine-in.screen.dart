@@ -111,12 +111,10 @@ class _DineInScreenState extends State<DineInScreen> {
       final savedMeal = prefs.getString(_selectedMealKey);
       if (savedMeal != null && !isMealExpired) {
         selectedMeal = jsonDecode(savedMeal);
-        print('Restored saved meal from storage');
       } else if (isMealExpired) {
         // Clear expired meal data
         await prefs.remove(_selectedMealKey);
         await prefs.remove(_mealTimestampKey);
-        print('Cleared expired meal data (older than 7 days)');
       }
 
       // Load selected ingredients

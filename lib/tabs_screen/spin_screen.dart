@@ -42,15 +42,16 @@ class _SpinScreenState extends State<SpinScreen>
           .generalData['excludeIngredients']
           .toString()
           .split(',');
-      print(excludedIngredients);
 
       if (mounted) {
         setState(() {
           ingredientList = ingredients.where((ingredient) {
-            final title = ingredient.title.toLowerCase();
+            final type = ingredient.type.toLowerCase();
             return !excludedIngredients.any((excluded) =>
-                title == excluded.toLowerCase() ||
-                title.contains(excluded.toLowerCase()));
+                type == excluded.toLowerCase() ||
+                type.contains(excluded.toLowerCase())) &&
+                !['sweetener', 'condiment', 'pastry', 'dairy', 'oil', 'herb', 'spice', 'liquid']
+                .contains(type);
           }).toList();
 
           macroList = uniqueTypes;

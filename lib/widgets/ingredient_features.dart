@@ -161,7 +161,8 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         } else {
           _filteredItems = _baseFilteredItems
               .where((item) =>
-                  item.title.toLowerCase().contains(query.toLowerCase()))
+                  item.title.toLowerCase().contains(query.toLowerCase()) ||
+                  item.type.toLowerCase().contains(query.toLowerCase()))
               .toList();
         }
         // Reset displayed count on new search

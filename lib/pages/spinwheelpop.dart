@@ -183,12 +183,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       selectedCategoryIdIngredient = categoryId;
       selectedCategoryIngredient = category;
     });
-    // Show snackbar notification
-    // showTastySnackbar(
-    //   'Category Updated',
-    //   'Updated to ${capitalizeFirstLetter(category)}',
-    //   context,
-    // );
 
     if (categoryId == 'custom' && category == 'custom') {
       final result = await showDialog<List<String>>(
@@ -488,7 +482,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     return Column(
       children: [
         // ------------------------------------Premium / Ads------------------------------------
-        SizedBox(height: getPercentageHeight(1, context)),
+        SizedBox(height: getPercentageHeight(2, context)),
         getAdsWidget(userService.currentUser.value?.isPremium ?? false,
             isDiv: false),
         if (!(userService.currentUser.value?.isPremium ?? false))
