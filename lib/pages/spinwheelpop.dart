@@ -13,6 +13,7 @@ import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../tabs_screen/shopping_tab.dart';
 import '../widgets/category_selector.dart';
+import '../widgets/info_icon_widget.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
 
@@ -69,7 +70,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       // Add meal times to start of the list
       categoryDatasMeal.insertAll(0, [
         {'id': '1', 'name': 'breakfast'},
-        {'id': '2', 'name': 'lunch'}, 
+        {'id': '2', 'name': 'lunch'},
         {'id': '3', 'name': 'dinner'},
       ]);
       selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
@@ -316,9 +317,52 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             child: Column(
               children: [
                 SizedBox(height: getPercentageHeight(2, context)),
-                Text(
-                  'Take a Spin!',
-                  style: textTheme.displaySmall?.copyWith(color: kAccent),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Take a Spin!',
+                      style: textTheme.displaySmall?.copyWith(color: kAccent),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    const InfoIconWidget(
+                      title: 'Spin & Discover',
+                      description:
+                          'Let our smart wheel help you decide what to eat',
+                      details: [
+                        {
+                          'icon': Icons.casino,
+                          'title': 'Ingredient Spin',
+                          'description':
+                              'Spin for random ingredients to inspire your cooking',
+                          'color': kAccentLight,
+                        },
+                        {
+                          'icon': Icons.restaurant,
+                          'title': 'Meal Spin',
+                          'description':
+                              'Get complete meal suggestions based on your preferences',
+                          'color': kAccentLight,
+                        },
+                        {
+                          'icon': Icons.category,
+                          'title': 'Category Filter',
+                          'description':
+                              'Filter by protein, carbs, vegetables, or all ingredients',
+                          'color': kAccentLight,
+                        },
+                        {
+                          'icon': Icons.volume_up,
+                          'title': 'Sound Effects',
+                          'description':
+                              'Toggle sound effects for a more engaging experience',
+                          'color': kAccentLight,
+                        },
+                      ],
+                      iconColor: kAccentLight,
+                      tooltip: 'Spin Wheel Information',
+                    ),
+                  ],
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
                 Row(

@@ -13,6 +13,7 @@ import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/technique_detail_widget.dart';
+import '../widgets/info_icon_widget.dart';
 
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
@@ -102,11 +103,50 @@ class _RecipeScreenState extends State<RecipeScreen> {
           backgroundColor: kAccent,
           automaticallyImplyLeading: true,
           toolbarHeight: getPercentageHeight(10, context),
-          title: Text(
-            'Recipes',
-            style: textTheme.displaySmall?.copyWith(
-              fontSize: getTextScale(7, context),
-            ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Recipes',
+                style: textTheme.displaySmall?.copyWith(
+                  fontSize: getTextScale(7, context),
+                ),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              const InfoIconWidget(
+                title: 'Recipe Collection',
+                description: 'Discover and save healthy recipes',
+                details: [
+                  {
+                    'icon': Icons.search,
+                    'title': 'Browse Recipes',
+                    'description':
+                        'Find recipes by ingredients, cuisine, or diet',
+                    'color': kPurple,
+                  },
+                  {
+                    'icon': Icons.favorite,
+                    'title': 'Save Favorites',
+                    'description': 'Bookmark your favorite recipes',
+                    'color': kPurple,
+                  },
+                  {
+                    'icon': Icons.restaurant_menu,
+                    'title': 'Meal Planning',
+                    'description': 'Add recipes to your weekly meal plan',
+                    'color': kPurple,
+                  },
+                  {
+                    'icon': Icons.restaurant,
+                    'title': 'Cooking Techniques',
+                    'description': 'Learn new cooking methods and skills',
+                    'color': kPurple,
+                  },
+                ],
+                iconColor: kPurple,
+                tooltip: 'Recipe Information',
+              ),
+            ],
           ),
         ),
         body: SafeArea(
@@ -115,7 +155,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: getPercentageHeight(2, context)),
-      
+
                 // Cooking Techniques Section
                 Padding(
                   padding: EdgeInsets.symmetric(
@@ -182,15 +222,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
                     ],
                   ),
                 ),
-      
+
                 // ------------------------------------Premium / Ads------------------------------------
-      
-               getAdsWidget(userService.currentUser.value?.isPremium ?? false, isDiv: false),
-               
+
+                getAdsWidget(userService.currentUser.value?.isPremium ?? false,
+                    isDiv: false),
+
                 // ------------------------------------Premium / Ads-------------------------------------
-      
+
                 SizedBox(height: getPercentageHeight(1, context)),
-      
+
                 //Search by Meals
                 TitleSection(
                   title: searchMeal,
@@ -209,7 +250,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 SizedBox(
                   height: getPercentageHeight(2, context),
                 ),
-      
+
                 Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: getPercentageWidth(5, context)),

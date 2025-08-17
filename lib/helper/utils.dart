@@ -662,12 +662,15 @@ String getRandomBio(List<String> type) {
 String getRandomMealTypeBio(String mealType, String diet) {
   if (diet == mealType) {
     final List<String> mealTypeBios = [
-      "Feast Mode: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Bite the Day: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Masterpiece",
-      "Dish It Up: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Adventure",
-      "Chow Down Champion: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan",
-      "Savor the Win: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} Meal Plan"
-    ];
+      "Feast Mode",
+      "Bite the Day",
+      "Dish It Up",
+      "Chow Down Champion",
+      "Savor the Win"
+    ]
+        .map((title) =>
+            "$title: Meals generated for your ${capitalizeFirstLetter(mealType)} \n7 day Meal Plan/ (Mix and match and add meals to your Calendar)")
+        .toList();
     final random = Random();
     return mealTypeBios[random.nextInt(mealTypeBios.length)];
   }
@@ -680,12 +683,14 @@ String getRandomMealTypeBio(String mealType, String diet) {
     mealType = 'healthy eating';
   }
 
+  final String suffix =
+      "Meals generated for your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} \n7 day Meal Plan/ (Mix and match and add them to your Calendar)";
   final List<String> mealTypeBios = [
-    "Feast Mode: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Meal Plan",
-    "Bite the Day: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Adventure",
-    "Dish It Up: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Masterpiece",
-    "Calorie Champion: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Plan",
-    "Savor the Win: Meals generated \nfor your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} Plan"
+    "Feast Mode: $suffix",
+    "Bite the Day: $suffix",
+    "Dish It Up: $suffix",
+    "Calorie Champion: $suffix",
+    "Savor the Win: $suffix"
   ];
   final random = Random();
   return mealTypeBios[random.nextInt(mealTypeBios.length)];

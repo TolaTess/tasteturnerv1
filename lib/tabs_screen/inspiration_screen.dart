@@ -8,6 +8,7 @@ import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
 import '../service/tasty_popup_service.dart';
+import '../widgets/info_icon_widget.dart';
 
 class InspirationScreen extends StatefulWidget {
   const InspirationScreen({super.key});
@@ -110,9 +111,51 @@ class _InspirationScreenState extends State<InspirationScreen> {
         centerTitle: true,
         title: Column(
           children: [
-            Text(
-              "What's on Your Plate?",
-              style: textTheme.displayMedium?.copyWith(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "What's on Your Plate?",
+                  style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.8, context)),
+                ),
+                SizedBox(width: getPercentageWidth(2, context)),
+                InfoIconWidget(
+                  title: 'Community Inspiration',
+                  description:
+                      'Discover and share healthy meal ideas with the community',
+                  details: const [
+                    {
+                      'icon': Icons.check_circle,
+                      'title': 'Diet Matches',
+                      'description':
+                          'Posts marked with this icon match your dietary preferences',
+                      'color': kAccent,
+                    },
+                    {
+                      'icon': Icons.people,
+                      'title': 'Community Posts',
+                      'description': 'See what others are cooking and eating',
+                      'color': kAccent,
+                    },
+                    {
+                      'icon': Icons.add_a_photo,
+                      'title': 'Share Your Meals',
+                      'description':
+                          'Upload photos of your healthy meals to inspire others',
+                      'color': kAccent,
+                    },
+                    {
+                      'icon': Icons.filter_list,
+                      'title': 'Analyze Meals',
+                      'description':
+                          'Analyze any post with AI and get insights',
+                      'color': kAccent,
+                    },
+                  ],
+                  iconColor: isDarkMode ? kWhite : kDarkGrey,
+                  tooltip: 'Inspiration Information',
+                ),
+              ],
             ),
             Row(
               key: _addDietButtonKey,

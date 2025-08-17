@@ -14,6 +14,7 @@ import '../screens/recipes_list_category_screen.dart';
 import '../service/macro_manager.dart';
 import '../widgets/optimized_image.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/info_icon_widget.dart';
 
 class DineInScreen extends StatefulWidget {
   const DineInScreen({super.key});
@@ -881,7 +882,8 @@ class _DineInScreenState extends State<DineInScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  FirebaseAnalytics.instance.logEvent(name: 'dine_in_challenge_accepted');
+                  FirebaseAnalytics.instance
+                      .logEvent(name: 'dine_in_challenge_accepted');
                   _acceptChallenge();
                 },
                 child: Text(
@@ -1174,12 +1176,45 @@ class _DineInScreenState extends State<DineInScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text(
-          'Dine-In',
-          style: textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w400,
-            fontSize: getPercentageWidth(7, context),
-          ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Dine-In',
+              textAlign: TextAlign.center,
+              style: textTheme.displaySmall?.copyWith(
+                fontSize: getTextScale(7, context),
+              ),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+
+            const InfoIconWidget(
+              title: 'Dine In',
+              description: 'Get inspired to cook with simple ingredients',
+              details: [
+                {
+                  'icon': Icons.casino,
+                  'title': 'Random Ingredients',
+                  'description': 'Get two random ingredients to cook with',
+                  'color': kBlue,
+                },
+                {
+                  'icon': Icons.emoji_events,
+                  'title': 'Weekly Challenge',
+                  'description': 'Join challenges to win points and rewards',
+                  'color': kBlue,
+                },
+                {
+                  'icon': Icons.restaurant,
+                  'title': 'Simple Cooking',
+                  'description': 'Create delicious meals with just 2 ingredients',
+                  'color': kBlue,
+                },
+              ],
+              iconColor: kBlue,
+              tooltip: 'Dine In Information',
+            ),
+          ],
         ),
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         elevation: 2,

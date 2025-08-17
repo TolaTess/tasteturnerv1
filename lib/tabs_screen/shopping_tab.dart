@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../service/macro_manager.dart';
 import '../widgets/ingredient_features.dart';
+import '../widgets/info_icon_widget.dart';
 import '../screens/premium_screen.dart';
 
 class ShoppingTab extends StatefulWidget {
@@ -323,11 +324,50 @@ class _ShoppingTabState extends State<ShoppingTab> {
         centerTitle: true,
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
-        title: Text(
-          'Shopping List',
-          style: textTheme.displaySmall?.copyWith(
-            fontSize: getTextScale(7, context),
-          ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Shopping List',
+              style: textTheme.displaySmall?.copyWith(
+                fontSize: getTextScale(7, context),
+              ),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            const InfoIconWidget(
+              title: 'Shopping List',
+              description: 'Create and manage your grocery lists',
+              details: [
+                {
+                  'icon': Icons.shopping_cart,
+                  'title': 'Smart Lists',
+                  'description':
+                      'Auto-generated lists based on your meal plans',
+                  'color': kAccentLight,
+                },
+                {
+                  'icon': Icons.add_shopping_cart,
+                  'title': 'Add Items',
+                  'description': 'Manually add items to your shopping list',
+                  'color': kAccentLight,
+                },
+                {
+                  'icon': Icons.check_circle,
+                  'title': 'Track Purchases',
+                  'description': 'Check off items as you shop',
+                  'color': kAccentLight,
+                },
+                {
+                  'icon': Icons.grid_view,
+                  'title': '54321 Method',
+                  'description': 'AI-powered balanced shopping lists',
+                  'color': kAccentLight,
+                },
+              ],
+              iconColor: kAccentLight,
+              tooltip: 'Shopping List Information',
+            ),
+          ],
         ),
         actions: [
           // View toggle button

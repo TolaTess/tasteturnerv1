@@ -19,6 +19,7 @@ import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/meal_detail_widget.dart';
 import '../widgets/search_button.dart';
+import '../widgets/info_icon_widget.dart';
 import 'createrecipe_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
@@ -856,6 +857,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
     final today = DateTime.now();
     final isToday = widget.date != null &&
         DateFormat('dd/MM/yyyy').format(widget.date!) ==
@@ -868,11 +870,49 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         backgroundColor: kAccent,
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
-        title: Text(
-          widget.title,
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              widget.title,
+               style: textTheme.displaySmall?.copyWith(
+                fontSize: getTextScale(7, context),
+                  ),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            InfoIconWidget(
+              title: 'Food Diary',
+              description: 'Track your daily meals and nutrition',
+              details: const [
+                {
+                  'icon': Icons.restaurant,
+                  'title': 'Log Meals',
+                  'description': 'Record what you eat throughout the day',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.analytics,
+                  'title': 'Track Nutrition',
+                  'description': 'Monitor calories, macros, and nutrients',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.history,
+                  'title': 'View History',
+                  'description': 'See your eating patterns over time',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.analytics,
+                  'title': 'Analyze Meals',
+                  'description': 'Analyze your meals with AI and get insights',
+                  'color': kAccent,
+                },
+              ],
+              iconColor: isDarkMode ? kWhite : kDarkGrey,
+              tooltip: 'Food Diary Information',
+            ),
+          ],
         ),
       ),
       body: SafeArea(

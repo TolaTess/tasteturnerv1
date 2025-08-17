@@ -20,6 +20,7 @@ import '../screens/food_analysis_results_screen.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/info_icon_widget.dart';
 import '../widgets/video_player_widget.dart';
 import 'recipe_detail.dart';
 
@@ -755,20 +756,69 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             child: const IconCircleButton(),
           ),
         ),
-        title: Text(
-          'by ${capitalizeFirstLetter(getTitle())}',
-          textAlign: TextAlign.center,
-          style: textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: kWhite,
-            shadows: [
-              Shadow(
-                blurRadius: 10.0,
-                color: Colors.black.withValues(alpha: 0.5),
-                offset: const Offset(0, 0),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'by ${capitalizeFirstLetter(getTitle())}',
+              textAlign: TextAlign.center,
+              style: textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: kWhite,
+                shadows: [
+                  Shadow(
+                    blurRadius: 10.0,
+                    color: Colors.black.withValues(alpha: 0.5),
+                    offset: const Offset(0, 0),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            InfoIconWidget(
+              title: 'Post Details',
+              description:
+                  'View and interact with posts and community content',
+              details: [
+                {
+                  'icon': Icons.favorite,
+                  'title': 'Like Posts',
+                  'description':
+                      'Double tap or use the heart icon to like posts you enjoy',
+                  'color': isDarkMode ? kWhite : kDarkGrey,
+                },
+                {
+                  'icon': Icons.ios_share,
+                  'title': 'Share Content',
+                  'description': 'Share posts with friends and family',
+                  'color': isDarkMode ? kWhite : kDarkGrey,
+                },
+                {
+                  'icon': Icons.auto_awesome,
+                  'title': 'Create Recipe',
+                  'description':
+                      'Analyze food images with AI or create recipes manually',
+                  'color': isDarkMode ? kWhite : kDarkGrey,
+                },
+                {
+                  'icon': Icons.restaurant,
+                  'title': 'View Recipe',
+                  'description':
+                      'Access detailed recipe information and cooking instructions',
+                  'color': isDarkMode ? kWhite : kDarkGrey,
+                },
+                {
+                  'icon': Icons.person_add_alt_1_outlined,
+                  'title': 'Follow Users',
+                  'description':
+                      'Follow other users to see their posts in your feed',
+                  'color': isDarkMode ? kWhite : kDarkGrey,
+                },
+              ],
+              iconColor: kAccent,
+              tooltip: 'Challenge Information',
+            ),
+          ],
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,

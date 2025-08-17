@@ -23,6 +23,7 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/icon_widget.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../widgets/info_icon_widget.dart';
 import '../widgets/optimized_image.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
@@ -346,11 +347,56 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(height: getPercentageHeight(1, context)),
-          Text(
-            'Meal Planner',
-            style: textTheme.displaySmall?.copyWith(
-              color: kAccent,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Meal Planner',
+                style: textTheme.displaySmall?.copyWith(
+                  color: kAccent,
+                ),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              const InfoIconWidget(
+                title: 'Meal Planner',
+                description: 'Plan your meals for the week',
+                details: [
+                  {
+                    'icon': Icons.calendar_month,
+                    'title': 'Add Meals',
+                    'description': 'Add your meals for the week',
+                    'color': kAccentLight,
+                  },
+                  {
+                    'icon': Icons.people_outline,
+                    'title': 'Share Calendar',
+                    'description':
+                        'Share your meal plan with friends and family',
+                    'color': kAccentLight,
+                  },
+                  {
+                    'icon': Icons.cake,
+                    'title': 'Special Days',
+                    'description': 'Mark special occasions and celebrations',
+                    'color': kAccentLight,
+                  },
+                  {
+                    'icon': Icons.family_restroom,
+                    'title': 'Family Mode',
+                    'description': 'Plan meals for your entire family',
+                    'color': kAccentLight,
+                  },
+                  {
+                    'icon': Icons.shopping_cart,
+                    'title': 'Shopping List',
+                    'description':
+                        'Generate shopping lists from your meal plans',
+                    'color': kAccentLight,
+                  },
+                ],
+                iconColor: kAccentLight,
+              ),
+            ],
           ),
           SizedBox(height: getPercentageHeight(1, context)),
 

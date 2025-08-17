@@ -17,6 +17,7 @@ import '../service/program_service.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/program_detail_widget.dart';
+import '../widgets/info_icon_widget.dart';
 import 'recipe_screen.dart';
 
 class ProgramScreen extends StatefulWidget {
@@ -519,9 +520,51 @@ class _ProgramScreenState extends State<ProgramScreen>
         backgroundColor: kAccent,
         toolbarHeight: getPercentageHeight(10, context),
         automaticallyImplyLeading: false,
-        title: Text(
-          'A Program Just for You',
-          style: textTheme.displayMedium?.copyWith(),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'A Program Just for You',
+              style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.8, context)),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            InfoIconWidget(
+              title: 'Nutrition Programs',
+              description:
+                  'Join personalized programs to achieve your health goals',
+              details: const[
+                {
+                  'icon': Icons.fitness_center,
+                  'title': 'Personalized Programs',
+                  'description':
+                      'Programs tailored to your diet preferences and fitness goals',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.track_changes,
+                  'title': 'Progress Tracking',
+                  'description':
+                      'Monitor your progress with visual charts and milestones',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.people,
+                  'title': 'Community Support',
+                  'description': 'Join others on similar health journeys',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.schedule,
+                  'title': 'Flexible Duration',
+                  'description':
+                      'Programs ranging from 7 days to long-term commitments',
+                  'color': kAccent,
+                },
+              ],
+              iconColor: isDarkMode ? kWhite : kDarkGrey,
+              tooltip: 'Program Information',
+            ),
+          ],
         ),
         centerTitle: true,
       ),

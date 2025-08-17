@@ -8,6 +8,7 @@ import '../helper/helper_files.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/premium_screen.dart';
+import '../widgets/info_icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../helper/helper_functions.dart';
 import '../widgets/category_selector.dart';
@@ -179,6 +180,8 @@ class _BuddyTabState extends State<BuddyTab> {
     String? familyMemberGoal;
     String? familyMemberType;
     if (familyMode && selectedUserIndex > 0) {
+      print('familyMode: $familyMode');
+      print('selectedUserIndex: $selectedUserIndex');
       final familyMembers = currentUser.familyMembers ?? [];
       if (selectedUserIndex - 1 < familyMembers.length) {
         familyMemberName = familyMembers[selectedUserIndex - 1].name;
@@ -750,6 +753,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                       'Healthy Eating',
                                   diet);
                               List<String> parts = bio.split(': ');
+                              List<String> parts2 = parts[1].split('/');
                               return Column(
                                 children: [
                                   Text(
@@ -767,9 +771,21 @@ class _BuddyTabState extends State<BuddyTab> {
                                       maxLines: 2,
                                       textAlign: TextAlign.center,
                                       overflow: TextOverflow.ellipsis,
-                                      parts.length > 1 ? parts[1] : '',
+                                      parts2.length > 1 ? parts2[0] : '',
                                       style: textTheme.bodyMedium?.copyWith(
                                         color: kLightGrey,
+                                      ),
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Text(
+                                      maxLines: 2,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      parts2.length > 1 ? parts2[1] : '',
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: kLightGrey,
+                                        fontSize: getTextScale(3, context),
                                       ),
                                     ),
                                   ),
@@ -778,31 +794,76 @@ class _BuddyTabState extends State<BuddyTab> {
                             },
                           ),
                           SizedBox(height: getPercentageHeight(2, context)),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              backgroundColor:
-                                  kAccentLight.withValues(alpha: kOpacity),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  backgroundColor:
+                                      kAccentLight.withValues(alpha: kOpacity),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  // final canGenerate =
+                                  //     await checkMealPlanGenerationLimit(context);
+                                  if (canUseAI()) {
+                                    _navigateToChooseDietWithUser(context);
+                                  } else {
+                                    // showGenerationLimitDialog(context,
+                                    //     isDarkMode: isDarkMode);
+                                    showPremiumRequiredDialog(
+                                        context, isDarkMode);
+                                  }
+                                },
+                                child: Text(
+                                  canUseAI() ? 'Generate New Meals' : goPremium,
+                                  style: textTheme.labelLarge?.copyWith(
+                                    color: isDarkMode ? kWhite : kBlack,
+                                  ),
+                                ),
                               ),
-                            ),
-                            onPressed: () async {
-                              // final canGenerate =
-                              //     await checkMealPlanGenerationLimit(context);
-                              if (canUseAI()) {
-                                _navigateToChooseDietWithUser(context);
-                              } else {
-                                // showGenerationLimitDialog(context,
-                                //     isDarkMode: isDarkMode);
-                                showPremiumRequiredDialog(context, isDarkMode);
-                              }
-                            },
-                            child: Text(
-                              canUseAI() ? 'Generate New Meals' : goPremium,
-                              style: textTheme.labelLarge?.copyWith(
-                                color: isDarkMode ? kWhite : kBlack,
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              const InfoIconWidget(
+                                title: 'Meal Generator',
+                                description:
+                                    'Generate personalized 7-day meal plans',
+                                details: [
+                                  {
+                                    'icon': Icons.calendar_month,
+                                    'title': 'Weekly Planning',
+                                    'description':
+                                        'Generate 7 days of balanced meals',
+                                    'color': kAccentLight,
+                                  },
+                                  {
+                                    'icon': Icons.restaurant_menu,
+                                    'title': 'Complete Meals',
+                                    'description':
+                                        'Includes protein, grain, vegetables, fruits and snacks',
+                                    'color': kAccentLight,
+                                  },
+                                  {
+                                    'icon': Icons.family_restroom,
+                                    'title': 'Family Mode',
+                                    'description':
+                                        'Generate personalized meals for each family member',
+                                    'color': kAccentLight,
+                                  },
+                                  {
+                                    'icon': Icons.add_task,
+                                    'title': 'Easy Calendar Add',
+                                    'description':
+                                        'Add generated meals directly to your calendar',
+                                    'color': kAccentLight,
+                                  },
+                                ],
+                                iconColor: kAccentLight,
+                                tooltip: 'Meal Generator Information',
                               ),
-                            ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                            ],
                           ),
                           userService.currentUser.value?.isPremium ?? false
                               ? const SizedBox.shrink()

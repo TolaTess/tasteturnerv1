@@ -15,6 +15,7 @@ import '../pages/safe_text_field.dart';
 import '../service/badge_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
+import 'post_onboarding_walkthrough.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -178,7 +179,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             );
 
         // Assign user number and check for first 100 users badge
-        await BadgeService.instance.assignUserNumberAndCheckBadge(widget.userId);
+        await BadgeService.instance
+            .assignUserNumberAndCheckBadge(widget.userId);
 
         // Set current user
         userService.setUser(newUser);
@@ -211,7 +213,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Get.back();
 
         // Only navigate if all the above operations succeeded
-        Get.offAll(() => const BottomNavSec());
+        Get.offAll(() => const PostOnboardingWalkthrough());
 
         try {
           await requestUMPConsent();
