@@ -449,24 +449,37 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
           Expanded(
             child: allowedFoods.isEmpty
                 ? _buildNoAllowedFoodsMessage(isDarkMode, textTheme)
-                : Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: true,
-                    trackVisibility: true,
-                    thickness: 4.0,
-                    radius: const Radius.circular(8),
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(4, context)),
-                      itemCount: allowedFoods.length,
-                      itemBuilder: (context, index) {
-                        final food = allowedFoods[index];
-                        return _buildPortionCard(food, isDarkMode, textTheme);
-                      },
-                    ),
-                  ),
+                : _scrollController.hasClients
+                    ? Scrollbar(
+                        controller: _scrollController,
+                        thumbVisibility: true,
+                        trackVisibility: true,
+                        thickness: 4.0,
+                        radius: const Radius.circular(8),
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(4, context)),
+                          itemCount: allowedFoods.length,
+                          itemBuilder: (context, index) {
+                            final food = allowedFoods[index];
+                            return _buildPortionCard(
+                                food, isDarkMode, textTheme);
+                          },
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(4, context)),
+                        itemCount: allowedFoods.length,
+                        itemBuilder: (context, index) {
+                          final food = allowedFoods[index];
+                          return _buildPortionCard(food, isDarkMode, textTheme);
+                        },
+                      ),
           ),
         ],
       ),

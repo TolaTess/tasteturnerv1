@@ -61,98 +61,187 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
       child: Padding(
         padding: widget.padding.add(EdgeInsets.only(
             top: 15, bottom: 15)), // Extra padding for animations
-        child: Scrollbar(
-          controller: widget.controller,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: widget.controller,
-            clipBehavior: Clip.none, // Allow overflow for shadows
-            child: SizedBox(
-              width: totalWidth,
-              height: widget.cardHeight,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: sortedIndices.map((index) {
-                  final child = widget.children[index];
-                  final isSelected = selectedIndex == index;
-                  final isTopCard = index == sortedIndices.last;
+        child: widget.controller != null
+            ? Scrollbar(
+                controller: widget.controller!,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: widget.controller!,
+                  clipBehavior: Clip.none, // Allow overflow for shadows
+                  child: SizedBox(
+                    width: totalWidth,
+                    height: widget.cardHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: sortedIndices.map((index) {
+                        final child = widget.children[index];
+                        final isSelected = selectedIndex == index;
+                        final isTopCard = index == sortedIndices.last;
 
-                  // If this is the top card and no card is selected, auto-select it
-                  if (isTopCard && selectedIndex == null) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && selectedIndex == null) {
-                        selectCard(index);
+                        // If this is the top card and no card is selected, auto-select it
+                        if (isTopCard && selectedIndex == null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted && selectedIndex == null) {
+                              selectCard(index);
+                            }
+                          });
+                        }
+
+                        // Calculate position based on selection state
+                        double leftPosition =
+                            index * (widget.cardWidth * 0.2); // Default 80% overlap
+
+                        // If there's a selected card, adjust positions
+                        if (selectedIndex != null) {
+                          if (index == selectedIndex) {
+                            // Selected card stays at its position
+                            leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
+                          } else if (index > selectedIndex!) {
+                            // Cards after the selected one should be more visible
+                            leftPosition = (selectedIndex! *
+                                    (widget.cardWidth * 0.2)) +
+                                (widget.cardWidth * 0.8) + // Show 20% of next card
+                                ((index - selectedIndex! - 1) *
+                                    (widget.cardWidth * 0.2));
+                          }
+                        }
+
+                        if (child is OverlappingCard) {
+                          return AnimatedPositioned(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            left: leftPosition,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: isSelected
+                                  ? widget.cardWidth * 1.2
+                                  : widget.cardWidth,
+                              child: GestureDetector(
+                                onTap: () => selectCard(index),
+                                child: OverlappingCard(
+                                  title: child.title,
+                                  subtitle: child.subtitle,
+                                  color: child.color,
+                                  imageUrl: child.imageUrl,
+                                  width: isSelected
+                                      ? widget.cardWidth * 1.2
+                                      : widget.cardWidth,
+                                  height: widget.cardHeight,
+                                  index: index,
+                                  isSelected: isSelected || isTopCard,
+                                  isRecipe: widget.isRecipe,
+                                  isTechnique: widget.isTechnique,
+                                  onTap: child.onTap,
+                                  type: child.type,
+                                  isProgram: widget.isProgram,
+                                  isEnrolled: child.isEnrolled,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return AnimatedPositioned(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          left: leftPosition,
+                          child: SizedBox(
+                            width: widget.cardWidth,
+                            child: child,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none, // Allow overflow for shadows
+                child: SizedBox(
+                  width: totalWidth,
+                  height: widget.cardHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: sortedIndices.map((index) {
+                      final child = widget.children[index];
+                      final isSelected = selectedIndex == index;
+                      final isTopCard = index == sortedIndices.last;
+
+                      // If this is the top card and no card is selected, auto-select it
+                      if (isTopCard && selectedIndex == null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && selectedIndex == null) {
+                            selectCard(index);
+                          }
+                        });
                       }
-                    });
-                  }
 
-                  // Calculate position based on selection state
-                  double leftPosition =
-                      index * (widget.cardWidth * 0.2); // Default 80% overlap
+                      // Calculate position based on selection state
+                      double leftPosition =
+                          index * (widget.cardWidth * 0.2); // Default 80% overlap
 
-                  // If there's a selected card, adjust positions
-                  if (selectedIndex != null) {
-                    if (index == selectedIndex) {
-                      // Selected card stays at its position
-                      leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
-                    } else if (index > selectedIndex!) {
-                      // Cards after the selected one should be more visible
-                      leftPosition = (selectedIndex! *
-                              (widget.cardWidth * 0.2)) +
-                          (widget.cardWidth * 0.8) + // Show 20% of next card
-                          ((index - selectedIndex! - 1) *
-                              (widget.cardWidth * 0.2));
-                    }
-                  }
+                      // If there's a selected card, adjust positions
+                      if (selectedIndex != null) {
+                        if (index == selectedIndex) {
+                          // Selected card stays at its position
+                          leftPosition = selectedIndex! * (widget.cardWidth * 0.2);
+                        } else if (index > selectedIndex!) {
+                          // Cards after the selected one should be more visible
+                          leftPosition = (selectedIndex! *
+                                  (widget.cardWidth * 0.2)) +
+                              (widget.cardWidth * 0.8) + // Show 20% of next card
+                              ((index - selectedIndex! - 1) *
+                                  (widget.cardWidth * 0.2));
+                        }
+                      }
 
-                  if (child is OverlappingCard) {
-                    return AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      left: leftPosition,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: isSelected
-                            ? widget.cardWidth * 1.2
-                            : widget.cardWidth,
-                        child: GestureDetector(
-                          onTap: () => selectCard(index),
-                          child: OverlappingCard(
-                            title: child.title,
-                            subtitle: child.subtitle,
-                            color: child.color,
-                            imageUrl: child.imageUrl,
+                      if (child is OverlappingCard) {
+                        return AnimatedPositioned(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          left: leftPosition,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
                             width: isSelected
                                 ? widget.cardWidth * 1.2
                                 : widget.cardWidth,
-                            height: widget.cardHeight,
-                            index: index,
-                            isSelected: isSelected || isTopCard,
-                            isRecipe: widget.isRecipe,
-                            isTechnique: widget.isTechnique,
-                            onTap: child.onTap,
-                            type: child.type,
-                            isProgram: widget.isProgram,
-                            isEnrolled: child.isEnrolled,
+                            child: GestureDetector(
+                              onTap: () => selectCard(index),
+                              child: OverlappingCard(
+                                title: child.title,
+                                subtitle: child.subtitle,
+                                color: child.color,
+                                imageUrl: child.imageUrl,
+                                width: isSelected
+                                    ? widget.cardWidth * 1.2
+                                    : widget.cardWidth,
+                                height: widget.cardHeight,
+                                index: index,
+                                isSelected: isSelected || isTopCard,
+                                isRecipe: widget.isRecipe,
+                                isTechnique: widget.isTechnique,
+                                onTap: child.onTap,
+                                type: child.type,
+                                isProgram: widget.isProgram,
+                                isEnrolled: child.isEnrolled,
+                              ),
+                            ),
                           ),
+                        );
+                      }
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        left: leftPosition,
+                        child: SizedBox(
+                          width: widget.cardWidth,
+                          child: child,
                         ),
-                      ),
-                    );
-                  }
-                  return AnimatedPositioned(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    left: leftPosition,
-                    child: SizedBox(
-                      width: widget.cardWidth,
-                      child: child,
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

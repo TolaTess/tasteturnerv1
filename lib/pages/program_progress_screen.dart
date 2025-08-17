@@ -1135,28 +1135,46 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
             // Description
             Expanded(
-              child: Scrollbar(
-                controller: _scrollControllers[component['id']],
-                thumbVisibility: true,
-                thickness: 2,
-                radius: const Radius.circular(2),
-                child: SingleChildScrollView(
-                  controller: _scrollControllers[component['id']],
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding:
-                      EdgeInsets.only(right: getPercentageWidth(2, context)),
-                  child: Text(
-                    component['description'] ?? 'No description available',
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontSize: getTextScale(3.2, context),
-                      color: isDarkMode
-                          ? kWhite.withValues(alpha: 0.8)
-                          : kDarkGrey.withValues(alpha: 0.8),
-                      height: 1.4,
+              child: _scrollControllers[component['id']]?.hasClients == true
+                  ? Scrollbar(
+                      controller: _scrollControllers[component['id']]!,
+                      thumbVisibility: true,
+                      thickness: 2,
+                      radius: const Radius.circular(2),
+                      child: SingleChildScrollView(
+                        controller: _scrollControllers[component['id']]!,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.only(
+                            right: getPercentageWidth(2, context)),
+                        child: Text(
+                          component['description'] ??
+                              'No description available',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontSize: getTextScale(3.2, context),
+                            color: isDarkMode
+                                ? kWhite.withValues(alpha: 0.8)
+                                : kDarkGrey.withValues(alpha: 0.8),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: _scrollControllers[component['id']],
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.only(
+                          right: getPercentageWidth(2, context)),
+                      child: Text(
+                        component['description'] ?? 'No description available',
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontSize: getTextScale(3.2, context),
+                          color: isDarkMode
+                              ? kWhite.withValues(alpha: 0.8)
+                              : kDarkGrey.withValues(alpha: 0.8),
+                          height: 1.4,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
 
             // Complete Button
