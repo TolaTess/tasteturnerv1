@@ -14,7 +14,6 @@ import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../service/badge_service.dart';
 import '../themes/theme_provider.dart';
-import '../widgets/bottom_nav.dart';
 import 'post_onboarding_walkthrough.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -41,6 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final TextEditingController targetWeightController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
   String selectedSex = '';
+  String selectedGender = ''; // Add gender selection
   String selectedActivityLevel = '';
   String selectedHeightUnit = 'cm';
   String selectedWeightUnit = 'kg';
@@ -147,7 +147,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         freeTrialDate: DateTime.now().add(const Duration(days: 30)),
         settings: <String, dynamic>{
           'waterIntake': '2000',
-          'foodGoal': calculateRecommendedGoals(selectedGoals.first),
+          'foodGoal': calculateRecommendedCaloriesFromGoal(
+              selectedGoals.first, selectedGender),
+          'proteinGoal': calculateRecommendedMacrosGoals(
+              selectedGoals.first, selectedGender)['protein'],
+          'carbsGoal': calculateRecommendedMacrosGoals(
+              selectedGoals.first, selectedGender)['carbs'],
+          'fatGoal': calculateRecommendedMacrosGoals(
+              selectedGoals.first, selectedGender)['fat'],
           'goalWeight': "${targetWeightController.text} $selectedWeightUnit",
           'startingWeight': "${weightController.text} $selectedWeightUnit",
           "currentWeight": "${weightController.text} $selectedWeightUnit",
@@ -155,6 +162,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               selectedGoals.isNotEmpty ? selectedGoals.first : 'Healthy Eating',
           'targetSteps': '10000',
           'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
+          'gender': selectedGender.isNotEmpty ? selectedGender : null,
         },
         preferences: {
           'diet': selectedDiet,
@@ -291,7 +299,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   },
                   children: [
                     _buildNamePage(),
-                    _buildGoalsPage(),
+                    _buildGoalsPage(textTheme: Theme.of(context).textTheme),
                     _buildPreferencePage(),
                     _buildMeasurementsPage(),
                     _buildSettingsPage(),
@@ -301,7 +309,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               Padding(
                 padding: EdgeInsets.all(getPercentageWidth(5, context)),
-                child: _buildNavigationButtons(),
+                child: _buildNavigationButtons(
+                    textTheme: Theme.of(context).textTheme),
               ),
             ],
           ),
@@ -313,6 +322,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Name Input Page
   Widget _buildNamePage() {
     return _buildPage(
+      textTheme: Theme.of(context).textTheme,
       title: "Welcome to $appName!",
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
@@ -375,7 +385,125 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
-      child3: const SizedBox.shrink(),
+      child3: Column(
+        children: [
+          Text(
+            "Gender (Optional)",
+            style: TextStyle(
+              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+              fontSize: getTextScale(3.5, context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedGender = 'male';
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      vertical: getPercentageHeight(2, context),
+                      horizontal: getPercentageWidth(3, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedGender == 'male'
+                          ? kAccentLight
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: selectedGender == 'male'
+                            ? kAccentLight
+                            : getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      'Male',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: selectedGender == 'male'
+                            ? kWhite
+                            : getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                        fontSize: getTextScale(3.5, context),
+                        fontWeight: selectedGender == 'male'
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: getPercentageWidth(3, context)),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedGender = 'female';
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      vertical: getPercentageHeight(2, context),
+                      horizontal: getPercentageWidth(3, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedGender == 'female'
+                          ? kAccentLight
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: selectedGender == 'female'
+                            ? kAccentLight
+                            : getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      'Female',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: selectedGender == 'female'
+                            ? kWhite
+                            : getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                        fontSize: getTextScale(3.5, context),
+                        fontWeight: selectedGender == 'female'
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (selectedGender.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
+              child: Text(
+                'Gender helps calculate more accurate calorie and macro recommendations',
+                style: TextStyle(
+                  color: kLightGrey,
+                  fontSize: getTextScale(2.8, context),
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      ),
       description:
           'Let\'s personalize your experience with us by telling us a bit about you.',
     );
@@ -428,6 +556,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ];
 
     return _buildPage(
+      textTheme: Theme.of(context).textTheme,
       title: "Key Features",
       description: "Here's are some of the features you can use with $appName:",
       child1: Container(
@@ -473,8 +602,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Goals Selection Page
-  Widget _buildGoalsPage() {
+  Widget _buildGoalsPage({required TextTheme textTheme}) {
     return _buildPage(
+      textTheme: textTheme,
       title: "How can we help you?",
       child1: Theme(
         data: ThemeData(
@@ -498,8 +628,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               return RadioListTile<String>(
                 title: Text(
                   goal,
-                  style: TextStyle(
-                      color: kWhite, fontSize: getTextScale(4, context)),
+                  style: textTheme.titleMedium?.copyWith(
+                      color: selectedGoals.contains(goal)
+                          ? kAccentLight
+                          : kWhite,
+                      fontSize: getTextScale(4, context)),
                 ),
                 value: goal,
                 groupValue:
@@ -509,19 +642,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     selectedGoals = value != null ? [value] : [];
                     _validateInputs();
                   });
-                  // if (value == "Family Nutrition") {
-                  //   await showDialog(
-                  //     context: context,
-                  //     builder: (context) => FamilyMembersDialog(
-                  //       initialMembers: familyMembers,
-                  //       onMembersChanged: (members) {
-                  //         setState(() {
-                  //           familyMembers = members;
-                  //         });
-                  //       },
-                  //     ),
-                  //   );
-                  // }
                 },
                 activeColor: kAccentLight,
               );
@@ -539,6 +659,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Combined Measurements Page
   Widget _buildMeasurementsPage() {
     return _buildPage(
+      textTheme: Theme.of(context).textTheme,
       title: "Your Measurements",
       description:
           "Enter your weight details to keep track of your progress (optional).",
@@ -619,6 +740,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Combined Settings Page
   Widget _buildSettingsPage() {
     return _buildPage(
+      textTheme: Theme.of(context).textTheme,
       title: "App Settings",
       description: "Customize your app experience and enable features.",
       child1: Container(
@@ -708,6 +830,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     required Widget child1,
     required Widget child2,
     required Widget child3,
+    required TextTheme textTheme,
   }) {
     return SingleChildScrollView(
       child: Padding(
@@ -721,11 +844,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             title.isNotEmpty
                 ? Text(
                     title,
-                    style: TextStyle(
-                      fontSize: getTextScale(5, context),
-                      overflow: TextOverflow.ellipsis,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: kAccent),
                   )
                 : const SizedBox.shrink(),
             SizedBox(height: getPercentageHeight(2, context)),
@@ -843,7 +964,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Navigation Buttons
-  Widget _buildNavigationButtons() {
+  Widget _buildNavigationButtons({required TextTheme textTheme}) {
     return Padding(
       padding: EdgeInsets.symmetric(
           horizontal: getPercentageWidth(5, context),
@@ -860,11 +981,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Text(
           _currentPage == 5 ? "Finish" : "Next",
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: getTextScale(4, context),
-            fontWeight: FontWeight.w600,
-            color: _isNextEnabled ? kWhite : kDarkGrey,
-          ),
+          style: textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              fontSize: getTextScale(5, context),
+              color: _isNextEnabled ? kWhite : kDarkGrey),
         ),
       ),
     );

@@ -521,16 +521,38 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 ? result.title
                 : 'Unknown Item';
 
-    // Helper function to calculate calories based on selected number and unit
-    int calculateAdjustedCalories() {
+    // Helper function to calculate calories and macros based on selected number and unit
+    Map<String, dynamic> calculateAdjustedNutrition() {
       if (result is Meal) {
-        return result.calories; // Meals use their base calories
+        // For meals, use the macros from the meal object
+        Map<String, double> mealMacros = {};
+        if (result.macros.isNotEmpty) {
+          mealMacros = result.macros.map(
+              (key, value) => MapEntry(key, double.tryParse(value) ?? 0.0));
+        }
+        return {
+          'calories': result.calories,
+          'macros': mealMacros,
+        };
       }
 
-      // Base calories (per serving)
+      // Base nutrition (per serving)
       int baseCalories = result is MacroData
           ? result.calories
           : (result as IngredientData).getCalories().toInt();
+
+      // Get macros from the data
+      Map<String, double> baseMacros = {};
+      if (result is MacroData) {
+        baseMacros = result.macros.map((key, value) =>
+            MapEntry(key, (value is num) ? value.toDouble() : 0.0));
+      } else if (result is IngredientData) {
+        baseMacros = {
+          'protein': result.getProtein(),
+          'fat': result.getFat(),
+          'carbs': result.getCarbs(),
+        };
+      }
 
       // Get the base unit from the data
       String baseUnit = '';
@@ -597,17 +619,28 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       double selectedInGrams =
           selectedAmount * (toGrams[selectedUnitStr] ?? 1.0);
 
-      // Calculate ratio and adjust calories
+      // Calculate ratio and adjust nutrition
       double ratio = selectedInGrams / baseInGrams;
       int adjustedCalories = (baseCalories * ratio).round();
 
-      return adjustedCalories;
+      // Adjust macros by the same ratio
+      Map<String, double> adjustedMacros = {};
+      baseMacros.forEach((key, value) {
+        adjustedMacros[key] = value * ratio;
+      });
+
+      return {
+        'calories': adjustedCalories,
+        'macros': adjustedMacros,
+      };
     }
 
     // Helper function to create UserMeal from any type
     UserMeal createUserMeal() {
-      // Calculate adjusted calories
-      int adjustedCalories = calculateAdjustedCalories();
+      // Calculate adjusted nutrition (calories and macros)
+      final nutrition = calculateAdjustedNutrition();
+      final adjustedCalories = nutrition['calories'] as int;
+      final adjustedMacros = nutrition['macros'] as Map<String, double>;
 
       if (result is Meal) {
         final meal = UserMeal(
@@ -616,6 +649,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           servings: '${unitOptions[selectedUnit]}',
           calories: result.calories,
           mealId: result.mealId,
+          macros: adjustedMacros,
         );
         return meal;
       } else if (result is MacroData) {
@@ -625,6 +659,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           servings: '${unitOptions[selectedUnit]}',
           calories: adjustedCalories,
           mealId: result.id ?? result.title,
+          macros: adjustedMacros,
         );
         return meal;
       } else if (result is IngredientData) {
@@ -634,6 +669,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           servings: '${unitOptions[selectedUnit]}',
           calories: adjustedCalories,
           mealId: result.title,
+          macros: adjustedMacros,
         );
         return meal;
       } else {
@@ -1060,7 +1096,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         horizontal: getPercentageWidth(3, context)),
                     child: GestureDetector(
                       onTap: () {
-                        final date = DateTime.now().subtract(const Duration(days: 1));
+                        final date =
+                            DateTime.now().subtract(const Duration(days: 1));
                         Get.to(() => DailySummaryScreen(date: date));
                       },
                       child: Container(

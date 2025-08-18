@@ -27,8 +27,11 @@ class NutritionSettingsPage extends StatefulWidget {
 
 class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController waterController = TextEditingController();
   final TextEditingController foodController = TextEditingController();
+  final TextEditingController proteinController = TextEditingController();
+  final TextEditingController carbsController = TextEditingController();
+  final TextEditingController fatController = TextEditingController();
+  final TextEditingController waterController = TextEditingController();
   final TextEditingController goalWeightController = TextEditingController();
   final TextEditingController startingWeightController =
       TextEditingController();
@@ -51,8 +54,11 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     final user = userService.currentUser.value;
     if (user != null) {
       final settings = user.settings;
-      waterController.text = settings['waterIntake']?.toString() ?? '';
       foodController.text = settings['foodGoal'] ?? '';
+      proteinController.text = settings['proteinGoal']?.toString() ?? '';
+      carbsController.text = settings['carbsGoal']?.toString() ?? '';
+      fatController.text = settings['fatGoal']?.toString() ?? '';
+      waterController.text = settings['waterIntake']?.toString() ?? '';
       goalWeightController.text = settings['goalWeight']?.toString() ?? '';
       startingWeightController.text =
           settings['startingWeight']?.toString() ?? '';
@@ -82,8 +88,11 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
   @override
   void dispose() {
-    waterController.dispose();
     foodController.dispose();
+    proteinController.dispose();
+    carbsController.dispose();
+    fatController.dispose();
+    waterController.dispose();
     goalWeightController.dispose();
     startingWeightController.dispose();
     currentWeightController.dispose();
@@ -99,8 +108,11 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       try {
         // Prepare updated settings map
         final updatedSettings = {
-          'waterIntake': waterController.text,
           'foodGoal': foodController.text,
+          'proteinGoal': proteinController.text,
+          'carbsGoal': carbsController.text,
+          'fatGoal': fatController.text,
+          'waterIntake': waterController.text,
           'goalWeight': goalWeightController.text,
           'startingWeight': startingWeightController.text,
           'currentWeight': currentWeightController.text,
@@ -254,51 +266,124 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               // Nutrition Section
               if (!widget.isRoutineExpand)
                 SizedBox(height: getPercentageHeight(2, context)),
+              // Nutrition Goals Grid
               if (!widget.isRoutineExpand)
-                SafeTextFormField(
-                  controller: waterController,
-                  style: textTheme.bodyLarge
-                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: "Daily Water Intake (mls)",
-                    labelStyle: textTheme.bodyMedium
-                        ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
+                ExpansionTile(
+                  collapsedIconColor: kAccent,
+                  iconColor: kAccent,
+                  textColor: kAccent,
+                  collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                  initiallyExpanded: true,
+                  title: Text(
+                    "Daily Nutrition Goals",
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: isDarkMode ? kWhite : kDarkGrey,
+                    ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter your daily water intake.";
-                    }
-                    return null;
-                  },
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: getPercentageWidth(2, context),
+                          mainAxisSpacing: getPercentageHeight(1.5, context),
+                          childAspectRatio: 3.2,
+                          children: [
+                            SafeTextFormField(
+                              controller: foodController,
+                              style: textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: "Calories",
+                                labelStyle: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey),
+                                enabledBorder: outlineInputBorder(20),
+                                focusedBorder: outlineInputBorder(20),
+                                border: outlineInputBorder(20),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Required";
+                                }
+                                return null;
+                              },
+                            ),
+                            SafeTextFormField(
+                              controller: proteinController,
+                              style: textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: "Protein (g)",
+                                labelStyle: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey),
+                                enabledBorder: outlineInputBorder(20),
+                                focusedBorder: outlineInputBorder(20),
+                                border: outlineInputBorder(20),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Required";
+                                }
+                                return null;
+                              },
+                            ),
+                            SafeTextFormField(
+                              controller: carbsController,
+                              style: textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: "Carbs (g)",
+                                labelStyle: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey),
+                                enabledBorder: outlineInputBorder(20),
+                                focusedBorder: outlineInputBorder(20),
+                                border: outlineInputBorder(20),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Required";
+                                }
+                                return null;
+                              },
+                            ),
+                            SafeTextFormField(
+                              controller: fatController,
+                              style: textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: "Fat (g)",
+                                labelStyle: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey),
+                                enabledBorder: outlineInputBorder(20),
+                                focusedBorder: outlineInputBorder(20),
+                                border: outlineInputBorder(20),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Required";
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+
               if (!widget.isRoutineExpand)
-                SizedBox(height: getPercentageHeight(1, context)),
-              if (!widget.isRoutineExpand)
-                SafeTextFormField(
-                  controller: foodController,
-                  style: textTheme.bodyLarge
-                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: "Calories",
-                    labelStyle: textTheme.bodyMedium
-                        ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-                    enabledBorder: outlineInputBorder(20),
-                    focusedBorder: outlineInputBorder(20),
-                    border: outlineInputBorder(20),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter your calorie goal.";
-                    }
-                    return null;
-                  },
-                ),
-              SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(height: getPercentageHeight(1.5, context)),
+
               // Family Mode ExpansionTile
               ExpansionTile(
                 initiallyExpanded: widget.isFamilyModeExpand,
@@ -311,7 +396,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                         : (isDarkMode ? kWhite : kDarkGrey),
                   ),
                 ),
-                collapsedIconColor: widget.isFamilyModeExpand ? kAccent : kAccent,
+                collapsedIconColor:
+                    widget.isFamilyModeExpand ? kAccent : kAccent,
                 iconColor: kAccent,
                 textColor: kAccent,
                 collapsedTextColor: widget.isFamilyModeExpand
@@ -362,8 +448,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           value: isFamilyModeEnabled,
                           onChanged: (value) {
                             setState(() {
-                              isFamilyModeEnabled = value;  
-                              FirebaseAnalytics.instance.logEvent(name: 'family_mode_enabled');
+                              isFamilyModeEnabled = value;
+                              FirebaseAnalytics.instance
+                                  .logEvent(name: 'family_mode_enabled');
                             });
                           },
                           activeColor: kAccent,
@@ -450,12 +537,11 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                 ExpansionTile(
                   initiallyExpanded: widget.isHealthExpand,
                   title: Text("Health & Fitness",
-                      style: textTheme.titleMedium
-                          ?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: widget.isHealthExpand
-                                  ? kAccent
-                                  : (isDarkMode ? kWhite : kDarkGrey))),
+                      style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: widget.isHealthExpand
+                              ? kAccent
+                              : (isDarkMode ? kWhite : kDarkGrey))),
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
@@ -475,6 +561,27 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       isDarkMode: isDarkMode,
                       accentColor: kAccentLight,
                       darkModeAccentColor: kDarkModeAccent,
+                    ),
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    SafeTextFormField(
+                      controller: waterController,
+                      style: textTheme.bodyLarge
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Daily Water Intake (ml)",
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your daily water intake.";
+                        }
+                        return null;
+                      },
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(

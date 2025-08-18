@@ -617,8 +617,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
     // Use family member's goal and calorie target if available, otherwise use main user's
     final nutritionalGoal = widget.familyMemberGoal ?? goal;
-    final dailyCalorieGoal =
-        widget.familyMemberKcal ?? calculateRecommendedGoals(nutritionalGoal);
+    final dailyCalorieGoal = widget.familyMemberKcal ??
+        calculateRecommendedCaloriesFromGoal(nutritionalGoal);
 
     final allergies = selectedAllergies.isEmpty
         ? ['No allergies']
@@ -673,11 +673,8 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
                 Text(
                   textAlign: TextAlign.center,
                   "Tell us your dietary preferences?",
-                  style: TextStyle(
-                    fontSize: getTextScale(5, context),
-                    overflow: TextOverflow.ellipsis,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w500, color: kAccent),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(

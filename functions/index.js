@@ -123,13 +123,22 @@ exports.calculateDailyNutrition = functions.firestore
                   const calories =
                     typeof item.calories === "number" ? item.calories : 0;
 
+                  // Extract macro data from the macros object
+                  const macros = item.macros || {};
+                  const protein = typeof macros.protein === "number" ? macros.protein : 0;
+                  const carbs = typeof macros.carbs === "number" ? macros.carbs : 0;
+                  const fat = typeof macros.fat === "number" ? macros.fat : 0;
+
+                  // Debug logging for macro data
+                  if (protein > 0 || carbs > 0 || fat > 0) {
+                    console.log(`Found macro data for ${item.name}: Protein: ${protein}g, Carbs: ${carbs}g, Fat: ${fat}g`);
+                  }
+
                   // Add to grand totals
                   totalCalories += calories;
-                  totalProtein +=
-                    typeof item.protein === "number" ? item.protein : 0;
-                  totalCarbs +=
-                    typeof item.carbs === "number" ? item.carbs : 0;
-                  totalFat += typeof item.fat === "number" ? item.fat : 0;
+                  totalProtein += protein;
+                  totalCarbs += carbs;
+                  totalFat += fat;
 
                   // Add to meal-specific totals
                   if (mealTotals.hasOwnProperty(mealTypeKey)) {
@@ -169,6 +178,7 @@ exports.calculateDailyNutrition = functions.firestore
         `Successfully updated daily summary for user ${userId} on ${date}.`
       );
       console.log("Updated data:", dailySummaryData);
+      console.log(`Macro totals - Protein: ${totalProtein}g, Carbs: ${totalCarbs}g, Fat: ${totalFat}g`);
       console.log("--- Function calculateDailyNutrition finished ---");
       return null;
     } catch (error) {

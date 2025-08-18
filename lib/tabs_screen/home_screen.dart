@@ -916,7 +916,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   getAdsWidget(currentUser.isPremium, isDiv: false),
 
                   // ------------------------------------Premium / Ads-------------------------------------
-
+                  if (!currentUser.isPremium)
                   SizedBox(height: getPercentageHeight(1, context)),
                   const Divider(
                     color: kAccentLight,

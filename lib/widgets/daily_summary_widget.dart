@@ -60,12 +60,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           'calories':
               double.tryParse(user.settings['foodGoal']?.toString() ?? '0') ??
                   0,
-          'water': double.tryParse(
-                  user.settings['waterIntake']?.toString() ?? '0') ??
+          'protein': double.tryParse(
+                  user.settings['proteinGoal']?.toString() ?? '0') ??
               0,
-          'steps': double.tryParse(
-                  user.settings['targetSteps']?.toString() ?? '0') ??
-              0,
+          'carbs':
+              double.tryParse(user.settings['carbsGoal']?.toString() ?? '0') ??
+                  0,
+          'fat':
+              double.tryParse(user.settings['fatGoal']?.toString() ?? '0') ?? 0,
         };
       }
 
@@ -93,19 +95,42 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
 
     final calories = summaryData['calories'] as int? ?? 0;
-    final water = summaryData['water'] as double? ?? 0.0;
-    final steps = summaryData['steps'] as double? ?? 0.0;
+
+    // Handle macro data that might be stored as int or double, or might not exist
+    final proteinRaw = summaryData['protein'];
+    final protein = proteinRaw is int
+        ? proteinRaw.toDouble()
+        : proteinRaw is double
+            ? proteinRaw
+            : 0.0;
+
+    final carbsRaw = summaryData['carbs'];
+    final carbs = carbsRaw is int
+        ? carbsRaw.toDouble()
+        : carbsRaw is double
+            ? carbsRaw
+            : 0.0;
+
+    final fatRaw = summaryData['fat'];
+    final fat = fatRaw is int
+        ? fatRaw.toDouble()
+        : fatRaw is double
+            ? fatRaw
+            : 0.0;
 
     final calorieGoal = goals['calories'] ?? 0.0;
-    final waterGoal = goals['water'] ?? 0.0;
-    final stepsGoal = goals['steps'] ?? 0.0;
+    final proteinGoal = goals['protein'] ?? 0.0;
+    final carbsGoal = goals['carbs'] ?? 0.0;
+    final fatGoal = goals['fat'] ?? 0.0;
 
-    final calorieProgress =
-        calorieGoal > 0 ? (calories / calorieGoal).clamp(0.0, 1.0) : 0.0;
-    final waterProgress =
-        waterGoal > 0 ? (water / waterGoal).clamp(0.0, 1.0) : 0.0;
-    final stepsProgress =
-        stepsGoal > 0 ? (steps / stepsGoal).clamp(0.0, 1.0) : 0.0;
+    final calorieProgress = calorieGoal > 0
+        ? (calories.toDouble() / calorieGoal).clamp(0.0, 1.0)
+        : 0.0;
+    final proteinProgress =
+        proteinGoal > 0 ? (protein / proteinGoal).clamp(0.0, 1.0) : 0.0;
+    final carbsProgress =
+        carbsGoal > 0 ? (carbs / carbsGoal).clamp(0.0, 1.0) : 0.0;
+    final fatProgress = fatGoal > 0 ? (fat / fatGoal).clamp(0.0, 1.0) : 0.0;
 
     final dateText =
         '${getRelativeDayString(widget.date) == 'Today' ? 'Today\'s' : getRelativeDayString(widget.date) == 'Yesterday' ? 'Yesterday\'s' : '${shortMonthName(widget.date.month)} ${widget.date.day}\'s'} Summary';
@@ -158,14 +183,17 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           _buildProgressCharts(
             context,
             calorieProgress,
-            waterProgress,
-            stepsProgress,
+            proteinProgress,
+            carbsProgress,
+            fatProgress,
             calories,
-            water,
-            steps,
+            protein,
+            carbs,
+            fat,
             calorieGoal,
-            waterGoal,
-            stepsGoal,
+            proteinGoal,
+            carbsGoal,
+            fatGoal,
           ),
 
           SizedBox(height: getPercentageHeight(2, context)),
@@ -174,8 +202,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           _buildMotivationalMessage(
             context,
             calorieProgress,
-            waterProgress,
-            stepsProgress,
+            proteinProgress,
+            carbsProgress,
+            fatProgress,
           ),
 
           SizedBox(height: getPercentageHeight(1, context)),
@@ -184,8 +213,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           _buildRecommendations(
             context,
             calorieProgress,
-            waterProgress,
-            stepsProgress,
+            proteinProgress,
+            carbsProgress,
+            fatProgress,
           ),
         ],
       ),
@@ -195,62 +225,81 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   Widget _buildProgressCharts(
     BuildContext context,
     double calorieProgress,
-    double waterProgress,
-    double stepsProgress,
+    double proteinProgress,
+    double carbsProgress,
+    double fatProgress,
     int calories,
-    double water,
-    double steps,
+    double protein,
+    double carbs,
+    double fat,
     double calorieGoal,
-    double waterGoal,
-    double stepsGoal,
+    double proteinGoal,
+    double carbsGoal,
+    double fatGoal,
   ) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: getPercentageWidth(3, context),
+      mainAxisSpacing: getPercentageHeight(2, context),
+      childAspectRatio: 1.2,
       children: [
         // Calories Chart
-        _buildProgressCard(
+        _buildCircularProgressCard(
           context,
           title: 'Calories',
           current: calories.toDouble(),
           goal: calorieGoal,
           progress: calorieProgress,
           icon: Icons.local_fire_department,
-          color: kAccent,
+          color: Colors.orange,
           unit: 'cal',
         ),
-        SizedBox(height: getPercentageHeight(1.5, context)),
 
-        // Water Chart
-        _buildProgressCard(
+        // Protein Chart
+        _buildCircularProgressCard(
           context,
-          title: 'Water',
-          current: water,
-          goal: waterGoal,
-          progress: waterProgress,
-          icon: Icons.water_drop,
-          color: kBlue,
-          unit: 'ml',
+          title: 'Protein',
+          current: protein,
+          goal: proteinGoal,
+          progress: proteinProgress,
+          icon: Icons.fitness_center,
+          color: Colors.blue,
+          unit: 'g',
         ),
-        SizedBox(height: getPercentageHeight(1.5, context)),
 
-        // Steps Chart
-        _buildProgressCard(
+        // Carbs Chart
+        _buildCircularProgressCard(
           context,
-          title: 'Steps',
-          current: steps,
-          goal: stepsGoal,
-          progress: stepsProgress,
-          icon: Icons.directions_walk,
-          color: kPurple,
-          unit: 'steps',
+          title: 'Carbs',
+          current: carbs,
+          goal: carbsGoal,
+          progress: carbsProgress,
+          icon: Icons.grain,
+          color: Colors.green,
+          unit: 'g',
+        ),
+
+        // Fat Chart
+        _buildCircularProgressCard(
+          context,
+          title: 'Fat',
+          current: fat,
+          goal: fatGoal,
+          progress: fatProgress,
+          icon: Icons.opacity,
+          color: Colors.purple,
+          unit: 'g',
         ),
       ],
     );
   }
 
-  Widget _buildProgressCard(
+  Widget _buildCircularProgressCard(
     BuildContext context, {
     required String title,
     required double current,
@@ -264,56 +313,89 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+      padding: EdgeInsets.symmetric(
+          vertical: getPercentageHeight(1, context),
+          horizontal: getPercentageWidth(3, context)),
       decoration: BoxDecoration(
         color: isDarkMode
             ? kDarkGrey.withValues(alpha: 0.5)
             : kWhite.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Icon and Title
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: color, size: getIconScale(4, context)),
-              SizedBox(width: getPercentageWidth(2, context)),
+              SizedBox(width: getPercentageWidth(1, context)),
               Text(
                 title,
-                style: textTheme.titleMedium?.copyWith(
+                style: textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${current.toStringAsFixed(current % 1 == 0 ? 0 : 1)} / ${goal.toStringAsFixed(goal % 1 == 0 ? 0 : 1)} $unit',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
           SizedBox(height: getPercentageHeight(1, context)),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: color.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: getPercentageHeight(1.5, context),
-            borderRadius: BorderRadius.circular(8),
+
+          // Circular Progress Indicator
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: getPercentageWidth(15, context),
+                height: getPercentageWidth(15, context),
+                child: CircularProgressIndicator(
+                  value: progress,
+                  backgroundColor: color.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  strokeWidth: getPercentageWidth(0.8, context),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          SizedBox(height: getPercentageHeight(0.5, context)),
-          Text(
-            '${(progress * 100).round()}% Complete',
-            style: textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
+
+          SizedBox(height: getPercentageHeight(1, context)),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${current.toStringAsFixed(current % 1 == 0 ? 0 : 1)}',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '/ ${goal.toStringAsFixed(goal % 1 == 0 ? 0 : 1)} $unit',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isDarkMode
+                      ? kWhite.withOpacity(0.7)
+                      : kDarkGrey.withOpacity(0.7),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -323,15 +405,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   Widget _buildMotivationalMessage(
     BuildContext context,
     double calorieProgress,
-    double waterProgress,
-    double stepsProgress,
+    double proteinProgress,
+    double carbsProgress,
+    double fatProgress,
   ) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     // Calculate overall progress
     final overallProgress =
-        (calorieProgress + waterProgress + stepsProgress) / 3;
+        (calorieProgress + proteinProgress + carbsProgress + fatProgress) / 4;
 
     String message;
     Color messageColor;
@@ -366,6 +449,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(messageIcon,
               color: messageColor, size: getIconScale(5, context)),
@@ -373,11 +457,17 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           Expanded(
             child: Text(
               message,
+              textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                 color: messageColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
+          ),
+          Icon(
+            messageIcon,
+            color: messageColor,
+            size: getIconScale(5, context),
           ),
         ],
       ),
@@ -387,23 +477,106 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   Widget _buildRecommendations(
     BuildContext context,
     double calorieProgress,
-    double waterProgress,
-    double stepsProgress,
+    double proteinProgress,
+    double carbsProgress,
+    double fatProgress,
   ) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
     List<String> recommendations = [];
+    final isToday = widget.date.isAtSameMomentAs(DateTime.now());
+    final isYesterday = widget.date
+        .isAtSameMomentAs(DateTime.now().subtract(const Duration(days: 1)));
 
-    if (calorieProgress < 0.8) {
-      recommendations
-          .add('Try adding a healthy snack to reach your calorie goal');
+    // Calorie recommendations
+    if (calorieProgress > 1.2) {
+      // Significantly over calorie limit
+      if (isToday) {
+        recommendations.add(
+            'You\'ve exceeded your calorie goal today. Consider a lighter dinner or an evening walk to balance it out.');
+      } else if (isYesterday) {
+        recommendations.add(
+            'You exceeded your calorie goal yesterday. Today, try to stay within your limit and add some extra physical activity.');
+      } else {
+        recommendations.add(
+            'You exceeded your calorie goal on this day. For future days, try to plan meals better and include more physical activity.');
+      }
+    } else if (calorieProgress > 1.0) {
+      // Slightly over calorie limit
+      if (isToday) {
+        recommendations.add(
+            'You\'re slightly over your calorie goal. A short walk or light activity can help balance this out.');
+      } else {
+        recommendations.add(
+            'You were slightly over your calorie goal. Consider portion control for similar meals in the future.');
+      }
+    } else if (calorieProgress < 0.6) {
+      // Significantly under calorie limit
+      recommendations.add(
+          'You\'re well below your calorie goal. Try adding healthy snacks like nuts, yogurt, or fruits to reach your target.');
+    } else if (calorieProgress < 0.8) {
+      // Slightly under calorie limit
+      recommendations.add(
+          'You\'re close to your calorie goal. A small healthy snack can help you reach your target.');
     }
-    if (waterProgress < 0.8) {
-      recommendations.add('Drink more water throughout the day');
+
+    // Macro-specific recommendations
+    if (proteinProgress < 0.7) {
+      recommendations.add(
+          'Increase protein intake with lean meats, fish, eggs, legumes, or Greek yogurt.');
+    } else if (proteinProgress > 1.3) {
+      recommendations.add(
+          'Your protein intake is quite high. Consider balancing with more carbs or fats for variety.');
     }
-    if (stepsProgress < 0.8) {
-      recommendations.add('Take a short walk to boost your step count');
+
+    if (carbsProgress < 0.7) {
+      recommendations.add(
+          'Add complex carbohydrates like whole grains, sweet potatoes, or quinoa to your meals.');
+    } else if (carbsProgress > 1.3) {
+      recommendations.add(
+          'Your carb intake is high. Consider reducing refined carbs and adding more protein or healthy fats.');
+    }
+
+    if (fatProgress < 0.7) {
+      recommendations.add(
+          'Include healthy fats from avocados, nuts, olive oil, or fatty fish in your diet.');
+    } else if (fatProgress > 1.3) {
+      recommendations.add(
+          'Your fat intake is high. Focus on leaner protein sources and reduce added oils.');
+    }
+
+    // Balance recommendations
+    if (proteinProgress > 0.9 &&
+        carbsProgress > 0.9 &&
+        fatProgress > 0.9 &&
+        calorieProgress > 0.9 &&
+        calorieProgress < 1.1) {
+      recommendations.add(
+          'Excellent balance! Your macro distribution is well-aligned with your goals.');
+    } else if (proteinProgress < 0.6 && carbsProgress > 1.2) {
+      recommendations.add(
+          'Consider reducing carbs and increasing protein for better muscle support and satiety.');
+    } else if (fatProgress > 1.2 && proteinProgress < 0.7) {
+      recommendations.add(
+          'Try reducing fats and increasing protein for better nutrient balance.');
+    }
+
+    // Activity recommendations based on calorie intake
+    if (calorieProgress > 1.1) {
+      if (isToday) {
+        recommendations.add(
+            'Consider adding 15-30 minutes of moderate exercise today to help balance your calorie intake.');
+      } else {
+        recommendations.add(
+            'For days when you exceed calories, plan for extra physical activity to maintain balance.');
+      }
+    }
+
+    // Hydration reminder
+    if (calorieProgress > 1.0) {
+      recommendations.add(
+          'Stay well-hydrated, especially if you\'re active. Aim for 8-10 glasses of water daily.');
     }
 
     if (recommendations.isEmpty) {

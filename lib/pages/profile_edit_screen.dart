@@ -25,6 +25,7 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
+  String? selectedGender;
 
   Future<String> _compressAndResizeProfileImage(String imagePath) async {
     // Read the image file
@@ -180,11 +181,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     nameController: nameController,
                     bioController: bioController,
                     dobController: dobController,
+                    onGenderChanged: (gender) {
+                      setState(() {
+                        selectedGender = gender;
+                      });
+                    },
                     press: () {
                       final updatedUser = {
                         'displayName': nameController.text,
                         'bio': bioController.text,
-                        'dob': dobController.text
+                        'dob': dobController.text,
+                        'settings.gender': selectedGender,
                       };
                       authController.updateUserData(updatedUser);
 

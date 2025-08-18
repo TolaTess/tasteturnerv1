@@ -3,22 +3,104 @@ import 'package:flutter_svg/svg.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../pages/dietary_choose_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'utils.dart';
 
-String calculateRecommendedGoals(String goal) {
+String calculateRecommendedCaloriesFromGoal(String goal, [String? gender]) {
   final userCalories =
       userService.currentUser.value?.settings['foodGoals'] ?? 2000;
 
+  // Base calorie adjustments based on gender
+  double genderMultiplier = 1.0;
+  if (gender == 'male') {
+    genderMultiplier = 1.1; // Men typically need 10% more calories
+  } else if (gender == 'female') {
+    genderMultiplier = 0.9; // Women typically need 10% less calories
+  }
+
+  int baseCalories = userCalories;
+
   if (goal == 'Healthy Eating') {
-    return userCalories.toString();
+    baseCalories = (userCalories * genderMultiplier).round();
   } else if (goal == 'Lose Weight') {
-    return 1500 > userCalories ? '1500' : userCalories.toString();
+    baseCalories = (1500 * genderMultiplier).round();
+    if (baseCalories > userCalories) {
+      baseCalories = userCalories;
+    }
   } else if (goal == 'Gain Muscle') {
-    return 2500 < userCalories ? '2500' : userCalories.toString();
+    baseCalories = (2500 * genderMultiplier).round();
+    if (baseCalories < userCalories) {
+      baseCalories = userCalories;
+    }
   } else {
-    return userCalories.toString(); // Default to user's calories
+    baseCalories = (userCalories * genderMultiplier).round();
+  }
+
+  return baseCalories.toString();
+}
+
+Map<String, int> calculateRecommendedMacrosGoals(String goal,
+    [String? gender]) {
+  final calories =
+      int.parse(calculateRecommendedCaloriesFromGoal(goal, gender));
+
+  // Gender-specific macro adjustments
+  double proteinMultiplier = 1.0;
+  double carbsMultiplier = 1.0;
+  double fatMultiplier = 1.0;
+
+  if (gender == 'male') {
+    // Men typically need more protein for muscle building
+    proteinMultiplier = 1.15;
+    carbsMultiplier = 1.05;
+    fatMultiplier = 0.95;
+  } else if (gender == 'female') {
+    // Women may need slightly different macro ratios
+    proteinMultiplier = 1.05;
+    carbsMultiplier = 0.98;
+    fatMultiplier = 1.02;
+  }
+
+  switch (goal) {
+    case 'Healthy Eating':
+      // Balanced macros: 30% protein, 40% carbs, 30% fat
+      return {
+        'protein': ((calories * 0.30 / 4) * proteinMultiplier)
+            .round(), // 4 cal per gram protein
+        'carbs': ((calories * 0.40 / 4) * carbsMultiplier)
+            .round(), // 4 cal per gram carb
+        'fat': ((calories * 0.30 / 9) * fatMultiplier)
+            .round(), // 9 cal per gram fat
+        'calories': calories,
+      };
+
+    case 'Lose Weight':
+      // Higher protein, moderate fat, lower carb
+      return {
+        'protein':
+            ((calories * 0.40 / 4) * proteinMultiplier).round(), // 40% protein
+        'carbs': ((calories * 0.30 / 4) * carbsMultiplier).round(), // 30% carbs
+        'fat': ((calories * 0.30 / 9) * fatMultiplier).round(), // 30% fat
+        'calories': calories,
+      };
+
+    case 'Gain Muscle':
+      // High protein, high carb, moderate fat
+      return {
+        'protein':
+            ((calories * 0.35 / 4) * proteinMultiplier).round(), // 35% protein
+        'carbs': ((calories * 0.45 / 4) * carbsMultiplier).round(), // 45% carbs
+        'fat': ((calories * 0.20 / 9) * fatMultiplier).round(), // 20% fat
+        'calories': calories,
+      };
+
+    default:
+      // Default balanced macros
+      return {
+        'protein': ((calories * 0.30 / 4) * proteinMultiplier).round(),
+        'carbs': ((calories * 0.40 / 4) * carbsMultiplier).round(),
+        'fat': ((calories * 0.30 / 9) * fatMultiplier).round(),
+        'calories': calories,
+      };
   }
 }
 
