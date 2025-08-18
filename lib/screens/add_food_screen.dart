@@ -16,11 +16,11 @@ import '../service/meal_api_service.dart';
 import '../service/calorie_adjustment_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
-import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/meal_detail_widget.dart';
 import '../widgets/search_button.dart';
 import '../widgets/info_icon_widget.dart';
 import 'createrecipe_screen.dart';
+import 'daily_summary_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
@@ -875,9 +875,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           children: [
             Text(
               widget.title,
-               style: textTheme.displaySmall?.copyWith(
+              style: textTheme.displaySmall?.copyWith(
                 fontSize: getTextScale(7, context),
-                  ),
+              ),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(
@@ -1053,22 +1053,53 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
-                Center(
-                  child: Text(
-                    'Ingredient Tug-of-War',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: getPercentageWidth(4.5, context),
-                          fontWeight: FontWeight.w600,
-                          color: kAccentLight,
+                // Daily Summary Link
+                if (isToday)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context)),
+                    child: GestureDetector(
+                      onTap: () {
+                        final date = DateTime.now().subtract(const Duration(days: 1));
+                        Get.to(() => DailySummaryScreen(date: date));
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kAccent.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
-                    overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.insights,
+                              color: kAccent,
+                              size: getIconScale(4, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Text(
+                              'View Yesterday\'s Summary',
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: getPercentageWidth(1, context)),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: kAccent,
+                              size: getIconScale(3.5, context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: getPercentageHeight(2, context)),
-
-                // Weekly Ingredients Battle Widget
-                const WeeklyIngredientBattle(),
 
                 SizedBox(height: getPercentageHeight(2, context)),
 

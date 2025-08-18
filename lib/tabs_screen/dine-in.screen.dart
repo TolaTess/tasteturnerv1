@@ -12,6 +12,7 @@ import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../service/macro_manager.dart';
+import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/optimized_image.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
@@ -1187,7 +1188,6 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
-
             const InfoIconWidget(
               title: 'Dine In',
               description: 'Get inspired to cook with simple ingredients',
@@ -1207,7 +1207,8 @@ class _DineInScreenState extends State<DineInScreen> {
                 {
                   'icon': Icons.restaurant,
                   'title': 'Simple Cooking',
-                  'description': 'Create delicious meals with just 2 ingredients',
+                  'description':
+                      'Create delicious meals with just 2 ingredients',
                   'color': kBlue,
                 },
               ],
@@ -1268,7 +1269,12 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: getPercentageHeight(2.5, context)),
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+
+                  // Weekly Ingredients Battle Widget
+                  const WeeklyIngredientBattle(),
+
+                  SizedBox(height: getPercentageHeight(2, context)),
 
                   // Ingredient cards
                   if (isChallengeMode &&

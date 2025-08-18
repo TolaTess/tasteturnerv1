@@ -14,13 +14,14 @@ import '../pages/profile_edit_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/helper_widget.dart';
+import '../widgets/daily_summary_widget.dart';
 import 'badges_screen.dart';
 import '../pages/settings_screen.dart';
-import '../service/battle_service.dart';
 import '../service/post_service.dart';
 import '../service/badge_service.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'daily_summary_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -672,7 +673,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
 
-                  SizedBox(height: getPercentageHeight(1.5, context)),
+                  // Daily Summary Section
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? kDarkGrey.withValues(alpha: 0.5)
+                          : kBackgroundColor,
+                      border: Border.all(
+                        color: kAccent.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      collapsedIconColor: kAccent,
+                      iconColor: kAccent,
+                      textColor: kAccent,
+                      collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Daily Progress',
+                            style: textTheme.displaySmall?.copyWith(
+                              fontSize: getTextScale(5, context),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              final date = DateTime.now().subtract(
+                                  const Duration(days: 1));
+                              Get.to(() => DailySummaryScreen(date: date));
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(2, context),
+                                vertical: getPercentageHeight(0.5, context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: kAccent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.insights,
+                                    color: kAccent,
+                                    size: getIconScale(3.5, context),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(1, context)),
+                                  Text(
+                                    'View History',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      children: [
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        // Today's Summary Widget
+                        DailySummaryWidget(
+                          date: DateTime.now(),
+                          showPreviousDay: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
                   // Search Content Section
                   Builder(

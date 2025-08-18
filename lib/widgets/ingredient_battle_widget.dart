@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
-import '../screens/badges_screen.dart';
+import '../screens/add_food_screen.dart';
 import '../service/battle_service.dart';
 import '../service/badge_service.dart';
 
@@ -25,7 +25,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
   final RxBool _showBadge = false.obs;
   final RxString _badgeTitle = ''.obs;
   final BadgeService _badgeService = BadgeService.instance;
-
+  final RxBool _isExpanded = false.obs;
   // Add test mode flag
   final bool _isTestMode = false; // Set to true to use test data
 
@@ -316,35 +316,40 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       }
 
       if (_topIngredient1.isEmpty || _topIngredient2.isEmpty) {
-        return Container(
-          padding: EdgeInsets.symmetric(
-              horizontal: getPercentageWidth(2, context),
-              vertical: getPercentageHeight(0.5, context)),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? kDarkGrey.withValues(alpha: 0.9)
-                : kWhite.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(1, context),
-                  vertical: getPercentageHeight(1, context)),
-              child: Text(
-                'Log more meals to see your top ingredients!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: kLightGrey,
-                    ),
+        return GestureDetector(
+          onTap: () {
+            Get.to(() => const AddFoodScreen());
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(2, context),
+                vertical: getPercentageHeight(0.5, context)),
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? kDarkGrey.withValues(alpha: 0.9)
+                  : kWhite.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(1, context),
+                    vertical: getPercentageHeight(1, context)),
+                child: Text(
+                  'Log more meals to see your top ingredients!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: kLightGrey,
+                      ),
+                ),
               ),
             ),
           ),
@@ -380,56 +385,42 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
               textColor: kAccent,
               collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
               tilePadding: EdgeInsets.zero,
-              initiallyExpanded: _topIngredient1.isNotEmpty,
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              initiallyExpanded: _isExpanded.value,
+              onExpansionChanged: (expanded) {
+                _isExpanded.value = expanded;
+              },
+              title: Column(
                 children: [
-                  Text(
-                    'Your Favs:',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: getTextScale(6, context),
-                        ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_showBadge.value)
-                    GestureDetector(
-                      onTap: () {
-                        Get.to(() => BadgesScreen());
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: kAccent.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.emoji_events,
-                              size: getPercentageWidth(4, context),
-                              color: kAccent,
-                            ),
-                            SizedBox(width: getPercentageWidth(1, context)),
-                            Flexible(
-                              child: Text(
-                                _badgeTitle.value,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: kAccent,
-                                    ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'View top ingredients in your meals',
+                        style:
+                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: getTextScale(5, context),
+                                  color: kAccentLight,
+                                ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      Text(
+                        '${_count1.value} vs ${_count2.value}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: kAccentLight,
+                            ),
+                      ),
+                    ],
+                  ),
+                  Visibility(
+                    visible: !_isExpanded.value, // Only show when NOT expanded
+                    child: Text(
+                      '${_topIngredient1.value} vs ${_topIngredient2.value}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: kAccentLight,
+                          ),
                     ),
+                  ),
                 ],
               ),
               children: [
@@ -439,9 +430,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent1 * 100).round(),
                       child: Container(
-                        height: getPercentageHeight(7, context),
+                        height: getPercentageHeight(6, context),
                         decoration: BoxDecoration(
-                          color: kAccent,
+                          color: kAccent.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(10),
                             bottomLeft: const Radius.circular(10),
@@ -461,9 +452,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 _topIngredient1.value,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyLarge
+                                    .bodyMedium
                                     ?.copyWith(
-                                      color: kWhite,
+                                      color: isDarkMode ? kWhite : kDarkGrey,
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
@@ -473,9 +464,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 '${_count1.value} times',
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyMedium
+                                    .bodySmall
                                     ?.copyWith(
-                                      color: kWhite,
+                                      color: isDarkMode ? kAccent : kLightGrey,
                                     ),
                               ),
                             ],
@@ -486,9 +477,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                     Expanded(
                       flex: (percent2 * 100).round(),
                       child: Container(
-                        height: getPercentageHeight(7, context),
+                        height: getPercentageHeight(6, context),
                         decoration: BoxDecoration(
-                          color: kAccentLight,
+                          color: kAccentLight.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.only(
                             topRight: const Radius.circular(10),
                             bottomRight: const Radius.circular(10),
@@ -508,9 +499,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 _topIngredient2.value,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyLarge
+                                    .bodyMedium
                                     ?.copyWith(
-                                      color: kWhite,
+                                      color: isDarkMode ? kWhite : kDarkGrey,
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
@@ -520,9 +511,9 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
                                 '${_count2.value} times',
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyMedium
+                                    .bodySmall
                                     ?.copyWith(
-                                      color: kWhite,
+                                      color: isDarkMode ? kAccent : kLightGrey,
                                     ),
                               ),
                             ],
@@ -535,12 +526,13 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
                 SizedBox(height: getPercentageHeight(1, context)),
                 Text(
-                  'Based on your meal in last 7 days',
+                  'Based on your logged meals in the last 7 days',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontStyle: FontStyle.italic,
-                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                        color: kLightGrey,
                       ),
                 ),
+                SizedBox(height: getPercentageHeight(0.5, context)),
               ],
             ),
           ],
