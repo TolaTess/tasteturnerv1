@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool hasMealPlan = true;
   Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
+  bool _isConnected = true;
+  Timer? _networkCheckTimer;
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _loadShoppingDay();
     _setupDataListeners();
+    _startNetworkCheck();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
     });
@@ -453,6 +457,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  // Start network connectivity check
+  void _startNetworkCheck() {
+    _networkCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _checkNetworkConnectivity();
+    });
+  }
+
+  // Check network connectivity
+  Future<void> _checkNetworkConnectivity() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      final isConnected = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+
+      if (mounted) {
+        setState(() {
+          _isConnected = isConnected;
+        });
+
+        // Show snackbar if no internet
+        if (!isConnected && mounted) {
+          _showNoInternetSnackbar();
+        }
+      }
+    } on SocketException catch (_) {
+      if (mounted) {
+        setState(() {
+          _isConnected = false;
+        });
+        _showNoInternetSnackbar();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isConnected = false;
+        });
+        _showNoInternetSnackbar();
+      }
+    }
+  }
+
+  // Show no internet snackbar
+  void _showNoInternetSnackbar() {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.wifi_off, color: kWhite, size: getIconScale(5, context)),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                'Oops! No internet connection. Please try again later.',
+                style: TextStyle(
+                  color: kWhite,
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(getPercentageWidth(2, context)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
   bool _isTodayShoppingDay() {
     if (_shoppingDay == null || _shoppingDay == '') return false;
     final today = DateTime.now();
@@ -493,6 +569,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
+    _networkCheckTimer?.cancel();
     super.dispose();
   }
 
@@ -685,6 +762,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       height: MediaQuery.of(context).size.width > 800
                           ? getPercentageHeight(1.5, context)
                           : getPercentageHeight(0.5, context)),
+
+                  // Network status indicator
+                  if (!_isConnected)
+                    Container(
+                      margin: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context),
+                          vertical: getPercentageHeight(0.5, context)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(3, context),
+                          vertical: getPercentageHeight(1, context)),
+                      decoration: BoxDecoration(
+                        color: Colors.red[600],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red[700]!, width: 1.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.wifi_off,
+                              color: kWhite, size: getIconScale(6, context)),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Expanded(
+                            child: Text(
+                              'No internet connection. Some features may be limited.',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: kWhite,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(0.3, context)),
@@ -917,7 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                   // ------------------------------------Premium / Ads-------------------------------------
                   if (!currentUser.isPremium)
-                  SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(1, context)),
                   const Divider(
                     color: kAccentLight,
                     thickness: 1.5,

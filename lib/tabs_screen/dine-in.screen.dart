@@ -40,6 +40,7 @@ class _DineInScreenState extends State<DineInScreen> {
   bool isChallengeMode = false;
   bool isLoadingChallenge = false;
   String? challengeDate;
+  String? savedChallengeDate; // Store the user's saved challenge date
 
   @override
   void initState() {
@@ -285,11 +286,15 @@ class _DineInScreenState extends State<DineInScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final savedChallengeDate = prefs.getString(_challengeDateKey);
+      final savedChallengeDateFromStorage = prefs.getString(_challengeDateKey);
       final isChallengeModeSaved = prefs.getBool(_isChallengeModeKey) ?? false;
 
+      // Store the saved challenge date for comparison
+      savedChallengeDate = savedChallengeDateFromStorage;
+
       // Check if saved challenge is for the same week
-      if (savedChallengeDate == challengeDate && isChallengeModeSaved) {
+      if (savedChallengeDateFromStorage == challengeDate &&
+          isChallengeModeSaved) {
         final savedIngredients = prefs.getString(_challengeIngredientsKey);
         if (savedIngredients != null) {
           final ingredientIds = jsonDecode(savedIngredients) as List<dynamic>;
@@ -343,6 +348,59 @@ class _DineInScreenState extends State<DineInScreen> {
     } catch (e) {
       print('Error clearing challenge data: $e');
     }
+  }
+
+  // Check if challenge has ended
+  bool _isChallengeEnded() {
+    // Check if user is enrolled in an old challenge
+    if (_isOldChallenge()) return true;
+
+    if (challengeDate == null) return false;
+
+    try {
+      // Parse challenge date (format: "DD-MM-YYYY")
+      final challengeParts = challengeDate!.split('-');
+      if (challengeParts.length == 3) {
+        final challengeDay = int.parse(challengeParts[0]);
+        final challengeMonth = int.parse(challengeParts[1]);
+        final challengeYear = int.parse(challengeParts[2]);
+
+        final challengeDateTime =
+            DateTime(challengeYear, challengeMonth, challengeDay);
+
+        // Check if challenge has ended (after Sunday of that week)
+        final challengeEndDate = _getWeekEndDate(challengeDateTime);
+        final now = DateTime.now();
+
+        return now.isAfter(challengeEndDate);
+      }
+    } catch (e) {
+      print('Error parsing challenge date: $e');
+    }
+
+    return false;
+  }
+
+  // Check if user is enrolled in an old challenge
+  bool _isOldChallenge() {
+    // If user is not in challenge mode, they can't have an old challenge
+    if (!isChallengeMode) return false;
+
+    // If there's no current challenge date, but user is enrolled, it's an old challenge
+    if (challengeDate == null) return true;
+
+    // If user's saved challenge date is different from current challenge date, it's an old challenge
+    if (savedChallengeDate != null && savedChallengeDate != challengeDate) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Get the end date of the week for a given date
+  DateTime _getWeekEndDate(DateTime date) {
+    final daysUntilSunday = DateTime.sunday - date.weekday;
+    return date.add(Duration(days: daysUntilSunday));
   }
 
   // Check if challenge notification should be sent
@@ -1725,18 +1783,39 @@ class _DineInScreenState extends State<DineInScreen> {
                           ),
                           SizedBox(width: getPercentageWidth(2, context)),
                           Expanded(
-                            child: Text(
-                              isLoadingChallenge
-                                  ? 'Loading challenge...'
-                                  : isChallengeMode
-                                      ? 'Weekly Challenge Active!'
-                                      : 'Join this week\'s Dine-In Challenge!',
-                              textAlign: TextAlign.center,
-                              style: textTheme.bodyLarge?.copyWith(
-                                color: isDarkMode ? kDarkGrey : kWhite,
-                                fontWeight: FontWeight.w600,
-                                fontSize: getPercentageWidth(4, context),
-                              ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  isLoadingChallenge
+                                      ? 'Loading challenge...'
+                                      : isChallengeMode
+                                          ? _isChallengeEnded()
+                                              ? 'Weekly Challenge Ended!'
+                                              : 'Weekly Challenge Active!'
+                                          : 'Join this week\'s Dine-In Challenge!',
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.bodyLarge?.copyWith(
+                                    color: isDarkMode ? kDarkGrey : kWhite,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: getPercentageWidth(4, context),
+                                  ),
+                                ),
+                                if (isChallengeMode && _isChallengeEnded()) ...[
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
+                                  Text(
+                                    _isOldChallenge()
+                                        ? 'Old challenge from: ${savedChallengeDate ?? 'Unknown'}'
+                                        : 'Challenge ended: ${challengeDate ?? 'Unknown'}',
+                                    textAlign: TextAlign.center,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: kDarkGrey,
+                                      fontSize: getPercentageWidth(3, context),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           if (isLoadingChallenge)
@@ -1751,9 +1830,15 @@ class _DineInScreenState extends State<DineInScreen> {
                           else
                             Icon(
                               isChallengeMode
-                                  ? Icons.check_circle
+                                  ? (_isChallengeEnded()
+                                      ? Icons.schedule
+                                      : Icons.check_circle)
                                   : Icons.lightbulb_outline,
-                              color: isChallengeMode ? kAccent : kAccentLight,
+                              color: isChallengeMode
+                                  ? (_isChallengeEnded()
+                                      ? Colors.orange
+                                      : kAccent)
+                                  : kAccentLight,
                               size: getIconScale(5, context),
                             ),
                         ],

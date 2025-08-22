@@ -483,13 +483,15 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   ) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final dietPreferences =
+        userService.currentUser.value?.settings['dietPreference'] ?? {};
 
     List<String> recommendations = [];
     final isToday = widget.date.isAtSameMomentAs(DateTime.now());
     final isYesterday = widget.date
         .isAtSameMomentAs(DateTime.now().subtract(const Duration(days: 1)));
 
-    // Calorie recommendations
+    // Calorie recommendations with diet preferences
     if (calorieProgress > 1.2) {
       // Significantly over calorie limit
       if (isToday) {
@@ -513,53 +515,138 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
     } else if (calorieProgress < 0.6) {
       // Significantly under calorie limit
-      recommendations.add(
-          'You\'re well below your calorie goal. Try adding healthy snacks like nuts, yogurt, or fruits to reach your target.');
+      if (dietPreferences.toLowerCase() == 'vegan') {
+        recommendations.add(
+            'You\'re well below your calorie goal. Try adding healthy vegan snacks like Nuts, Seeds, Avocados, or plant-based protein sources to reach your target.');
+      } else if (dietPreferences.toLowerCase() == 'vegetarian') {
+        recommendations.add(
+            'You\'re well below your calorie goal. Try adding healthy vegetarian snacks like Nuts, Yogurt, Cheese, or Fruits to reach your target.');
+      } else if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'You\'re well below your calorie goal. Try adding keto-friendly snacks like Nuts, Cheese, Avocados, or Fatty Fish to reach your target.');
+      } else if (dietPreferences.toLowerCase() == 'paleo') {
+        recommendations.add(
+            'You\'re well below your calorie goal. Try adding paleo-friendly snacks like Nuts, Seeds, Fruits, or Lean Meats to reach your target.');
+      } else {
+        recommendations.add(
+            'You\'re well below your calorie goal. Try adding healthy snacks like Nuts, Yogurt, or Fruits to reach your target.');
+      }
     } else if (calorieProgress < 0.8) {
       // Slightly under calorie limit
       recommendations.add(
           'You\'re close to your calorie goal. A small healthy snack can help you reach your target.');
     }
 
-    // Macro-specific recommendations
+    // Macro-specific recommendations with diet preferences
     if (proteinProgress < 0.7) {
-      recommendations.add(
-          'Increase protein intake with lean meats, fish, eggs, legumes, or Greek yogurt.');
+      if (dietPreferences.toLowerCase() == 'vegan') {
+        recommendations.add(
+            'Increase protein intake with plant-based sources like Beans, Lentils, Quinoa, Tofu, Tempeh, or Nutritional Yeast.');
+      } else if (dietPreferences.toLowerCase() == 'vegetarian') {
+        recommendations.add(
+            'Increase protein intake with Eggs, Dairy, Legumes, Quinoa, or Greek Yogurt.');
+      } else if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'Increase protein intake with Fatty Fish, Eggs, Cheese, or Lean Meats while keeping carbs low.');
+      } else if (dietPreferences.toLowerCase() == 'paleo') {
+        recommendations.add(
+            'Increase protein intake with Lean Meats, Fish, Eggs, or Nuts and Seeds.');
+      } else if (dietPreferences.toLowerCase() == 'carnivore') {
+        recommendations.add(
+            'Increase protein intake with Meats, Fish, Eggs, and Dairy.');
+      } else {
+        recommendations.add(
+            'Increase protein intake with Lean Meats, Fish, Eggs, Legumes, or Greek Yogurt.');
+      }
     } else if (proteinProgress > 1.3) {
       recommendations.add(
           'Your protein intake is quite high. Consider balancing with more carbs or fats for variety.');
     }
 
     if (carbsProgress < 0.7) {
-      recommendations.add(
-          'Add complex carbohydrates like whole grains, sweet potatoes, or quinoa to your meals.');
+      if (dietPreferences.toLowerCase() == 'vegan') {
+        recommendations.add(
+            'Add complex carbohydrates like Whole Grains, Quinoa, Sweet Potatoes, or Legumes to your meals.');
+      } else if (dietPreferences.toLowerCase() == 'vegetarian') {
+        recommendations.add(
+            'Add complex carbohydrates like Whole Grains, Sweet Potatoes, Quinoa, or Fruits to your meals.');
+      } else if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'For Keto, focus on low-carb vegetables like Leafy Greens, Broccoli, and Cauliflower instead of high-carb foods.');
+      } else if (dietPreferences.toLowerCase() == 'paleo') {
+        recommendations.add(
+            'Add Paleo-friendly carbohydrates like Sweet Potatoes, Fruits, or Root Vegetables to your meals.');
+      } else if (dietPreferences.toLowerCase() == 'carnivore') {
+        recommendations.add(
+            'For Carnivores, no carbs are allowed.');
+      } else {
+        recommendations.add(
+            'Add complex carbohydrates like Whole Grains, Sweet Potatoes, or Quinoa to your meals.');
+      }
     } else if (carbsProgress > 1.3) {
-      recommendations.add(
-          'Your carb intake is high. Consider reducing refined carbs and adding more protein or healthy fats.');
+      if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'Your carb intake is high for Keto. Focus on reducing carbs and increasing healthy fats and protein for better satiety.');
+      } else {
+        recommendations.add(
+            'Your carb intake is high. Consider reducing refined carbs and adding more protein or healthy fats for better satiety.');
+      }
     }
 
     if (fatProgress < 0.7) {
-      recommendations.add(
-          'Include healthy fats from avocados, nuts, olive oil, or fatty fish in your diet.');
+        if (dietPreferences.toLowerCase() == 'vegan') {
+        recommendations.add(
+            'Include healthy fats from Avocados, Nuts, Seeds, Olive Oil, or Coconut Oil in your diet.');
+      } else if (dietPreferences.toLowerCase() == 'vegetarian') {
+        recommendations.add(
+            'Include healthy fats from Avocados, Nuts, Olive Oil, Dairy, or Eggs in your diet.');
+      } else if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'Increase healthy fats with Avocados, Nuts, Olive Oil, Coconut Oil, or Fatty Fish for keto.');
+      } else if (dietPreferences.toLowerCase() == 'paleo') {
+        recommendations.add(
+            'Include healthy fats from Avocados, Nuts, Olive Oil, Coconut Oil, or Fatty Fish in your diet.');
+      } else if (dietPreferences.toLowerCase() == 'carnivore') {
+        recommendations.add(
+            'Include healthy fats from Meats, Butter, Ghee, and Dairy.');
+      } else {
+        recommendations.add(
+            'Include healthy fats from Avocados, Nuts, Olive Oil, or Fatty Fish in your diet.');
+      }
     } else if (fatProgress > 1.3) {
-      recommendations.add(
-          'Your fat intake is high. Focus on leaner protein sources and reduce added oils.');
+      if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'Your fat intake is appropriate for Keto, but ensure you\'re getting enough protein too.');
+      } else {
+        recommendations.add(
+            'Your fat intake is high. Focus on leaner protein sources and reduce added oils for better satiety.');
+      }
     }
 
-    // Balance recommendations
+    // Balance recommendations with diet context
     if (proteinProgress > 0.9 &&
         carbsProgress > 0.9 &&
         fatProgress > 0.9 &&
         calorieProgress > 0.9 &&
         calorieProgress < 1.1) {
       recommendations.add(
-          'Excellent balance! Your macro distribution is well-aligned with your goals.');
+          'Excellent balance! Your macro distribution is well-aligned with your goals and dietary preferences.');
     } else if (proteinProgress < 0.6 && carbsProgress > 1.2) {
-      recommendations.add(
-          'Consider reducing carbs and increasing protein for better muscle support and satiety.');
+      if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'For Keto, consider reducing carbs further and increasing healthy fats for better ketosis.');
+      } else {
+        recommendations.add(
+            'Consider reducing carbs and increasing protein for better muscle support and satiety.');
+      }
     } else if (fatProgress > 1.2 && proteinProgress < 0.7) {
-      recommendations.add(
-          'Try reducing fats and increasing protein for better nutrient balance.');
+      if (dietPreferences.toLowerCase() == 'keto') {
+        recommendations.add(
+            'For Keto, ensure you\'re getting enough protein while maintaining high fat intake.');
+      } else {
+        recommendations.add(
+            'Try reducing fats and increasing protein for better nutrient balance.');
+      }
     }
 
     // Activity recommendations based on calorie intake
@@ -577,6 +664,18 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     if (calorieProgress > 1.0) {
       recommendations.add(
           'Stay well-hydrated, especially if you\'re active. Aim for 8-10 glasses of water daily.');
+    }
+
+    // Diet-specific general advice
+      if (dietPreferences.toLowerCase() == 'vegan') {
+      recommendations.add(
+          'Remember to include a variety of plant-based protein sources throughout the day for complete amino acid profiles.');
+    } else if (dietPreferences.toLowerCase() == 'keto') {
+      recommendations.add(
+          'Stay in ketosis by keeping net carbs under your daily limit and maintaining adequate fat intake.');
+    } else if (dietPreferences.toLowerCase() == 'paleo') {
+      recommendations.add(
+          'Focus on whole, unprocessed foods and avoid grains, legumes, and dairy for optimal paleo benefits.');
     }
 
     if (recommendations.isEmpty) {
