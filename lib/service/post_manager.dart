@@ -231,6 +231,29 @@ class PostController extends GetxController {
     return outputPath;
   }
 
+  // Helper method to ensure usersPosts document exists
+  Future<void> _ensureUsersPostsDocumentExists(String userId) async {
+    try {
+      final usersPostsDoc = firestore.collection('usersPosts').doc(userId);
+      final usersPostsSnapshot = await usersPostsDoc.get();
+
+      if (!usersPostsSnapshot.exists) {
+        print('Creating usersPosts document for user: $userId');
+        await usersPostsDoc.set({
+          'posts': [],
+          'userId': userId,
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+        print('Successfully created usersPosts document for user: $userId');
+      } else {
+        print('UsersPosts document already exists for user: $userId');
+      }
+    } catch (e) {
+      print('Error ensuring usersPosts document exists for user $userId: $e');
+      throw Exception('Failed to ensure usersPosts document exists: $e');
+    }
+  }
+
   Future<void> uploadPost(
       Post post, String userId, List<String> imagePaths) async {
     try {
@@ -284,12 +307,20 @@ class PostController extends GetxController {
         createdAt: post.createdAt ?? DateTime.now(),
       );
 
+      // Ensure usersPosts document exists before updating
+      await _ensureUsersPostsDocumentExists(userId);
+
       WriteBatch batch = firestore.batch();
       batch.set(postRef, updatedPost.toFirestore());
+
+      // Now we can safely update the usersPosts document
       batch.update(firestore.collection('usersPosts').doc(userId), {
         'posts': FieldValue.arrayUnion([postRef.id]),
       });
+
+      print('Committing batch for post upload...');
       await batch.commit();
+      print('Successfully uploaded post: ${postRef.id} for user: $userId');
     } catch (e) {
       print('Error uploading post: $e');
       throw Exception('Failed to upload post: $e');
@@ -314,9 +345,16 @@ class PostController extends GetxController {
       await deleteImagesFromStorage(mediaPaths);
 
       // Remove post ID from user's posts array
-      await firestore.collection('usersPosts').doc(userId).update({
-        'posts': FieldValue.arrayRemove([postId]),
-      });
+      final usersPostsDoc = firestore.collection('usersPosts').doc(userId);
+      final usersPostsSnapshot = await usersPostsDoc.get();
+
+      if (usersPostsSnapshot.exists) {
+        await usersPostsDoc.update({
+          'posts': FieldValue.arrayRemove([postId]),
+        });
+      } else {
+        print('UsersPosts document not found for user: $userId');
+      }
 
       // Delete the post document
       await postRef.delete();

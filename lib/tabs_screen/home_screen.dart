@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         content: Text(
-          'Would you like to manage nutrition for your family members? \n\nYou can add family members and plan their meals together \n(you can always change this later in Edit Goals).',
+          'Would you like to manage nutrition for your family members? \n\nYou can add family members and plan their meals \n(you can always change this later in Settings -> Edit Goals).',
           style: TextStyle(
             color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
             fontSize: getTextScale(3.5, context),
