@@ -26,12 +26,14 @@ class AddFoodScreen extends StatefulWidget {
   final String title;
   final DateTime? date;
   final String? notAllowedMealType;
+  final bool isShowSummary;
 
   const AddFoodScreen({
     super.key,
     this.title = 'Update Goals',
     this.date,
     this.notAllowedMealType,
+    this.isShowSummary = false,
   });
 
   @override
@@ -1091,7 +1093,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 SizedBox(height: getPercentageHeight(2, context)),
 
                 // Daily Summary Link
-                if (isToday)
+                if (isToday || widget.isShowSummary)
                   Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(3, context)),

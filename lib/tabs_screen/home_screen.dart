@@ -474,59 +474,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _isConnected = isConnected;
         });
-
-        // Show snackbar if no internet
-        if (!isConnected && mounted) {
-          _showNoInternetSnackbar();
-        }
       }
     } on SocketException catch (_) {
       if (mounted) {
         setState(() {
           _isConnected = false;
         });
-        _showNoInternetSnackbar();
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _isConnected = false;
         });
-        _showNoInternetSnackbar();
       }
     }
-  }
-
-  // Show no internet snackbar
-  void _showNoInternetSnackbar() {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.wifi_off, color: kWhite, size: getIconScale(5, context)),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Expanded(
-              child: Text(
-                'Oops! No internet connection. Please try again later.',
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(3.5, context),
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.red[600],
-        duration: const Duration(seconds: 6),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.all(getPercentageWidth(2, context)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
   }
 
   bool _isTodayShoppingDay() {

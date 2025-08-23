@@ -403,6 +403,34 @@ class _DineInScreenState extends State<DineInScreen> {
     return date.add(Duration(days: daysUntilSunday));
   }
 
+  // Check if challenge date is in the past
+  bool _isChallengeDateInPast() {
+    if (challengeDate == null) return false;
+
+    try {
+      // Parse challenge date (format: "DD-MM-YYYY")
+      final challengeParts = challengeDate!.split('-');
+      if (challengeParts.length == 3) {
+        final challengeDay = int.parse(challengeParts[0]);
+        final challengeMonth = int.parse(challengeParts[1]);
+        final challengeYear = int.parse(challengeParts[2]);
+
+        final challengeDateTime =
+            DateTime(challengeYear, challengeMonth, challengeDay);
+
+        // Check if challenge date is in the past (before today)
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+
+        return challengeDateTime.isBefore(today);
+      }
+    } catch (e) {
+      print('Error parsing challenge date: $e');
+    }
+
+    return false;
+  }
+
   // Check if challenge notification should be sent
   Future<void> _checkChallengeNotification() async {
     try {
@@ -1759,7 +1787,15 @@ class _DineInScreenState extends State<DineInScreen> {
                                 ];
                               });
                             }
-                            _showChallengeSelectionDialog();
+                            if (_isChallengeDateInPast()) {
+                              showTastySnackbar(
+                                  'Dine-In Challenge',
+                                  'New challenge coming soon!',
+                                  context,
+                                  backgroundColor: kAccent);
+                            } else {
+                              _showChallengeSelectionDialog();
+                            }
                           },
                     child: Container(
                       padding: EdgeInsets.all(getPercentageWidth(3, context)),
@@ -1792,7 +1828,9 @@ class _DineInScreenState extends State<DineInScreen> {
                                           ? _isChallengeEnded()
                                               ? 'Weekly Challenge Ended!'
                                               : 'Weekly Challenge Active!'
-                                          : 'Join this week\'s Dine-In Challenge!',
+                                          : _isChallengeDateInPast()
+                                              ? 'New Challenge Coming Soon!'
+                                              : 'Join this week\'s Dine-In Challenge!',
                                   textAlign: TextAlign.center,
                                   style: textTheme.bodyLarge?.copyWith(
                                     color: isDarkMode ? kDarkGrey : kWhite,
@@ -1833,12 +1871,16 @@ class _DineInScreenState extends State<DineInScreen> {
                                   ? (_isChallengeEnded()
                                       ? Icons.schedule
                                       : Icons.check_circle)
-                                  : Icons.lightbulb_outline,
+                                  : _isChallengeDateInPast()
+                                      ? Icons.schedule
+                                      : Icons.lightbulb_outline,
                               color: isChallengeMode
                                   ? (_isChallengeEnded()
                                       ? Colors.orange
                                       : kAccent)
-                                  : kAccentLight,
+                                  : _isChallengeDateInPast()
+                                      ? Colors.orange
+                                      : kAccentLight,
                               size: getIconScale(5, context),
                             ),
                         ],

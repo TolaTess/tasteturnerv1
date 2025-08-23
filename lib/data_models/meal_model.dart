@@ -77,22 +77,26 @@ class Meal {
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
       mediaPaths: List<String>.from(json['mediaPaths'] ?? []),
-      serveQty: json['serveQty'] as int? ?? 0,
-      calories: json['calories'] as int? ?? 0,
+      serveQty: json['serveQty'] is int
+          ? json['serveQty'] as int
+          : int.tryParse(json['serveQty']?.toString() ?? '0') ?? 0,
+      calories: json['calories'] is int
+          ? json['calories'] as int
+          : int.tryParse(json['calories']?.toString() ?? '0') ?? 0,
       mediaType: json['mediaType'] as String? ?? 'image',
-      ingredients: json['ingredients'] != null
+      ingredients: json['ingredients'] is Map
           ? Map<String, String>.from((json['ingredients'] as Map)
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
-      macros: json['macros'] != null
+      macros: json['macros'] is Map
           ? Map<String, String>.from((json['macros'] as Map)
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
-      nutritionalInfo: json['nutritionalInfo'] != null
+      nutritionalInfo: json['nutritionalInfo'] is Map
           ? Map<String, String>.from((json['nutritionalInfo'] as Map)
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
-      nutrition: json['nutrition'] != null
+      nutrition: json['nutrition'] is Map
           ? Map<String, String>.from((json['nutrition'] as Map)
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
@@ -104,7 +108,9 @@ class Meal {
       category: json['category'] as String? ?? '',
       cookingMethod: json['cookingMethod'] as String? ?? '',
       cookingTime: json['cookingTime'] as String? ?? '',
-      suggestions: json['suggestions'] as Map<String, dynamic>? ?? {},
+      suggestions: json['suggestions'] is Map
+          ? json['suggestions'] as Map<String, dynamic>
+          : {},
     );
   }
 

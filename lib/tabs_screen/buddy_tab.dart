@@ -180,8 +180,6 @@ class _BuddyTabState extends State<BuddyTab> {
     String? familyMemberGoal;
     String? familyMemberType;
     if (familyMode && selectedUserIndex > 0) {
-      print('familyMode: $familyMode');
-      print('selectedUserIndex: $selectedUserIndex');
       final familyMembers = currentUser.familyMembers ?? [];
       if (selectedUserIndex - 1 < familyMembers.length) {
         familyMemberName = familyMembers[selectedUserIndex - 1].name;
@@ -210,33 +208,82 @@ class _BuddyTabState extends State<BuddyTab> {
           final parts = mealId.split('/');
           final id = parts[0];
           final mealType = parts.length > 1 ? parts[1] : '';
+
+          // Handle empty meal types
+          final effectiveMealType = mealType.isEmpty ? 'general' : mealType;
+
           final meal = await mealManager.getMealbyMealID(id);
           if (meal != null) {
             mealWithTypes.add(MealWithType(
               meal: meal,
-              mealType: mealType,
+              mealType: effectiveMealType,
+              familyMember: parts.length > 2 ? parts[2] : '',
+              fullMealId: mealId,
+            ));
+          } else {
+            print('Meal not found for ID: $id');
+          }
+        } else if (mealId is String) {
+          // Handle mealIds without meal type (just the meal ID)
+          final meal = await mealManager.getMealbyMealID(mealId);
+          if (meal != null) {
+            mealWithTypes.add(MealWithType(
+              meal: meal,
+              mealType: 'general',
               familyMember: '',
               fullMealId: mealId,
             ));
+          } else {
+            print('Meal not found for ID: $mealId');
           }
+        } else {
+          print('Invalid mealId format: $mealId');
         }
       }
 
-      // Group meals by type
+      // Group meals by type with more flexible matching
       final groupedMeals = {
         'breakfast': mealWithTypes
-            .where((m) => m.mealType.toLowerCase() == 'bf')
+            .where((m) =>
+                m.mealType.toLowerCase() == 'bf' ||
+                m.mealType.toLowerCase() == 'breakfast' ||
+                m.mealType.toLowerCase() == 'b')
             .toList(),
         'lunch': mealWithTypes
-            .where((m) => m.mealType.toLowerCase() == 'lh')
+            .where((m) =>
+                m.mealType.toLowerCase() == 'lh' ||
+                m.mealType.toLowerCase() == 'lunch' ||
+                m.mealType.toLowerCase() == 'l')
             .toList(),
         'dinner': mealWithTypes
-            .where((m) => m.mealType.toLowerCase() == 'dn')
+            .where((m) =>
+                m.mealType.toLowerCase() == 'dn' ||
+                m.mealType.toLowerCase() == 'dinner' ||
+                m.mealType.toLowerCase() == 'd')
             .toList(),
         'snacks': mealWithTypes
-            .where((m) => m.mealType.toLowerCase() == 'sk')
+            .where((m) =>
+                m.mealType.toLowerCase() == 'sk' ||
+                m.mealType.toLowerCase() == 'snacks' ||
+                m.mealType.toLowerCase() == 's')
+            .toList(),
+        'general': mealWithTypes
+            .where((m) => m.mealType.toLowerCase() == 'general')
             .toList(),
       };
+
+      // Add any unmatched meals to a "other" category
+      final matchedMealTypes =
+          groupedMeals.values.expand((meals) => meals).toList();
+      final unmatchedMeals =
+          mealWithTypes.where((m) => !matchedMealTypes.contains(m)).toList();
+
+      if (unmatchedMeals.isNotEmpty) {
+        groupedMeals['other'] = unmatchedMeals;
+      }
+
+      groupedMeals.forEach((type, meals) {
+      });
 
       return [
         {'groupedMeals': groupedMeals}
@@ -1017,7 +1064,9 @@ class _BuddyTabState extends State<BuddyTab> {
                                   (groupedMeals['breakfast']?.length ?? 0) +
                                       (groupedMeals['lunch']?.length ?? 0) +
                                       (groupedMeals['dinner']?.length ?? 0) +
-                                      (groupedMeals['snacks']?.length ?? 0);
+                                      (groupedMeals['snacks']?.length ?? 0) +
+                                      (groupedMeals['general']?.length ?? 0) +
+                                      (groupedMeals['other']?.length ?? 0);
 
                               final filteredBreakfast = filterMealsByType(
                                   groupedMeals['breakfast'] ?? [],
@@ -1031,12 +1080,20 @@ class _BuddyTabState extends State<BuddyTab> {
                               final filteredSnacks = filterMealsByType(
                                   groupedMeals['snacks'] ?? [],
                                   selectedMealTypes);
+                              final filteredGeneral = filterMealsByType(
+                                  groupedMeals['general'] ?? [],
+                                  selectedMealTypes);
+                              final filteredOther = filterMealsByType(
+                                  groupedMeals['other'] ?? [],
+                                  selectedMealTypes);
 
                               final filteredMealsCount =
                                   filteredBreakfast.length +
                                       filteredLunch.length +
                                       filteredDinner.length +
-                                      filteredSnacks.length;
+                                      filteredSnacks.length +
+                                      filteredGeneral.length +
+                                      filteredOther.length;
 
                               final hasAnyFilteredMeals =
                                   filteredMealsCount > 0;
@@ -1077,6 +1134,12 @@ class _BuddyTabState extends State<BuddyTab> {
                                   if (filteredSnacks.isNotEmpty)
                                     _buildMealsList(
                                         filteredSnacks, 'Snacks', context),
+                                  if (filteredGeneral.isNotEmpty)
+                                    _buildMealsList(filteredGeneral,
+                                        'General Meals', context),
+                                  if (filteredOther.isNotEmpty)
+                                    _buildMealsList(
+                                        filteredOther, 'Other Meals', context),
                                   // Show message when no meals match the filter
                                   if (!hasAnyFilteredMeals &&
                                       selectedMealTypes.isNotEmpty)

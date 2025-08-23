@@ -65,7 +65,7 @@ class UserDetailsSection extends StatelessWidget {
                         );
                         return; // Do nothing
                       }
-                      Get.to(() => const AddFoodScreen());
+                      Get.to(() => const AddFoodScreen(isShowSummary: true));
                     },
                     child: Row(
                       children: [

@@ -35,12 +35,12 @@ class MealManager extends GetxController {
             try {
               final data = doc.data();
               final meal = Meal.fromJson(doc.id, data);
-              
+
               // Skip if we've seen this title before
               if (seenTitles[meal.title.toLowerCase()] == true) {
                 return null;
               }
-              
+
               seenTitles[meal.title.toLowerCase()] = true;
               return meal;
             } catch (e) {
@@ -229,7 +229,6 @@ class MealManager extends GetxController {
       return [];
     }
   }
-
   // // Add a meal to Firestore and update the local list
   Future<void> addMeal(Meal meal) async {
     try {
@@ -260,11 +259,27 @@ class MealManager extends GetxController {
     }
   }
 
-  getMealbyMealID(String mealId) async {
+  Future<Meal?> getMealbyMealID(String mealId) async {
     try {
       final meal = await firestore.collection('meals').doc(mealId).get();
-      return Meal.fromJson(mealId, meal.data() as Map<String, dynamic>);
+
+      if (!meal.exists) {
+        return null;
+      }
+
+      final mealData = meal.data();
+      if (mealData == null) {
+        return null;
+      }
+
+      try {
+        final meal = Meal.fromJson(mealId, mealData as Map<String, dynamic>);
+        return meal;
+      } catch (parseError) {
+        return null;
+      }
     } catch (e) {
+      print('❌ Error fetching meal with ID $mealId: $e');
       return null;
     }
   }
