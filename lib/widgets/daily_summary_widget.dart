@@ -5,6 +5,8 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../service/nutrition_controller.dart';
+import '../screens/tomorrow_action_items_screen.dart';
+import '../service/notification_handler_service.dart';
 
 class DailySummaryWidget extends StatefulWidget {
   final DateTime date;
@@ -205,6 +207,30 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             proteinProgress,
             carbsProgress,
             fatProgress,
+            () async {
+              // Use the notification handler service to show action items
+              try {
+                final notificationHandler =
+                    Get.find<NotificationHandlerService>();
+                await notificationHandler.showTomorrowActionItems(context);
+              } catch (e) {
+                print('Error showing action items: $e');
+                // Fallback to direct navigation if service is not available
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TomorrowActionItemsScreen(
+                      todaySummary: summaryData,
+                      tomorrowDate: DateFormat('yyyy-MM-dd').format(
+                        DateTime.now().add(const Duration(days: 1)),
+                      ),
+                      hasMealPlan: false,
+                      notificationType: 'manual',
+                    ),
+                  ),
+                );
+              }
+            },
           ),
 
           SizedBox(height: getPercentageHeight(1, context)),
@@ -408,9 +434,13 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double proteinProgress,
     double carbsProgress,
     double fatProgress,
+    Function() onTap,
   ) {
     final textTheme = Theme.of(context).textTheme;
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    // Check if the date is today
+    final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
+        DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     // Calculate overall progress
     final overallProgress =
@@ -433,43 +463,65 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       messageColor = Colors.orange;
       messageIcon = Icons.star;
     } else {
-      message = 'Every step counts! Tomorrow is a new opportunity! 🌅';
+      message = isToday
+          ? 'Tap to view your action items for tomorrow! 🌅'
+          : 'Every step counts! Tomorrow is a new opportunity! 🌅';
       messageColor = Colors.blue;
       messageIcon = Icons.lightbulb;
     }
 
-    return Container(
-      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-      decoration: BoxDecoration(
-        color: messageColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: messageColor.withValues(alpha: 0.3),
-          width: 1,
+    return GestureDetector(
+      onTap: isToday ? onTap : null, // Only allow tap if it's today
+      child: Container(
+        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+        decoration: BoxDecoration(
+          color: messageColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: messageColor.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(messageIcon,
-              color: messageColor, size: getIconScale(5, context)),
-          SizedBox(width: getPercentageWidth(2, context)),
-          Expanded(
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: messageColor,
-                fontWeight: FontWeight.w500,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (isToday) ...[
+              Icon(
+                Icons.touch_app,
+                color: messageColor.withValues(alpha: 0.7),
+                size: getIconScale(4, context),
+              ),
+            ] else ...[
+              Icon(messageIcon,
+                  color: messageColor, size: getIconScale(5, context)),
+            ],
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: messageColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          Icon(
-            messageIcon,
-            color: messageColor,
-            size: getIconScale(5, context),
-          ),
-        ],
+            // Show tap indicator only if it's today and tap is enabled
+            if (isToday) ...[
+              Icon(
+                Icons.touch_app,
+                color: messageColor.withValues(alpha: 0.7),
+                size: getIconScale(4, context),
+              ),
+            ] else ...[
+              Icon(
+                messageIcon,
+                color: messageColor,
+                size: getIconScale(5, context),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -552,8 +604,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         recommendations.add(
             'Increase protein intake with Lean Meats, Fish, Eggs, or Nuts and Seeds.');
       } else if (dietPreferences.toLowerCase() == 'carnivore') {
-        recommendations.add(
-            'Increase protein intake with Meats, Fish, Eggs, and Dairy.');
+        recommendations
+            .add('Increase protein intake with Meats, Fish, Eggs, and Dairy.');
       } else {
         recommendations.add(
             'Increase protein intake with Lean Meats, Fish, Eggs, Legumes, or Greek Yogurt.');
@@ -577,8 +629,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         recommendations.add(
             'Add Paleo-friendly carbohydrates like Sweet Potatoes, Fruits, or Root Vegetables to your meals.');
       } else if (dietPreferences.toLowerCase() == 'carnivore') {
-        recommendations.add(
-            'For Carnivores, no carbs are allowed.');
+        recommendations.add('For Carnivores, no carbs are allowed.');
       } else {
         recommendations.add(
             'Add complex carbohydrates like Whole Grains, Sweet Potatoes, or Quinoa to your meals.');
@@ -594,7 +645,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
 
     if (fatProgress < 0.7) {
-        if (dietPreferences.toLowerCase() == 'vegan') {
+      if (dietPreferences.toLowerCase() == 'vegan') {
         recommendations.add(
             'Include healthy fats from Avocados, Nuts, Seeds, Olive Oil, or Coconut Oil in your diet.');
       } else if (dietPreferences.toLowerCase() == 'vegetarian') {
@@ -607,8 +658,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         recommendations.add(
             'Include healthy fats from Avocados, Nuts, Olive Oil, Coconut Oil, or Fatty Fish in your diet.');
       } else if (dietPreferences.toLowerCase() == 'carnivore') {
-        recommendations.add(
-            'Include healthy fats from Meats, Butter, Ghee, and Dairy.');
+        recommendations
+            .add('Include healthy fats from Meats, Butter, Ghee, and Dairy.');
       } else {
         recommendations.add(
             'Include healthy fats from Avocados, Nuts, Olive Oil, or Fatty Fish in your diet.');
@@ -667,7 +718,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
 
     // Diet-specific general advice
-      if (dietPreferences.toLowerCase() == 'vegan') {
+    if (dietPreferences.toLowerCase() == 'vegan') {
       recommendations.add(
           'Remember to include a variety of plant-based protein sources throughout the day for complete amino acid profiles.');
     } else if (dietPreferences.toLowerCase() == 'keto') {

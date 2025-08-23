@@ -22,6 +22,7 @@ import 'service/friend_controller.dart';
 import 'service/meal_manager.dart';
 import 'service/meal_plan_controller.dart';
 import 'service/notification_service.dart';
+import 'service/notification_handler_service.dart';
 import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
 import 'service/post_service.dart';
@@ -69,22 +70,48 @@ void main() async {
   Get.lazyPut(() => FriendController());
   Get.put(MacroManager(), permanent: true);
   Get.put(UserService(), permanent: true);
+  Get.put(NotificationHandlerService(), permanent: true);
 
   // Any other non-UI async setup
   await FirebaseService.instance.fetchGeneralData();
   await MealManager.instance.fetchMealsByCategory("All");
+  
+  // Register NotificationService with GetX
   final notificationService = NotificationService();
+  Get.put(notificationService, permanent: true);
+
+  // Handle notification taps
+  void _handleNotificationTap(String payload) async {
+    try {
+      // Parse the payload to determine what to show
+      if (payload.contains('meal_plan_reminder') ||
+          payload.contains('evening_review')) {
+        print('Notification tapped: $payload');
+
+        // Use the notification handler service to process the payload
+        try {
+          final handlerService = Get.find<NotificationHandlerService>();
+          await handlerService.handleNotificationPayload(payload);
+        } catch (e) {
+          print('Notification handler service not available yet: $e');
+          // The service will be available once the app is fully initialized
+        }
+      }
+    } catch (e) {
+      print('Error handling notification tap: $e');
+    }
+  }
+
   try {
-    await notificationService.initNotification();
+    await notificationService.initNotification(
+      onNotificationTapped: (String? payload) {
+        if (payload != null) {
+          _handleNotificationTap(payload);
+        }
+      },
+    );
     await notificationService.scheduleMultipleDailyReminders(
       reminders: [
-        DailyReminder(
-          id: 5001,
-          title: "Morning Check-in 🌅",
-          body: "Plan your meals and set your goals for today!",
-          hour: 7,
-          minute: 0,
-        ),
         DailyReminder(
           id: 5002,
           title: "Water Reminder 💧",

@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import 'notification_handler_service.dart';
 
 class NotificationService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
@@ -32,8 +36,9 @@ class NotificationService {
     await setHasShownUnreadNotification(false);
   }
 
-//initialize
-  Future<void> initNotification() async {
+  //initialize
+  Future<void> initNotification(
+      {Function(String?)? onNotificationTapped}) async {
     if (_isInitialized) return;
 
     // Initialize timezone data
@@ -56,7 +61,17 @@ class NotificationService {
       iOS: initSettingiOS,
     );
 
-    await notificationPlugin.initialize(initSettings);
+    await notificationPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        if (onNotificationTapped != null) {
+          onNotificationTapped(response.payload);
+        }
+
+        // The notification payload will be handled by the callback
+        // The notification handler service will process it when the app is ready
+      },
+    );
   }
 
   // Get user's timezone
@@ -79,8 +94,18 @@ class NotificationService {
         channelDescription: 'Daily Notification Channel',
         importance: Importance.max,
         priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        showWhen: true,
+        autoCancel: false,
+        ongoing: false,
+        channelShowBadge: true,
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
   }
 
@@ -107,6 +132,7 @@ class NotificationService {
     required int hour,
     required int minute,
     String? timeZoneName,
+    Map<String, dynamic>? payload,
   }) async {
     if (Platform.isAndroid) {
       final androidPlugin =
@@ -127,12 +153,6 @@ class NotificationService {
           return; // Exit if notification permissions not granted
         }
       }
-
-      // For exact alarms, we need to direct users to system settings
-      await notificationPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestExactAlarmsPermission();
     }
     // Use provided timezone or fall back to user's timezone
     final targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
@@ -155,15 +175,55 @@ class NotificationService {
     final location = tz.getLocation(targetTimeZone);
     final scheduledTime = tz.TZDateTime.from(scheduledDate, location);
 
-    await notificationPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledTime,
-      notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    try {
+      // Calculate delay from now to scheduled time
+      final delay = scheduledTime.difference(tz.TZDateTime.now(tz.local));
+
+      // Use smart scheduling approach
+      if (Platform.isAndroid && delay.inMinutes <= 60) {
+        // For Android with delays ≤ 1 hour, ALWAYS use Timer-based approach for reliability
+
+        Timer(delay, () async {
+          try {
+            // For Timer-based notifications with payload, we need to handle navigation manually
+            if (payload != null) {
+              // Use the notification handler service to process the payload
+              try {
+                final handler = Get.find<NotificationHandlerService>();
+                await handler.handleNotificationPayload(json.encode(payload));
+              } catch (e) {
+                print('Error processing timer notification payload: $e');
+              }
+            }
+
+            await showNotification(
+              title: title,
+              body: body,
+            );
+          } catch (e) {
+            print('Error sending timer-based notification: $e');
+          }
+        });
+
+        return;
+      } else {
+        // Use standard notification scheduling for longer delays or iOS
+
+        await notificationPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTime,
+          notificationDetails(),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload != null ? json.encode(payload) : null,
+        );
+      }
+    } catch (e) {
+      print('Error scheduling notification: $e');
+      rethrow;
+    }
   }
 
   // Schedule multiple daily reminders
@@ -191,6 +251,197 @@ class NotificationService {
   // Cancel all scheduled notifications
   Future<void> cancelAllScheduledNotifications() async {
     await notificationPlugin.cancelAll();
+  }
+
+  // Check if we should use Timer-based approach for Android short delays
+  bool _shouldUseTimerForAndroid(Duration delay) {
+    return Platform.isAndroid && delay.inMinutes <= 60; // 1 hour threshold
+  }
+
+  // Smart notification scheduling that automatically chooses the best approach
+  Future<void> scheduleSmartNotification({
+    required int id,
+    required String title,
+    required String body,
+    required Duration delay,
+    Map<String, dynamic>? payload,
+  }) async {
+    if (_shouldUseTimerForAndroid(delay)) {
+      await _scheduleTimerNotification(
+        id: id,
+        title: title,
+        body: body,
+        delay: delay,
+        payload: payload,
+      );
+    } else {
+      await scheduleTestNotification(
+        id: id,
+        title: title,
+        body: body,
+        delay: delay,
+        payload: payload,
+      );
+    }
+  }
+
+  // Timer-based notification scheduling (Android workaround)
+  Future<void> _scheduleTimerNotification({
+    required int id,
+    required String title,
+    required String body,
+    required Duration delay,
+    Map<String, dynamic>? payload,
+  }) async {
+    Timer(delay, () async {
+      try {
+        await showNotification(
+          title: title,
+          body: body,
+        );
+      } catch (e) {
+        print('Error sending timer-based notification: $e');
+      }
+    });
+  }
+
+  // Test method for very short delays (useful for debugging)
+  Future<void> scheduleTestNotification({
+    required int id,
+    required String title,
+    required String body,
+    required Duration delay,
+    Map<String, dynamic>? payload,
+  }) async {
+    if (Platform.isAndroid) {
+      final androidPlugin =
+          notificationPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      final hasPermission =
+          await androidPlugin?.areNotificationsEnabled() ?? false;
+
+      if (!hasPermission) {
+        final granted = await androidPlugin?.requestNotificationsPermission();
+        if (granted != true) {
+          return;
+        }
+      }
+    }
+
+    try {
+      // For Android with short delays, use Timer-based approach for reliability
+      if (Platform.isAndroid && delay.inMinutes <= 60) {
+
+
+        // Use Timer for short delays on Android
+        Timer(delay, () async {
+          try {
+            await showNotification(
+              title: title,
+              body: body,
+            );
+
+          } catch (e) {
+            print('Error sending timer-based notification: $e');
+          }
+        });
+
+
+        return;
+      }
+
+      final scheduledTime = tz.TZDateTime.now(tz.local).add(delay);
+
+
+      // For Android, try multiple scheduling approaches to improve reliability
+      if (Platform.isAndroid) {
+        try {
+          // First attempt: Use exactAllowWhileIdle
+          await notificationPlugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledTime,
+            notificationDetails(),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+            payload: payload != null ? payload.toString() : null,
+          );
+
+        } catch (e) {
+          print('First Android attempt failed: $e');
+
+          // Second attempt: Use exact mode
+          await notificationPlugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledTime,
+            notificationDetails(),
+            androidScheduleMode: AndroidScheduleMode.exact,
+            matchDateTimeComponents: DateTimeComponents.time,
+            payload: payload != null ? payload.toString() : null,
+          );
+
+        }
+      } else {
+        // For iOS, use the original approach
+        await notificationPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTime,
+          notificationDetails(),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload != null ? payload.toString() : null,
+        );
+      }
+
+
+    } catch (e) {
+      print('Error scheduling test notification: $e');
+      rethrow;
+    }
+  }
+
+  // Parse notification payload and return structured data
+  Map<String, dynamic>? parseNotificationPayload(String? payload) {
+    if (payload == null) return null;
+
+    try {
+      // Remove the curly braces and split by comma
+      final cleanPayload = payload.replaceAll('{', '').replaceAll('}', '');
+      final pairs = cleanPayload.split(',');
+
+      final Map<String, dynamic> result = {};
+      for (final pair in pairs) {
+        final keyValue = pair.split(':');
+        if (keyValue.length == 2) {
+          final key = keyValue[0].trim();
+          final value = keyValue[1].trim();
+
+          // Parse the value based on its content
+          if (value == 'true') {
+            result[key] = true;
+          } else if (value == 'false') {
+            result[key] = false;
+          } else if (value.startsWith('"') && value.endsWith('"')) {
+            result[key] = value.substring(1, value.length - 1);
+          } else {
+            // Try to parse as number
+            final numValue = double.tryParse(value);
+            result[key] = numValue ?? value;
+          }
+        }
+      }
+
+      return result;
+    } catch (e) {
+      print('Error parsing notification payload: $e');
+      return null;
+    }
   }
 
   // Schedule weekly reminder at specific weekday and time

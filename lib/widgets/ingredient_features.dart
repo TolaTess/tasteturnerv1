@@ -539,7 +539,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               onChanged: _filterItems,
               kText: widget.screen == 'technique'
                   ? 'Search ${capitalizeFirstLetter(widget.searchIngredient ?? '')} ingredients..'
-                  : 'Search ingredients...technique, rainbow colors, etc.',
+                  : 'Search ingredients...',
             ),
           ),
 

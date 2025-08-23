@@ -21,6 +21,7 @@ import '../widgets/search_button.dart';
 import '../widgets/info_icon_widget.dart';
 import 'createrecipe_screen.dart';
 import 'daily_summary_screen.dart';
+import 'tomorrow_action_items_screen.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String title;
@@ -1106,6 +1107,94 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       child: Container(
                         padding: EdgeInsets.all(getPercentageWidth(3, context)),
                         decoration: BoxDecoration(
+                          color: kAccentLight.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kAccentLight.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.insights,
+                              color: kAccentLight,
+                              size: getIconScale(4, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Text(
+                              'View Yesterday\'s Summary',
+                              style: textTheme.titleMedium?.copyWith(
+                                color: kAccentLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: getPercentageWidth(1, context)),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: kAccentLight,
+                              size: getIconScale(3.5, context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                SizedBox(height: getPercentageHeight(2, context)),
+
+                // Todays's action items
+                if (isToday || widget.isShowSummary)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context)),
+                    child: GestureDetector(
+                      onTap: () async {
+                        try {
+                          // Get yesterday's date for the summary data
+                          final yesterday =
+                              DateTime.now().subtract(const Duration(days: 1));
+                          final yesterdayStr =
+                              DateFormat('yyyy-MM-dd').format(yesterday);
+
+                          // Get yesterday's summary data
+                          final userId = userService.userId ?? '';
+                          Map<String, dynamic> yesterdaySummary = {};
+
+                          if (userId.isNotEmpty) {
+                            final summaryDoc = await firestore
+                                .collection('users')
+                                .doc(userId)
+                                .collection('daily_summary')
+                                .doc(yesterdayStr)
+                                .get();
+
+                            if (summaryDoc.exists) {
+                              yesterdaySummary = summaryDoc.data() ?? {};
+                            }
+                          }
+
+                          // Navigate directly to TomorrowActionItemsScreen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TomorrowActionItemsScreen(
+                                todaySummary: yesterdaySummary,
+                                tomorrowDate: DateFormat('yyyy-MM-dd')
+                                    .format(DateTime.now()), // Today's date
+                                hasMealPlan: false,
+                                notificationType: 'manual',
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          print('Error showing action items: $e');
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
                           color: kAccent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
@@ -1117,19 +1206,37 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.insights,
+                              Icons.schedule,
                               color: kAccent,
                               size: getIconScale(4, context),
                             ),
                             SizedBox(width: getPercentageWidth(2, context)),
-                            Text(
-                              'View Yesterday\'s Summary',
-                              style: textTheme.titleMedium?.copyWith(
-                                color: kAccent,
-                                fontWeight: FontWeight.w600,
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'View Today\'s Action Items',
+                                    style: textTheme.titleMedium?.copyWith(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
+                                  Text(
+                                    'Based on yesterday\'s summary',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: kAccent.withValues(alpha: 0.7),
+                                      fontSize: getTextScale(2.5, context),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
-                            SizedBox(width: getPercentageWidth(1, context)),
+                            SizedBox(width: getPercentageWidth(2, context)),
                             Icon(
                               Icons.arrow_forward_ios,
                               color: kAccent,
@@ -1304,47 +1411,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         // Access observable variables to trigger updates
                         _calorieAdjustmentService.mealAdjustments;
                         dailyDataController.snacksCalories.value;
-                        dailyDataController.userMealList['Snacks'];
-
-                        return _buildMealCard(
-                          context: context,
-                          mealType: 'Snacks',
-                          recommendedCalories: _calorieAdjustmentService
-                              .getAdjustedRecommendation('Snacks', 'addFood',
-                                  notAllowedMealType: widget.notAllowedMealType,
-                                  selectedUser: null), // Single user mode
-                          currentCalories:
-                              dailyDataController.snacksCalories.value,
-                          meals:
-                              dailyDataController.userMealList['Snacks'] ?? [],
-                          icon: Icons.fastfood_outlined,
-                          onAdd: () {
-                            setState(() {
-                              foodType = 'Snacks';
-                            });
-                            _showSearchResults(context, 'Snacks');
-                          },
-                          onTap: () {
-                            _showMealDetailModal(
-                              context,
-                              'Snacks',
-                              dailyDataController.userMealList['Snacks'] ?? [],
-                              dailyDataController.snacksCalories.value,
-                              _calorieAdjustmentService
-                                  .getAdjustedRecommendation(
-                                      'Snacks', 'addFood',
-                                      notAllowedMealType:
-                                          widget.notAllowedMealType,
-                                      selectedUser: null), // Single user mode
-                              Icons.fastfood_outlined,
-                            );
-                          },
-                        );
-                      }),
-                      Obx(() {
-                        // Access observable variables to trigger updates
-                        _calorieAdjustmentService.mealAdjustments;
-                        dailyDataController.snacksCalories.value;
                         dailyDataController.userMealList['Fruits'];
 
                         return _buildMealCard(
@@ -1374,6 +1440,47 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               _calorieAdjustmentService
                                   .getAdjustedRecommendation(
                                       'Fruits', 'addFood',
+                                      notAllowedMealType:
+                                          widget.notAllowedMealType,
+                                      selectedUser: null), // Single user mode
+                              Icons.fastfood_outlined,
+                            );
+                          },
+                        );
+                      }),
+                      Obx(() {
+                        // Access observable variables to trigger updates
+                        _calorieAdjustmentService.mealAdjustments;
+                        dailyDataController.snacksCalories.value;
+                        dailyDataController.userMealList['Snacks'];
+
+                        return _buildMealCard(
+                          context: context,
+                          mealType: 'Snacks',
+                          recommendedCalories: _calorieAdjustmentService
+                              .getAdjustedRecommendation('Snacks', 'addFood',
+                                  notAllowedMealType: widget.notAllowedMealType,
+                                  selectedUser: null), // Single user mode
+                          currentCalories:
+                              dailyDataController.snacksCalories.value,
+                          meals:
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                          icon: Icons.fastfood_outlined,
+                          onAdd: () {
+                            setState(() {
+                              foodType = 'Snacks';
+                            });
+                            _showSearchResults(context, 'Snacks');
+                          },
+                          onTap: () {
+                            _showMealDetailModal(
+                              context,
+                              'Snacks',
+                              dailyDataController.userMealList['Snacks'] ?? [],
+                              dailyDataController.snacksCalories.value,
+                              _calorieAdjustmentService
+                                  .getAdjustedRecommendation(
+                                      'Snacks', 'addFood',
                                       notAllowedMealType:
                                           widget.notAllowedMealType,
                                       selectedUser: null), // Single user mode

@@ -28,6 +28,9 @@ import '../data_models/user_data_model.dart';
 import 'dine-in.screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
+import '../screens/tomorrow_action_items_screen.dart';
+import '../service/notification_handler_service.dart';
+import '../service/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   bool familyMode = userService.currentUser.value?.familyMode ?? false;
   late final ProgramService _programService;
+  NotificationService? notificationService;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -67,6 +71,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Initialize ProgramService
     _programService = Get.put(ProgramService());
 
+    // Initialize NotificationService - will be done in post frame callback
+    // to ensure the service is ready
+
     // _initializeMealData();
     loadShowCaloriesPref().then((value) {
       setState(() {
@@ -85,15 +92,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadShoppingDay();
     _setupDataListeners();
     _startNetworkCheck();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAddMealTutorial();
-    });
-
-    // Show family nutrition setup dialog after a delay (only for first-time users)
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _checkAndShowFamilyNutritionDialog();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Initialize NotificationService after the widget is built
+      try {
+        notificationService = Get.find<NotificationService>();
+        print('NotificationService initialized successfully');
+      } catch (e) {
+        print('Error initializing NotificationService: $e');
+        return;
       }
+
+      // Show family nutrition dialog first
+      _checkAndShowFamilyNutritionDialog();
+
+      // Then show the meal tutorial
+      _showAddMealTutorial();
+
+      // Schedule meal reminder notification
+      _scheduleMealReminderNotification();
     });
   }
 
@@ -377,8 +393,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _scheduleMealReminderNotification() async {
+    // Check if notification service is ready
+    if (notificationService == null) {
+      return;
+    }
+
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
+    final today = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(today);
 
     QuerySnapshot snapshot = await firestore
         .collection('mealPlans')
@@ -396,33 +419,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     }
 
-    if (tomorrowHasMealPlan == false) {
-      // Schedule notification for 8 PM
-      final now = DateTime.now();
-      final scheduledTime = DateTime(now.year, now.month, now.day, 20, 0);
-      if (scheduledTime.isAfter(now)) {
-        await notificationService.scheduleDailyReminder(
-          id: 1,
-          title: 'Meal Plan Reminder',
-          body:
-              'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
-          hour: 20,
-          minute: 0,
-        );
+    // Get today's summary data for action items
+    Map<String, dynamic> todaySummary = {};
+    try {
+      final summaryDoc = await firestore
+          .collection('users')
+          .doc(userService.userId)
+          .collection('daily_summary')
+          .doc(todayStr)
+          .get();
+
+      if (summaryDoc.exists) {
+        todaySummary = summaryDoc.data()!;
       }
-    } else {
-      final now = DateTime.now();
-      final scheduledTime = DateTime(now.year, now.month, now.day, 21, 0);
-      if (scheduledTime.isAfter(now)) {
-        await notificationService.scheduleDailyReminder(
-          id: 1,
-          title: 'Evening Review 🌙',
-          body: 'Review your goals and plan for tomorrow!',
-          hour: 21,
-          minute: 0,
-        );
-      }
+    } catch (e) {
+      print('Error loading today\'s summary: $e');
     }
+
+    // Check if the notification time (13:35) has already passed today
+    final now = DateTime.now();
+    final notificationTime = DateTime(now.year, now.month, now.day, 13, 35);
+    final isNotificationTimeInPast = now.isAfter(notificationTime);
+    // If notification time is in the past, schedule for tomorrow; otherwise, schedule for today
+    final targetDate = isNotificationTimeInPast ? tomorrow : now;
+    final targetDateStr = DateFormat('yyyy-MM-dd').format(targetDate);
+
+    if (tomorrowHasMealPlan == false) {
+      // Schedule meal plan reminder
+      await notificationService?.scheduleDailyReminder(
+        id: 1,
+        title: 'Meal Plan Reminder',
+        body:
+            'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
+        hour: 21,
+        minute: 00,
+        payload: {
+          'type': 'meal_plan_reminder',
+          'date': targetDateStr,
+          'todaySummary': todaySummary,
+          'hasMealPlan': false,
+        },
+      );
+    } else {
+      // Schedule evening review
+      await notificationService?.scheduleDailyReminder(
+        id: 2,
+        title: 'Evening Review 🌙',
+        body: 'Review your goals and plan for tomorrow!',
+        hour: 21,
+        minute: 00,
+        payload: {
+          'type': 'evening_review',
+          'date': targetDateStr,
+          'todaySummary': todaySummary,
+          'hasMealPlan': true,
+        },
+      );
+    }
+
+    // Also schedule a morning check-in for the next day
+    await notificationService?.scheduleDailyReminder(
+      id: 3,
+      title: 'Morning Check-in 🌅',
+      body: 'Plan your meals and set your goals for today!',
+      hour: 8,
+      minute: 30,
+      payload: {
+        'type': 'morning_checkin',
+        'date': tomorrowStr,
+        'todaySummary': todaySummary,
+        'hasMealPlan': tomorrowHasMealPlan,
+      },
+    );
   }
 
   void _initializeMealData() async {
@@ -512,16 +580,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (unreadCount >= 1) {
       // Only show notification if we haven't shown it before
-      if (!await notificationService.hasShownUnreadNotification) {
-        await notificationService.showNotification(
+      if (notificationService != null &&
+          !await notificationService!.hasShownUnreadNotification) {
+        await notificationService?.showNotification(
           title: 'Taste Turner - New Message',
           body: 'You have $unreadCount unread messages',
         );
-        await notificationService.setHasShownUnreadNotification(true);
+        await notificationService?.setHasShownUnreadNotification(true);
       }
     } else if (_lastUnreadCount > 0) {
       // Only reset if we're transitioning from unread to read
-      await notificationService.resetUnreadNotificationState();
+      await notificationService?.resetUnreadNotificationState();
     }
 
     _lastUnreadCount = unreadCount; // Update last unread count
@@ -538,8 +607,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    // SizeConfig().init(context);
-    final winners = helperController.winners;
 
     return Obx(() {
       final currentUser = userService.currentUser.value;
