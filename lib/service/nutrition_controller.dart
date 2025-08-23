@@ -340,7 +340,8 @@ class NutritionController extends GetxController {
             calories: newCalories.toInt(),
             quantity: '1',
             mealId: 'Add Food',
-          ), DateTime.now());
+          ),
+          DateTime.now());
     } else {
       final today = DateTime.now();
       final date =

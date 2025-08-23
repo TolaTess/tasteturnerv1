@@ -372,6 +372,7 @@ Future<bool> showCalorieAdjustmentDialog(
   int currentCalories,
   int minRecommended,
   int maxRecommended,
+  String? notAllowedMealType,
 ) async {
   final isDarkMode = getThemeProvider(context).isDarkMode;
   final textTheme = Theme.of(context).textTheme;
@@ -391,16 +392,10 @@ Future<bool> showCalorieAdjustmentDialog(
       adjustmentMealType = 'Dinner';
       break;
     case 'dinner':
-      adjustmentMealType = 'Snacks';
+      adjustmentMealType = notAllowedMealType == 'snack'
+          ? 'Fruits'
+          : 'Snacks';
       break;
-    case 'snacks':
-      adjustmentMealType = 'Fruits';
-      break;
-    case 'fruits':
-      adjustmentMealType = 'Breakfast'; // Wrap around to next day
-      break;
-    default:
-      adjustmentMealType = 'Lunch';
   }
 
   final result = await showDialog<bool>(
@@ -563,62 +558,4 @@ String getAdjustedRecommendedCalories(
   }
 
   return originalRecommendation;
-}
-
-/// Helper function to check calorie overage and show adjustment dialog
-/// This can be used in any screen where meals are added
-Future<void> checkCalorieOverageAndAdjust(
-    BuildContext context, String mealType, int currentCalories,
-    {String? notAllowedMealType, Map<String, dynamic>? selectedUser}) async {
-  final recommendation = getRecommendedCalories(mealType, 'addFood',
-      notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
-  final range = extractCalorieRange(recommendation);
-
-  if (range['min']! > 0 && range['max']! > 0) {
-    final overage = currentCalories - range['max']!;
-
-    if (overage > 0) {
-      final shouldAdjust = await showCalorieAdjustmentDialog(
-        context,
-        mealType,
-        currentCalories,
-        range['min']!,
-        range['max']!,
-      );
-
-      if (shouldAdjust) {
-        // Determine which meal to adjust
-        String adjustmentMealType = '';
-        switch (mealType.toLowerCase()) {
-          case 'breakfast':
-            adjustmentMealType = 'Lunch';
-            break;
-          case 'lunch':
-            adjustmentMealType = 'Dinner';
-            break;
-          case 'dinner':
-            adjustmentMealType = 'Snacks';
-            break;
-          case 'snacks':
-            adjustmentMealType = 'Fruits';
-            break;
-          case 'fruits':
-            adjustmentMealType = 'Breakfast';
-            break;
-          default:
-            adjustmentMealType = 'Lunch';
-        }
-
-        // Show confirmation
-        if (context.mounted) {
-          showTastySnackbar(
-            'Adjustment Suggested',
-            'Consider reducing $adjustmentMealType by $overage kcal to compensate',
-            context,
-            backgroundColor: kAccentLight,
-          );
-        }
-      }
-    }
-  }
 }

@@ -263,8 +263,6 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double carbsGoal,
     double fatGoal,
   ) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    final textTheme = Theme.of(context).textTheme;
 
     return GridView.count(
       shrinkWrap: true,

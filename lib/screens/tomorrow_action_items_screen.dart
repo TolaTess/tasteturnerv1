@@ -72,12 +72,18 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     final protein = _parseMacro(widget.todaySummary['protein']);
     final carbs = _parseMacro(widget.todaySummary['carbs']);
     final fat = _parseMacro(widget.todaySummary['fat']);
+    final water = _parseMacro(widget.todaySummary['water']);
+    final steps = _parseMacro(widget.todaySummary['steps']);
 
     // Get user goals (you might want to fetch these from user service)
-    final calorieGoal = 2000.0; // Default, should be fetched from user settings
-    final proteinGoal = 150.0;
-    final carbsGoal = 200.0;
-    final fatGoal = 65.0;
+    final settings = userService.currentUser.value?.settings;
+    final calorieGoal = _parseMacro(settings?['foodGoal']);
+    final proteinGoal = _parseMacro(settings?['proteinGoal']);
+    final carbsGoal = _parseMacro(settings?['carbsGoal']);
+    final fatGoal = _parseMacro(settings?['fatGoal']);
+
+    print('calories: $calories');
+    print('calorieGoal: $calorieGoal');
 
     // check if tomorrow is today
     final isTomorrow = DateFormat('yyyy-MM-dd').format(tomorrowDate) ==
@@ -88,10 +94,28 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Increase Calorie Intake',
         'description':
-            'You were ${(calorieGoal - calories).round()} calories below your goal ${isTomorrow ? 'yesterday' : 'today'}. Plan for more substantial meals ${isTomorrow ? 'today' : 'tomorrow'}.',
+            'You ${isTomorrow ? 'were' : 'are'} ${(calorieGoal - calories).round()} calories below your goal ${isTomorrow ? 'yesterday' : 'today'}. Plan for more substantial meals ${isTomorrow ? 'today' : 'tomorrow'}.',
         'icon': Icons.restaurant,
         'color': kAccent,
         'priority': 'high',
+      });
+    } else if (calories > calorieGoal * 1.2) {
+      actionItems.add({
+        'title': 'Reduce Calorie Intake',
+        'description':
+            'You ${isTomorrow ? 'were' : 'are'} ${(calories - calorieGoal).round()} calories above your goal ${isTomorrow ? 'yesterday' : 'today'}. Plan for smaller meals ${isTomorrow ? 'today' : 'tomorrow'}.',
+        'icon': Icons.restaurant,
+        'color': kRed,
+        'priority': 'high',
+      });
+    } else {
+      actionItems.add({
+        'title': 'Calorie Intake',
+        'description':
+            'You\'ve hit ${((calories / calorieGoal) * 100).round()}% of your calorie intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar calorie intake tomorrow.'} ',
+        'icon': Icons.restaurant,
+        'color': kGreen,
+        'priority': 'low',
       });
     }
 
@@ -99,10 +123,28 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Boost Protein',
         'description':
-            'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today' : 'tomorrow'} meals.',
+            'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
         'icon': Icons.fitness_center,
         'color': kBlue,
         'priority': 'medium',
+      });
+    } else if (protein > proteinGoal * 1.2) {
+      actionItems.add({
+        'title': 'Reduce Protein',
+        'description':
+            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce protein intake to stay within your goal.',
+        'icon': Icons.fitness_center,
+        'color': kRed,
+        'priority': 'medium',
+      });
+    } else {
+      actionItems.add({
+        'title': 'Protein Intake',
+        'description':
+            'You\'ve hit ${((protein / proteinGoal) * 100).round()}% of your protein intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar protein intake tomorrow.'} ',
+        'icon': Icons.fitness_center,
+        'color': kGreen,
+        'priority': 'low',
       });
     }
 
@@ -110,10 +152,28 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Include More Carbs',
         'description':
-            'Add healthy carbohydrates like whole grains, fruits, or vegetables to fuel your day.',
+              'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
         'icon': Icons.grain,
         'color': kGreen,
         'priority': 'medium',
+      });
+    } else if (carbs > carbsGoal * 1.2) {
+      actionItems.add({
+        'title': 'Reduce Carbs',
+        'description':
+            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce carb intake to stay within your goal.',
+        'icon': Icons.grain,
+        'color': kRed,
+        'priority': 'medium',
+      });
+    } else {
+      actionItems.add({
+        'title': 'Carbs Intake',
+        'description':
+            'You\'ve hit ${((carbs / carbsGoal) * 100).round()}% of your carbs intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar carbs intake tomorrow.'} ',
+        'icon': Icons.grain,
+        'color': kGreen,
+        'priority': 'low',
       });
     }
 
@@ -121,9 +181,27 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Healthy Fats',
         'description':
-            'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today' : 'tomorrow'} meals.',
+            'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
         'icon': Icons.water_drop,
         'color': kPurple,
+        'priority': 'medium',
+      });
+    } else if (fat > fatGoal * 1.2) {
+      actionItems.add({
+        'title': 'Reduce Fat',
+        'description':
+            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce fat intake to stay within your goal.',
+        'icon': Icons.water_drop,
+        'color': kRed,
+        'priority': 'medium',
+      });
+    } else {
+      actionItems.add({
+        'title': 'Fat Intake',
+        'description':
+            'You\'ve hit ${((fat / fatGoal) * 100).round()}% of your fat intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar fat intake tomorrow.'} ',
+        'icon': Icons.water_drop,
+        'color': kGreen,
         'priority': 'low',
       });
     }
@@ -141,14 +219,16 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     }
 
     // General wellness suggestions
-    actionItems.add({
-      'title': 'Stay Hydrated',
-      'description':
-          'Aim to drink at least 8 glasses of water ${isTomorrow ? 'today' : 'tomorrow'} to support your metabolism.',
-      'icon': Icons.local_drink,
-      'color': kBlue,
-      'priority': 'medium',
-    });
+    if (water < 2000) {
+      actionItems.add({
+        'title': 'Stay Hydrated',
+        'description':
+            'Aim to drink at least 2000 ml of water ${isTomorrow ? 'today' : 'tomorrow'} to support your metabolism.',
+        'icon': Icons.local_drink,
+        'color': kBlue,
+        'priority': 'medium',
+      });
+    }
 
     // If no specific issues, add positive reinforcement
     if (actionItems.length <= 2) {
@@ -250,8 +330,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                 ],
               ),
             ),
-            if (isToday)
-              SizedBox(height: getPercentageHeight(2, context)),
+            if (isToday) SizedBox(height: getPercentageHeight(2, context)),
 
             // Tomorrow's action items button - only visible when viewing today's action items
             if (isToday)

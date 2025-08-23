@@ -133,6 +133,7 @@ class CalorieAdjustmentService extends GetxController {
           currentCalories,
           range['min']!,
           range['max']!,
+          notAllowedMealType,
         );
 
         if (shouldAdjust) {
@@ -146,16 +147,10 @@ class CalorieAdjustmentService extends GetxController {
               adjustmentMealType = 'Dinner';
               break;
             case 'dinner':
-              adjustmentMealType = 'Snacks';
+              adjustmentMealType = notAllowedMealType == 'snack'
+                  ? 'Fruits'
+                  : 'Snacks';
               break;
-            case 'snacks':
-              adjustmentMealType = 'Fruits';
-              break;
-            case 'fruits':
-              adjustmentMealType = 'Breakfast';
-              break;
-            default:
-              adjustmentMealType = 'Lunch';
           }
 
           // Set the adjustment

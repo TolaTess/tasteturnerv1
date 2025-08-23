@@ -71,6 +71,98 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   // Add this as a class field at the top of the class
   List<UserMeal> _pendingMacroItems = [];
 
+  // Track when meals were last modified to ensure accurate calorie calculations
+  final Map<String, DateTime> _lastMealModification = {};
+
+  // Track pending items modifications for debugging
+  void _addPendingItem(UserMeal item) {
+    _pendingMacroItems.add(item);
+    print(
+        'Added pending item: ${item.name} (${item.calories} kcal). Total pending: ${_pendingMacroItems.length}');
+  }
+
+  void _clearPendingItems() {
+    print('Clearing pending items. Count before: ${_pendingMacroItems.length}');
+    _pendingMacroItems.clear();
+  }
+
+  // Method to manually refresh meal data for a specific meal type
+  Future<void> _refreshMealData(String mealType) async {
+    try {
+      // Force a refresh of the daily data
+      dailyDataController.listenToDailyData(
+        userId,
+        widget.date ?? DateTime.now(),
+      );
+
+      // Wait for the data to be updated
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Track when this meal type was last modified
+      _lastMealModification[mealType] = DateTime.now();
+
+      // Force a rebuild of the UI
+      setState(() {});
+    } catch (e) {
+      print('Error refreshing meal data: $e');
+    }
+  }
+
+  // Helper method to get current calories for a meal type by counting actual meals in the list
+  int _getCurrentCaloriesForMealType(String mealType) {
+    // Get the actual meals from the userMealList instead of relying on observable values
+    final currentMeals = dailyDataController.userMealList[mealType] ?? [];
+
+    // If no meals in the list, return 0
+    if (currentMeals.isEmpty) {
+      print('No meals found in $mealType list - returning 0 calories');
+      return 0;
+    }
+
+    // Count calories from actual meals in the list
+    final totalCalories =
+        currentMeals.fold<int>(0, (sum, meal) => sum + meal.calories);
+
+    return totalCalories;
+  }
+
+  // Method to check if we need to force a refresh for a meal type
+  bool _needsRefresh(String mealType) {
+    final lastMod = _lastMealModification[mealType];
+    if (lastMod == null) return false;
+
+    // If the last modification was more than 5 seconds ago, we might need a refresh
+    final timeSinceLastMod = DateTime.now().difference(lastMod);
+    return timeSinceLastMod.inSeconds > 5;
+  }
+
+  // Method to get a snapshot of current meal data for accurate calculations
+  Map<String, dynamic> _getMealTypeSnapshot(String mealType) {
+    final currentMeals = dailyDataController.userMealList[mealType] ?? [];
+    final currentCalories =
+        currentMeals.fold<int>(0, (sum, meal) => sum + meal.calories);
+
+    return {
+      'mealCount': currentMeals.length,
+      'totalCalories': currentCalories,
+      'meals': currentMeals
+          .map((meal) => {
+                'name': meal.name,
+                'calories': meal.calories,
+              })
+          .toList(),
+    };
+  }
+
+  // Method to get total pending calories
+  int _getTotalPendingCalories() {
+    final total =
+        _pendingMacroItems.fold<int>(0, (sum, item) => sum + item.calories);
+    print(
+        '_getTotalPendingCalories called: ${_pendingMacroItems.length} items, total: $total kcal');
+    return total;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +183,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (e.g., when returning to this screen)
+    _loadData();
+  }
+
   // Load calorie adjustments from SharedPreferences
   Future<void> _loadCalorieAdjustments() async {
     await _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
@@ -104,6 +203,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   void dispose() {
     _searchController.dispose();
+    // Clear pending items to prevent memory leaks
+    _clearPendingItems();
+    _lastMealModification.clear();
     // Don't clear adjustments - let them persist throughout the day
     super.dispose();
   }
@@ -115,6 +217,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       _allIngredients = macroManager.ingredient;
       final currentDate = widget.date ?? DateTime.now();
       dailyDataController.listenToDailyData(userId, currentDate);
+
+      // Ensure calorie adjustment service has current data
+      await _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
     } catch (e) {
       print('Error loading data: $e');
     }
@@ -275,17 +380,128 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     padding: EdgeInsets.only(
                         top: getPercentageHeight(4, context),
                         bottom: getPercentageHeight(2, context)),
-                    child: Text(
-                      'Add to ${capitalizeFirstLetter(foodType)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: getPercentageWidth(4.5, context),
-                            fontWeight: FontWeight.w400,
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kBlack,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Add to ${capitalizeFirstLetter(foodType)}',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: getPercentageWidth(4.5, context),
+                                    fontWeight: FontWeight.w400,
+                                    color: getThemeProvider(context).isDarkMode
+                                        ? kWhite
+                                        : kBlack,
+                                  ),
+                        ),
+                        if (_pendingMacroItems.isNotEmpty) ...[
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(2, context),
+                              vertical: getPercentageHeight(0.5, context),
+                            ),
+                            decoration: BoxDecoration(
+                              color: kAccent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_pendingMacroItems.length} pending',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: kAccent,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: getTextScale(2.5, context),
+                                  ),
+                            ),
                           ),
+                        ],
+                      ],
                     ),
                   ),
+                  // Show pending items summary if any
+                  if (_pendingMacroItems.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: getPercentageHeight(2, context),
+                      ),
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                        decoration: BoxDecoration(
+                          color: kAccentLight.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: kAccentLight.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.schedule,
+                                  color: kAccentLight,
+                                  size: getIconScale(4, context),
+                                ),
+                                SizedBox(width: getPercentageWidth(1, context)),
+                                Text(
+                                  'Pending: ${_getTotalPendingCalories()} kcal (${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'})',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: kAccentLight,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            if (_pendingMacroItems.isNotEmpty) ...[
+                              SizedBox(height: getPercentageHeight(1, context)),
+                              ..._pendingMacroItems
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                final index = entry.key;
+                                final item = entry.value;
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(0.3, context),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        '${index + 1}. ${item.name} (${item.calories} kcal)',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: kAccentLight.withValues(
+                                                  alpha: 0.8),
+                                            ),
+                                      ),
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: kAccentLight,
+                                        size: getIconScale(3, context),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   // Search box
                   Row(
                     children: [
@@ -701,7 +917,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.97,
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.40,
+                    maxHeight: MediaQuery.of(context).size.height * 0.45,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -713,8 +929,77 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         ),
                       ),
                       SizedBox(height: getPercentageHeight(1, context)),
+
+                      // Show current meal type status
+                      Container(
+                        padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? kDarkGrey.withValues(alpha: 0.3)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Current $mealType Status:',
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w500,
+                                fontSize: getTextScale(3, context),
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                            Text(
+                              '${_getCurrentCaloriesForMealType(mealType)} kcal from ${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
+                              style: TextStyle(
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                                fontSize: getTextScale(2.5, context),
+                              ),
+                            ),
+                            if (_pendingMacroItems.isNotEmpty) ...[
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                'Pending: ${_getTotalPendingCalories()} kcal from ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'}',
+                                style: TextStyle(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              ),
+                            ],
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(2, context),
+                                vertical: getPercentageHeight(0.5, context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: kAccent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: kAccent.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Projected Total: ${_getCurrentCaloriesForMealType(mealType) + _getTotalPendingCalories()} kcal',
+                                style: TextStyle(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.25,
+                        height: MediaQuery.of(context).size.height * 0.28,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -722,7 +1007,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               flex: 1,
                               child: Container(
                                 height:
-                                    MediaQuery.of(context).size.height * 0.25,
+                                    MediaQuery.of(context).size.height * 0.28,
                                 child: buildPicker(
                                     context,
                                     21,
@@ -737,7 +1022,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               flex: 1,
                               child: Container(
                                 height:
-                                    MediaQuery.of(context).size.height * 0.25,
+                                    MediaQuery.of(context).size.height * 0.28,
                                 child: buildPicker(
                                   context,
                                   unitOptions.length,
@@ -760,7 +1045,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _pendingMacroItems.clear();
+                    _clearPendingItems();
+                    // Also refresh the data to ensure UI is current
+                    _refreshMealData(mealType);
                   },
                   child: Text(
                     'Cancel',
@@ -771,10 +1058,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     try {
                       final newItem = createUserMeal();
-                      _pendingMacroItems.add(newItem);
+                      _addPendingItem(newItem);
                       Navigator.pop(context);
                       _showSearchResults(context, mealType);
                     } catch (e) {
@@ -799,9 +1086,20 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 TextButton(
                   onPressed: () async {
                     try {
-                      // Always add the current item before saving
+                      // Always add the current item to pending list FIRST
                       final newItem = createUserMeal();
-                      _pendingMacroItems.add(newItem);
+                      _addPendingItem(newItem);
+
+                      // NOW calculate calories with the complete pending list
+                      final newCalories = _getTotalPendingCalories();
+
+                      // Get a snapshot of current meal data BEFORE adding new meals to the database
+                      final mealSnapshot = _getMealTypeSnapshot(mealType);
+                      int existingCalories =
+                          mealSnapshot['totalCalories'] as int;
+
+                      // Calculate total calories that will exist after adding
+                      final totalCalories = existingCalories + newCalories;
 
                       // Save all pending items
                       for (var item in _pendingMacroItems) {
@@ -813,39 +1111,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         );
                       }
 
-                      // Check for calorie overage after saving
+                      // Check for calorie overage using the pre-calculated values
                       if (mounted) {
-                        final newCalories = _pendingMacroItems.fold<int>(
-                            0, (sum, item) => sum + item.calories);
-
-                        // Get existing calories for this meal type
-                        int existingCalories = 0;
-                        switch (mealType.toLowerCase()) {
-                          case 'breakfast':
-                            existingCalories =
-                                dailyDataController.breakfastCalories.value;
-                            break;
-                          case 'lunch':
-                            existingCalories =
-                                dailyDataController.lunchCalories.value;
-                            break;
-                          case 'dinner':
-                            existingCalories =
-                                dailyDataController.dinnerCalories.value;
-                            break;
-                          case 'snacks':
-                            existingCalories =
-                                dailyDataController.snacksCalories.value;
-                            break;
-                          case 'fruits':
-                            // Fruits might be included in snacks or handled separately
-                            existingCalories =
-                                dailyDataController.snacksCalories.value;
-                            break;
-                        }
-
-                        // Total calories = existing + new
-                        final totalCalories = existingCalories + newCalories;
+                        // Also refresh the calorie adjustment service to ensure it has current data
+                        await _calorieAdjustmentService
+                            .loadAdjustmentsFromSharedPrefs();
 
                         await _calorieAdjustmentService
                             .checkAndShowAdjustmentDialog(
@@ -858,6 +1128,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         );
                       }
 
+                      // Refresh the meal data to ensure UI shows current state
+                      await _refreshMealData(mealType);
+
                       if (mounted) {
                         showTastySnackbar(
                           'Success',
@@ -865,7 +1138,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           context,
                         );
                       }
-                      _pendingMacroItems.clear();
+                      _clearPendingItems();
                       Navigator.pop(context);
                     } catch (e) {
                       if (mounted) {
@@ -902,6 +1175,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     final isToday = widget.date != null &&
         DateFormat('dd/MM/yyyy').format(widget.date!) ==
             DateFormat('dd/MM/yyyy').format(today);
+
+    // Ensure we have the most current data when building
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
+      }
+    });
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -1281,7 +1561,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 SizedBox(
                   height: MediaQuery.of(context).size.height -
                       getPercentageHeight(
-                          30, context), // Fixed height for the list area
+                          20, context), // Fixed height for the list area
                   child: Column(
                     children: [
                       Obx(() {
@@ -1664,7 +1944,33 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 onTap: onTap,
                 child: Row(
                   children: [
-                    Icon(icon, size: getIconScale(10, context), color: kAccent),
+                    Stack(
+                      children: [
+                        Icon(icon,
+                            size: getIconScale(10, context), color: kAccent),
+                        if (meals.isNotEmpty)
+                          Positioned(
+                            right: -5,
+                            top: -5,
+                            child: Container(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(0.5, context)),
+                              decoration: const BoxDecoration(
+                                color: kAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${meals.length}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: getTextScale(2, context),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                     SizedBox(width: getPercentageWidth(2, context)),
                     Expanded(
                       child: Column(
@@ -1723,7 +2029,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             SizedBox(height: getPercentageHeight(1, context)),
                           if (currentCalories > 0)
                             Text(
-                              'Added: $currentCalories kcal',
+                              'Added: $currentCalories kcal (${meals.length} ${meals.length == 1 ? 'meal' : 'meals'})',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kAccent,
                                 fontWeight: FontWeight.w500,
@@ -1733,15 +2039,53 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             Padding(
                               padding: EdgeInsets.only(
                                   top: getPercentageHeight(1, context)),
-                              child: Text(
-                                meals.map((e) => e.name).join(', '),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Current meals:',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
+                                  ...meals.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final meal = entry.value;
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                        left: getPercentageWidth(2, context),
+                                        bottom:
+                                            getPercentageHeight(0.3, context),
+                                      ),
+                                      child: index < 1
+                                          ? Text(
+                                              '${index + 1}. ${meal.name} (${meal.calories} kcal)',
+                                              style:
+                                                  textTheme.bodySmall?.copyWith(
+                                                color: isDarkMode
+                                                    ? Colors.grey[400]
+                                                    : Colors.grey[600],
+                                              ),
+                                            )
+                                          : index == 1
+                                              ? Text(
+                                                  'Tap to see ${meals.length - 1} more...',
+                                                  style: textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: kAccent,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                )
+                                              : const SizedBox(),
+                                    );
+                                  }).toList(),
+                                ],
                               ),
                             ),
                         ],

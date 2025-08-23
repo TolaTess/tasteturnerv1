@@ -64,6 +64,27 @@ exports.calculateDailyNutrition = functions.firestore
       return null;
     }
 
+    // Also fetch water and steps data from userMeals
+    let waterData = null;
+    let stepsData = null;
+    try {
+      const userMealsDocRef = firestore
+        .collection("userMeals")
+        .doc(userId)
+        .collection("meals")
+        .doc(date);
+      
+      const userMealsDoc = await userMealsDocRef.get();
+      if (userMealsDoc.exists) {
+        const userMealsData = userMealsDoc.data();
+        waterData = userMealsData.Water || null;
+        stepsData = userMealsData.Steps || null;
+        console.log(`Found water data: ${waterData}, steps data: ${stepsData}`);
+      }
+    } catch (error) {
+      console.log(`Error fetching water/steps data: ${error.message}`);
+    }
+
     const data = change.after.data();
     // The 'meals' field is a map, not an array. We need to extract the items.
     const mealsMap = data.meals || {};
@@ -163,6 +184,8 @@ exports.calculateDailyNutrition = functions.firestore
         carbs: totalCarbs,
         fat: totalFat,
         mealTotals,
+        water: waterData,
+        steps: stepsData,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       };
 
@@ -179,6 +202,7 @@ exports.calculateDailyNutrition = functions.firestore
       );
       console.log("Updated data:", dailySummaryData);
       console.log(`Macro totals - Protein: ${totalProtein}g, Carbs: ${totalCarbs}g, Fat: ${totalFat}g`);
+      console.log(`Activity data - Water: ${waterData}, Steps: ${stepsData}`);
       console.log("--- Function calculateDailyNutrition finished ---");
       return null;
     } catch (error) {
@@ -187,6 +211,89 @@ exports.calculateDailyNutrition = functions.firestore
         error
       );
       console.error("--- Function calculateDailyNutrition ERRORED ---");
+      return null;
+    }
+  });
+
+/**
+ * A Firestore-triggered Cloud Function that updates the daily summary
+ * when water or steps data is modified in userMeals.
+ * This ensures the daily summary stays in sync even when only activity data changes.
+ */
+exports.updateDailySummaryOnActivityChange = functions.firestore
+  .document("userMeals/{userId}/meals/{date}")
+  .onWrite(async (change, context) => {
+    const { userId, date } = context.params;
+    console.log(
+      `--- Function updateDailySummaryOnActivityChange triggered for user: ${userId} on date: ${date} ---`
+    );
+
+    // Check if Water or Steps fields were modified
+    const beforeData = change.before.exists ? change.before.data() : {};
+    const afterData = change.after.exists ? change.after.data() : {};
+    
+    const waterChanged = beforeData.Water !== afterData.Water;
+    const stepsChanged = beforeData.Steps !== afterData.Steps;
+    
+    // Only proceed if water or steps changed, and meals didn't change
+    // (meals are handled by the calculateDailyNutrition function)
+    if (!waterChanged && !stepsChanged) {
+      console.log("No water or steps data changed, skipping update");
+      return null;
+    }
+    
+    // Check if meals data also changed - if so, let the calculateDailyNutrition function handle it
+    const beforeMeals = beforeData.meals || {};
+    const afterMeals = afterData.meals || {};
+    const mealsChanged = JSON.stringify(beforeMeals) !== JSON.stringify(afterMeals);
+    
+    if (mealsChanged) {
+      console.log("Meals data also changed, letting calculateDailyNutrition handle the update");
+      return null;
+    }
+
+    console.log(`Water changed: ${waterChanged}, Steps changed: ${stepsChanged}`);
+
+    try {
+      // Get the current daily summary
+      const summaryDocRef = firestore
+        .collection("users")
+        .doc(userId)
+        .collection("daily_summary")
+        .doc(date);
+      
+      const summaryDoc = await summaryDocRef.get();
+      
+      if (!summaryDoc.exists) {
+        console.log("No daily summary exists for this date, skipping update");
+        return null;
+      }
+
+      const currentSummary = summaryDoc.data();
+      
+      // Update only the water and steps fields
+      const updatedSummary = {
+        ...currentSummary,
+        water: afterData.Water || null,
+        steps: afterData.Steps || null,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await summaryDocRef.set(updatedSummary, { merge: true });
+
+      console.log(
+        `Successfully updated daily summary activity data for user ${userId} on ${date}`
+      );
+      console.log(`Updated water: ${afterData.Water}, steps: ${afterData.Steps}`);
+      console.log("--- Function updateDailySummaryOnActivityChange finished ---");
+      
+      return null;
+    } catch (error) {
+      console.error(
+        `Error updating daily summary activity data for user ${userId} on ${date}:`,
+        error
+      );
+      console.error("--- Function updateDailySummaryOnActivityChange ERRORED ---");
       return null;
     }
   });
