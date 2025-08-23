@@ -118,7 +118,7 @@ class UserDetailsSection extends StatelessWidget {
                 child: Text(
                   '${user['foodGoal']} kcal',
                   style: textTheme.bodyMedium
-                      ?.copyWith(fontSize: getPercentageWidth(3, context)),
+                      ?.copyWith(fontSize: getPercentageWidth(3, context), ),
                 ),
               ),
             // Edit button as floating action
