@@ -82,9 +82,6 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     final carbsGoal = _parseMacro(settings?['carbsGoal']);
     final fatGoal = _parseMacro(settings?['fatGoal']);
 
-    print('calories: $calories');
-    print('calorieGoal: $calorieGoal');
-
     // check if tomorrow is today
     final isTomorrow = DateFormat('yyyy-MM-dd').format(tomorrowDate) ==
         DateFormat('yyyy-MM-dd').format(DateTime.now());
