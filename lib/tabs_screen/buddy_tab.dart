@@ -282,8 +282,7 @@ class _BuddyTabState extends State<BuddyTab> {
         groupedMeals['other'] = unmatchedMeals;
       }
 
-      groupedMeals.forEach((type, meals) {
-      });
+      groupedMeals.forEach((type, meals) {});
 
       return [
         {'groupedMeals': groupedMeals}
@@ -746,6 +745,13 @@ class _BuddyTabState extends State<BuddyTab> {
 
                 final selectedGeneration = filteredGenerations[
                     filteredGenerations.length - 1]; // Get last generation
+
+                // Check if nutritional summary exists, if not show default UI
+                if (selectedGeneration['nutritionalSummary'] == null) {
+                  print('No nutritional summary found, showing default UI');
+                  return _buildDefaultView(context);
+                }
+
                 final diet =
                     selectedGeneration['diet']?.toString() ?? 'general';
                 final mealsFuture =

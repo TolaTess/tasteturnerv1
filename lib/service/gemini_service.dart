@@ -2648,6 +2648,521 @@ USER CONTEXT:
     }
   }
 
+  /// Generate meal titles and types based on user context and requirements
+  Future<Map<String, dynamic>> generateMealTitles(
+      String prompt, String contextInformation) async {
+    // Initialize model if not already done
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        throw Exception('No suitable AI model available');
+      }
+    }
+
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+    final userContext = await _getUserContext();
+
+    try {
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        operation: 'generate meal titles',
+        body: {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": '''
+You are a professional nutritionist and meal planner.
+
+$aiContext
+
+$prompt
+
+$contextInformation
+
+$userContext
+
+Based on the user's request and context, generate a meal plan with titles and meal types that would be appropriate and varied. 
+
+IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use code blocks (```json), do NOT add any text before or after the JSON. Start directly with { and end with }.
+{
+  "mealPlan": [
+    {
+      "title": "Greek Yogurt with Berries and Nuts",
+      "mealType": "breakfast"
+    },
+    {
+      "title": "Avocado Toast with Eggs",
+      "mealType": "breakfast"
+    },
+    {
+      "title": "Grilled Chicken with Roasted Vegetables",
+      "mealType": "lunch"
+    },
+    {
+      "title": "Quinoa Buddha Bowl",
+      "mealType": "lunch"
+    },
+    {
+      "title": "Mediterranean Salad with Tuna",
+      "mealType": "lunch"
+    },
+    {
+      "title": "Salmon with Steamed Broccoli",
+      "mealType": "dinner"
+    },
+    {
+      "title": "Vegetarian Pasta Primavera",
+      "mealType": "dinner"
+    },
+    {
+      "title": "Beef Stir Fry with Brown Rice",
+      "mealType": "dinner"
+    },
+    {
+      "title": "Apple with Almond Butter",
+      "mealType": "snack"
+    },
+    {
+      "title": "Hummus with Carrot Sticks",
+      "mealType": "snack"
+    }
+  ],
+  "distribution": {
+    "breakfast": 2,
+    "lunch": 3,
+    "dinner": 3,
+    "snack": 2
+  }
+}
+
+CRITICAL REQUIREMENTS:
+- You MUST generate EXACTLY 10 meals total (no more, no less)
+- You MUST follow this exact distribution:
+  * 2 breakfast meals (mealType: "breakfast")
+  * 3 lunch meals (mealType: "lunch")
+  * 3 dinner meals (mealType: "dinner") 
+  * 2 snack meals (mealType: "snack")
+- Each meal MUST have a valid mealType field set to one of: "breakfast", "lunch", "dinner", "snack"
+- Make titles descriptive but concise
+- Ensure variety in ingredients and cooking methods
+- Consider dietary preferences and restrictions
+- For ingredient-based requests, use the specified ingredients
+- For category-based requests, ensure meals fit the categories
+- Make titles appetizing and clear about what the meal contains
+'''
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 1024,
+          },
+        },
+      );
+
+      if (response['candidates'] == null || response['candidates'].isEmpty) {
+        throw Exception('No response from AI model');
+      }
+
+      final content = response['candidates'][0]['content'];
+      if (content == null ||
+          content['parts'] == null ||
+          content['parts'].isEmpty) {
+        throw Exception('Invalid response structure from AI model');
+      }
+
+      final text = content['parts'][0]['text'];
+      if (text == null || text.isEmpty) {
+        throw Exception('Empty response from AI model');
+      }
+
+      // Parse the JSON response - handle both raw JSON and markdown-wrapped JSON
+      String jsonText = text.trim();
+
+      // Remove markdown code blocks if present
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.substring(7); // Remove ```json
+      }
+      if (jsonText.startsWith('```')) {
+        jsonText = jsonText.substring(3); // Remove ```
+      }
+      if (jsonText.endsWith('```')) {
+        jsonText = jsonText.substring(0, jsonText.length - 3); // Remove ```
+      }
+
+      jsonText = jsonText.trim();
+
+      final jsonResponse = json.decode(jsonText) as Map<String, dynamic>;
+      final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
+      final mealTitles =
+          mealPlan.map((meal) => meal['title'] as String).toList();
+
+      // Return both meal titles and the full meal plan data
+      return {
+        'mealTitles': mealTitles,
+        'mealPlan': mealPlan,
+        'distribution': jsonResponse['distribution'] as Map<String, dynamic>? ??
+            {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
+      };
+    } catch (e) {
+      print('Error generating meal titles: $e');
+      // Return fallback data with 10 meals
+      return {
+        'mealTitles': [
+          'Greek Yogurt with Berries and Nuts',
+          'Avocado Toast with Eggs',
+          'Grilled Chicken with Roasted Vegetables',
+          'Quinoa Buddha Bowl',
+          'Mediterranean Salad with Tuna',
+          'Salmon with Steamed Broccoli',
+          'Vegetarian Pasta Primavera',
+          'Beef Stir Fry with Brown Rice',
+          'Apple with Almond Butter',
+          'Hummus with Carrot Sticks',
+        ],
+        'mealPlan': [
+          {
+            'title': 'Greek Yogurt with Berries and Nuts',
+            'mealType': 'breakfast'
+          },
+          {'title': 'Avocado Toast with Eggs', 'mealType': 'breakfast'},
+          {
+            'title': 'Grilled Chicken with Roasted Vegetables',
+            'mealType': 'lunch'
+          },
+          {'title': 'Quinoa Buddha Bowl', 'mealType': 'lunch'},
+          {'title': 'Mediterranean Salad with Tuna', 'mealType': 'lunch'},
+          {'title': 'Salmon with Steamed Broccoli', 'mealType': 'dinner'},
+          {'title': 'Vegetarian Pasta Primavera', 'mealType': 'dinner'},
+          {'title': 'Beef Stir Fry with Brown Rice', 'mealType': 'dinner'},
+          {'title': 'Apple with Almond Butter', 'mealType': 'snack'},
+          {'title': 'Hummus with Carrot Sticks', 'mealType': 'snack'},
+        ],
+        'distribution': {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2}
+      };
+    }
+  }
+
+  /// Check which meal titles already exist in the database (fuzzy matching)
+  Future<Map<String, Meal>> checkExistingMealsByTitles(
+      List<String> mealTitles) async {
+    final existingMeals = <String, Meal>{};
+
+    try {
+      // Get all meals from the database
+      final allMeals = mealManager.meals;
+
+      for (final title in mealTitles) {
+        // Find the best matching meal for this title
+        Meal? bestMatch;
+        double bestScore = 0.0;
+
+        for (final meal in allMeals) {
+          final score = _calculateTitleSimilarity(
+              title.toLowerCase(), meal.title.toLowerCase());
+          if (score > bestScore && score > 0.6) {
+            // Threshold for similarity
+            bestScore = score;
+            bestMatch = meal;
+          }
+        }
+
+        if (bestMatch != null) {
+          existingMeals[title] = bestMatch;
+        } else {
+          print('No existing meal found for "$title"');
+        }
+      }
+
+      return existingMeals;
+    } catch (e) {
+      print('Error checking existing meals by titles: $e');
+      return {};
+    }
+  }
+
+  /// Calculate similarity between two meal titles (fuzzy matching)
+  double _calculateTitleSimilarity(String title1, String title2) {
+    // Simple word-based similarity
+    final words1 = title1.split(' ').toSet();
+    final words2 = title2.split(' ').toSet();
+
+    final intersection = words1.intersection(words2);
+    final union = words1.union(words2);
+
+    if (union.isEmpty) return 0.0;
+
+    return intersection.length / union.length;
+  }
+
+  /// Generate meals directly with AI without checking existing meals
+  Future<Map<String, dynamic>> generateMealsWithAI(
+      String prompt, String contextInformation) async {
+    // Initialize model if not already done
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        // Try fallback if model initialization fails
+        return await _getFallbackMeals(prompt);
+      }
+    }
+
+    // Get comprehensive user context
+    final aiContext = await _buildAIContext();
+    final userContext = await _getUserContext();
+
+    try {
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        operation: 'generate meals with AI',
+        body: {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": '''
+You are a professional nutritionist and meal planner.
+
+$aiContext
+
+$prompt
+
+$contextInformation
+
+$userContext
+
+Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+{
+  "meals": [
+    {
+      "title": "Dish name",
+      "type": "protein|grain|vegetable",
+      "mealType": "breakfast | lunch | dinner | snack",
+      "cookingTime": "time in minutes",
+      "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
+      "ingredients": {
+        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+        "ingredient2": "amount with unit"
+      },
+      "instructions": ["step1", "step2", ...],
+      "diet": "diet type",
+      "nutritionalInfo": {
+        "calories": number,
+        "protein": number,
+        "carbs": number,
+        "fat": number
+      },
+      "categories": ["category1", "category2", ...],
+      "serveQty": number
+    }
+  ],
+  "nutritionalSummary": {
+    "totalCalories": number,
+    "totalProtein": number,
+    "totalCarbs": number,
+    "totalFat": number
+  },
+  "tips": ["tip1", "tip2", ...]
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown (e.g., ```json), code blocks, or any text outside the JSON object.
+- Ensure no trailing commas, incomplete objects, or unexpected characters.
+- Ensure all measurements are in metric units and nutritional values are per serving.
+- Format ingredients as key-value pairs where the key is the ingredient name and the value is the amount with unit (e.g., "rice": "1 cup", "chicken breast": "200g")
+- Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free" "quick prep",).
+- If specific meal titles are provided in the context, use those EXACT titles and meal types.
+- Ensure each meal has the correct mealType field set to one of these four values.
+'''
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 2048,
+          },
+        },
+      );
+
+      if (response['candidates'] == null || response['candidates'].isEmpty) {
+        throw Exception('No response from AI model');
+      }
+
+      final content = response['candidates'][0]['content'];
+      if (content == null ||
+          content['parts'] == null ||
+          content['parts'].isEmpty) {
+        throw Exception('Invalid response structure from AI model');
+      }
+
+      final text = content['parts'][0]['text'];
+      if (text == null || text.isEmpty) {
+        throw Exception('Empty response from AI model');
+      }
+
+      // Parse the JSON response
+      final jsonResponse = json.decode(text) as Map<String, dynamic>;
+
+      // Convert AI response to proper meal format (same as generateMealPlan)
+      final meals = jsonResponse['meals'] as List<dynamic>? ?? [];
+      final formattedMeals = meals.map((meal) {
+        final mealMap = Map<String, dynamic>.from(meal);
+        // Add required fields that generateMealPlan provides
+        mealMap['id'] = ''; // AI-generated meals don't have IDs initially
+        mealMap['source'] = 'ai_generated';
+        return mealMap;
+      }).toList();
+
+      return {
+        'meals': formattedMeals,
+        'source': 'ai_generated',
+        'count': formattedMeals.length,
+        'message': 'AI-generated meals',
+      };
+    } catch (e) {
+      print('Error generating meals with AI: $e');
+      // Return fallback meals if AI generation fails
+      return await _getFallbackMeals(prompt);
+    }
+  }
+
+  /// Generate meals using the new intelligent approach: titles first, then check existing, then generate missing
+  Future<Map<String, dynamic>> generateMealsIntelligently(
+      String prompt, String contextInformation) async {
+    try {
+      // Step 1: Generate meal titles and types
+      final mealData = await generateMealTitles(prompt, contextInformation);
+      final mealTitles = mealData['mealTitles'] as List<String>;
+      final mealPlan = mealData['mealPlan'] as List<dynamic>;
+      final distribution = mealData['distribution'] as Map<String, dynamic>;
+
+      if (mealTitles.isEmpty) {
+        throw Exception('Failed to generate meal titles');
+      }
+
+      // Step 2: Check which titles already exist in database
+      final existingMeals = await checkExistingMealsByTitles(mealTitles);
+
+      // Step 3: Identify missing titles with their meal types
+      final missingMeals = <Map<String, dynamic>>[];
+      for (final meal in mealPlan) {
+        final title = meal['title'] as String;
+        final mealType = meal['mealType'] as String;
+        if (!existingMeals.containsKey(title)) {
+          missingMeals.add({
+            'title': title,
+            'mealType': mealType,
+          });
+        }
+      }
+      final missingTitles =
+          missingMeals.map((m) => m['title'] as String).toList();
+
+      // Step 4: Generate only the missing meals
+      List<Map<String, dynamic>> newMeals = [];
+      if (missingTitles.isNotEmpty) {
+        // Use generateMealsWithAI instead of generateSpecificMeals
+        // Pass the missing titles and their meal types in the context information
+        final enhancedContextInformation = '''
+$contextInformation
+
+IMPORTANT: Generate meals for these specific titles with their meal types:
+${missingMeals.map((meal) => '- ${meal['title']} (mealType: ${meal['mealType']})').join('\n')}
+
+Use the EXACT meal titles and meal types provided above. Do not generate any other meals.
+''';
+
+        final mealPlanResult = await generateMealsWithAI(
+          'Generate meals for the specified titles',
+          enhancedContextInformation,
+        );
+
+        final meals = mealPlanResult['meals'] as List<dynamic>? ?? [];
+        newMeals = meals.cast<Map<String, dynamic>>();
+      }
+
+      // Step 5: Combine existing and new meals
+      final allMeals = <Map<String, dynamic>>[];
+
+      // Add existing meals with their planned meal types
+      for (final meal in mealPlan) {
+        final title = meal['title'] as String;
+        final mealType = meal['mealType'] as String;
+        if (existingMeals.containsKey(title)) {
+          final existingMeal = existingMeals[title]!;
+          allMeals.add({
+            'id': existingMeal.mealId,
+            'title': existingMeal.title,
+            'categories': existingMeal.categories,
+            'ingredients': existingMeal.ingredients,
+            'calories': existingMeal.calories,
+            'instructions': existingMeal.instructions,
+            'mealType': mealType, // Include the planned meal type
+            'source': 'existing_database',
+          });
+        }
+      }
+
+      // Add new meals
+      allMeals.addAll(newMeals);
+
+      // Calculate nutritional summary
+      int totalCalories = 0;
+      int totalProtein = 0;
+      int totalCarbs = 0;
+      int totalFat = 0;
+
+      for (final meal in allMeals) {
+        // Handle existing meals (they have 'calories' field)
+        if (meal['source'] == 'existing_database') {
+          totalCalories += (meal['calories'] ?? 0) as int;
+          // For existing meals, we might not have detailed macros, so estimate
+          totalProtein += 20; // Estimate
+          totalCarbs += 25; // Estimate
+          totalFat += 10; // Estimate
+        } else {
+          // Handle new AI-generated meals (they have 'nutritionalInfo' field)
+          final nutritionalInfo =
+              meal['nutritionalInfo'] as Map<String, dynamic>?;
+          if (nutritionalInfo != null) {
+            totalCalories += (nutritionalInfo['calories'] ?? 0) as int;
+            totalProtein += (nutritionalInfo['protein'] ?? 0) as int;
+            totalCarbs += (nutritionalInfo['carbs'] ?? 0) as int;
+            totalFat += (nutritionalInfo['fat'] ?? 0) as int;
+          }
+        }
+      }
+
+      return {
+        'meals': allMeals,
+        'source': 'mixed',
+        'count': allMeals.length,
+        'message':
+            'Generated ${newMeals.length} new meals and found ${existingMeals.length} existing meals',
+        'existingCount': existingMeals.length,
+        'newCount': newMeals.length,
+        'nutritionalSummary': {
+          'totalCalories': totalCalories,
+          'totalProtein': totalProtein,
+          'totalCarbs': totalCarbs,
+          'totalFat': totalFat,
+        },
+      };
+    } catch (e) {
+      print('Error in intelligent meal generation: $e');
+      // Fallback to original method
+      return await generateMealPlan(prompt, contextInformation);
+    }
+  }
+
   Future<Map<String, dynamic>> generateMealPlan(
       String prompt, String contextInformation) async {
     // Initialize model if not already done
@@ -2731,6 +3246,8 @@ $prompt
 
 $contextInformation
 
+$userContext
+
 Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
 {
   "meals": [
@@ -2771,6 +3288,12 @@ Important guidelines:
 - Ensure all measurements are in metric units and nutritional values are per serving.
 - Format ingredients as key-value pairs where the key is the ingredient name and the value is the amount with unit (e.g., "rice": "1 cup", "chicken breast": "200g")
 - Diet type is the diet type of the meal plan (e.g., "keto", "vegan", "paleo", "gluten-free", "dairy-free" "quick prep",).
+- Generate at minimum 8 meals total with the following distribution:
+  * 2 breakfast meals (mealType: "breakfast")
+  * 2 lunch meals (mealType: "lunch") 
+  * 2 dinner meals (mealType: "dinner")
+  * 2 snack meals (mealType: "snack")
+- Ensure each meal has the correct mealType field set to one of these four values.
 '''
                 }
               ]
@@ -3032,22 +3555,24 @@ Important guidelines:
       String source = '';
 
       if (existingMeals.length >= 2) {
-        // Found 2+ existing meals - use them directly
-        mealsToShow = existingMeals
-            .take(3)
+        // Found 2+ existing meals - store all but show only 2 initially
+        final allExistingMeals = existingMeals
             .map((meal) => {
                   'id': meal.mealId, // Include the meal ID
                   'title': meal.title,
                   'categories': meal.categories,
                   'ingredients': meal.ingredients,
-                  'calories': meal.calories,
+                  'calories': meal.calories is int
+                      ? meal.calories
+                      : int.tryParse(meal.calories.toString()) ?? 0,
                   'instructions': meal.instructions,
                   'source': 'existing_database',
                 })
             .toList();
+
+        // Show only first 2 meals initially
+        mealsToShow = allExistingMeals.take(2).toList();
         source = 'existing_database';
-        print(
-            'Using ${mealsToShow.length} existing meals with matching ingredients');
       } else {
         // Found 0-1 existing meals - generate new ones with AI
         showDialog(
@@ -3071,7 +3596,6 @@ Important guidelines:
 
         mealsToShow = generatedMeals.cast<Map<String, dynamic>>();
         source = 'ai_generated';
-        print('Generated ${mealsToShow.length} new meals with AI');
       }
 
       if (mealsToShow.isEmpty) throw Exception('No meals available');
@@ -3083,9 +3607,62 @@ Important guidelines:
         builder: (context) {
           final isDarkMode = getThemeProvider(context).isDarkMode;
           final textTheme = Theme.of(context).textTheme;
+
+          // Variables for managing the meal list (outside StatefulBuilder to persist)
+          List<Map<String, dynamic>> allExistingMeals = [];
+          int currentIndex = 0;
+          int mealsPerPage = 2;
+          bool isGeneratingAI = false;
+
           return StatefulBuilder(
             builder: (context, setState) {
               bool isProcessing = false; // Global processing state
+
+              // Initialize the meal list if it's from database
+              if (source == 'existing_database' && existingMeals.length >= 2) {
+                allExistingMeals = existingMeals
+                    .map((meal) => {
+                          'id': meal.mealId,
+                          'title': meal.title,
+                          'categories': meal.categories,
+                          'ingredients': meal.ingredients,
+                          'calories': meal.calories is int
+                              ? meal.calories
+                              : int.tryParse(meal.calories.toString()) ?? 0,
+                          'instructions': meal.instructions,
+                          'source': 'existing_database',
+                        })
+                    .toList();
+              }
+
+              // Function to get current meals to show
+              List<Map<String, dynamic>> getCurrentMealsToShow() {
+                if (source == 'existing_database' &&
+                    allExistingMeals.isNotEmpty) {
+                  final endIndex = (currentIndex + mealsPerPage)
+                      .clamp(0, allExistingMeals.length);
+                  final meals =
+                      allExistingMeals.sublist(currentIndex, endIndex);
+                  return meals;
+                }
+                return mealsToShow;
+              }
+
+              // Function to refresh the list
+              void refreshMealList() {
+                if (source == 'existing_database' &&
+                    allExistingMeals.isNotEmpty) {
+                  currentIndex += mealsPerPage;
+                  if (currentIndex >= allExistingMeals.length) {
+                    // All meals shown, switch to AI generation
+                    source = 'ai_generated';
+                    mealsToShow = [];
+                  }
+                  setState(() {
+                    // Force rebuild
+                  });
+                }
+              }
 
               return AlertDialog(
                 backgroundColor: isDarkMode ? kDarkGrey : kWhite,
@@ -3108,9 +3685,9 @@ Important guidelines:
                   width: double.maxFinite,
                   child: ListView.builder(
                     shrinkWrap: true,
-                    itemCount: mealsToShow.length,
+                    itemCount: getCurrentMealsToShow().length,
                     itemBuilder: (context, index) {
-                      final meal = mealsToShow[index];
+                      final meal = getCurrentMealsToShow()[index];
                       final title = meal['title'] ?? 'Untitled';
 
                       final categories =
@@ -3185,27 +3762,8 @@ Important guidelines:
                                         .format(DateTime.now());
                                     String? selectedMealId;
 
-                                    // Only save to Firestore if it's a new AI-generated meal
-                                    if (meal['source'] == 'ai_generated') {
-                                      // Save the new AI-generated meal to Firestore
-                                      final List<String> allMealIds =
-                                          await saveMealsToFirestore(
-                                              userId,
-                                              {
-                                                'meals': [meal]
-                                              },
-                                              '');
-                                      selectedMealId = allMealIds.isNotEmpty
-                                          ? allMealIds[0]
-                                          : null;
-                                      print(
-                                          'Saved new AI-generated meal to Firestore: ${meal['title']}');
-                                    } else {
-                                      // For existing meals, use the meal ID we already have
-                                      selectedMealId = meal['id'];
-                                      print(
-                                          'Using existing meal from database: ${meal['title']} (ID: ${meal['id']})');
-                                    }
+                                    // Use the meal ID (either existing database meal or pre-saved AI meal)
+                                    selectedMealId = meal['id'];
                                     // Get existing meals first
                                     final docRef = firestore
                                         .collection('mealPlans')
@@ -3295,6 +3853,290 @@ Important guidelines:
                   ),
                 ),
                 actions: [
+                  if (source == 'existing_database' &&
+                      allExistingMeals.isNotEmpty)
+                    TextButton(
+                      onPressed: (isProcessing || isGeneratingAI)
+                          ? null
+                          : () async {
+                              if (currentIndex + mealsPerPage >=
+                                  allExistingMeals.length) {
+                                // All meals shown, generate with AI
+                                // Store the outer context for later use
+                                final outerContext = context;
+
+                                // Set generating state
+                                setState(() {
+                                  isGeneratingAI = true;
+                                });
+
+                                // Generate new meals with AI
+
+                                // Create context with existing meals to avoid duplicates
+                                final existingMealTitles = allExistingMeals
+                                    .map((meal) => meal['title'])
+                                    .toList();
+                                final contextWithExistingMeals = '''
+Stay within the ingredients provided.
+IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
+Generate completely new and different meal ideas using the same ingredients.
+''';
+
+                                generateMealsWithAI(
+                                  'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
+                                  contextWithExistingMeals,
+                                ).then((mealPlan) async {
+                                  // Reset generating state
+                                  setState(() {
+                                    isGeneratingAI = false;
+                                  });
+
+                                  // Close current dialog and show AI results
+                                  Navigator.of(context).pop();
+
+                                  final generatedMeals =
+                                      mealPlan['meals'] as List<dynamic>? ?? [];
+                                  if (generatedMeals.isEmpty)
+                                    throw Exception('No meals generated');
+
+                                  // Save ALL AI-generated meals to Firestore first
+                                  final userId = userService.userId;
+                                  if (userId == null)
+                                    throw Exception('User ID not found');
+
+                                  final List<String> allMealIds =
+                                      await saveMealsToFirestore(
+                                    userId,
+                                    {'meals': generatedMeals},
+                                    '',
+                                  );
+
+                                  // Update the meals with their new IDs for selection
+                                  final mealsWithIds = <Map<String, dynamic>>[];
+                                  for (int i = 0;
+                                      i < generatedMeals.length;
+                                      i++) {
+                                    final meal = Map<String, dynamic>.from(
+                                        generatedMeals[i]);
+                                    meal['id'] =
+                                        allMealIds[i]; // Add the Firestore ID
+                                    mealsWithIds.add(meal);
+                                  }
+
+                                  // Show new dialog with AI-generated meals
+                                  if (outerContext.mounted) {
+                                    showDialog<Map<String, dynamic>>(
+                                      context: outerContext,
+                                      barrierDismissible: false,
+                                      builder: (context) {
+                                        final isDarkMode =
+                                            getThemeProvider(context)
+                                                .isDarkMode;
+                                        final textTheme =
+                                            Theme.of(context).textTheme;
+                                        return StatefulBuilder(
+                                          builder: (context, setState) {
+                                            bool isProcessing = false;
+
+                                            return AlertDialog(
+                                              backgroundColor: isDarkMode
+                                                  ? kDarkGrey
+                                                  : kWhite,
+                                              shape:
+                                                  const RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.only(
+                                                  topLeft: Radius.circular(30),
+                                                  topRight: Radius.circular(30),
+                                                ),
+                                              ),
+                                              title: Text(
+                                                'Select an AI-Generated Meal',
+                                                style: textTheme.displaySmall
+                                                    ?.copyWith(
+                                                        fontSize:
+                                                            getPercentageWidth(
+                                                                7, context),
+                                                        color: kAccent,
+                                                        fontWeight:
+                                                            FontWeight.w500),
+                                              ),
+                                              content: SizedBox(
+                                                width: double.maxFinite,
+                                                child: ListView.builder(
+                                                  shrinkWrap: true,
+                                                  itemCount:
+                                                      mealsWithIds.length,
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final meal =
+                                                        mealsWithIds[index];
+                                                    final title =
+                                                        meal['title'] ??
+                                                            'Untitled';
+                                                    final categories = (meal[
+                                                                'categories']
+                                                            as List<
+                                                                dynamic>?) ??
+                                                        [];
+
+                                                    return Card(
+                                                      color: colors[index %
+                                                          colors.length],
+                                                      child: ListTile(
+                                                        enabled: !isProcessing,
+                                                        title: Text(
+                                                          title,
+                                                          style: textTheme
+                                                              .bodyLarge
+                                                              ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: isDarkMode
+                                                                ? kWhite
+                                                                : kDarkGrey,
+                                                          ),
+                                                        ),
+                                                        subtitle: categories
+                                                                .isNotEmpty
+                                                            ? Text(
+                                                                'Categories: ${categories.join(', ')}',
+                                                                style: textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
+                                                                  color: isDarkMode
+                                                                      ? kWhite
+                                                                      : kDarkGrey,
+                                                                ),
+                                                              )
+                                                            : null,
+                                                        onTap: isProcessing
+                                                            ? null
+                                                            : () async {
+                                                                setState(() {
+                                                                  isProcessing =
+                                                                      true;
+                                                                });
+
+                                                                try {
+                                                                  final userId =
+                                                                      userService
+                                                                          .userId;
+                                                                  if (userId ==
+                                                                      null)
+                                                                    throw Exception(
+                                                                        'User ID not found');
+                                                                  final date = DateFormat(
+                                                                          'yyyy-MM-dd')
+                                                                      .format(DateTime
+                                                                          .now());
+
+                                                                  // Use the meal ID that was already saved to Firestore
+                                                                  final selectedMealId =
+                                                                      meal[
+                                                                          'id'];
+                                                                  print(
+                                                                      'Adding meal ${meal['title']} (ID: $selectedMealId) to calendar');
+
+                                                                  // Add to meal plan
+                                                                  if (selectedMealId !=
+                                                                      null) {
+                                                                    final docRef = firestore
+                                                                        .collection(
+                                                                            'mealPlans')
+                                                                        .doc(
+                                                                            userId)
+                                                                        .collection(
+                                                                            'date')
+                                                                        .doc(
+                                                                            date);
+                                                                    await docRef
+                                                                        .set({
+                                                                      'userId':
+                                                                          userId,
+                                                                      'dayType':
+                                                                          'chef_tasty',
+                                                                      'meals':
+                                                                          FieldValue
+                                                                              .arrayUnion([
+                                                                        selectedMealId
+                                                                      ]),
+                                                                    }, SetOptions(merge: true));
+                                                                  }
+
+                                                                  Navigator.of(
+                                                                          context)
+                                                                      .pop(
+                                                                          meal);
+                                                                } catch (e) {
+                                                                  Navigator.of(
+                                                                          context)
+                                                                      .pop();
+                                                                  handleError(e,
+                                                                      context);
+                                                                }
+                                                              },
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: isProcessing
+                                                      ? null
+                                                      : () =>
+                                                          Navigator.of(context)
+                                                              .pop(),
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: textTheme.bodyLarge
+                                                        ?.copyWith(
+                                                      color: isProcessing
+                                                          ? kLightGrey
+                                                          : (isDarkMode
+                                                              ? kWhite
+                                                              : kBlack),
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
+                                  }
+                                }).catchError((e) {
+                                  print('AI generation failed with error: $e');
+                                  setState(() {
+                                    isGeneratingAI = false;
+                                  });
+                                  if (outerContext.mounted) {
+                                    handleError(e, outerContext);
+                                  }
+                                });
+                              } else {
+                                // Show more existing meals
+                                refreshMealList();
+                              }
+                            },
+                      child: Text(
+                        isGeneratingAI
+                            ? 'Generating...'
+                            : (currentIndex + mealsPerPage >=
+                                    allExistingMeals.length
+                                ? 'Generate with AI'
+                                : 'Show More'),
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: (isProcessing || isGeneratingAI)
+                              ? kLightGrey
+                              : kAccent,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   TextButton(
                     onPressed:
                         isProcessing ? null : () => Navigator.of(context).pop(),

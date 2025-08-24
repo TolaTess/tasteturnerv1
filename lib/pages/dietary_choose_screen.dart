@@ -509,15 +509,127 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
-      final mealPlan =
-          await geminiService.generateMealPlan(prompt, mealPlanContext);
+      final mealPlan = await geminiService.generateMealsIntelligently(
+          prompt, mealPlanContext);
 
       final userId = userService.userId;
       if (userId == null) throw Exception('User ID not found');
 
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final List<String> mealIds =
-          await saveMealsToFirestore(userId, mealPlan, selectedCuisine);
+
+      // Collect meal IDs with proper meal type suffixes
+      List<String> mealIds = [];
+
+      if (mealPlan['source'] == 'mixed' ||
+          mealPlan['source'] == 'ai_generated') {
+        // Handle mixed or AI-generated meals
+        final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+
+        if (mealPlan['source'] == 'mixed') {
+          // Mixed source: some existing, some new
+          final newMeals = meals
+              .where((meal) =>
+                  meal['source'] == 'ai_generated' ||
+                  meal['id'] == null ||
+                  meal['id'] == '')
+              .toList();
+
+          if (newMeals.isNotEmpty) {
+            // Save new meals to Firestore first
+            final mealsToSave = <Map<String, dynamic>>[];
+            for (final aiMeal in newMeals) {
+              final convertedMeal = Map<String, dynamic>.from(aiMeal);
+              // Remove AI-specific fields that might cause issues
+              convertedMeal.remove('source');
+              convertedMeal.remove('id');
+              mealsToSave.add(convertedMeal);
+            }
+
+            final mealPlanToSave = {
+              'meals': mealsToSave,
+            };
+
+            final List<String> savedMealIds = await saveMealsToFirestore(
+                userId, mealPlanToSave, selectedCuisine);
+
+            // Collect all meal IDs with proper meal type suffixes
+            final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+            for (int i = 0; i < meals.length; i++) {
+              final meal = meals[i];
+              String mealType =
+                  meal['mealType']?.toString().toLowerCase() ?? '';
+              final mealId = meal['id'] as String? ?? '';
+
+              // If no mealType is specified, assign based on position
+              if (mealType.isEmpty) {
+                mealType = mealTypes[i % mealTypes.length];
+              }
+
+              if (meal['source'] == 'existing_database' && mealId.isNotEmpty) {
+                // Use existing meal ID with meal type suffix
+                mealIds.add(appendMealType(mealId, mealType));
+              } else if (meal['source'] == 'ai_generated' || mealId.isEmpty) {
+                // Find the corresponding saved meal ID (already has meal type suffix from saveMealsToFirestore)
+                final mealIndex = newMeals.indexOf(meal);
+                if (mealIndex >= 0 && mealIndex < savedMealIds.length) {
+                  // The savedMealIds already have meal type suffixes, so use them directly
+                  mealIds.add(savedMealIds[mealIndex]);
+                }
+              }
+            }
+          } else {
+            // All meals are existing, add meal type suffixes
+            final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+            for (int i = 0; i < meals.length; i++) {
+              final meal = meals[i];
+              String mealType =
+                  meal['mealType']?.toString().toLowerCase() ?? '';
+              final mealId = meal['id'] as String? ?? '';
+
+              // If no mealType is specified, assign based on position
+              if (mealType.isEmpty) {
+                mealType = mealTypes[i % mealTypes.length];
+              }
+
+              if (mealId.isNotEmpty) {
+                mealIds.add(appendMealType(mealId, mealType));
+              }
+            }
+          }
+        } else {
+          // All meals are AI-generated, they should have meal types
+          final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+          for (int i = 0; i < meals.length; i++) {
+            final meal = meals[i];
+            String mealType = meal['mealType']?.toString().toLowerCase() ?? '';
+            final mealId = meal['id'] as String? ?? '';
+
+            // If no mealType is specified, assign based on position
+            if (mealType.isEmpty) {
+              mealType = mealTypes[i % mealTypes.length];
+            }
+
+            if (mealId.isNotEmpty) {
+              mealIds.add(appendMealType(mealId, mealType));
+            }
+          }
+        }
+      } else {
+        // For existing_database source, assign meal types based on position
+        final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+        final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+        for (int i = 0; i < meals.length; i++) {
+          final meal = meals[i];
+          final mealId = meal['id'] as String? ?? '';
+          if (mealId.isNotEmpty) {
+            // Cycle through meal types: breakfast, lunch, dinner, snack, then repeat
+            final mealType = mealTypes[i % mealTypes.length];
+            mealIds.add(appendMealType(mealId, mealType));
+          }
+        }
+      }
+
       await saveMealPlanToFirestore(
           userId, date, mealIds, mealPlan, selectedDiet,
           familyMemberName: widget.familyMemberName);
@@ -673,8 +785,10 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
                 Text(
                   textAlign: TextAlign.center,
                   "Tell us your dietary preferences?",
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w500, color: kAccent),
+                  style: Theme.of(context)
+                      .textTheme
+                      .displaySmall
+                      ?.copyWith(fontWeight: FontWeight.w500, color: kAccent),
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(

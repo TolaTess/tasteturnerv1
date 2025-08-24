@@ -181,9 +181,10 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
     );
 
     // Ensure usersPosts document exists before updating
-    final usersPostsDoc = firestore.collection('usersPosts').doc(userService.userId);
+    final usersPostsDoc =
+        firestore.collection('usersPosts').doc(userService.userId);
     final usersPostsSnapshot = await usersPostsDoc.get();
-    
+
     if (!usersPostsSnapshot.exists) {
       await usersPostsDoc.set({
         'posts': [],
@@ -191,15 +192,15 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
         'createdAt': DateTime.now().toIso8601String(),
       });
     }
-    
+
     WriteBatch batch = firestore.batch();
     batch.set(postRef, post.toFirestore());
-    
+
     // Now we can safely update the usersPosts document
     batch.update(usersPostsDoc, {
       'posts': FieldValue.arrayUnion([postRef.id]),
     });
-    
+
     await batch.commit();
 
     await chatController.sendMessage(
