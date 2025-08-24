@@ -229,6 +229,7 @@ class MealManager extends GetxController {
       return [];
     }
   }
+
   // // Add a meal to Firestore and update the local list
   Future<void> addMeal(Meal meal) async {
     try {
@@ -366,6 +367,215 @@ class MealManager extends GetxController {
     } catch (e) {
       return [];
     }
+  }
+
+  /// Search meals by ingredients and categories for ingredient-based meal generation
+  /// Returns meals with at least 2 matching ingredients, sorted by match count
+  Future<List<Meal>> searchMealsByIngredientsAndCategories({
+    required List<String> ingredients,
+    required List<String> categories,
+    int? maxCalories,
+    String? dietType,
+  }) async {
+    print(
+        'Searching meals by ingredients: $ingredients, categories: $categories');
+    try {
+      Query query = firestore.collection('meals');
+
+      // Add filters based on criteria
+      if (categories.isNotEmpty) {
+        query = query.where('categories', arrayContainsAny: categories);
+      }
+
+      if (maxCalories != null) {
+        query = query.where('calories', isLessThanOrEqualTo: maxCalories);
+      }
+
+      final snapshot = await query.get();
+      final meals = snapshot.docs
+          .map((doc) =>
+              Meal.fromJson(doc.id, doc.data() as Map<String, dynamic>))
+          .toList();
+
+      // Filter by ingredients and count matches
+      final mealsWithMatchCount = <MapEntry<Meal, int>>[];
+
+      for (final meal in meals) {
+        final mealIngredients =
+            meal.ingredients.keys.map((k) => k.toLowerCase()).toSet();
+        final searchIngredients =
+            ingredients.map((i) => i.toLowerCase()).toSet();
+
+        // Count matching ingredients
+        int matchCount = 0;
+        for (final searchIngredient in searchIngredients) {
+          for (final mealIngredient in mealIngredients) {
+            if (mealIngredient.contains(searchIngredient) ||
+                searchIngredient.contains(mealIngredient)) {
+              matchCount++;
+              break;
+            }
+          }
+        }
+
+        // Only include meals with at least 2 matching ingredients
+        if (matchCount >= 2) {
+          mealsWithMatchCount.add(MapEntry(meal, matchCount));
+        }
+      }
+
+      // Sort by match count (highest first) and return meals
+      mealsWithMatchCount.sort((a, b) => b.value.compareTo(a.value));
+      final sortedMeals =
+          mealsWithMatchCount.map((entry) => entry.key).toList();
+
+      print('Found ${sortedMeals.length} meals with 2+ matching ingredients');
+
+      return sortedMeals;
+    } catch (e) {
+      print('Error searching meals by ingredients: $e');
+      return [];
+    }
+  }
+
+  /// Search meals by categories and meal types for diet-based meal plan generation
+  Future<List<Meal>> searchMealsByCategoriesAndTypes({
+    required List<String> categories,
+    required Map<String, dynamic>
+        mealTypeCounts, // {'grain': 3, 'veg': 2, 'protein': 2, 'ageGroup': 'adult'}
+    String? dietType,
+    int? maxCalories,
+  }) async {
+    print(
+        'Searching meals by categories: $categories, meal types: $mealTypeCounts');
+    try {
+      Query query = firestore.collection('meals');
+
+      // Add filters based on criteria
+      if (categories.isNotEmpty) {
+        query = query.where('categories', arrayContainsAny: categories);
+      }
+
+      if (maxCalories != null) {
+        query = query.where('calories', isLessThanOrEqualTo: maxCalories);
+      }
+
+      final snapshot = await query.get();
+      final meals = snapshot.docs
+          .map((doc) =>
+              Meal.fromJson(doc.id, doc.data() as Map<String, dynamic>))
+          .toList();
+
+      // Filter by diet type if specified
+      if (dietType != null) {
+        meals.removeWhere((meal) => !_matchesDietType(meal, dietType));
+      }
+
+      // Filter by meal types and age group
+      final filteredMeals = <Meal>[];
+      for (final meal in meals) {
+        if (_matchesMealType(meal, mealTypeCounts) &&
+            _matchesAgeGroup(meal, mealTypeCounts)) {
+          filteredMeals.add(meal);
+        }
+      }
+
+      print(
+          'Found ${filteredMeals.length} meals matching categories and meal types');
+
+      return filteredMeals;
+    } catch (e) {
+      print('Error searching meals by categories and types: $e');
+      return [];
+    }
+  }
+
+  /// Check if meal matches the specified diet type
+  bool _matchesDietType(Meal meal, String dietType) {
+    final mealCategories = meal.categories.map((c) => c.toLowerCase()).toSet();
+    final dietTypeLower = dietType.toLowerCase();
+
+    // Common diet type mappings
+    final dietMappings = {
+      'vegetarian': ['vegetarian', 'veg'],
+      'vegan': ['vegan'],
+      'keto': ['keto', 'ketogenic'],
+      'paleo': ['paleo', 'paleolithic'],
+      'gluten-free': ['gluten-free', 'glutenfree', 'gluten free'],
+      'dairy-free': ['dairy-free', 'dairyfree', 'dairy free'],
+      'low-carb': ['low-carb', 'lowcarb', 'low carb'],
+      'high-protein': ['high-protein', 'highprotein', 'high protein'],
+      'mediterranean': ['mediterranean'],
+      'dash': ['dash'],
+    };
+
+    final dietKeywords = dietMappings[dietTypeLower] ?? [dietTypeLower];
+    return mealCategories.any((category) =>
+        dietKeywords.any((keyword) => category.contains(keyword)));
+  }
+
+  /// Check if meal matches the specified meal type requirements
+  bool _matchesMealType(Meal meal, Map<String, dynamic> mealTypeCounts) {
+    final mealCategories = meal.categories.map((c) => c.toLowerCase()).toSet();
+
+    // Check if meal matches any of the required meal types
+    for (final entry in mealTypeCounts.entries) {
+      final mealType = entry.key.toLowerCase();
+      final requiredCount = entry.value;
+
+      // Common meal type mappings
+      final mealTypeMappings = {
+        'grain': ['grain', 'rice', 'pasta', 'bread', 'quinoa', 'couscous'],
+        'veg': ['vegetable', 'veg', 'salad', 'greens'],
+        'protein': ['protein', 'meat', 'chicken', 'beef', 'fish', 'tofu'],
+        'breakfast': ['breakfast', 'morning'],
+        'lunch': ['lunch', 'midday'],
+        'dinner': ['dinner', 'evening', 'main course'],
+        'snack': ['snack', 'appetizer'],
+      };
+
+      final typeKeywords = mealTypeMappings[mealType] ?? [mealType];
+      if (mealCategories.any((category) =>
+          typeKeywords.any((keyword) => category.contains(keyword)))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Check if meal matches the specified age group requirements
+  bool _matchesAgeGroup(Meal meal, Map<String, dynamic> mealTypeCounts) {
+    // If no age group specified, return true (no filtering)
+    final ageGroup = mealTypeCounts['ageGroup'] as String?;
+    if (ageGroup == null) {
+      return true;
+    }
+
+    final mealCategories = meal.categories.map((c) => c.toLowerCase()).toSet();
+    final mealTitle = meal.title.toLowerCase();
+
+    // Age group mappings
+    final ageGroupMappings = {
+      'baby': ['baby', 'infant', 'puree', 'soft', 'mash'],
+      'toddler': [
+        'toddler',
+        'kid-friendly',
+        'child-friendly',
+        'soft',
+        'easy-to-eat'
+      ],
+      'child': ['child', 'kid', 'family-friendly', 'fun'],
+      'teen': ['teen', 'adolescent', 'youth', 'energetic'],
+      'adult': ['adult', 'mature', 'sophisticated', 'complex'],
+    };
+
+    final ageKeywords = ageGroupMappings[ageGroup] ?? [];
+
+    // Check if meal has age-appropriate categories or title
+    return mealCategories.any((category) =>
+            ageKeywords.any((keyword) => category.contains(keyword))) ||
+        ageKeywords.any((keyword) => mealTitle.contains(keyword));
   }
 
   Future<List<Meal>> fetchFavoriteMeals() async {

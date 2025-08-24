@@ -396,14 +396,10 @@ exports.generateAndSaveWeeklyShoppingList = functions.firestore
         const ingredientsRef = firestore.collection("ingredients");
         let ingredientId = null;
 
-        const snapshot = await ingredientsRef
-          .where("title", "==", name)
-          .limit(1)
-          .get();
+        // Try to find existing ingredient with robust name checking
+        ingredientId = await _findExistingIngredient(name);
 
-        if (!snapshot.empty) {
-          ingredientId = snapshot.docs[0].id;
-        } else {
+        if (!ingredientId) {
           console.log(`Ingredient "${name}" not found. Generating...`);
           ingredientId = await _generateAndSaveIngredient(name);
         }
@@ -454,6 +450,69 @@ exports.generateAndSaveWeeklyShoppingList = functions.firestore
   });
 
 /**
+ * Helper function to find existing ingredient with robust name checking
+ * @param {string} ingredientName The name of the ingredient to find.
+ * @returns {Promise<string|null>} The ingredient's document ID or null if not found.
+ */
+async function _findExistingIngredient(ingredientName) {
+  try {
+    const ingredientsRef = firestore.collection("ingredients");
+    const normalizedName = _normalizeIngredientName(ingredientName);
+    
+    // 1. Try exact match first
+    let snapshot = await ingredientsRef
+      .where("title", "==", ingredientName.toLowerCase())
+      .limit(1)
+      .get();
+    
+    if (!snapshot.empty) {
+      return snapshot.docs[0].id;
+    }
+    
+    // 2. Try normalized name match
+    snapshot = await ingredientsRef
+      .where("title", "==", normalizedName)
+      .limit(1)
+      .get();
+    
+    if (!snapshot.empty) {
+      return snapshot.docs[0].id;
+    }
+    
+    // 3. Try normalized matching (remove spaces, hyphens, underscores)
+    const normalizedInputName = _normalizeIngredientName(ingredientName);
+    
+    // Get all ingredients and check for normalized matches
+    const allIngredientsSnapshot = await ingredientsRef.get();
+    
+    for (const doc of allIngredientsSnapshot.docs) {
+      const ingredientData = doc.data();
+      const dbTitle = ingredientData.title || '';
+      const normalizedDbTitle = _normalizeIngredientName(dbTitle);
+      
+      if (normalizedInputName === normalizedDbTitle) {
+        return doc.id;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error finding existing ingredient "${ingredientName}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Normalize ingredient name by removing spaces, hyphens, and underscores
+ * @param {string} ingredientName The ingredient name to normalize.
+ * @returns {string} The normalized ingredient name.
+ */
+function _normalizeIngredientName(ingredientName) {
+  // Remove spaces, hyphens, and underscores, convert to lowercase
+  return ingredientName.toLowerCase().replace(/[\s\-_]/g, '');
+}
+
+/**
  * Helper function to generate details for an ingredient using Gemini and save it.
  * It uses .add() to create an auto-generated ID.
  * @param {string} ingredientName The name of the ingredient.
@@ -466,18 +525,50 @@ async function _generateAndSaveIngredient(ingredientName) {
       Generate a detailed JSON object for the ingredient "${ingredientName}".
       The JSON object must match this structure:
       {
-        "title": "${ingredientName}",
-        "type": "...",
-        "mediaPaths": [],
-        "calories": ...,
-        "macros": {"protein": ..., "carbs": ..., "fat": ...},
-        "categories": [],
-        "features": {},
-        "techniques": [],
-        "storageOptions": {},
-        "isAntiInflammatory": ...,
-        "alt": []
-      }
+  "title": "${ingredientName}",
+  "type": "ONLY USE THESE TYPES: protein, grain, vegetable, fruit, sweetener, condiment, pastry, dairy, oil, herb, spice, liquid", 
+  "calories": number,
+  "macros": {
+    "protein": "string",
+    "carbs": "string",
+    "fat": "string"
+  },
+  "categories": ["string"],
+  "features": {
+    "fiber": "string",
+    "g_i": "string",
+    "season": "string",
+    "water": "string",
+    "rainbow": "string"
+  },
+  "techniques": [
+    "string"
+  ],
+  "storageOptions": {
+    "countertop": "string",
+    "fridge": "string",
+    "freezer": "string"
+  },
+  "isAntiInflammatory": boolean,
+  "alt": ["string"],
+  "image": "string"
+}
+      
+      IMPORTANT: The "type" field MUST be one of these values ONLY:
+      - "protein" (for meat, fish, eggs, tofu, etc.)
+      - "grain" (for rice, pasta, bread, quinoa, etc.)
+      - "vegetable" (for carrots, broccoli, spinach, etc.)
+      - "fruit" (for apples, bananas, berries, etc.)
+      - "sweetener" (for sugar, honey, maple syrup, etc.)
+      - "condiment" (for ketchup, mustard, soy sauce, etc.)
+      - "pastry" (for cakes, cookies, pies, etc.)
+      - "dairy" (for milk, cheese, yogurt, etc.)
+      - "oil" (for olive oil, coconut oil, etc.)
+      - "herb" (for basil, thyme, rosemary, etc.)
+      - "spice" (for salt, pepper, cinnamon, etc.)
+      - "liquid" (for water, broth, juice, etc.)
+      
+      Do not use any other type values. Choose the most appropriate one from the list above.
       Do not include any text, markdown, or formatting outside of the JSON object itself.
     `;
 
@@ -486,11 +577,18 @@ async function _generateAndSaveIngredient(ingredientName) {
     const text = response.text().replace(/```json|```/g, "").trim();
     const ingredientData = JSON.parse(text);
 
+    // Validate and ensure the type is one of the allowed values
+    const allowedTypes = ['protein', 'grain', 'vegetable', 'fruit', 'sweetener', 'condiment', 'pastry', 'dairy', 'oil', 'herb', 'spice', 'liquid'];
+    if (!allowedTypes.includes(ingredientData.type)) {
+      console.warn(`Invalid type "${ingredientData.type}" for ingredient "${ingredientName}". Defaulting to "vegetable".`);
+      ingredientData.type = 'vegetable'; // Default fallback
+    }
+
     ingredientData.createdAt = admin.firestore.FieldValue.serverTimestamp();
 
     const newIngredientRef = await firestore.collection("ingredients").add(ingredientData);
     
-    console.log(`Successfully generated and saved new ingredient: ${ingredientData.title} (ID: ${newIngredientRef.id})`);
+    console.log(`Successfully generated and saved new ingredient: ${ingredientData.title} (ID: ${newIngredientRef.id}) with type: ${ingredientData.type}`);
     return newIngredientRef.id;
 
   } catch (error) {

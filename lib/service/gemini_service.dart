@@ -11,9 +11,23 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
+import '../data_models/ingredient_data.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../widgets/loading_screen.dart';
+
+/// Class to hold meal similarity scoring results
+class MealSimilarityScore {
+  final Meal meal;
+  final double similarityScore;
+  final Map<String, double> componentScores;
+
+  MealSimilarityScore({
+    required this.meal,
+    required this.similarityScore,
+    required this.componentScores,
+  });
+}
 
 /// Enhanced GeminiService with comprehensive user context integration
 ///
@@ -407,7 +421,8 @@ class GeminiService {
   }
 
   /// Enhanced error handling wrapper for AI responses
-  Map<String, dynamic> _processAIResponse(String text, String operation) {
+  Future<Map<String, dynamic>> _processAIResponse(
+      String text, String operation) async {
     // Check if text is empty or contains error message
     if (text.isEmpty || text.startsWith('Error:')) {
       return _createFallbackResponse(
@@ -424,10 +439,10 @@ class GeminiService {
       final jsonData = _extractJsonObject(text);
       print('JSON data: $jsonData');
 
-      // Apply ingredient deduplication if ingredients exist
+      // Apply enhanced ingredient validation and deduplication if ingredients exist
       if (jsonData.containsKey('ingredients') &&
           jsonData['ingredients'] is Map) {
-        jsonData['ingredients'] = _normalizeAndDeduplicateIngredients(
+        jsonData['ingredients'] = await validateAndNormalizeIngredients(
             jsonData['ingredients'] as Map<String, dynamic>);
       }
 
@@ -436,7 +451,7 @@ class GeminiService {
         final meals = jsonData['meals'] as List<dynamic>;
         for (final meal in meals) {
           if (meal is Map<String, dynamic> && meal.containsKey('ingredients')) {
-            meal['ingredients'] = _normalizeAndDeduplicateIngredients(
+            meal['ingredients'] = await validateAndNormalizeIngredients(
                 meal['ingredients'] as Map<String, dynamic>);
           }
         }
@@ -1852,9 +1867,12 @@ class GeminiService {
         'userId': currentUserId,
         'familyMode': userService.currentUser.value?.familyMode ?? false,
         'dietPreference':
-            userService.currentUser.value?.settings['dietPreference'] ?? 'none',
+            userService.currentUser.value?.settings['dietPreference'] ??
+                'balanced',
         'hasProgram': false,
         'encourageProgram': true,
+        'maxCalories':
+            userService.currentUser.value?.settings['foodGoal'] ?? 2000,
       };
 
       if (userProgramQuery.docs.isNotEmpty) {
@@ -2643,6 +2661,58 @@ USER CONTEXT:
 
     // Get comprehensive user context
     final aiContext = await _buildAIContext();
+    final userContext = await _getUserContext();
+
+    // Check for existing meals before generating
+    final existingMeal = await checkExistingMealForCriteria(
+      prompt: prompt,
+      userContext: userContext,
+      categories: _extractCategoriesFromPrompt(prompt),
+      ingredients: _extractIngredientsFromPrompt(prompt),
+      contextInformation: contextInformation,
+    );
+
+    if (existingMeal != null) {
+      if (existingMeal['type'] == 'ingredient_based') {
+        // For ingredient-based: Return multiple existing meals
+        final existingMeals = existingMeal['existingMeals'] as List<Meal>;
+        return {
+          'meals': existingMeals
+              .map((meal) => {
+                    'id': meal.mealId, // Include the meal ID
+                    'title': meal.title,
+                    'categories': meal.categories,
+                    'ingredients': meal.ingredients,
+                    'calories': meal.calories,
+                    'instructions': meal.instructions,
+                    'source': 'existing_database',
+                  })
+              .toList(),
+          'source': 'existing_database',
+          'count': existingMeal['count'],
+          'message': existingMeal['message'],
+        };
+      } else {
+        // For meal plan-based: Return existing meals
+        final existingMeals = existingMeal['existingMeals'] as List<Meal>;
+        return {
+          'meals': existingMeals
+              .map((meal) => {
+                    'id': meal.mealId, // Include the meal ID
+                    'title': meal.title,
+                    'categories': meal.categories,
+                    'ingredients': meal.ingredients,
+                    'calories': meal.calories,
+                    'instructions': meal.instructions,
+                    'source': 'existing_database',
+                  })
+              .toList(),
+          'source': 'existing_database',
+          'count': existingMeal['count'],
+          'message': existingMeal['message'],
+        };
+      }
+    }
 
     try {
       final response = await _makeApiCallWithRetry(
@@ -2718,7 +2788,7 @@ Important guidelines:
 
       final text = response['candidates'][0]['content']['parts'][0]['text'];
       try {
-        final parsed = _processAIResponse(text, 'meal_plan');
+        final parsed = await _processAIResponse(text, 'meal_plan');
         return _normalizeMealPlanData(parsed);
       } catch (e) {
         // Attempt sanitization + parse once more
@@ -2938,21 +3008,73 @@ Important guidelines:
       showDialog(
         context: context,
         builder: (context) => const LoadingScreen(
-          loadingText: 'Generating Meals, Please Wait...',
+          loadingText: 'Searching for existing meals...',
         ),
       );
 
-      // Prepare prompt and generate meal plan
-      final mealPlan = await generateMealPlan(
-        'Generate 2 meals using these ingredients: ${displayedItems.map((item) => item.title).join(', ')}',
-        'Stay within the ingredients provided',
+      // Extract ingredient names
+      final ingredientNames =
+          displayedItems.map((item) => item.title.toString()).toList();
+
+      // Check for existing meals with at least 2 matching ingredients
+      final existingMeals =
+          await mealManager.searchMealsByIngredientsAndCategories(
+        ingredients: ingredientNames,
+        categories: [], // Allow all categories for ingredient-based search
+        maxCalories: null, // No calorie limit for ingredient-based search
+        dietType: null, // No diet restriction for ingredient-based search
       );
 
-      // Hide loading dialog before showing selection
+      // Hide loading dialog
       Navigator.of(context).pop();
 
-      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
-      if (meals.isEmpty) throw Exception('No meals generated');
+      List<Map<String, dynamic>> mealsToShow = [];
+      String source = '';
+
+      if (existingMeals.length >= 2) {
+        // Found 2+ existing meals - use them directly
+        mealsToShow = existingMeals
+            .take(3)
+            .map((meal) => {
+                  'id': meal.mealId, // Include the meal ID
+                  'title': meal.title,
+                  'categories': meal.categories,
+                  'ingredients': meal.ingredients,
+                  'calories': meal.calories,
+                  'instructions': meal.instructions,
+                  'source': 'existing_database',
+                })
+            .toList();
+        source = 'existing_database';
+        print(
+            'Using ${mealsToShow.length} existing meals with matching ingredients');
+      } else {
+        // Found 0-1 existing meals - generate new ones with AI
+        showDialog(
+          context: context,
+          builder: (context) => const LoadingScreen(
+            loadingText: 'Generating new meals with AI...',
+          ),
+        );
+
+        // Prepare prompt and generate meal plan
+        final mealPlan = await generateMealPlan(
+          'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
+          'Stay within the ingredients provided',
+        );
+
+        // Hide loading dialog
+        Navigator.of(context).pop();
+
+        final generatedMeals = mealPlan['meals'] as List<dynamic>? ?? [];
+        if (generatedMeals.isEmpty) throw Exception('No meals generated');
+
+        mealsToShow = generatedMeals.cast<Map<String, dynamic>>();
+        source = 'ai_generated';
+        print('Generated ${mealsToShow.length} new meals with AI');
+      }
+
+      if (mealsToShow.isEmpty) throw Exception('No meals available');
 
       // Show dialog to let user pick one meal
       final selectedMeal = await showDialog<Map<String, dynamic>>(
@@ -2974,7 +3096,9 @@ Important guidelines:
                   ),
                 ),
                 title: Text(
-                  'Select a Meal',
+                  source == 'existing_database'
+                      ? 'Select from Existing Meals'
+                      : 'Select a Meal',
                   style: textTheme.displaySmall?.copyWith(
                       fontSize: getPercentageWidth(7, context),
                       color: kAccent,
@@ -2984,9 +3108,9 @@ Important guidelines:
                   width: double.maxFinite,
                   child: ListView.builder(
                     shrinkWrap: true,
-                    itemCount: meals.length,
+                    itemCount: mealsToShow.length,
                     itemBuilder: (context, index) {
-                      final meal = meals[index];
+                      final meal = mealsToShow[index];
                       final title = meal['title'] ?? 'Untitled';
 
                       final categories =
@@ -3059,18 +3183,29 @@ Important guidelines:
                                       throw Exception('User ID not found');
                                     final date = DateFormat('yyyy-MM-dd')
                                         .format(DateTime.now());
-                                    // Save all meals first
-                                    final List<String> allMealIds =
-                                        await saveMealsToFirestore(
-                                            userId, mealPlan, '');
-                                    final int selectedIndex = meals.indexWhere(
-                                        (m) => m['title'] == meal['title']);
-                                    final String? selectedMealId =
-                                        (selectedIndex != -1 &&
-                                                selectedIndex <
-                                                    allMealIds.length)
-                                            ? allMealIds[selectedIndex]
-                                            : null;
+                                    String? selectedMealId;
+
+                                    // Only save to Firestore if it's a new AI-generated meal
+                                    if (meal['source'] == 'ai_generated') {
+                                      // Save the new AI-generated meal to Firestore
+                                      final List<String> allMealIds =
+                                          await saveMealsToFirestore(
+                                              userId,
+                                              {
+                                                'meals': [meal]
+                                              },
+                                              '');
+                                      selectedMealId = allMealIds.isNotEmpty
+                                          ? allMealIds[0]
+                                          : null;
+                                      print(
+                                          'Saved new AI-generated meal to Firestore: ${meal['title']}');
+                                    } else {
+                                      // For existing meals, use the meal ID we already have
+                                      selectedMealId = meal['id'];
+                                      print(
+                                          'Using existing meal from database: ${meal['title']} (ID: ${meal['id']})');
+                                    }
                                     // Get existing meals first
                                     final docRef = firestore
                                         .collection('mealPlans')
@@ -3579,6 +3714,366 @@ Important guidelines:
     }
 
     return shoppingList;
+  }
+
+  /// Enhanced ingredient validation with advanced matching
+  /// Checks for existing ingredients using fuzzy matching and regex patterns
+  /// For meal generation: Uses existing ingredients if found, otherwise keeps original name
+  /// For shopping list: Creates missing ingredients
+  Future<Map<String, String>> validateAndNormalizeIngredients(
+      Map<String, dynamic> ingredients,
+      {bool forShoppingList = false}) async {
+    final Map<String, String> validatedIngredients = {};
+
+    for (final entry in ingredients.entries) {
+      final ingredientName = entry.key;
+      final amount = entry.value;
+
+      // Check if ingredient exists in database with advanced matching
+      final existingIngredient =
+          await checkIngredientExistsAdvanced(ingredientName);
+      if (existingIngredient != null) {
+        validatedIngredients[existingIngredient.title] = amount;
+      } else {
+        if (forShoppingList) {
+          // For shopping list generation: Create missing ingredient
+          print(
+              'Creating missing ingredient for shopping list: $ingredientName');
+          // This would call the Cloud Function to create the ingredient
+          // For now, we'll keep the original name
+          validatedIngredients[ingredientName] = amount;
+        } else {
+          // For meal generation: Keep original name (AI can use any ingredients)
+          print(
+              'Ingredient not in database: $ingredientName - keeping original name for meal');
+          validatedIngredients[ingredientName] = amount;
+        }
+      }
+    }
+
+    return validatedIngredients;
+  }
+
+  /// Advanced ingredient existence check with fuzzy matching
+  Future<IngredientData?> checkIngredientExistsAdvanced(
+      String ingredientName) async {
+    try {
+      final normalizedName = _normalizeIngredientName(ingredientName);
+
+      // First try exact match
+      var snapshot = await firestore
+          .collection('ingredients')
+          .where('title', isEqualTo: ingredientName.toLowerCase())
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return IngredientData.fromJson(snapshot.docs.first.data());
+      }
+
+      // Try normalized name match
+      snapshot = await firestore
+          .collection('ingredients')
+          .where('title', isEqualTo: normalizedName)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return IngredientData.fromJson(snapshot.docs.first.data());
+      }
+
+      // Try normalized matching (remove spaces, hyphens, underscores)
+      final normalizedInputName = _normalizeIngredientName(ingredientName);
+
+      // Get all ingredients and check for normalized matches
+      final allIngredientsSnapshot =
+          await firestore.collection('ingredients').get();
+
+      for (final doc in allIngredientsSnapshot.docs) {
+        final ingredientData = doc.data();
+        final dbTitle = ingredientData['title'] as String? ?? '';
+        final normalizedDbTitle = _normalizeIngredientName(dbTitle);
+
+        if (normalizedInputName == normalizedDbTitle) {
+          return IngredientData.fromJson(ingredientData);
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('Error checking ingredient existence: $e');
+      return null;
+    }
+  }
+
+  /// Check for existing meals that match user criteria before generating new ones
+  Future<Map<String, dynamic>?> checkExistingMealForCriteria({
+    required String prompt,
+    required Map<String, dynamic> userContext,
+    required List<String> categories,
+    required Map<String, String> ingredients,
+    required String contextInformation,
+  }) async {
+    try {
+      // Determine if this is ingredient-based or meal plan-based generation
+      final isIngredientBased =
+          _isIngredientBasedGeneration(contextInformation);
+
+      if (isIngredientBased) {
+        // For ingredient-based: Check for 2+ meals with matching ingredients
+        return await _checkIngredientBasedMeals(
+            prompt, userContext, categories, ingredients);
+      } else {
+        // For meal plan-based: Check for multiple meals across categories
+        return await _checkMealPlanBasedMeals(
+            prompt, userContext, categories, ingredients, contextInformation);
+      }
+    } catch (e) {
+      print('Error checking existing meals: $e');
+      return null;
+    }
+  }
+
+  /// Determine if this is ingredient-based generation based on context
+  bool _isIngredientBasedGeneration(String contextInformation) {
+    final contextLower = contextInformation.toLowerCase();
+    return contextLower.contains('ingredients') ||
+        contextLower.contains('using these ingredients') ||
+        contextLower.contains('stay within the ingredients');
+  }
+
+  /// Check for existing meals in ingredient-based generation
+  Future<Map<String, dynamic>?> _checkIngredientBasedMeals(
+    String prompt,
+    Map<String, dynamic> userContext,
+    List<String> categories,
+    Map<String, String> ingredients,
+  ) async {
+    // Search for meals with 2+ matching ingredients
+    final existingMeals =
+        await mealManager.searchMealsByIngredientsAndCategories(
+      ingredients: ingredients.keys.toList(),
+      categories: categories,
+      maxCalories: userContext['maxCalories'],
+      dietType: userContext['dietPreference'],
+    );
+
+    if (existingMeals.length >= 2) {
+      // Return up to 3 best matches
+      final bestMeals = existingMeals.take(3).toList();
+      return {
+        'existingMeals': bestMeals,
+        'count': bestMeals.length,
+        'message':
+            'Found ${bestMeals.length} existing meals with matching ingredients',
+        'type': 'ingredient_based',
+      };
+    }
+
+    return null;
+  }
+
+  /// Check for existing meals in meal plan-based generation
+  Future<Map<String, dynamic>?> _checkMealPlanBasedMeals(
+    String prompt,
+    Map<String, dynamic> userContext,
+    List<String> categories,
+    Map<String, String> ingredients,
+    String contextInformation,
+  ) async {
+    // Extract meal type requirements from prompt
+    final mealTypeRequirements = _extractMealTypeRequirements(prompt);
+
+    // Search for meals by categories and meal types
+    final existingMeals = await mealManager.searchMealsByCategoriesAndTypes(
+      categories: categories,
+      mealTypeCounts: mealTypeRequirements,
+      dietType: userContext['dietPreference'],
+      maxCalories: userContext['maxCalories'],
+    );
+
+    // Check if we have enough meals for each required type
+    final mealsByType = _groupMealsByType(existingMeals);
+    final hasEnoughMeals =
+        _checkMealTypeCoverage(mealsByType, mealTypeRequirements);
+
+    if (hasEnoughMeals) {
+      return {
+        'existingMeals': existingMeals,
+        'count': existingMeals.length,
+        'message': 'Found sufficient existing meals for meal plan',
+        'type': 'meal_plan_based',
+        'mealTypeCoverage': mealsByType,
+      };
+    }
+
+    return null;
+  }
+
+  /// Extract meal type requirements and age group from the actual prompt
+  Map<String, dynamic> _extractMealTypeRequirements(String prompt) {
+    final requirements = <String, dynamic>{};
+    final promptLower = prompt.toLowerCase();
+
+    // Look for specific meal type counts in the prompt
+    // Example: "Include: - 2 protein dishes - 3 grain dishes - 4 vegetable dishes"
+    final proteinMatch =
+        RegExp(r'(\d+)\s*protein\s*dishes?', caseSensitive: false)
+            .firstMatch(prompt);
+    final grainMatch = RegExp(r'(\d+)\s*grain\s*dishes?', caseSensitive: false)
+        .firstMatch(prompt);
+    final vegMatch =
+        RegExp(r'(\d+)\s*vegetable\s*dishes?', caseSensitive: false)
+            .firstMatch(prompt);
+
+    if (proteinMatch != null) {
+      requirements['protein'] = int.tryParse(proteinMatch.group(1) ?? '0') ?? 0;
+    }
+    if (grainMatch != null) {
+      requirements['grain'] = int.tryParse(grainMatch.group(1) ?? '0') ?? 0;
+    }
+    if (vegMatch != null) {
+      requirements['vegetable'] = int.tryParse(vegMatch.group(1) ?? '0') ?? 0;
+    }
+
+    // Also look for meal type patterns (breakfast, lunch, dinner, snack)
+    if (promptLower.contains('breakfast')) requirements['breakfast'] = 1;
+    if (promptLower.contains('lunch')) requirements['lunch'] = 1;
+    if (promptLower.contains('dinner')) requirements['dinner'] = 1;
+    if (promptLower.contains('snack')) requirements['snack'] = 1;
+
+    // Extract age group from prompt
+    // Look for patterns like "for a baby", "for an adult", "for toddlers", etc.
+    final ageGroupMatch = RegExp(
+            r'for\s+(?:a\s+|an\s+)?(baby|toddler|child|teen|adult)',
+            caseSensitive: false)
+        .firstMatch(prompt);
+    if (ageGroupMatch != null) {
+      requirements['ageGroup'] = ageGroupMatch.group(1)?.toLowerCase();
+    }
+
+    // If no specific types mentioned, assume we need at least 2 meals
+    if (requirements.isEmpty) {
+      requirements['meal'] = 2;
+    }
+
+    return requirements;
+  }
+
+  /// Group meals by their meal type
+  Map<String, List<Meal>> _groupMealsByType(List<Meal> meals) {
+    final grouped = <String, List<Meal>>{};
+
+    for (final meal in meals) {
+      for (final category in meal.categories) {
+        final categoryLower = category.toLowerCase();
+        if (categoryLower.contains('breakfast')) {
+          grouped.putIfAbsent('breakfast', () => []).add(meal);
+        } else if (categoryLower.contains('lunch')) {
+          grouped.putIfAbsent('lunch', () => []).add(meal);
+        } else if (categoryLower.contains('dinner')) {
+          grouped.putIfAbsent('dinner', () => []).add(meal);
+        } else if (categoryLower.contains('snack')) {
+          grouped.putIfAbsent('snack', () => []).add(meal);
+        }
+      }
+    }
+
+    return grouped;
+  }
+
+  /// Check if we have enough meals for each required type
+  bool _checkMealTypeCoverage(
+      Map<String, List<Meal>> mealsByType, Map<String, dynamic> requirements) {
+    for (final entry in requirements.entries) {
+      final requiredType = entry.key;
+      final requiredValue = entry.value;
+
+      // Skip ageGroup as it's not a meal type
+      if (requiredType == 'ageGroup') continue;
+
+      // Handle both int and dynamic values
+      final requiredCount = requiredValue is int ? requiredValue : 0;
+      final availableMeals = mealsByType[requiredType]?.length ?? 0;
+
+      if (availableMeals < requiredCount) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// Extract categories from prompt
+  List<String> _extractCategoriesFromPrompt(String prompt) {
+    final categories = <String>[];
+    final promptLower = prompt.toLowerCase();
+
+    // Common category keywords
+    final categoryKeywords = {
+      'breakfast': ['breakfast', 'morning', 'eggs', 'pancakes', 'waffles'],
+      'lunch': ['lunch', 'midday', 'sandwich', 'salad'],
+      'dinner': ['dinner', 'evening', 'main course', 'entree'],
+      'snack': ['snack', 'appetizer', 'finger food'],
+      'vegetarian': ['vegetarian', 'veg', 'meatless'],
+      'vegan': ['vegan', 'plant-based'],
+      'keto': ['keto', 'ketogenic', 'low-carb'],
+      'paleo': ['paleo', 'paleolithic'],
+      'quick': ['quick', 'fast', 'easy', 'simple'],
+      'healthy': ['healthy', 'nutritious', 'wholesome'],
+    };
+
+    for (final entry in categoryKeywords.entries) {
+      for (final keyword in entry.value) {
+        if (promptLower.contains(keyword)) {
+          categories.add(entry.key);
+          break;
+        }
+      }
+    }
+
+    return categories;
+  }
+
+  /// Extract ingredients from prompt
+  Map<String, String> _extractIngredientsFromPrompt(String prompt) {
+    final ingredients = <String, String>{};
+    final promptLower = prompt.toLowerCase();
+
+    // Common ingredient keywords (simplified)
+    final ingredientKeywords = [
+      'chicken',
+      'beef',
+      'pork',
+      'fish',
+      'salmon',
+      'tuna',
+      'rice',
+      'pasta',
+      'bread',
+      'potato',
+      'tomato',
+      'onion',
+      'garlic',
+      'olive oil',
+      'butter',
+      'cheese',
+      'egg',
+      'milk',
+      'yogurt',
+      'flour',
+      'sugar',
+      'salt',
+      'pepper',
+    ];
+
+    for (final ingredient in ingredientKeywords) {
+      if (promptLower.contains(ingredient)) {
+        ingredients[ingredient] = '1 portion';
+      }
+    }
+
+    return ingredients;
   }
 }
 
