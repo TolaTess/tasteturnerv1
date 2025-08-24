@@ -94,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Initialize NotificationService after the widget is built
       try {
         notificationService = Get.find<NotificationService>();
-        print('NotificationService initialized successfully');
       } catch (e) {
         print('Error initializing NotificationService: $e');
         return;
@@ -474,21 +473,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
       );
     }
-
-    // Also schedule a morning check-in for the next day
-    await notificationService?.scheduleDailyReminder(
-      id: 3,
-      title: 'Morning Check-in 🌅',
-      body: 'Plan your meals and set your goals for today!',
-      hour: 8,
-      minute: 30,
-      payload: {
-        'type': 'morning_checkin',
-        'date': tomorrowStr,
-        'todaySummary': todaySummary,
-        'hasMealPlan': tomorrowHasMealPlan,
-      },
-    );
   }
 
   void _initializeMealData() async {
