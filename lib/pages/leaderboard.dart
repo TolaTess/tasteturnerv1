@@ -109,7 +109,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         }
 
         // Only add to main leaderboard if not tastyId
-        if (docUserId != tastyId && docUserId != tastyId2) {
+        if (docUserId != tastyId && docUserId != tastyId2 && docUserId != tastyId3 && docUserId != tastyId4) {
           data.add(userMap);
           actualRank++;
         } else {

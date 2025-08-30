@@ -64,7 +64,11 @@ class AuthController extends GetxController {
           await BadgeService.instance.assignUserNumberToExistingUser(user.uid);
 
           await _setLoggedIn(true);
-          Get.offAll(() => const BottomNavSec());
+          if (user.uid == 'j3DFJrAIKDNkDbI3foP8tL4O3Rp1') {
+            Get.offAll(() => OnboardingScreen(userId: user.uid));
+          } else {
+            Get.offAll(() => const BottomNavSec());
+          }
         } catch (e) {
           debugPrint("Failed to load user data: $e");
           // Handle the error appropriately - maybe show an error screen

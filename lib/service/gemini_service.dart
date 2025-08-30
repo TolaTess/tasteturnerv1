@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -721,7 +722,7 @@ class GeminiService {
           'carbs': 45,
           'fat': 8
         },
-        'categories': ['quick', 'vegetarian'],
+        'categories': ['quick', 'vegetarian', 'fallback'],
         'cookingTime': '15 minutes',
         'cookingMethod': 'stovetop'
       },
@@ -739,7 +740,7 @@ class GeminiService {
           'carbs': 8,
           'fat': 12
         },
-        'categories': ['healthy', 'protein-rich'],
+        'categories': ['healthy', 'protein-rich', 'fallback'],
         'cookingTime': '20 minutes',
         'cookingMethod': 'grill'
       },
@@ -757,7 +758,7 @@ class GeminiService {
           'carbs': 25,
           'fat': 10
         },
-        'categories': ['vegetarian', 'quick'],
+        'categories': ['vegetarian', 'quick', 'fallback'],
         'cookingTime': '10 minutes',
         'cookingMethod': 'stir fry'
       }
@@ -3408,13 +3409,20 @@ CRITICAL REQUIREMENTS:
   /// Generate meals directly with AI without checking existing meals
   Future<Map<String, dynamic>> generateMealsWithAI(
       String prompt, String contextInformation) async {
+    debugPrint('generateMealsWithAI called with prompt: $prompt');
+    debugPrint('Current provider: $_currentProvider');
+    debugPrint('Active model: $_activeModel');
+
     // Initialize model if not already done
     if (_activeModel == null) {
+      debugPrint('No active model, initializing...');
       final initialized = await initializeModel();
       if (!initialized) {
+        debugPrint('Model initialization failed, using fallback');
         // Try fallback if model initialization fails
         return await _getFallbackMeals(prompt);
       }
+      debugPrint('Model initialized successfully: $_activeModel');
     }
 
     // Get comprehensive user context
@@ -3422,6 +3430,7 @@ CRITICAL REQUIREMENTS:
     final userContext = await _getUserContext();
 
     try {
+      debugPrint('Making API call for meal generation...');
       final response = await _makeApiCallWithRetry(
         endpoint: '${_activeModel}:generateContent',
         operation: 'generate meals with AI',
@@ -3441,7 +3450,7 @@ $contextInformation
 
 $userContext
 
-Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
 {
   "meals": [
     {
@@ -3513,8 +3522,22 @@ Important guidelines:
         throw Exception('Empty response from AI model');
       }
 
-      // Parse the JSON response
-      final jsonResponse = json.decode(text) as Map<String, dynamic>;
+      // Parse the JSON response - first sanitize in case AI returns markdown code blocks
+      String cleanedText = text.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replaceFirst('```json', '').trim();
+      }
+      if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replaceFirst('```', '').trim();
+      }
+      if (cleanedText.endsWith('```')) {
+        cleanedText =
+            cleanedText.substring(0, cleanedText.lastIndexOf('```')).trim();
+      }
+
+      debugPrint(
+          'Cleaned AI response text: ${cleanedText.substring(0, math.min(200, cleanedText.length))}...');
+      final jsonResponse = json.decode(cleanedText) as Map<String, dynamic>;
 
       // Convert AI response to proper meal format (same as generateMealPlan)
       final meals = jsonResponse['meals'] as List<dynamic>? ?? [];
@@ -3533,6 +3556,9 @@ Important guidelines:
         'message': 'AI-generated meals',
       };
     } catch (e) {
+      // Log the specific error before falling back
+      debugPrint('generateMealsWithAI failed with error: $e');
+      debugPrint('Falling back to hardcoded meals');
       // Return fallback meals if AI generation fails
       return await _getFallbackMeals(prompt);
     }
@@ -3545,6 +3571,7 @@ Important guidelines:
       // Step 1: Generate meal titles and types
       final mealData = await generateMealTitles(prompt, contextInformation);
       final mealTitles = mealData['mealTitles'] as List<String>;
+      print('mealTitles: ${mealTitles}');
       final mealPlan = mealData['mealPlan'] as List<dynamic>;
       final distribution = mealData['distribution'] as Map<String, dynamic>;
 
@@ -3554,7 +3581,7 @@ Important guidelines:
 
       // Step 2: Check which titles already exist in database
       final existingMeals = await checkExistingMealsByTitles(mealTitles);
-
+      debugPrint('existingMeals: ${existingMeals.length}');
       // Step 3: Identify missing titles with their meal types
       final missingMeals = <Map<String, dynamic>>[];
       for (final meal in mealPlan) {
@@ -3569,7 +3596,7 @@ Important guidelines:
       }
       final missingTitles =
           missingMeals.map((m) => m['title'] as String).toList();
-
+      debugPrint('missingMeals: ${missingMeals.length}');
       // Step 4: Generate only the missing meals
       List<Map<String, dynamic>> newMeals = [];
       if (missingTitles.isNotEmpty) {
@@ -3588,14 +3615,12 @@ Use the EXACT meal titles and meal types provided above. Do not generate any oth
           'Generate meals for the specified titles',
           enhancedContextInformation,
         );
-
         final meals = mealPlanResult['meals'] as List<dynamic>? ?? [];
         newMeals = meals.cast<Map<String, dynamic>>();
       }
 
       // Step 5: Combine existing and new meals
       final allMeals = <Map<String, dynamic>>[];
-
       // Add existing meals with their planned meal types
       for (final meal in mealPlan) {
         final title = meal['title'] as String;
@@ -3617,7 +3642,6 @@ Use the EXACT meal titles and meal types provided above. Do not generate any oth
 
       // Add new meals
       allMeals.addAll(newMeals);
-
       // Calculate nutritional summary
       int totalCalories = 0;
       int totalProtein = 0;
@@ -3644,7 +3668,6 @@ Use the EXACT meal titles and meal types provided above. Do not generate any oth
           }
         }
       }
-
       return {
         'meals': allMeals,
         'source': 'mixed',
@@ -3751,7 +3774,7 @@ $contextInformation
 
 $userContext
 
-Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
 {
   "meals": [
     {
@@ -3885,7 +3908,7 @@ $contextualPrompt
 
 Identify all visible food items, estimate portion sizes, and calculate nutritional values. Also provide suggestions for meal improvement if applicable.
 
-Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
 
 IMPORTANT: You have 4096 tokens available. Prioritize completing the JSON structure over detailed descriptions. If you need to truncate, ensure the JSON is complete and valid.
 
@@ -4780,7 +4803,7 @@ Generate a balanced 54321 shopping list:
 - 1 grain (rice, pasta, bread, etc.)
 - 1 fun/special treat (dessert, snack, indulgence)
 
-Return ONLY a raw JSON object (no markdown, no code blocks, no extra text, no trailing commas, no incomplete objects) with the following structure:
+CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
 {
   "shoppingList": {
     "vegetables": [

@@ -14,7 +14,7 @@ import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../service/badge_service.dart';
 import '../themes/theme_provider.dart';
-import 'post_onboarding_walkthrough.dart';
+import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -212,16 +212,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         await helperController.saveMealPlan(
             widget.userId, formattedDate, 'welcome_day');
 
-        await friendController.followFriend(
-            widget.userId, tastyId, 'Tasty AI', context);
+        if (widget.userId != tastyId3 || widget.userId != tastyId4) {
+          await friendController.followFriend(
+              widget.userId, tastyId, 'Tasty AI', context);
+        }
 
         await prefs.setBool('is_first_time_user', true);
 
         // Close loading dialog
         Get.back();
 
-        // Only navigate if all the above operations succeeded
-        Get.offAll(() => const PostOnboardingWalkthrough());
+        // Navigate to main app with bottom navigation
+        Get.offAll(() => const BottomNavSec());
 
         try {
           await requestUMPConsent();
@@ -260,59 +262,69 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: Container(
-        // decoration: const BoxDecoration(
-        //   color: kAccentLight,
-        // ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              if (_currentPage > 0)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.arrow_back_ios,
-                      color: getThemeProvider(context).isDarkMode
-                          ? kWhite
-                          : kDarkGrey,
+      body: GestureDetector(
+        onTap: () {
+          // Dismiss keyboard when tapping outside
+          FocusScope.of(context).unfocus();
+        },
+        child: Container(
+          // decoration: const BoxDecoration(
+          //   color: kAccentLight,
+          // ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                if (_currentPage > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.arrow_back_ios,
+                        color: getThemeProvider(context).isDarkMode
+                            ? kWhite
+                            : kDarkGrey,
+                      ),
+                      onPressed: () {
+                        // Dismiss keyboard when navigating
+                        FocusScope.of(context).unfocus();
+                        _controller.previousPage(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeIn,
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      _controller.previousPage(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeIn,
-                      );
+                  ),
+                Expanded(
+                  child: PageView(
+                    controller: _controller,
+                    physics: _isNextEnabled
+                        ? const BouncingScrollPhysics()
+                        : const NeverScrollableScrollPhysics(),
+                    onPageChanged: (value) {
+                      // Dismiss keyboard when changing pages
+                      FocusScope.of(context).unfocus();
+                      setState(() {
+                        _currentPage = value;
+                        _validateInputs();
+                      });
                     },
+                    children: [
+                      _buildNamePage(),
+                      _buildGoalsPage(textTheme: Theme.of(context).textTheme),
+                      _buildPreferencePage(),
+                      _buildMeasurementsPage(),
+                      _buildSettingsPage(),
+                      _buildFeatureTourPage(),
+                    ],
                   ),
                 ),
-              Expanded(
-                child: PageView(
-                  controller: _controller,
-                  physics: _isNextEnabled
-                      ? const BouncingScrollPhysics()
-                      : const NeverScrollableScrollPhysics(),
-                  onPageChanged: (value) {
-                    setState(() {
-                      _currentPage = value;
-                      _validateInputs();
-                    });
-                  },
-                  children: [
-                    _buildNamePage(),
-                    _buildGoalsPage(textTheme: Theme.of(context).textTheme),
-                    _buildPreferencePage(),
-                    _buildMeasurementsPage(),
-                    _buildSettingsPage(),
-                    _buildFeatureTourPage(),
-                  ],
+                Padding(
+                  padding: EdgeInsets.all(getPercentageWidth(5, context)),
+                  child: _buildNavigationButtons(
+                      textTheme: Theme.of(context).textTheme),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(getPercentageWidth(5, context)),
-                child: _buildNavigationButtons(
-                    textTheme: Theme.of(context).textTheme),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -950,6 +962,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   void _nextPage() {
     if (_isNextEnabled) {
+      // Dismiss keyboard when navigating
+      FocusScope.of(context).unfocus();
+
       if (_currentPage < 5) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),

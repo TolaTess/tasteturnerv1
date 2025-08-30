@@ -343,7 +343,8 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
                       if (widget.meal.description != null &&
-                          widget.meal.description!.isNotEmpty)
+                          widget.meal.description!.isNotEmpty &&
+                          widget.meal.description != 'Unknown Description')
                         Padding(
                           padding: EdgeInsets.symmetric(
                               vertical: getPercentageHeight(0.5, context)),
@@ -573,8 +574,10 @@ class _RecipeTittleState extends State<RecipeTittle> {
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                showTastySnackbar('Error',
-                                    'Failed to delete meal: Please try again later', context,
+                                showTastySnackbar(
+                                    'Error',
+                                    'Failed to delete meal: Please try again later',
+                                    context,
                                     backgroundColor: kRed);
                               }
                             }
@@ -750,16 +753,24 @@ class NutritionFacts extends StatelessWidget {
 
     Map<String, String> nutritionMap = {};
 
-    if (meal.nutrition.isNotEmpty) {
+    if (meal.macros.isNotEmpty) {
+      nutritionMap = {...meal.macros};
+      // Always add calories to macros since it's not included in macros but needed
+      if (meal.calories != null) {
+        nutritionMap['calories'] = meal.calories.toString();
+      }
+    } else if (meal.nutrition.isNotEmpty) {
       nutritionMap = meal.nutrition;
     } else if (meal.nutritionalInfo.isNotEmpty) {
       nutritionMap = meal.nutritionalInfo;
       if (meal.calories != null && nutritionMap['calories'] == null) {
-        nutritionMap['calories'] = meal.calories.toString().toLowerCase();
+        nutritionMap['calories'] = meal.calories.toString();
       }
     } else {
-      nutritionMap = {...meal.macros};
-      nutritionMap['calories'] = meal.calories.toString().toLowerCase();
+      nutritionMap = {};
+      if (meal.calories != null) {
+        nutritionMap['calories'] = meal.calories.toString();
+      }
     }
 
     List<Color> colors = [
