@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:get/get.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:path_provider/path_provider.dart';
@@ -102,7 +103,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
       );
 
       if (albums.isEmpty) {
-        print('No photo albums found');
+        debugPrint('No photo albums found');
         return;
       }
 
@@ -134,7 +135,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
         });
       }
     } catch (e) {
-      print('Error loading gallery images: $e');
+      debugPrint('Error loading gallery images: $e');
       if (mounted) {
         showTastySnackbar(
           'Try again',
@@ -402,7 +403,11 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
     try {
       return await getTemporaryDirectory();
     } catch (e) {
-      print('Error getting temporary directory: $e');
+      if (mounted) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
+      }
       return null;
     }
   }
@@ -418,7 +423,11 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
         }
       }
     } catch (e) {
-      print('Error cleaning up temporary files: $e');
+      if (mounted) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
+      }
     }
   }
 }
@@ -486,7 +495,11 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
         }
       }
     } catch (e) {
-      print('Error loading more images: $e');
+      if (mounted) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -508,7 +521,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
       );
 
       if (albums.isEmpty) {
-        print('No photo albums found');
+        debugPrint('No photo albums found');
         return;
       }
 
@@ -520,7 +533,6 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
         _loadedImages = recentImages;
       });
     } catch (e) {
-      print('Error loading gallery images: $e');
       // Show error message to user if needed
       if (mounted) {
         showTastySnackbar(
@@ -692,7 +704,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
               backgroundColor:
-                    isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.50),
+                  isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(50),
               ),

@@ -52,14 +52,12 @@ class HelperController extends GetxController {
                 'isPopular': data['isPopular'] as bool? ?? false,
               };
             } catch (e) {
-              print('Error parsing plan data: $e');
               return null;
             }
           })
           .whereType<Map<String, dynamic>>()
           .toList();
     } catch (e) {
-      print('Error fetching plans: $e');
       plans.value = [];
     }
   }
@@ -81,14 +79,12 @@ class HelperController extends GetxController {
                 'name': data['name'] as String? ?? '',
               };
             } catch (e) {
-              print('Error parsing main category data: $e');
               return null;
             }
           })
           .whereType<Map<String, dynamic>>()
           .toList();
     } catch (e) {
-      print('Error fetching main category: $e');
       mainCategory.value = [];
     }
   }
@@ -110,14 +106,12 @@ class HelperController extends GetxController {
                 'name': data['name'] as String? ?? '',
               };
             } catch (e) {
-              print('Error parsing kids category data: $e');
               return null;
             }
           })
           .whereType<Map<String, dynamic>>()
           .toList();
     } catch (e) {
-      print('Error fetching kids category: $e');
       kidsCategory.value = [];
     }
   }
@@ -139,14 +133,12 @@ class HelperController extends GetxController {
                 'name': data['name'] as String? ?? '',
               };
             } catch (e) {
-              print('Error parsing header data: $e');
               return null;
             }
           })
           .whereType<Map<String, dynamic>>()
           .toList();
     } catch (e) {
-      print('Error fetching headers: $e');
       headers.value = [];
     }
   }
@@ -155,7 +147,6 @@ class HelperController extends GetxController {
     try {
       final snapshot = await firestore.collection('macros').get();
       if (snapshot.docs.isEmpty) {
-        print('No macros documents found');
         macros.value = [];
         return;
       }
@@ -186,14 +177,12 @@ class HelperController extends GetxController {
               };
               return result;
             } catch (e) {
-              print('Error parsing macro data: $e');
               return null;
             }
           })
           .whereType<Map<String, dynamic>>()
           .toList();
     } catch (e) {
-      print('Error fetching macros: $e');
       macros.value = [];
     }
   }
@@ -213,7 +202,6 @@ class HelperController extends GetxController {
               final name = data['name'] as String? ?? '';
               final description = data['description'] as String? ?? '';
               if (name.isEmpty) {
-                print('Category name is empty for document ${doc.id}');
                 return null;
               }
               return {
@@ -222,7 +210,6 @@ class HelperController extends GetxController {
                 'description': description,
               };
             } catch (e) {
-              print('Error parsing category data: $e');
               return null;
             }
           })
@@ -230,7 +217,6 @@ class HelperController extends GetxController {
           .toList()
         ..sort((a, b) => a['name'].compareTo(b['name']));
     } catch (e) {
-      print('Error fetching categories: $e');
       category.value = [];
     }
   }
@@ -250,7 +236,6 @@ class HelperController extends GetxController {
               final name = data['name'] as String? ?? '';
               final description = data['description'] as String? ?? '';
               if (name.isEmpty) {
-                print('Category name is empty for document ${doc.id}');
                 return null;
               }
               return {
@@ -261,7 +246,6 @@ class HelperController extends GetxController {
                 'kidsFriendly': data['kidsFriendly'] as bool? ?? false,
               };
             } catch (e) {
-              print('Error parsing category data: $e');
               return null;
             }
           })
@@ -269,7 +253,6 @@ class HelperController extends GetxController {
           .toList()
         ..sort((a, b) => a['name'].compareTo(b['name']));
     } catch (e) {
-      print('Error fetching categories: $e');
       category.value = [];
     }
   }
@@ -358,11 +341,9 @@ class HelperController extends GetxController {
           'winners': allWinners,
         };
       } catch (e) {
-        print('Error processing winners data: $e');
         winners.value = {};
       }
     } catch (e) {
-      print('Error fetching winners: $e');
       winners.value = {};
     }
   }
@@ -398,8 +379,7 @@ class HelperController extends GetxController {
         }
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Error saving winners: $e');
-      throw Exception('Failed to save winners: $e');
+        throw Exception('Failed to save winners: $e');
     }
   }
 

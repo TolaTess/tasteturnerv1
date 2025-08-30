@@ -126,7 +126,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         });
       }
     } catch (e) {
-      print('Error normalizing analysis data: $e');
+      debugPrint('Error normalizing analysis data: $e');
       // Set minimal fallback data if normalization fails
       _editableAnalysis = {
         'foodItems': [
@@ -320,7 +320,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         _hasCreatedMeal = true;
       });
     } catch (e) {
-      print('Failed to create meal: $e');
+      debugPrint('Failed to create meal: $e');
       // Don't show error dialog on back navigation, just fail silently
     }
   }
@@ -400,7 +400,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             updateData: {'mealId': finalMealId},
           );
         } catch (e) {
-          print('Error updating post with mealId: $e');
+          debugPrint('Error updating post with mealId: $e');
           // Don't fail the whole operation, just log the error
         }
       }
@@ -474,7 +474,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             Navigator.of(context).pop();
           }
         } catch (e) {
-          print('Failed to create post: $e');
+          debugPrint('Failed to create post: $e');
           showTastySnackbar(
             'Warning',
             'Meal saved successfully, but failed to upload post. Please try uploading manually.',
@@ -496,7 +496,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         Navigator.of(context).pop(true); // Return true to indicate success
       }
     } catch (e) {
-      print('Failed to save analysis: $e');
+      debugPrint('Failed to save analysis: $e');
       showTastySnackbar(
         'Failed to save analysis',
         'Please try again',

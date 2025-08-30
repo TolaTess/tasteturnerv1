@@ -131,7 +131,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
         Navigator.pop(context);
       } catch (e) {
-        print('Error saving settings: $e');
         Get.snackbar('Error', 'Failed to save settings. Please try again.',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.red,
@@ -227,7 +226,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         );
       }
     } catch (e) {
-      print('Error saving family members: $e');
       if (mounted) {
         showTastySnackbar(
           'Error',

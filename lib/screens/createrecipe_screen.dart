@@ -109,7 +109,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       fullLabelsList = macroManager.ingredient;
       setState(() {});
     } catch (e) {
-      print('Error loading data: $e');
+      debugPrint('Error loading data: $e');
     }
   }
 
@@ -245,7 +245,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             foodScreenTabIndex: 1,
           ));
     } catch (e) {
-      print("Error uploading meal: $e");
+      debugPrint("Error uploading meal: $e");
       if (mounted) {
         showTastySnackbar(
           'Please try again.',
@@ -511,7 +511,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                   // Quantity Picker
                                   SizedBox(
                                     width: getPercentageWidth(15, context),
-                                    child: buildPicker(context, 21,
+                                    child: buildPicker(context, 1000,
                                         ingredientQuantities[index], (val) {
                                       setState(() {
                                         ingredientQuantities[index] = val;

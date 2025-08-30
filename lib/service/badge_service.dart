@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 import '../data_models/badge_system_model.dart';
 import '../helper/utils.dart';
+
 
 class BadgeService extends GetxController {
   static BadgeService instance = Get.find();
@@ -34,7 +35,7 @@ class BadgeService extends GetxController {
       availableBadges.value =
           snapshot.docs.map((doc) => Badge.fromFirestore(doc.data())).toList();
     } catch (e) {
-      print('Error loading badges: $e');
+      debugPrint('Error loading badges: $e');
     }
   }
 
@@ -64,7 +65,7 @@ class BadgeService extends GetxController {
       // Check for first 100 users badge if user has a userNumber
       await _checkFirst100UsersBadge(userId);
     } catch (e) {
-      print('Error loading user progress: $e');
+      debugPrint('Error loading user progress: $e');
     }
   }
 
@@ -76,7 +77,7 @@ class BadgeService extends GetxController {
         await checkBadgeProgress(userId, 'user_number');
       }
     } catch (e) {
-      print('Error checking first 100 users badge: $e');
+      debugPrint('Error checking first 100 users badge: $e');
     }
   }
 
@@ -92,7 +93,7 @@ class BadgeService extends GetxController {
         }
       }
     } catch (e) {
-      print('Error assigning user number to existing user: $e');
+      debugPrint('Error assigning user number to existing user: $e');
     }
   }
 
@@ -106,7 +107,7 @@ class BadgeService extends GetxController {
         totalPoints.value = 0;
       }
     } catch (e) {
-      print('Error loading user points: $e');
+      debugPrint('Error loading user points: $e');
       totalPoints.value = 0;
     }
   }
@@ -116,7 +117,7 @@ class BadgeService extends GetxController {
     try {
       streakDays.value = await _getCurrentStreak(userId);
     } catch (e) {
-      print('Error loading user streak: $e');
+      debugPrint('Error loading user streak: $e');
       streakDays.value = 0;
     }
   }
@@ -126,7 +127,7 @@ class BadgeService extends GetxController {
     try {
       // Check if this award has already been given today
       if (reason != null && await _hasBeenAwardedToday(userId, reason)) {
-        print('Award already given today for: $reason');
+        debugPrint('Award already given today for: $reason');
         return;
       }
 
@@ -144,7 +145,7 @@ class BadgeService extends GetxController {
         await _markAwardGivenToday(userId, reason);
       }
     } catch (e) {
-      print('Error awarding points: $e');
+      debugPrint('Error awarding points: $e');
     }
   }
 
@@ -157,7 +158,7 @@ class BadgeService extends GetxController {
       final key = 'award_${userId}_${reason}_$today';
       return prefs.getBool(key) ?? false;
     } catch (e) {
-      print('Error checking daily award: $e');
+      debugPrint('Error checking daily award: $e');
       return false;
     }
   }
@@ -174,7 +175,7 @@ class BadgeService extends GetxController {
       // Clean up old entries (older than 7 days) to prevent storage bloat
       await _cleanupOldAwardEntries(userId);
     } catch (e) {
-      print('Error marking award as given: $e');
+      debugPrint('Error marking award as given: $e');
     }
   }
 
@@ -198,7 +199,7 @@ class BadgeService extends GetxController {
         }
       }
     } catch (e) {
-      print('Error cleaning up old award entries: $e');
+      debugPrint('Error cleaning up old award entries: $e');
     }
   }
 
@@ -214,9 +215,9 @@ class BadgeService extends GetxController {
           await prefs.remove(key);
         }
       }
-      print('Daily awards reset for user: $userId');
+      debugPrint('Daily awards reset for user: $userId');
     } catch (e) {
-      print('Error resetting daily awards: $e');
+      debugPrint('Error resetting daily awards: $e');
     }
   }
 
@@ -241,7 +242,7 @@ class BadgeService extends GetxController {
 
       return todaysAwards;
     } catch (e) {
-      print('Error getting today\'s awards: $e');
+      debugPrint('Error getting today\'s awards: $e');
       return [];
     }
   }
@@ -273,7 +274,7 @@ class BadgeService extends GetxController {
           break;
       }
     } catch (e) {
-      print('Error checking goal achievement: $e');
+      debugPrint('Error checking goal achievement: $e');
     }
   }
 
@@ -290,7 +291,7 @@ class BadgeService extends GetxController {
       await loadUserStreak(userId);
       await checkBadgeProgress(userId, 'streak_days');
     } catch (e) {
-      print('Error checking meal logged: $e');
+      debugPrint('Error checking meal logged: $e');
     }
   }
 
@@ -317,7 +318,7 @@ class BadgeService extends GetxController {
         await _evaluateBadgeProgress(userId, badge, actionData);
       }
     } catch (e) {
-      print('Error checking badge progress: $e');
+      debugPrint('Error checking badge progress: $e');
     }
   }
 
@@ -354,7 +355,7 @@ class BadgeService extends GetxController {
         await _updateProgress(userId, badge, newProgress);
       }
     } catch (e) {
-      print('Error evaluating badge progress: $e');
+      debugPrint('Error evaluating badge progress: $e');
     }
   }
 
@@ -446,9 +447,9 @@ class BadgeService extends GetxController {
         await checkBadgeProgress(userId, 'user_number');
       }
 
-      print('Assigned user number $userNumber to user $userId');
+      debugPrint('Assigned user number $userNumber to user $userId');
     } catch (e) {
-      print('Error assigning user number: $e');
+      debugPrint('Error assigning user number: $e');
     }
   }
 
@@ -483,7 +484,7 @@ class BadgeService extends GetxController {
       // Refresh user progress
       await loadUserProgress(userId);
     } catch (e) {
-      print('Error awarding badge: $e');
+      debugPrint('Error awarding badge: $e');
     }
   }
 
@@ -520,7 +521,7 @@ class BadgeService extends GetxController {
         userProgress.add(badgeProgress);
       }
     } catch (e) {
-      print('Error updating progress: $e');
+      debugPrint('Error updating progress: $e');
     }
   }
 
@@ -532,7 +533,7 @@ class BadgeService extends GetxController {
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Error updating user points: $e');
+      debugPrint('Error updating user points: $e');
     }
   }
 
@@ -899,7 +900,7 @@ class BadgeService extends GetxController {
         colorText: kWhite,
       );
     } catch (e) {
-      print('Error showing badge notification: $e');
+      debugPrint('Error showing badge notification: $e');
     }
   }
 }

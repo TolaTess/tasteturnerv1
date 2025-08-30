@@ -20,11 +20,11 @@ class UserDeletionService extends GetxController {
     bool deleteAccount = false,
   }) async {
     if (userId.isEmpty) {
-      print('Error: User ID is empty');
+      debugPrint('Error: User ID is empty');
       return false;
     }
 
-    print('Deleting user data for user ID: $userId');
+    debugPrint('Deleting user data for user ID: $userId');
 
     // Store context for later use
     final navigatorContext = context;
@@ -75,7 +75,7 @@ class UserDeletionService extends GetxController {
         // For data-only deletion, don't clear user service
         // The auth controller's real-time listener will automatically
         // reload the user data since the document still exists
-        print(
+        debugPrint(
             'Data-only deletion: User service will be updated by auth listener');
       }
 
@@ -83,7 +83,7 @@ class UserDeletionService extends GetxController {
     } catch (e) {
       // Close loading dialog
       Navigator.of(navigatorContext).pop();
-      print('Error deleting user data: $e');
+      debugPrint('Error deleting user data: $e');
       return false;
     }
   }
@@ -120,7 +120,7 @@ class UserDeletionService extends GetxController {
         });
       }
     } catch (e) {
-      print('Error deleting user posts: $e');
+      debugPrint('Error deleting user posts: $e');
     }
   }
 
@@ -147,9 +147,9 @@ class UserDeletionService extends GetxController {
       // Delete user's userMeals subcollection
       await _deleteUserMealsSubcollection(userId);
 
-      print('Successfully deleted all meals for user: $userId');
+      debugPrint('Successfully deleted all meals for user: $userId');
     } catch (e) {
-      print('Error deleting user meals: $e');
+      debugPrint('Error deleting user meals: $e');
     }
   }
 
@@ -175,7 +175,7 @@ class UserDeletionService extends GetxController {
         await chatDoc.reference.delete();
       }
     } catch (e) {
-      print('Error deleting user chats: $e');
+      debugPrint('Error deleting user chats: $e');
     }
   }
 
@@ -184,7 +184,7 @@ class UserDeletionService extends GetxController {
     try {
       // Delete user's friends document
       await firestore.collection('friends').doc(userId).delete();
-      print('Deleted user\'s friends document');
+      debugPrint('Deleted user\'s friends document');
 
       // Remove user from other users' following lists
       final friendsSnapshot = await firestore
@@ -193,13 +193,13 @@ class UserDeletionService extends GetxController {
           .get();
 
       for (var doc in friendsSnapshot.docs) {
-        print('Removing user from other users\' following lists' + doc.id);
+        debugPrint('Removing user from other users\' following lists' + doc.id);
         await doc.reference.update({
           'following': FieldValue.arrayRemove([userId])
         });
       }
     } catch (e) {
-      print('Error deleting user friends: $e');
+      debugPrint('Error deleting user friends: $e');
     }
   }
 
@@ -210,7 +210,7 @@ class UserDeletionService extends GetxController {
           await firestore.collection('userProgram').get();
 
       for (var doc in userProgramsSnapshot.docs) {
-        print('Removing user from programs' + doc.id);
+        debugPrint('Removing user from programs' + doc.id);
         final data = doc.data();
         final userIds = List<String>.from(data['userIds'] ?? []);
 
@@ -227,7 +227,7 @@ class UserDeletionService extends GetxController {
         }
       }
     } catch (e) {
-      print('Error deleting user programs: $e');
+      debugPrint('Error deleting user programs: $e');
     }
   }
 
@@ -247,7 +247,7 @@ class UserDeletionService extends GetxController {
         await doc.reference.delete();
       }
     } catch (e) {
-      print('Error deleting user calendars: $e');
+      debugPrint('Error deleting user calendars: $e');
     }
   }
 
@@ -270,10 +270,10 @@ class UserDeletionService extends GetxController {
       try {
         await firestore.collection('userMeals').doc(userId).delete();
       } catch (e) {
-        print('User userMeals document might not exist: $e');
+        debugPrint('User userMeals document might not exist: $e');
       }
     } catch (e) {
-      print('Error deleting user userMeals: $e');
+      debugPrint('Error deleting user userMeals: $e');
     }
   }
 
@@ -296,10 +296,10 @@ class UserDeletionService extends GetxController {
       try {
         await firestore.collection('mealPlans').doc(userId).delete();
       } catch (e) {
-        print('User meal plan document might not exist: $e');
+        debugPrint('User meal plan document might not exist: $e');
       }
     } catch (e) {
-      print('Error deleting user meal plans: $e');
+      debugPrint('Error deleting user meal plans: $e');
     }
   }
 
@@ -308,7 +308,7 @@ class UserDeletionService extends GetxController {
     try {
       await firestore.collection('points').doc(userId).delete();
     } catch (e) {
-      print('Error deleting user points: $e');
+      debugPrint('Error deleting user points: $e');
     }
   }
 
@@ -324,7 +324,7 @@ class UserDeletionService extends GetxController {
         await doc.reference.delete();
       }
     } catch (e) {
-      print('Error deleting user badges: $e');
+      debugPrint('Error deleting user badges: $e');
     }
   }
 
@@ -355,7 +355,7 @@ class UserDeletionService extends GetxController {
         });
       }
     } catch (e) {
-      print('Error removing user from other users: $e');
+      debugPrint('Error removing user from other users: $e');
     }
   }
 
@@ -376,13 +376,13 @@ class UserDeletionService extends GetxController {
             try {
               await storageRef.delete();
             } catch (e) {
-              print('Error deleting storage file $storagePath: $e');
+              debugPrint('Error deleting storage file $storagePath: $e');
             }
           }
         }
       }
     } catch (e) {
-      print('Error deleting images from storage: $e');
+      debugPrint('Error deleting images from storage: $e');
     }
   }
 
@@ -392,7 +392,7 @@ class UserDeletionService extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
     } catch (e) {
-      print('Error clearing local storage: $e');
+      debugPrint('Error clearing local storage: $e');
     }
   }
 
@@ -401,15 +401,15 @@ class UserDeletionService extends GetxController {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print('No current user found');
+        debugPrint('No current user found');
         return true; // No user to delete
       }
 
       await user.delete();
-      print('Firebase Auth account deleted successfully');
+      debugPrint('Firebase Auth account deleted successfully');
       return true;
     } catch (e) {
-      print('Error deleting Firebase Auth account: $e');
+      debugPrint('Error deleting Firebase Auth account: $e');
 
       String errorMessage = 'Failed to delete account. Please try again.';
 

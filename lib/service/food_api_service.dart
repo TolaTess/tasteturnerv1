@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../data_models/ingredient_data.dart';
 
@@ -18,7 +19,8 @@ class FoodApiService {
         'categories_tags_en': query,
         'page': page.toString(),
         'page_size': pageSize.toString(),
-        'fields': 'code,product_name,brands,categories,nutriments,image_url,ingredients_text,serving_size',
+        'fields':
+            'code,product_name,brands,categories,nutriments,image_url,ingredients_text,serving_size',
         'sort_by': 'ecoscore_score',
       };
 
@@ -35,7 +37,7 @@ class FoodApiService {
         throw Exception('Failed to search products: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error searching products: $e');
+      debugPrint('Error searching products: $e');
       return {'count': 0, 'products': []};
     }
   }
@@ -53,7 +55,7 @@ class FoodApiService {
         throw Exception('Failed to get product: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error getting product: $e');
+      debugPrint('Error getting product: $e');
       return {'status': 0, 'product': null};
     }
   }
@@ -99,7 +101,7 @@ class FoodApiService {
       }
       return [];
     } catch (e) {
-      print('Error searching ingredients: $e');
+      debugPrint('Error searching ingredients: $e');
       return [];
     }
   }
@@ -115,7 +117,7 @@ class FoodApiService {
       }
       return null;
     } catch (e) {
-      print('Error getting ingredient info: $e');
+      debugPrint('Error getting ingredient info: $e');
       return null;
     }
   }

@@ -163,12 +163,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             context,
                           );
                         } catch (e) {
-                          print("Error uploading profile image: $e");
-                          showTastySnackbar(
-                            'Please try again.',
-                            'Failed to update profile image.',
-                            context,
-                          );
+                          if (mounted) {
+                            showTastySnackbar(
+                              'Please try again.',
+                              'Failed to update profile image.',
+                              context,
+                            );
+                          }
                         }
                       }
                     },

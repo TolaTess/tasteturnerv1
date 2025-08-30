@@ -57,7 +57,9 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
           _schedulePointsAward(endDateTime);
         }
       } catch (e) {
-        print('Error parsing challenge end date: $e');
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
       }
     }
   }
@@ -187,7 +189,9 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
         });
       }
     } catch (e) {
-      print('Error updating dine-in leaderboard: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -198,30 +202,31 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     final now = DateTime.now();
     final durationUntilEnd = endDateTime.difference(now);
     if (durationUntilEnd.isNegative) {
-      print('Challenge end date is in the past, no points will be awarded.');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       return;
     }
     Timer(durationUntilEnd, () async {
       final winner = leaderboardData.isNotEmpty ? leaderboardData.first : null;
       if (winner == null) {
-        print('No winner found, no points will be awarded.');
         return;
       }
       final winnerId = winner['id'];
       const pointsToAward = 100;
       await badgeService.awardPoints(winnerId, pointsToAward,
           reason: "Dine-In Challenge Winner");
-             //save into battle_votes collection
-        await firestore
-            .collection('battle_winners')
-            .doc(endDateTime.toString())
-            .set({
-          'battleId': 'dine-in-challenge',
-          'userId': [
-            winnerId,
-          ],
-          'timestamp': DateTime.now(),
-        });
+      //save into battle_votes collection
+      await firestore
+          .collection('battle_winners')
+          .doc(endDateTime.toString())
+          .set({
+        'battleId': 'dine-in-challenge',
+        'userId': [
+          winnerId,
+        ],
+        'timestamp': DateTime.now(),
+      });
     });
   }
 
@@ -249,7 +254,9 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('Error refreshing dine-in leaderboard: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -445,7 +452,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(4, context)),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -690,7 +697,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     if (rank == 1) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
           ),
@@ -705,7 +712,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     } else if (rank == 2) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFC0C0C0), Color(0xFF808080)],
           ),
@@ -720,7 +727,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     } else if (rank == 3) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFCD7F32), Color(0xFF8B4513)],
           ),
@@ -757,11 +764,11 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   Color _getRankColor(int rank) {
     switch (rank) {
       case 1:
-        return Color(0xFFFFD700); // Gold
+        return const Color(0xFFFFD700); // Gold
       case 2:
-        return Color(0xFFC0C0C0); // Silver
+        return const Color(0xFFC0C0C0); // Silver
       case 3:
-        return Color(0xFFCD7F32); // Bronze
+        return const Color(0xFFCD7F32); // Bronze
       default:
         return kAccent;
     }

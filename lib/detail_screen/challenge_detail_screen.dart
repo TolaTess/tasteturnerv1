@@ -173,7 +173,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         }
       }
     } catch (e) {
-      print('Error loading meal: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       if (mounted) {
         setState(() {
           hasMeal = false;
@@ -288,7 +290,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                 subtitle: Text(
                   canUseAI()
                       ? 'Let AI analyze the food image'
-                      : 'Premium feature - Subscribe to unlock',
+                      : 'Premium feature - Your free trial ended on ${userService.currentUser.value?.freeTrialDate}. Subscribe to unlock',
                   style: TextStyle(
                     color: canUseAI()
                         ? (isDarkMode
@@ -777,8 +779,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(
               title: 'Post Details',
-              description:
-                  'View and interact with posts and community content',
+              description: 'View and interact with posts and community content',
               details: [
                 {
                   'icon': Icons.favorite,

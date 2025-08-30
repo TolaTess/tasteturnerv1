@@ -136,7 +136,7 @@ class _MessageScreenState extends State<MessageScreen>
                       orElse: () => '',
                     );
                     return ListTile(
-                      tileColor: kAccent.withOpacity(0.2),
+                      tileColor: kAccent.withValues(alpha: 0.2),
                       leading: Icon(
                         Icons.chat_bubble_outline,
                         size: getPercentageWidth(6, context),
@@ -529,8 +529,8 @@ class _MessageItemState extends State<MessageItem> {
               Divider(
                 color: Provider.of<ThemeProvider>(context, listen: false)
                         .isDarkMode
-                    ? kWhite.withOpacity(0.2)
-                    : kBlack.withOpacity(0.2),
+                    ? kWhite.withValues(alpha: 0.2)
+                    : kBlack.withValues(alpha: 0.2),
                 height: 1,
               ),
             ],

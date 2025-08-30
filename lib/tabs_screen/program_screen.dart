@@ -134,7 +134,7 @@ class _ProgramScreenState extends State<ProgramScreen>
 
       programTypes.value = types;
     } catch (e) {
-      print('Error loading program types: $e');
+      debugPrint('Error loading program types: $e');
       // Fallback to default programs if loading fails
       programTypes.value = [
         {
@@ -525,14 +525,15 @@ class _ProgramScreenState extends State<ProgramScreen>
           children: [
             Text(
               'A Program Just for You',
-              style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.8, context)),
+              style: textTheme.displayMedium
+                  ?.copyWith(fontSize: getTextScale(5.8, context)),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(
               title: 'Nutrition Programs',
               description:
                   'Join personalized programs to achieve your health goals',
-              details: const[
+              details: const [
                 {
                   'icon': Icons.fitness_center,
                   'title': 'Personalized Programs',

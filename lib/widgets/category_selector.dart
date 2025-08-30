@@ -83,11 +83,11 @@ class CategorySelector extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selectedCategoryId == (category['id']?.toString() ?? '')
                     ? isDarkMode
-                        ? darkModeAccentColor.withOpacity(0.50)
-                        : accentColor.withOpacity(0.60)
+                        ? darkModeAccentColor.withValues(alpha: 0.50)
+                        : accentColor.withValues(alpha: 0.60)
                     : isDarkMode
-                        ? darkModeAccentColor.withOpacity(0.08)
-                        : accentColor.withOpacity(0.15),
+                        ? darkModeAccentColor.withValues(alpha: 0.08)
+                        : accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Center(

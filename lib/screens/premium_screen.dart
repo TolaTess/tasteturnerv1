@@ -73,7 +73,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print("Error fetching plan: $e");
+      debugPrint("Error fetching plan: $e");
       setState(() {
         isLoading = false;
       });
@@ -445,7 +445,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               await authController.updateIsPremiumStatus(
                                   context, userId, false, '');
                             } catch (e) {
-                              print("Error updating Premium: $e");
+                              debugPrint("Error updating Premium: $e");
                               if (mounted) {
                                 showTastySnackbar(
                                   'Please try again.',

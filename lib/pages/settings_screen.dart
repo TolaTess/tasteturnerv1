@@ -208,8 +208,8 @@ class _SettingCategoryState extends State<SettingCategory> {
         //divider
         Divider(
           color: isDarkMode
-              ? kLightGrey.withOpacity(0.5)
-              : kDarkGrey.withOpacity(0.5),
+              ? kLightGrey.withValues(alpha: 0.5)
+              : kDarkGrey.withValues(alpha: 0.5),
           thickness: 0.5,
         ),
         SizedBox(height: getPercentageHeight(1, context)),

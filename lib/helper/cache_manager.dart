@@ -1,6 +1,10 @@
 import 'dart:io';
+import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart' show debugPrint;
+import '../constants.dart';
+import 'utils.dart';
 
 class CacheManager {
   static const int maxCacheAge = 7; // days
@@ -10,9 +14,11 @@ class CacheManager {
   static Future<void> clearImageCache() async {
     try {
       await CachedNetworkImage.evictFromCache("");
-      print('Image cache cleared successfully');
+      debugPrint('Image cache cleared successfully');
     } catch (e) {
-      print('Error clearing image cache: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -24,10 +30,12 @@ class CacheManager {
 
       if (await cacheDir.exists()) {
         await cacheDir.delete(recursive: true);
-        print('Video thumbnail cache cleared successfully');
+        debugPrint('Video thumbnail cache cleared successfully');
       }
     } catch (e) {
-      print('Error clearing video thumbnail cache: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -39,10 +47,12 @@ class CacheManager {
 
       if (await cacheDir.exists()) {
         await cacheDir.delete(recursive: true);
-        print('Video cache cleared successfully');
+        debugPrint('Video cache cleared successfully');
       }
     } catch (e) {
-      print('Error clearing video cache: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -53,7 +63,7 @@ class CacheManager {
       clearVideoThumbnailCache(),
       clearVideoCache(),
     ]);
-    print('All cache cleared successfully');
+    debugPrint('All cache cleared successfully');
   }
 
   /// Get cache size in MB
@@ -77,7 +87,9 @@ class CacheManager {
       // Convert bytes to MB
       return totalSize / (1024 * 1024);
     } catch (e) {
-      print('Error calculating cache size: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       return 0;
     }
   }
@@ -113,9 +125,11 @@ class CacheManager {
         await _cleanOldFilesInDirectory(videoCacheDir, cutoffDate);
       }
 
-      print('Old cache files cleaned successfully');
+      debugPrint('Old cache files cleaned successfully');
     } catch (e) {
-      print('Error cleaning old cache: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -137,20 +151,22 @@ class CacheManager {
       final cacheSize = await getCacheSize();
 
       if (cacheSize > maxCacheSize) {
-        print(
+        debugPrint(
             'Cache size (${cacheSize.toStringAsFixed(2)}MB) exceeds limit (${maxCacheSize}MB). Cleaning...');
         await cleanOldCache();
 
         // If still over limit, clear all cache
         final newCacheSize = await getCacheSize();
         if (newCacheSize > maxCacheSize) {
-          print(
+          debugPrint(
               'Still over limit after cleaning old files. Clearing all cache...');
           await clearAllCache();
         }
       }
     } catch (e) {
-      print('Error managing cache size: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 }

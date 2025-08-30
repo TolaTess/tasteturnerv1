@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
@@ -174,8 +173,8 @@ class _ChatScreenState extends State<ChatScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isDarkMode
-                ? kLightGrey.withOpacity(0.3)
-                : kLightGrey.withOpacity(0.1),
+                ? kLightGrey.withValues(alpha: 0.3)
+                : kLightGrey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -444,10 +443,10 @@ class ChatItem extends StatelessWidget {
           padding: EdgeInsets.all(getPercentageWidth(1.2, context)),
           decoration: BoxDecoration(
             color: isMe
-                ? kAccentLight.withOpacity(0.2)
+                ? kAccentLight.withValues(alpha: 0.2)
                 : (isDarkMode
                     ? Colors.white12
-                    : Colors.black.withOpacity(0.05)),
+                    : Colors.black.withValues(alpha: 0.05)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -585,9 +584,9 @@ class ChatItem extends StatelessWidget {
           vertical: getPercentageHeight(0.8, context), horizontal: 0),
       padding: EdgeInsets.all(getPercentageWidth(1.2, context)),
       decoration: BoxDecoration(
-        color: isDarkMode ? kDarkGrey : kAccentLight.withOpacity(0.1),
+        color: isDarkMode ? kDarkGrey : kAccentLight.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kAccent.withOpacity(0.2)),
+        border: Border.all(color: kAccent.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,7 +703,7 @@ class ChatItem extends StatelessWidget {
                     try {
                       chatController.acceptCalendarShare(dataSrc.messageId);
                     } catch (e) {
-                      print('Error accepting calendar share: $e');
+                      debugPrint('Error accepting calendar share: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -715,7 +714,7 @@ class ChatItem extends StatelessWidget {
                     }
                   },
                   style: TextButton.styleFrom(
-                    backgroundColor: kAccent.withOpacity(0.1),
+                    backgroundColor: kAccent.withValues(alpha: 0.1),
                     padding: EdgeInsets.symmetric(
                         horizontal: getPercentageWidth(1.2, context),
                         vertical: getPercentageHeight(0.6, context)),

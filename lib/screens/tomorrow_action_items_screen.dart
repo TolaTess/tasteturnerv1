@@ -149,7 +149,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Include More Carbs',
         'description':
-              'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+            'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
         'icon': Icons.grain,
         'color': kGreen,
         'priority': 'medium',
@@ -373,7 +373,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                         ),
                       );
                     } catch (e) {
-                      print('Error showing tomorrow\'s action items: $e');
+                      debugPrint('Error showing tomorrow\'s action items: $e');
                     }
                   },
                   child: Container(

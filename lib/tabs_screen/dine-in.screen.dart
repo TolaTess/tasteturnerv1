@@ -91,7 +91,9 @@ class _DineInScreenState extends State<DineInScreen> {
             _selectedProteinKey, jsonEncode(selectedProtein!.toJson()));
       }
     } catch (e) {
-      print('Error saving meal to storage: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -145,7 +147,7 @@ class _DineInScreenState extends State<DineInScreen> {
         });
       }
     } catch (e) {
-      print('Error loading meal from storage: $e');
+      debugPrint('Error loading meal from storage: $e');
     }
   }
 
@@ -158,7 +160,7 @@ class _DineInScreenState extends State<DineInScreen> {
       await prefs.remove(_selectedProteinKey);
       await prefs.remove(_mealTimestampKey);
     } catch (e) {
-      print('Error clearing saved meal: $e');
+      debugPrint('Error clearing saved meal: $e');
     }
   }
 
@@ -273,7 +275,7 @@ class _DineInScreenState extends State<DineInScreen> {
         }
       }
     } catch (e) {
-      print('Error loading challenge data: $e');
+      debugPrint('Error loading challenge data: $e');
     }
 
     setState(() {
@@ -315,7 +317,7 @@ class _DineInScreenState extends State<DineInScreen> {
         }
       }
     } catch (e) {
-      print('Error loading saved challenge data: $e');
+      debugPrint('Error loading saved challenge data: $e');
     }
   }
 
@@ -334,7 +336,9 @@ class _DineInScreenState extends State<DineInScreen> {
         await prefs.setBool(_isChallengeModeKey, true);
       }
     } catch (e) {
-      print('Error saving challenge data: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -346,7 +350,7 @@ class _DineInScreenState extends State<DineInScreen> {
       await prefs.remove(_challengeDateKey);
       await prefs.remove(_isChallengeModeKey);
     } catch (e) {
-      print('Error clearing challenge data: $e');
+      debugPrint('Error clearing challenge data: $e');
     }
   }
 
@@ -375,7 +379,9 @@ class _DineInScreenState extends State<DineInScreen> {
         return now.isAfter(challengeEndDate);
       }
     } catch (e) {
-      print('Error parsing challenge date: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
 
     return false;
@@ -425,7 +431,9 @@ class _DineInScreenState extends State<DineInScreen> {
         return challengeDateTime.isBefore(today);
       }
     } catch (e) {
-      print('Error parsing challenge date: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
 
     return false;
@@ -482,11 +490,15 @@ class _DineInScreenState extends State<DineInScreen> {
             }
           }
         } catch (e) {
-          print('Error parsing challenge date: $e');
+          showTastySnackbar(
+              'Something went wrong', 'Please try again later', Get.context!,
+              backgroundColor: kRed);
         }
       }
     } catch (e) {
-      print('Error checking challenge notification: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -506,9 +518,10 @@ class _DineInScreenState extends State<DineInScreen> {
         body:
             'Your Dine-In challenge ends this Sunday! Don\'t forget to upload your creation.',
       );
-      print('Challenge notification sent successfully');
     } catch (e) {
-      print('Error sending challenge notification: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -518,7 +531,7 @@ class _DineInScreenState extends State<DineInScreen> {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_challengeNotificationEnabledKey) ?? true;
     } catch (e) {
-      print('Error getting notification status: $e');
+      debugPrint('Error getting notification status: $e');
       return true;
     }
   }
@@ -545,7 +558,7 @@ class _DineInScreenState extends State<DineInScreen> {
         );
       }
     } catch (e) {
-      print('Error toggling challenge notifications: $e');
+      debugPrint('Error toggling challenge notifications: $e');
     }
   }
 
@@ -1100,7 +1113,7 @@ class _DineInScreenState extends State<DineInScreen> {
         }
       }
     } catch (e) {
-      print('Error generating ingredient pair: $e');
+      debugPrint('Error generating ingredient pair: $e');
     }
 
     setState(() {
@@ -1263,6 +1276,7 @@ class _DineInScreenState extends State<DineInScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        toolbarHeight: getPercentageHeight(10, context),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1323,7 +1337,7 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             )
           : SingleChildScrollView(
-              padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1788,10 +1802,8 @@ class _DineInScreenState extends State<DineInScreen> {
                               });
                             }
                             if (_isChallengeDateInPast()) {
-                              showTastySnackbar(
-                                  'Dine-In Challenge',
-                                  'New challenge coming soon!',
-                                  context,
+                              showTastySnackbar('Dine-In Challenge',
+                                  'New challenge coming soon!', context,
                                   backgroundColor: kAccent);
                             } else {
                               _showChallengeSelectionDialog();

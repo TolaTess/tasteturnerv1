@@ -134,7 +134,7 @@ class _TastyScreenState extends State<TastyScreen> {
       // Update chat summary as the last message
       await firestore.collection('chats').doc(chatId).update(updateData);
     } catch (e) {
-      print("Failed to save chat summary: $e");
+      debugPrint("Failed to save chat summary: $e");
     }
   }
 
@@ -648,7 +648,7 @@ class _TastyScreenState extends State<TastyScreen> {
       _onNewMessage();
       await _saveMessageToFirestore(response, 'buddy');
     } catch (e) {
-      print("Error getting remix suggestions: $e");
+      debugPrint("Error getting remix suggestions: $e");
       setState(() {
         messages.add(ChatScreenData(
           messageContent:
@@ -717,7 +717,7 @@ Respond with only a friendly, encouraging welcome message that addresses the use
       _onNewMessage();
       await _saveMessageToFirestore(response, 'buddy');
     } catch (e) {
-      print("Error getting AI response for system message: $e");
+      debugPrint("Error getting AI response for system message: $e");
       // Add a fallback welcome message
       final fallbackMessage =
           "👋 Hey there! I'm Tasty, your AI nutrition buddy! How can I help you today?";
@@ -1051,7 +1051,7 @@ Give 3-4 practical tips. Be encouraging!
         _onNewMessage();
         await _saveMessageToFirestore(response, 'buddy');
       } catch (e) {
-        print("Error getting AI response: $e");
+        debugPrint("Error getting AI response: $e");
         showTastySnackbar(
           'Please try again.',
           'Failed to get AI response. Please try again.',

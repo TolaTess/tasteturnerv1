@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -292,7 +293,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       Text('Planner',
                           style: textTheme.displaySmall?.copyWith(
                               fontWeight: FontWeight.w300,
-                              fontSize: getPercentageWidth(6, context))),
+                              fontSize: getTextScale(5, context))),
                       SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
@@ -304,7 +305,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       Text('$appNameBuddy',
                           style: textTheme.displaySmall?.copyWith(
                               fontWeight: FontWeight.w300,
-                              fontSize: getPercentageWidth(6, context))),
+                              fontSize: getTextScale(5, context))),
                       SizedBox(width: getPercentageWidth(1, context)),
                     ],
                   ),
@@ -313,7 +314,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               labelColor: isDarkMode ? kWhite : kBlack,
               labelStyle: textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: getPercentageWidth(4, context)),
+                  fontSize: Platform.isMacOS
+                      ? getPercentageWidth(5, context)
+                      : getPercentageWidth(4, context)),
               unselectedLabelColor: kLightGrey,
               indicatorColor: isDarkMode ? kWhite : kBlack,
             ),
@@ -324,13 +327,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               controller: _tabController,
               children: [
                 Padding(
-                  padding:
-                      EdgeInsets.only(top: getProportionalHeight(5, context)),
+                  padding: EdgeInsets.only(
+                    top: getPercentageHeight(1, context),
+                  ),
                   child: _buildCalendarTab(),
                 ),
                 Padding(
-                  padding:
-                      EdgeInsets.only(top: getProportionalHeight(5, context)),
+                  padding: EdgeInsets.only(
+                    top: getPercentageHeight(1, context),
+                  ),
                   child: const BuddyTab(),
                 ),
               ],
@@ -424,54 +429,69 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 title: Row(
                   children: [
                     // Calendar view toggle
-                    SizedBox(width: getPercentageWidth(1, context)),
-                    Text(
-                      _mealPlanController.showSharedCalendars.value
-                          ? 'Shared'
-                          : familyMode
-                              ? 'Family'
-                              : 'Personal',
-                      style: textTheme.titleLarge?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontWeight: FontWeight.w600,
-                          fontSize: getPercentageWidth(4.5, context)),
-                    ),
-                    SizedBox(
-                        width: MediaQuery.of(context).size.height > 1100
-                            ? getPercentageWidth(5, context)
-                            : getPercentageWidth(1, context)),
-                    IconButton(
-                      key: _toggleCalendarButtonKey,
-                      icon: Icon(
-                        _mealPlanController.showSharedCalendars.value
-                            ? Icons.person_outline
-                            : Icons.people_outline,
-                        size: getIconScale(7, context),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(1.5, context),
+                          vertical: getPercentageHeight(0.5, context)),
+                      decoration: BoxDecoration(
+                        color: kAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onPressed: () {
-                        if (!mounted) return;
-                        setState(() {
-                          _mealPlanController.showSharedCalendars.value =
-                              !_mealPlanController.showSharedCalendars.value;
-                        });
-                        _mealPlanController.refresh();
-                      },
-                      tooltip: _mealPlanController.showSharedCalendars.value
-                          ? 'Show Personal Calendar'
-                          : 'Show Shared Calendars',
-                    ),
-                    SizedBox(
-                        width: MediaQuery.of(context).size.height > 1100
-                            ? getPercentageWidth(5, context)
-                            : getPercentageWidth(1, context)),
-
-                    IconButton(
-                      key: _sharedCalendarButtonKey,
-                      icon: Icon(
-                        Icons.ios_share,
-                        size: getIconScale(4.5, context),
+                      child: Row(
+                        children: [
+                          SizedBox(width: getPercentageWidth(1, context)),
+                          Text(
+                            _mealPlanController.showSharedCalendars.value
+                                ? 'Shared'
+                                : familyMode
+                                    ? 'Family'
+                                    : 'Personal',
+                            style: textTheme.titleLarge?.copyWith(
+                                color: isDarkMode ? kWhite : kDarkGrey,
+                                fontWeight: FontWeight.w600,
+                                fontSize: getTextScale(4, context)),
+                          ),
+                          SizedBox(width: getPercentageWidth(1, context)),
+                          SizedBox(
+                              width: MediaQuery.of(context).size.height > 1100
+                                  ? getPercentageWidth(5, context)
+                                  : getPercentageWidth(1, context)),
+                          IconButton(
+                            key: _toggleCalendarButtonKey,
+                            icon: Icon(
+                              _mealPlanController.showSharedCalendars.value
+                                  ? Icons.person_outline
+                                  : Icons.people_outline,
+                              size: getIconScale(5.5, context),
+                            ),
+                            onPressed: () {
+                              if (!mounted) return;
+                              setState(() {
+                                _mealPlanController.showSharedCalendars.value =
+                                    !_mealPlanController
+                                        .showSharedCalendars.value;
+                              });
+                              _mealPlanController.refresh();
+                            },
+                            tooltip:
+                                _mealPlanController.showSharedCalendars.value
+                                    ? 'Show Personal Calendar'
+                                    : 'Show Shared Calendars',
+                          ),
+                          SizedBox(
+                              width: MediaQuery.of(context).size.height > 1100
+                                  ? getPercentageWidth(5, context)
+                                  : getPercentageWidth(1, context)),
+                          IconButton(
+                            key: _sharedCalendarButtonKey,
+                            icon: Icon(
+                              Icons.ios_share,
+                              size: getIconScale(4.5, context),
+                            ),
+                            onPressed: () => _shareCalendar(''),
+                          ),
+                        ],
                       ),
-                      onPressed: () => _shareCalendar(''),
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
                     if (!_mealPlanController.showSharedCalendars.value)
@@ -1722,7 +1742,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         });
       }
     } catch (e) {
-      print('Error in _addMealPlan: $e');
+      debugPrint('Error in _addMealPlan: $e');
     }
   }
 

@@ -1,4 +1,5 @@
-import 'package:get/get.dart';
+import 'package:get/get.dart';  
+import 'package:flutter/material.dart' show debugPrint;
 
 import '../constants.dart';
 
@@ -13,7 +14,7 @@ class FirebaseService extends GetxController {
       }
       return snapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
-      print('Error fetching plans: $e');
+      debugPrint('Error fetching plans: $e');
       return []; // Return empty list instead of rethrowing
     }
   }
@@ -39,14 +40,14 @@ class FirebaseService extends GetxController {
       }
       return (favorites as List<dynamic>).contains(itemId);
     } catch (e) {
-      print('Error checking if recipe is favorite: $e');
+      debugPrint('Error checking if recipe is favorite: $e');
       return false;
     }
   }
 
   Future<void> toggleFavorite(String? userId, String itemId) async {
     if (userId == null || userId.isEmpty || itemId.isEmpty) {
-      print('Invalid user ID or item ID');
+      debugPrint('Invalid user ID or item ID');
       return;
     }
     try {
@@ -73,7 +74,7 @@ class FirebaseService extends GetxController {
 
       await userDocRef.update({'favorites': favorites});
     } catch (e) {
-      print('Error toggling favorite: $e');
+      debugPrint('Error toggling favorite: $e');
     }
   }
 
@@ -87,11 +88,11 @@ class FirebaseService extends GetxController {
       if (docSnapshot.exists) {
         generalData.value = docSnapshot.data() ?? {};
       } else {
-        print('General data document does not exist');
+        debugPrint('General data document does not exist');
         generalData.value = {};
       }
     } catch (e) {
-      print('Error fetching general data: $e');
+      debugPrint('Error fetching general data: $e');
       generalData.value = {};
     }
   }

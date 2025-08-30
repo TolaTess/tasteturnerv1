@@ -225,8 +225,8 @@ class _EditProfileFormState extends State<EditProfileForm> {
                     'Gender helps calculate more accurate calorie and macro recommendations',
                     style: textTheme.bodySmall?.copyWith(
                       color: themeProvider.isDarkMode
-                          ? kWhite.withOpacity(0.7)
-                          : kDarkGrey.withOpacity(0.7),
+                          ? kWhite.withValues(alpha: 0.7)
+                          : kDarkGrey.withValues(alpha: 0.7),
                       fontStyle: FontStyle.italic,
                     ),
                   ),

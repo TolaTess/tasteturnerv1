@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
 import '../data_models/user_meal.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';  
+import 'package:flutter/material.dart' show debugPrint;
 
 class CalendarSharingService extends GetxController {
   static CalendarSharingService instance = Get.find();
@@ -13,7 +14,7 @@ class CalendarSharingService extends GetxController {
 
   // Get shared calendars for user
   Stream<List<SharedCalendar>> getSharedCalendars(String userId) {
-    print('getSharedCalendars: $userId');
+    debugPrint('getSharedCalendars: $userId');
     return firestore
         .collection('shared_calendars')
         .where('userIds', arrayContains: userId)
@@ -42,10 +43,10 @@ class CalendarSharingService extends GetxController {
         throw Exception('User not authorized');
 
       // Update the meal plan in the shared calendar
-      await newSharedCalendar(calendarId, userId, date, meals, isSpecial,
-          dayType ?? '');
+      await newSharedCalendar(
+          calendarId, userId, date, meals, isSpecial, dayType ?? '');
     } catch (e) {
-      print('Error adding/updating shared meal: $e');
+      debugPrint('Error adding/updating shared meal: $e');
       throw e;
     }
   }
@@ -84,7 +85,7 @@ class CalendarSharingService extends GetxController {
 
       return unifiedCalendar;
     } catch (e) {
-      print('Error getting unified calendar: $e');
+      debugPrint('Error getting unified calendar: $e');
       throw e;
     }
   }
@@ -99,18 +100,13 @@ class CalendarSharingService extends GetxController {
         'userIds': FieldValue.arrayRemove(userIds),
       });
     } catch (e) {
-      print('Error removing users from calendar: $e');
+      debugPrint('Error removing users from calendar: $e');
       throw e;
     }
   }
 
-  Future<void> newSharedCalendar(
-      String calendarId,
-      String userId,
-      String date,
-      List<UserMeal> meals,
-      bool isSpecial,
-      String dayType) async {
+  Future<void> newSharedCalendar(String calendarId, String userId, String date,
+      List<UserMeal> meals, bool isSpecial, String dayType) async {
     // Update the meal plan in the shared calendar
     final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.parse(date));
     await firestore
@@ -169,7 +165,8 @@ class CalendarSharingService extends GetxController {
   }
 
   Future<SharedCalendar?> fetchSharedCalendarById(String calendarId) async {
-    final doc = await firestore.collection('shared_calendars').doc(calendarId).get();
+    final doc =
+        await firestore.collection('shared_calendars').doc(calendarId).get();
     if (!doc.exists) return null;
     return SharedCalendar.fromFirestore(doc);
   }

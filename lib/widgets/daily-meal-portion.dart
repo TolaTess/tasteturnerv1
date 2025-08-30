@@ -382,7 +382,9 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
           ? screenHeight * 0.35
           : screenHeight > 800 && screenHeight < 1000
               ? screenHeight * 0.31
-              : screenHeight * 0.35,
+              : screenHeight > 1000 && screenHeight < 1400
+                  ? screenHeight * 0.45
+                  : screenHeight * 0.35,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -589,12 +591,14 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
             SizedBox(height: getPercentageHeight(0.5, context)),
 
             // Examples
-            Text(
-              'Examples:',
-              style: textTheme.bodySmall?.copyWith(
-                color: isDarkMode ? kLightGrey : kDarkGrey,
-                fontSize: getPercentageWidth(2.5, context),
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                'Examples:',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getPercentageWidth(2.5, context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             ...((food['examples'] as List<String>).take(2).map(

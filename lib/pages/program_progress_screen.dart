@@ -184,7 +184,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       });
       Get.snackbar(
         'Error',
-        'Failed to load user programs: $e',
+        'Failed to load user programs: please try again',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -315,7 +315,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       });
       Get.snackbar(
         'Error',
-        'Failed to load progress data: $e',
+        'Failed to load progress data: please try again',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -544,7 +544,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to restart program: $e',
+          'Failed to restart program: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -589,7 +589,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to remove program: $e',
+          'Failed to remove program: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -683,7 +683,14 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         }
       });
     } catch (e) {
-      print('Error updating component progress: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to update component progress: $e',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -712,7 +719,14 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         'lastTrackedDate': _getCurrentDateKey(),
       });
     } catch (e) {
-      print('Error updating daily progress: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to update daily progress: please try again',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -750,7 +764,14 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         'lastTrackedDate': _getCurrentDateKey(),
       });
     } catch (e) {
-      print('Error resetting daily progress: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to reset daily progress: please try again',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 

@@ -33,7 +33,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print("Error fetching favorite meals: $e");
+      debugPrint("Error fetching favorite meals: $e");
       setState(() {
         isLoading = false; // Stop loading on error
       });

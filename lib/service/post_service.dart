@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:get/get.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 class PostService extends GetxService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
@@ -221,7 +222,8 @@ class PostService extends GetxService {
 
       // Set time to start of Monday and end of Friday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
+      final weekEnd =
+          DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
       final HttpsCallable callable =
           _functions.httpsCallable('getChallengePostsForWeek');
@@ -241,7 +243,7 @@ class PostService extends GetxService {
         throw Exception(data['error'] ?? 'Failed to fetch battle posts');
       }
     } catch (e) {
-      print('Error fetching battle posts: $e');
+      debugPrint('Error fetching battle posts: $e');
       return [];
     }
   }

@@ -80,7 +80,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         _count2.value = prefs.getInt('count_2') ?? 0;
       }
     } catch (e) {
-      print('Error initializing ingredient data: $e');
+      debugPrint('Error initializing ingredient data: $e');
     } finally {
       _isLoading.value = false;
     }
@@ -160,7 +160,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         }
       }
     } catch (e) {
-      print('Error loading ingredient data: $e');
+      debugPrint('Error loading ingredient data: $e');
     }
   }
 
@@ -197,7 +197,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
       return mealPlansData;
     } catch (e) {
-      print('Error fetching meal plans for date range: $e');
+      debugPrint('Error fetching meal plans for date range: $e');
       return [];
     }
   }
@@ -246,7 +246,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
       // Check if any badges were recently earned to show notification
       await _checkForRecentBadges(userId);
     } catch (e) {
-      print('Error checking/awarding badges: $e');
+      debugPrint('Error checking/awarding badges: $e');
     }
   }
 
@@ -285,7 +285,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         }
       }
     } catch (e) {
-      print('Error checking recent badges: $e');
+      debugPrint('Error checking recent badges: $e');
     }
   }
 
@@ -299,7 +299,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
         await prefs.setBool('ingredient_battle_new_week', true);
       }
     } catch (e) {
-      print('Error scheduling weekly update: $e');
+      debugPrint('Error scheduling weekly update: $e');
     }
   }
 

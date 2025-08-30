@@ -7,7 +7,6 @@ import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_files.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
-import '../screens/premium_screen.dart';
 import '../widgets/info_icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../helper/helper_functions.dart';
@@ -220,8 +219,6 @@ class _BuddyTabState extends State<BuddyTab> {
               familyMember: parts.length > 2 ? parts[2] : '',
               fullMealId: mealId,
             ));
-          } else {
-            print('Meal not found for ID: $id');
           }
         } else if (mealId is String) {
           // Handle mealIds without meal type (just the meal ID)
@@ -233,11 +230,7 @@ class _BuddyTabState extends State<BuddyTab> {
               familyMember: '',
               fullMealId: mealId,
             ));
-          } else {
-            print('Meal not found for ID: $mealId');
           }
-        } else {
-          print('Invalid mealId format: $mealId');
         }
       }
 
@@ -288,7 +281,7 @@ class _BuddyTabState extends State<BuddyTab> {
         {'groupedMeals': groupedMeals}
       ];
     } catch (e) {
-      print('Error fetching meals: $e');
+      debugPrint('Error fetching meals: $e');
       return [];
     }
   }
@@ -485,7 +478,7 @@ class _BuddyTabState extends State<BuddyTab> {
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
-                              "Crafting the perfect plan for a fitter you",
+                              "Crafting the perfect plan for a fitter you \n\nYour free trial ended on ${DateFormat('MMM d, yyyy').format(freeTrialDate!)}",
                               textAlign: TextAlign.center,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: isDarkMode
@@ -531,12 +524,7 @@ class _BuddyTabState extends State<BuddyTab> {
                           if (canUseAI()) {
                             _navigateToChooseDietWithUser(context);
                           } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const PremiumScreen(),
-                              ),
-                            );
+                            showPremiumRequiredDialog(context, isDarkMode);
                           }
                         },
                         child: Center(
@@ -748,7 +736,6 @@ class _BuddyTabState extends State<BuddyTab> {
 
                 // Check if nutritional summary exists, if not show default UI
                 if (selectedGeneration['nutritionalSummary'] == null) {
-                  print('No nutritional summary found, showing default UI');
                   return _buildDefaultView(context);
                 }
 

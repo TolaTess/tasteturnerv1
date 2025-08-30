@@ -90,13 +90,13 @@ class _PremiumSectionState extends State<PremiumSection> {
               vertical: getPercentageHeight(0.5, context),
             ),
             decoration: BoxDecoration(
-              color: kAccentLight.withOpacity(0.7),
+              color: kAccentLight.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
                   color: isDarkMode
-                      ? kAccentLight.withOpacity(0.4)
-                      : kDarkGrey.withOpacity(0.2),
+                      ? kAccentLight.withValues(alpha: 0.4)
+                      : kDarkGrey.withValues(alpha: 0.2),
                   spreadRadius: 0.6,
                   blurRadius: 8,
                 ),

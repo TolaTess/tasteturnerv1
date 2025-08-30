@@ -3,9 +3,11 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart' show debugPrint;
 
 import '../constants.dart';
 import '../data_models/meal_model.dart';
+import '../helper/utils.dart';
 import '../service/meal_api_service.dart';
 
 class MealManager extends GetxController {
@@ -280,7 +282,7 @@ class MealManager extends GetxController {
         return null;
       }
     } catch (e) {
-      print('❌ Error fetching meal with ID $mealId: $e');
+      debugPrint('❌ Error fetching meal with ID $mealId: $e');
       return null;
     }
   }
@@ -346,7 +348,11 @@ class MealManager extends GetxController {
             }
             // Add a small delay to prevent rate limiting
             await Future.delayed(const Duration(milliseconds: 100));
-          } catch (e) {}
+          } catch (e) {
+            showTastySnackbar(
+                'Something went wrong', 'Please try again later', Get.context!,
+                backgroundColor: kRed);
+          }
         }
       }
 
@@ -377,7 +383,7 @@ class MealManager extends GetxController {
     int? maxCalories,
     String? dietType,
   }) async {
-    print(
+    debugPrint(
         'Searching meals by ingredients: $ingredients, categories: $categories');
     try {
       Query query = firestore.collection('meals');
@@ -429,11 +435,12 @@ class MealManager extends GetxController {
       final sortedMeals =
           mealsWithMatchCount.map((entry) => entry.key).toList();
 
-      print('Found ${sortedMeals.length} meals with 2+ matching ingredients');
+      debugPrint(
+          'Found ${sortedMeals.length} meals with 2+ matching ingredients');
 
       return sortedMeals;
     } catch (e) {
-      print('Error searching meals by ingredients: $e');
+      debugPrint('Error searching meals by ingredients: $e');
       return [];
     }
   }
@@ -446,7 +453,7 @@ class MealManager extends GetxController {
     String? dietType,
     int? maxCalories,
   }) async {
-    print(
+    debugPrint(
         'Searching meals by categories: $categories, meal types: $mealTypeCounts');
     try {
       Query query = firestore.collection('meals');
@@ -480,12 +487,12 @@ class MealManager extends GetxController {
         }
       }
 
-      print(
+      debugPrint(
           'Found ${filteredMeals.length} meals matching categories and meal types');
 
       return filteredMeals;
     } catch (e) {
-      print('Error searching meals by categories and types: $e');
+      debugPrint('Error searching meals by categories and types: $e');
       return [];
     }
   }
@@ -661,7 +668,7 @@ class MealManager extends GetxController {
             // Add a small delay to prevent rate limiting
             await Future.delayed(const Duration(milliseconds: 100));
           } catch (e) {
-            print('Error fetching API meal $mealId: $e');
+            debugPrint('Error fetching API meal $mealId: $e');
           }
         }
       }

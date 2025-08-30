@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       try {
         notificationService = Get.find<NotificationService>();
       } catch (e) {
-        print('Error initializing NotificationService: $e');
+        debugPrint('Error initializing NotificationService: $e');
         return;
       }
 
@@ -334,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       }
     } catch (e) {
-      print('Error saving family members: $e');
+      debugPrint('Error saving family members: $e');
       if (mounted) {
         showTastySnackbar(
           'Error',
@@ -430,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         todaySummary = summaryDoc.data()!;
       }
     } catch (e) {
-      print('Error loading today\'s summary: $e');
+      debugPrint('Error loading today\'s summary: $e');
     }
 
     // Check if the notification time (13:35) has already passed today
@@ -610,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return Scaffold(
         drawer: const CustomDrawer(),
         appBar: PreferredSize(
-          preferredSize: Size.fromHeight(getProportionalHeight(85, context)),
+          preferredSize: Size.fromHeight(getProportionalHeight(90, context)),
           child: Container(
             decoration: BoxDecoration(
               color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite,

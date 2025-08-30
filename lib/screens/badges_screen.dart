@@ -158,7 +158,7 @@ class _BadgesScreenState extends State<BadgesScreen>
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -178,13 +178,13 @@ class _BadgesScreenState extends State<BadgesScreen>
           Text(
             title,
             style: textTheme.bodySmall?.copyWith(
-              color: isDarkMode ? kLightGrey : kDarkGrey.withOpacity(0.7),
+              color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.7),
             ),
           ),
           Text(
             subtitle,
             style: textTheme.bodySmall?.copyWith(
-              color: isDarkMode ? kLightGrey : kDarkGrey.withOpacity(0.5),
+              color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.5),
               fontSize: getTextScale(2.5, context),
             ),
           ),
@@ -289,7 +289,7 @@ class _BadgesScreenState extends State<BadgesScreen>
             Text(
               '+${badge.rewards.points} pts',
               style: textTheme.bodySmall?.copyWith(
-                color: kWhite.withOpacity(0.9),
+                color: kWhite.withValues(alpha: 0.9),
                 fontSize: getTextScale(2.8, context),
               ),
             ),
@@ -360,7 +360,7 @@ class _BadgesScreenState extends State<BadgesScreen>
             : Border.all(color: Colors.transparent, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -376,14 +376,14 @@ class _BadgesScreenState extends State<BadgesScreen>
               decoration: BoxDecoration(
                 color: isEarned
                     ? kGreen.withValues(alpha: 0.2)
-                    : _getDifficultyColor(badge.difficulty).withOpacity(0.2),
+                    : _getDifficultyColor(badge.difficulty)
+                        .withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 _getIconFromString(badge.icon),
-                color: isEarned
-                    ? kGreen
-                    : _getDifficultyColor(badge.difficulty),
+                color:
+                    isEarned ? kGreen : _getDifficultyColor(badge.difficulty),
                 size: getIconScale(8, context),
               ),
             ),
@@ -407,16 +407,16 @@ class _BadgesScreenState extends State<BadgesScreen>
                       ),
                       if (isEarned)
                         Icon(Icons.check_circle,
-                            color: kGreen,
-                            size: getIconScale(6, context)),
+                            color: kGreen, size: getIconScale(6, context)),
                     ],
                   ),
                   SizedBox(height: getPercentageHeight(0.5, context)),
                   Text(
                     badge.description,
                     style: textTheme.bodySmall?.copyWith(
-                      color:
-                          isDarkMode ? kLightGrey : kDarkGrey.withOpacity(0.7),
+                      color: isDarkMode
+                          ? kLightGrey
+                          : kDarkGrey.withValues(alpha: 0.7),
                     ),
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
@@ -430,7 +430,7 @@ class _BadgesScreenState extends State<BadgesScreen>
                             value: progressPercentage.clamp(0.0, 1.0),
                             backgroundColor:
                                 (isDarkMode ? kLightGrey : kDarkGrey)
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                             valueColor: AlwaysStoppedAnimation<Color>(
                               _getDifficultyColor(badge.difficulty),
                             ),
@@ -442,7 +442,7 @@ class _BadgesScreenState extends State<BadgesScreen>
                           style: textTheme.bodySmall?.copyWith(
                             color: isDarkMode
                                 ? kLightGrey
-                                : kDarkGrey.withOpacity(0.7),
+                                : kDarkGrey.withValues(alpha: 0.7),
                             fontSize: getTextScale(2.8, context),
                           ),
                         ),
@@ -468,7 +468,7 @@ class _BadgesScreenState extends State<BadgesScreen>
                         ),
                         decoration: BoxDecoration(
                           color: _getDifficultyColor(badge.difficulty)
-                              .withOpacity(0.2),
+                              .withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

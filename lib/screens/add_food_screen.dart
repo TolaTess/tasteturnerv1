@@ -77,12 +77,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   // Track pending items modifications for debugging
   void _addPendingItem(UserMeal item) {
     _pendingMacroItems.add(item);
-    print(
-        'Added pending item: ${item.name} (${item.calories} kcal). Total pending: ${_pendingMacroItems.length}');
   }
 
   void _clearPendingItems() {
-    print('Clearing pending items. Count before: ${_pendingMacroItems.length}');
     _pendingMacroItems.clear();
   }
 
@@ -104,7 +101,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Force a rebuild of the UI
       setState(() {});
     } catch (e) {
-      print('Error refreshing meal data: $e');
+      debugPrint('Error refreshing meal data: $e');
     }
   }
 
@@ -115,7 +112,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     // If no meals in the list, return 0
     if (currentMeals.isEmpty) {
-      print('No meals found in $mealType list - returning 0 calories');
       return 0;
     }
 
@@ -158,8 +154,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   int _getTotalPendingCalories() {
     final total =
         _pendingMacroItems.fold<int>(0, (sum, item) => sum + item.calories);
-    print(
-        '_getTotalPendingCalories called: ${_pendingMacroItems.length} items, total: $total kcal');
     return total;
   }
 
@@ -221,7 +215,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       // Ensure calorie adjustment service has current data
       await _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
     } catch (e) {
-      print('Error loading data: $e');
+      debugPrint('Error loading data: $e');
+      // TODO: Handle error
     }
   }
 
@@ -354,8 +349,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 boxShadow: [
                   BoxShadow(
                     color: getThemeProvider(context).isDarkMode
-                        ? kWhite.withOpacity(kMidOpacity)
-                        : kBlack.withOpacity(kMidOpacity),
+                        ? kWhite.withValues(alpha: kMidOpacity)
+                        : kBlack.withValues(alpha: kMidOpacity),
                     blurRadius: 15,
                     offset: const Offset(0, -5),
                   ),
@@ -370,8 +365,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     height: getPercentageHeight(1, context),
                     decoration: BoxDecoration(
                       color: getThemeProvider(context).isDarkMode
-                          ? kWhite.withOpacity(0.3)
-                          : kBlack.withOpacity(0.3),
+                          ? kWhite.withValues(alpha: 0.3)
+                          : kBlack.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -552,7 +547,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         margin: EdgeInsets.only(
                             right: getPercentageWidth(2, context)),
                         decoration: BoxDecoration(
-                          color: kAccent.withOpacity(0.5),
+                          color: kAccent.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: IconButton(
@@ -1010,7 +1005,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     MediaQuery.of(context).size.height * 0.28,
                                 child: buildPicker(
                                     context,
-                                    21,
+                                    1000,
                                     selectedNumber,
                                     (index) => setModalState(
                                         () => selectedNumber = index),
@@ -1469,7 +1464,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             ),
                           );
                         } catch (e) {
-                          print('Error showing action items: $e');
+                          debugPrint('Error showing action items: $e');
                         }
                       },
                       child: Container(

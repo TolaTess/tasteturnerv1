@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 import '../helper/utils.dart';
 
@@ -25,7 +25,7 @@ class ChatController extends GetxController {
   // Listen for new messages in the chat
   void _listenToMessages() {
     if (chatId.isEmpty) {
-      print("Chat ID is empty");
+      debugPrint("Chat ID is empty");
       return;
     }
 
@@ -44,7 +44,7 @@ class ChatController extends GetxController {
                   return ChatScreenData.fromFirestore(doc.data(),
                       messageId: doc.id);
                 } catch (e) {
-                  print("Error parsing message data: $e");
+                  debugPrint("Error parsing message data: $e");
                   return null;
                 }
               })
@@ -52,12 +52,12 @@ class ChatController extends GetxController {
               .toList();
         },
         onError: (e) {
-          print("Error listening to messages: $e");
+          debugPrint("Error listening to messages: $e");
           messages.clear();
         },
       );
     } catch (e) {
-      print("Error setting up message listener: $e");
+      debugPrint("Error setting up message listener: $e");
       messages.clear();
     }
   }
@@ -91,7 +91,7 @@ class ChatController extends GetxController {
 
       userChats.value = activeChats;
     } catch (e) {
-      print("Error loading user chats: $e");
+      debugPrint("Error loading user chats: $e");
       userChats.clear();
     }
   }
@@ -153,7 +153,7 @@ class ChatController extends GetxController {
       }
       return chats;
     } catch (e) {
-      print("Error fetching user chats: $e");
+      debugPrint("Error fetching user chats: $e");
       return [];
     }
   }
@@ -199,7 +199,7 @@ class ChatController extends GetxController {
         });
       });
     } catch (e) {
-      print("Error sending message: $e");
+      debugPrint("Error sending message: $e");
     }
   }
 
@@ -282,7 +282,7 @@ class ChatController extends GetxController {
         messageContent: 'I accepted your calendar share!',
       );
     } catch (e) {
-      print("Error accepting calendar share 2: $e");
+      debugPrint("Error accepting calendar share 2: $e");
     }
   }
 

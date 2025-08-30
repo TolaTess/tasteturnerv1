@@ -66,7 +66,7 @@ class AuthController extends GetxController {
           await _setLoggedIn(true);
           Get.offAll(() => const BottomNavSec());
         } catch (e) {
-          print("Failed to load user data: $e");
+          debugPrint("Failed to load user data: $e");
           // Handle the error appropriately - maybe show an error screen
           Get.snackbar(
             'Please try again',
@@ -78,7 +78,7 @@ class AuthController extends GetxController {
         }
       }
     } catch (e) {
-      print("Error checking user existence: $e");
+      debugPrint("Error checking user existence: $e");
       // Check for Firestore unavailable error
       if (e.toString().contains('cloud_firestore/unavailable')) {
         // Optionally, you could retry here with a delay/backoff
@@ -166,12 +166,12 @@ class AuthController extends GetxController {
           );
           userService.setUser(user);
         } else {
-          print("User document does not exist, clearing user data.");
+          debugPrint("User document does not exist, clearing user data.");
           userService.clearUser();
         }
       },
       onError: (error) {
-        print("Error listening to user data: $error");
+        debugPrint("Error listening to user data: $error");
         // Optionally handle error, e.g., clear user data
         userService.clearUser();
       },
@@ -241,7 +241,7 @@ class AuthController extends GetxController {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
       if (googleUser == null) {
-        print("Google sign-in canceled");
+        debugPrint("Google sign-in canceled");
         return;
       }
 
@@ -259,7 +259,7 @@ class AuthController extends GetxController {
       // The auth state listener will handle the rest via _handleAuthState
       // No need to manually navigate or set up user data here
     } catch (e) {
-      print("Error signing in with Google: $e");
+      debugPrint("Error signing in with Google: $e");
       showTastySnackbar(
         'Please try again.',
         'Failed to sign in with Google. Please try again.',
@@ -302,7 +302,7 @@ class AuthController extends GetxController {
 
       // The auth state listener will handle the rest via _handleAuthState
     } catch (e) {
-      print("Error signing in with Apple: $e");
+      debugPrint("Error signing in with Apple: $e");
       showTastySnackbar(
         'Please try again.',
         'Failed to sign in with Apple. Please try again.',
@@ -345,7 +345,7 @@ class AuthController extends GetxController {
     try {
       final userId = userService.userId;
       if (userId == null) {
-        print('No user is logged in.');
+        debugPrint('No user is logged in.');
         return;
       }
 
@@ -366,7 +366,7 @@ class AuthController extends GetxController {
       // pick up the change and update the state in UserService.
       await firestore.collection('users').doc(userId).update(updatedData);
     } catch (e) {
-      print("Error updating user data: $e");
+      debugPrint("Error updating user data: $e");
       rethrow; // Rethrow to handle in UI
     }
   }
@@ -388,7 +388,7 @@ class AuthController extends GetxController {
       // _userDataSubscription is cancelled by the _handleAuthState listener
       await FirebaseAuth.instance.signOut();
     } catch (e) {
-      print("Error signing out: $e");
+      debugPrint("Error signing out: $e");
     }
   }
 
@@ -439,7 +439,7 @@ class AuthController extends GetxController {
         );
       }
     } catch (e) {
-      print("Error updating premium status: $e");
+      debugPrint("Error updating premium status: $e");
       showTastySnackbar(
         'Please try again.',
         'Failed to update premium status: $e',

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../constants.dart';
+import '../helper/utils.dart';
 
 class BadgeAchievementData {
   final String title;
@@ -41,7 +42,8 @@ class BadgeController extends GetxController {
         'image': badge.image,
       });
     } catch (e) {
-      print("Error adding badge: $e");
+      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -60,7 +62,8 @@ class BadgeController extends GetxController {
         );
       }).toList();
     } catch (e) {
-      print("Error fetching badges: $e");
+      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -84,7 +87,8 @@ class BadgeController extends GetxController {
         );
       }).toList();
     } catch (e) {
-      print("Error fetching badges for user $userId: $e");
+      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -104,7 +108,8 @@ class BadgeController extends GetxController {
         userIdsForBadge.clear();
       }
     } catch (e) {
-      print("Error fetching user IDs for badge $badgeId: $e");
+      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 }

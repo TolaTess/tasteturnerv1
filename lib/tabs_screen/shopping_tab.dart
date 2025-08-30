@@ -116,7 +116,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
         });
       }
     } catch (e) {
-      print('Error loading 54321 shopping list: $e');
+      debugPrint('Error loading 54321 shopping list: $e');
     }
   }
 
@@ -692,8 +692,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
         if (estimatedCost.isNotEmpty)
           Card(
             color: isDarkMode
-                ? kLightGrey.withOpacity(0.2)
-                : kWhite.withOpacity(0.9),
+                ? kLightGrey.withValues(alpha: 0.2)
+                : kWhite.withValues(alpha: 0.9),
             child: Padding(
               padding: EdgeInsets.all(getPercentageWidth(3, context)),
               child: Row(
@@ -812,7 +812,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
       elevation: 1.5,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: categoryColor.withOpacity(0.3), width: 1),
+        side: BorderSide(color: categoryColor.withValues(alpha: 0.3), width: 1),
       ),
       color: isDarkMode ? kDarkGrey : kWhite,
       child: Padding(
@@ -837,7 +837,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                     vertical: getPercentageHeight(0.5, context),
                   ),
                   decoration: BoxDecoration(
-                    color: categoryColor.withOpacity(0.1),
+                    color: categoryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -873,7 +873,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
         horizontal: getPercentageWidth(2, context),
         vertical: getPercentageHeight(0.5, context),
       ),
-      color: isDarkMode ? kLightGrey.withOpacity(0.2) : kWhite.withOpacity(0.9),
+      color: isDarkMode
+          ? kLightGrey.withValues(alpha: 0.2)
+          : kWhite.withValues(alpha: 0.9),
       child: Padding(
         padding: EdgeInsets.all(getPercentageWidth(3, context)),
         child: Row(
@@ -902,7 +904,9 @@ class _ShoppingTabState extends State<ShoppingTab> {
         horizontal: getPercentageWidth(2, context),
         vertical: getPercentageHeight(0.5, context),
       ),
-      color: isDarkMode ? kLightGrey.withOpacity(0.2) : kWhite.withOpacity(0.9),
+      color: isDarkMode
+          ? kLightGrey.withValues(alpha: 0.2)
+          : kWhite.withValues(alpha: 0.9),
       child: Padding(
         padding: EdgeInsets.all(getPercentageWidth(3, context)),
         child: Row(
@@ -946,7 +950,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             vertical: getPercentageHeight(1, context),
           ),
           decoration: BoxDecoration(
-            color: kAccent.withOpacity(0.08),
+            color: kAccent.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

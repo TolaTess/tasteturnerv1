@@ -97,7 +97,6 @@ class MealPlanController extends GetxController {
         .listen((snapshot) async {
       await _processMealPlansSnapshot(snapshot, startDate, endDate);
     }, onError: (error) {
-      print('Error listening to personal meal plans: $error');
       isLoading.value = false;
     });
   }
@@ -123,7 +122,6 @@ class MealPlanController extends GetxController {
         .listen((snapshot) async {
       await _processMealPlansSnapshot(snapshot, startDate, endDate);
     }, onError: (error) {
-      print('Error listening to shared calendar: $error');
       isLoading.value = false;
     });
   }
@@ -141,7 +139,6 @@ class MealPlanController extends GetxController {
           final date = DateFormat('yyyy-MM-dd').parse(dateStr);
           return !date.isBefore(startDate) && !date.isAfter(endDate);
         } catch (e) {
-          print('Error parsing date: $e');
           return false;
         }
       }).toList();
@@ -201,7 +198,6 @@ class MealPlanController extends GetxController {
             newSpecialMealDays[date] = true;
           }
         } catch (e) {
-          print('Error processing meal plan for date $dateStr: $e');
           continue;
         }
       }
@@ -219,7 +215,6 @@ class MealPlanController extends GetxController {
       dayTypes.value = newDayTypes;
       isLoading.value = false;
     } catch (e) {
-      print('Error processing meal plans snapshot: $e');
       mealPlans.clear();
       sharedMealPlans.clear();
       specialMealDays.clear();
@@ -269,13 +264,11 @@ class MealPlanController extends GetxController {
             }
           }
         } catch (e) {
-          print('Error loading friend birthday: $e');
         }
       }
 
       friendsBirthdays.value = newFriendsBirthdays;
-    } catch (e) {
-      print('Error loading friends birthdays: $e');
+    } catch (e) { 
     }
   }
 

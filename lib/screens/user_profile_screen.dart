@@ -93,11 +93,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           isLoading = false;
         });
         if (result.error != null) {
-          print('Error fetching user posts: ${result.error}');
+          debugPrint('Error fetching user posts: ${result.error}');
         }
       }
     } catch (e) {
-      print('Error fetching content: $e');
+      debugPrint('Error fetching content: $e');
       if (mounted) {
         setState(() {
           searchContentDatas = [];
@@ -175,7 +175,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   iconTheme: IconThemeData(
                     color: isShrink
                         ? themeProvider.isDarkMode
-                            ? kWhite.withOpacity(0.80)
+                            ? kWhite.withValues(alpha: 0.80)
                             : kBlack
                         : themeProvider.isDarkMode
                             ? kLightGrey
@@ -432,7 +432,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         Icon(
                                           Icons.photo_library_outlined,
                                           size: getIconScale(12, context),
-                                          color: Colors.grey.withOpacity(0.5),
+                                          color: Colors.grey
+                                              .withValues(alpha: 0.5),
                                         ),
                                         SizedBox(
                                             height: getPercentageHeight(

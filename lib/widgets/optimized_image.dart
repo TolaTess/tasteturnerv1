@@ -63,9 +63,10 @@ class OptimizedImage extends StatelessWidget {
         errorWidget: (context, url, error) {
           // Log the error for debugging but don't spam the console
           if (error.toString().contains('403')) {
-            print('🚫 Image access denied (403): ${url.split('?').first}');
+            debugPrint('🚫 Image access denied (403): ${url.split('?').first}');
           } else {
-            print('❌ Image load error: ${error.toString().split('\n').first}');
+            debugPrint(
+                '❌ Image load error: ${error.toString().split('\n').first}');
           }
           return errorWidget ?? Image.asset(intPlaceholderImage, fit: fit);
         },

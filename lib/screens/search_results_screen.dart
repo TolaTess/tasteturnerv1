@@ -209,7 +209,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
         _hasMore.value = mealManager.meals.length > _localPageSize;
       }
     } catch (e) {
-      print('Error searching meals: $e');
     } finally {
       _isLoading.value = false;
     }
@@ -273,8 +272,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
         _apiMeals.addAll(uniqueNewMeals);
         _hasMore.value = uniqueNewMeals.isNotEmpty;
       }
-    } catch (e) {
-      print('Error loading more meals: $e');
+    } catch (e) { 
     } finally {
       _isLoading.value = false;
     }
@@ -292,20 +290,13 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
           return GestureDetector(
             onTap: () async {
-              print('=== MEAL GENERATION STARTED ===');
               if (canUseAI() && !isGenerating) {
-                print('AI is available and not currently generating');
                 setState(() {
                   isGenerating = true;
                 });
 
                 try {
-                  print('Starting meal generation process...');
                   dynamic items;
-
-                  print('Determining dialog type...');
-                  print('Widget label: ${widget.label}');
-                  print('Widget search: ${widget.search}');
 
                   // Show appropriate dialog based on whether it's a category or ingredient
                   if (widget.label != null &&
@@ -313,17 +304,13 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                       widget.search.isNotEmpty &&
                       widget.search.toLowerCase() ==
                           widget.label?.toLowerCase()) {
-                    print(
-                        'Using category-based meal generation with label: ${widget.label}');
                     // Category-based meal generation with specific label
                     try {
                       items = await showCategoryInputDialog(
                         context,
                         label: widget.label!.trim(),
                       );
-                      print('Category dialog completed. Items: $items');
                     } catch (e) {
-                      print('Error showing category input dialog: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -336,17 +323,13 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   } else if (widget.search.isNotEmpty &&
                       widget.search.toLowerCase() != 'general' &&
                       widget.search.toLowerCase() != 'all') {
-                    print(
-                        'Using ingredient-based meal generation with search: ${widget.search}');
                     // Ingredient-based meal generation
                     try {
                       items = await showIngredientInputDialog(
                         context,
                         initialIngredient: widget.search.trim(),
                       );
-                      print('Ingredient dialog completed. Items: $items');
                     } catch (e) {
-                      print('Error showing ingredient input dialog: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -357,16 +340,13 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                       return;
                     }
                   } else {
-                    print('Using general category-based meal generation');
                     // General category-based meal generation (fallback)
                     try {
                       items = await showCategoryInputDialog(
                         context,
                         label: 'general',
                       );
-                      print('General category dialog completed. Items: $items');
                     } catch (e) {
-                      print('Error showing general category dialog: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -378,16 +358,12 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                     }
                   }
 
-                  print('Dialog completed. Items: $items');
-
                   // Check if user cancelled the dialog
                   if (items == null) {
-                    print('User cancelled the dialog');
                     // User cancelled the dialog, no need to show error
                     return;
                   }
 
-                  print('Showing loading dialog...');
                   // Show loading dialog while AI is generating meals
                   showDialog(
                     context: context,
@@ -459,7 +435,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                     contextInfo = 'Ingredient-based meal generation';
                   } else {
                     // Fallback for unexpected data type
-                    print('Unexpected items type: ${items.runtimeType}');
                     if (context.mounted) {
                       Navigator.of(context).pop(); // Close loading dialog
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -474,13 +449,9 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   }
 
                   // Use generateMealPlan for both cases
-                  print('Starting AI meal generation with prompt: $prompt');
-                  print('Context info: $contextInfo');
 
                   final mealPlan = await geminiService.generateMealsWithAI(
                       prompt, contextInfo);
-
-                  print('AI generation completed. Meal plan: $mealPlan');
 
                   // Close the loading dialog
                   if (context.mounted) {
@@ -489,7 +460,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
                   // Validate meal plan data before proceeding
                   if (mealPlan == null) {
-                    print('Error: mealPlan is null');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -503,7 +473,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   }
 
                   if (mealPlan['meals'] == null) {
-                    print('Error: mealPlan["meals"] is null');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -517,8 +486,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   }
 
                   if (mealPlan['meals'] is! List) {
-                    print(
-                        'Error: mealPlan["meals"] is not a List, it is: ${mealPlan['meals'].runtimeType}');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -633,8 +600,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                 });
 
                                                 try {
-                                                  print(
-                                                      'Starting meal saving process...');
                                                   // Save all generated meals to Firestore first
                                                   final userId =
                                                       userService.userId;
@@ -642,16 +607,10 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                     throw Exception(
                                                         'User ID not found');
 
-                                                  print('User ID: $userId');
-                                                  print(
-                                                      'Original meals count: ${meals.length}');
-
                                                   // Convert AI-generated meals to the format expected by saveMealsToFirestore
                                                   final mealsToSave =
                                                       <Map<String, dynamic>>[];
                                                   for (final aiMeal in meals) {
-                                                    print(
-                                                        'Processing AI meal: ${aiMeal['title']}');
                                                     final convertedMeal = Map<
                                                         String,
                                                         dynamic>.from(aiMeal);
@@ -661,31 +620,20 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                     convertedMeal.remove('id');
                                                     mealsToSave
                                                         .add(convertedMeal);
-                                                    print(
-                                                        'Converted meal: ${convertedMeal['title']}');
                                                   }
 
                                                   final mealPlanToSave = {
                                                     'meals': mealsToSave,
                                                   };
 
-                                                  print(
-                                                      'Meal plan to save: $mealPlanToSave');
-
                                                   List<String> allMealIds = [];
                                                   try {
-                                                    print(
-                                                        'Calling saveMealsToFirestore...');
                                                     allMealIds =
                                                         await saveMealsToFirestore(
                                                             userId,
                                                             mealPlanToSave,
                                                             '');
-                                                    print(
-                                                        'SaveMealsToFirestore completed. Meal IDs: $allMealIds');
                                                   } catch (e) {
-                                                    print(
-                                                        'Error saving meals to Firestore: $e');
                                                     throw Exception(
                                                         'Failed to save meals to database');
                                                   }
@@ -783,8 +731,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                     docSnapshot =
                                                         await docRef.get();
                                                   } catch (e) {
-                                                    print(
-                                                        'Error getting document: $e');
                                                     throw Exception(
                                                         'Failed to access meal plan document');
                                                   }
@@ -820,8 +766,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                       });
                                                     }
                                                   } catch (e) {
-                                                    print(
-                                                        'Error updating meal plan: $e');
                                                     throw Exception(
                                                         'Failed to update meal plan');
                                                   }
@@ -840,16 +784,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                                                     );
                                                   }
                                                 } catch (e) {
-                                                  print(
-                                                      'Error in meal creation process: $e');
-                                                  print(
-                                                      'Error type: ${e.runtimeType}');
-                                                  if (e
-                                                      .toString()
-                                                      .contains('Exception:')) {
-                                                    print(
-                                                        'Exception details: ${e.toString()}');
-                                                  }
                                                   if (context.mounted) {
                                                     ScaffoldMessenger.of(
                                                             context)
@@ -894,11 +828,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                     throw Exception('No meals generated');
                   }
                 } catch (e) {
-                  print('=== ERROR IN MEAL GENERATION ===');
-                  print('Error: $e');
-                  print('Error type: ${e.runtimeType}');
-                  print('Error stack trace: ${e.toString()}');
-
                   // Show error message if meal generation fails
                   String errorMessage =
                       'Failed to generate meals. Please try again.';
@@ -912,7 +841,6 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                         'Using backup meal suggestions while AI service is unavailable.';
                   }
 
-                  print('Showing error message: $errorMessage');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(errorMessage),

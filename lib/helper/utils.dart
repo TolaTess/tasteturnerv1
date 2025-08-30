@@ -14,7 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/helper/helper_functions.dart';
-
+import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -142,8 +142,8 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
 
       uploadedUrls.add(imageUrl);
     } catch (e, stack) {
-      print('Error uploading image: $e');
-      print(stack);
+      debugPrint('Error uploading image: $e');
+      debugPrint(stack.toString());
     }
   }
 
@@ -282,7 +282,7 @@ Future<void> _triggerAIImageAnalysis(
 
     onNewMessage(scrollController);
   } catch (e) {
-    print('Error in AI image analysis: $e');
+    debugPrint('Error in AI image analysis: $e');
     // Send fallback response as buddy
     await ChatController.saveMessageToFirestore(
       chatId: chatId,
@@ -477,7 +477,7 @@ Future<void> handleDetailedFoodAnalysis(
       );
     }
   } catch (e) {
-    print('Error in detailed food analysis: $e');
+    debugPrint('Error in detailed food analysis: $e');
     // Send error message as buddy
     await ChatController.saveMessageToFirestore(
       chatId: chatId,
@@ -498,7 +498,9 @@ Future<Map<String, dynamic>?> getFoodAnalysisData(String analysisId) async {
           as Map<String, dynamic>; // Use 'analysis' field
     }
   } catch (e) {
-    print('Error getting food analysis: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
   }
   return null;
 }
@@ -1355,7 +1357,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'spin special':
       return Colors.red;
     case 'regular day':
-      return Colors.grey.withOpacity(0.7);
+      return Colors.grey.withValues(alpha: 0.7);
     default:
       return Colors.orange;
   }
@@ -1477,9 +1479,10 @@ Widget buildNetworkImage({
     errorBuilder: (context, error, stackTrace) {
       // Log the error for debugging but don't spam the console
       if (error.toString().contains('403')) {
-        print('🚫 Image access denied (403): ${imageUrl.split('?').first}');
+        debugPrint(
+            '🚫 Image access denied (403): ${imageUrl.split('?').first}');
       } else {
-        print('❌ Image load error: ${error.toString().split('\n').first}');
+        debugPrint('❌ Image load error: ${error.toString().split('\n').first}');
       }
 
       return errorWidget ??

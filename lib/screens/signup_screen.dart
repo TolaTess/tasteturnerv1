@@ -76,7 +76,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: kWhite.withOpacity(0.2),
+                              color: kWhite.withValues(alpha: 0.2),
                               blurRadius: 20,
                               spreadRadius: 2,
                             ),

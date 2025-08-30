@@ -1,6 +1,7 @@
 // Check if we've already sent a notification today for steps goal
 // and send one if we haven't
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants.dart';
 import '../widgets/premium_widget.dart';
@@ -22,7 +23,9 @@ Future<void> deleteImagesFromStorage(List<String> imageUrls,
           }
         }
       } catch (e) {
-        print('Error deleting image from storage: $e');
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
       }
     }
   }

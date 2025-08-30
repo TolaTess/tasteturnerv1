@@ -77,7 +77,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading daily summary: $e');
+      debugPrint('Error loading daily summary: $e');
       setState(() {
         isLoading = false;
       });
@@ -214,7 +214,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                     Get.find<NotificationHandlerService>();
                 await notificationHandler.showTomorrowActionItems(context);
               } catch (e) {
-                print('Error showing action items: $e');
+                debugPrint('Error showing action items: $e');
                 // Fallback to direct navigation if service is not available
                 Navigator.push(
                   context,
@@ -263,7 +263,6 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double carbsGoal,
     double fatGoal,
   ) {
-
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -415,8 +414,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                 '/ ${goal.toStringAsFixed(goal % 1 == 0 ? 0 : 1)} $unit',
                 style: textTheme.bodySmall?.copyWith(
                   color: isDarkMode
-                      ? kWhite.withOpacity(0.7)
-                      : kDarkGrey.withOpacity(0.7),
+                      ? kWhite.withValues(alpha: 0.7)
+                      : kDarkGrey.withValues(alpha: 0.7),
                 ),
               ),
             ],

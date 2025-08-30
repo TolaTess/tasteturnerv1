@@ -134,8 +134,9 @@ class _DailyFoodPageState extends State<DailyFoodPage> {
                   child: Container(
                     width: squareW,
                     height: squareSize,
-                    color:
-                        isDarkMode ? kDarkGrey.withOpacity(kOpacity) : kWhite,
+                    color: isDarkMode
+                        ? kDarkGrey.withValues(alpha: kOpacity)
+                        : kWhite,
                   ),
                 ),
 

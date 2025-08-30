@@ -127,7 +127,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         });
       }
     } catch (e) {
-      print('Error updating leaderboard: $e');
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -233,7 +232,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         });
       }
     } catch (e) {
-      print('Error updating dine-in leaderboard: $e');
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -282,7 +280,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('Error refreshing data: $e');
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -535,7 +532,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(4, context)),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient:  const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -792,7 +789,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     if (rank == 1) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
           ),
@@ -807,7 +804,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     } else if (rank == 2) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFC0C0C0), Color(0xFF808080)],
           ),
@@ -822,7 +819,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     } else if (rank == 3) {
       return Container(
         padding: EdgeInsets.all(getPercentageWidth(2, context)),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFCD7F32), Color(0xFF8B4513)],
           ),
@@ -859,11 +856,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Color _getRankColor(int rank) {
     switch (rank) {
       case 1:
-        return Color(0xFFFFD700); // Gold
+        return const Color(0xFFFFD700); // Gold
       case 2:
-        return Color(0xFFC0C0C0); // Silver
+        return const Color(0xFFC0C0C0); // Silver
       case 3:
-        return Color(0xFFCD7F32); // Bronze
+        return const Color(0xFFCD7F32); // Bronze
       default:
         return kAccent;
     }

@@ -574,7 +574,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                             } catch (e) {
                               if (context.mounted) {
                                 showTastySnackbar('Error',
-                                    'Failed to delete meal: $e', context,
+                                    'Failed to delete meal: Please try again later', context,
                                     backgroundColor: kRed);
                               }
                             }
@@ -614,7 +614,6 @@ class RecipeProfile extends StatefulWidget {
 class _RecipeProfileState extends State<RecipeProfile> {
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     friendController.fetchFollowing(userService.userId ?? '');
   }

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart' show debugPrint;
 import 'package:get/get.dart';
 import '../data_models/macro_data.dart';
 import '../constants.dart';
@@ -28,7 +29,7 @@ class MacroManager extends GetxController {
 
   MacroManager() {
     _instanceCount++;
-    print(
+    debugPrint(
         'MacroManager constructor called. Instance count: $_instanceCount, hashCode: ${hashCode}');
   }
 
@@ -68,7 +69,7 @@ class MacroManager extends GetxController {
     try {
       await fetchIngredients();
     } catch (e) {
-      print('MacroManager _initializeIngredients error: $e');
+      debugPrint('MacroManager _initializeIngredients error: $e');
     }
   }
 
@@ -309,7 +310,6 @@ class MacroManager extends GetxController {
       // Refresh the shopping lists after deletion
       await refreshShoppingLists(userId, currentWeek);
     } catch (e) {
-      print('Error removing item from shopping list: $e');
       return;
     }
   }
@@ -321,7 +321,9 @@ class MacroManager extends GetxController {
         _listenToShoppingList(userId);
       });
     } catch (e) {
-      print('Error refreshing shopping lists: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -431,10 +433,7 @@ class MacroManager extends GetxController {
 
     _isFetching = true;
     try {
-      print('_ensureDataFetched: fetching ingredients');
-      print('Before fetch - ingredient.length: ${ingredient.length}');
       await fetchIngredients();
-      print('After fetch - ingredient.length: ${ingredient.length}');
     } finally {
       _isFetching = false;
     }

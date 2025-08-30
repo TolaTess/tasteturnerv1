@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 import '../constants.dart';
 import '../data_models/program_model.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 class ProgramService extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -26,7 +27,7 @@ class ProgramService extends GetxController {
               }))
           .toList();
     } catch (e) {
-      print('Error loading programs: $e');
+      debugPrint('Error loading programs: $e');
       return [];
     }
   }
@@ -64,7 +65,7 @@ class ProgramService extends GetxController {
       currentProgram.value =
           userPrograms.firstWhereOrNull((program) => program.isActive);
     } catch (e) {
-      print('Error loading user programs: $e');
+      debugPrint('Error loading user programs: $e');
     }
   }
 
@@ -108,7 +109,7 @@ class ProgramService extends GetxController {
       await loadUserPrograms();
       return program;
     } catch (e) {
-      print('Error creating program: $e');
+      debugPrint('Error creating program: $e');
       throw Exception('Failed to create program');
     }
   }
@@ -130,7 +131,7 @@ class ProgramService extends GetxController {
 
       return false;
     } catch (e) {
-      print('Error checking program enrollment: $e');
+      debugPrint('Error checking program enrollment: $e');
       return false;
     }
   }
@@ -165,7 +166,7 @@ class ProgramService extends GetxController {
 
       await loadUserPrograms();
     } catch (e) {
-      print('Error joining program: $e');
+      debugPrint('Error joining program: $e');
       throw Exception('Failed to join program');
     }
   }
@@ -183,7 +184,7 @@ class ProgramService extends GetxController {
 
       await loadUserPrograms();
     } catch (e) {
-      print('Error leaving program: $e');
+      debugPrint('Error leaving program: $e');
       throw Exception('Failed to leave program');
     }
   }
@@ -200,7 +201,7 @@ class ProgramService extends GetxController {
       final userIds = data['userIds'] as List?;
       return userIds?.cast<String>() ?? [];
     } catch (e) {
-      print('Error getting program users: $e');
+      debugPrint('Error getting program users: $e');
       return [];
     }
   }
@@ -214,7 +215,7 @@ class ProgramService extends GetxController {
           .update({'isActive': false});
       await loadUserPrograms();
     } catch (e) {
-      print('Error deactivating program: $e');
+      debugPrint('Error deactivating program: $e');
       throw Exception('Failed to deactivate program');
     }
   }

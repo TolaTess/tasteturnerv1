@@ -92,7 +92,7 @@ class RoutineController extends GetxController {
       }
       await prefs.setBool('routine_notification_shown_$today', true);
     } catch (e) {
-      print('Error checking yesterday completion: $e');
+      debugPrint('Error checking yesterday completion: $e');
     }
   }
 
@@ -158,7 +158,7 @@ class RoutineController extends GetxController {
       }
       return {};
     } catch (e) {
-      print('Error loading completion status: $e');
+      debugPrint('Error loading completion status: $e');
       return {};
     }
   }
@@ -211,7 +211,7 @@ class RoutineController extends GetxController {
       await docRef.set(updatedData, SetOptions(merge: true));
       await loadRoutineItems();
     } catch (e) {
-      print('Error toggling completion: $e');
+      debugPrint('Error toggling completion: $e');
     }
   }
 }

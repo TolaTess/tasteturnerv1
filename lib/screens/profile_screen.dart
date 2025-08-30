@@ -181,11 +181,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           showBattle = ongoingBattles.isNotEmpty;
         });
         if (result.error != null) {
-          print('Error fetching user posts: ${result.error}');
+          debugPrint('Error fetching user posts: ${result.error}');
         }
       }
     } catch (e) {
-      print('Error fetching content: $e');
+      debugPrint('Error fetching content: $e');
       if (mounted) {
         setState(() {
           searchContentDatas = [];
@@ -275,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconTheme: IconThemeData(
               color: isShrink
                   ? isDarkMode
-                      ? kWhite.withOpacity(0.80)
+                      ? kWhite.withValues(alpha: 0.80)
                       : kBlack
                   : isDarkMode
                       ? kLightGrey
@@ -355,8 +355,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: (isDarkMode
-                                              ? kDarkGrey.withOpacity(0.5)
-                                              : kWhite.withOpacity(0.5)),
+                                              ? kDarkGrey.withValues(alpha: 0.5)
+                                              : kWhite.withValues(alpha: 0.5)),
                                           borderRadius:
                                               BorderRadius.circular(10),
                                         ),
@@ -391,8 +391,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: (isDarkMode
-                                          ? kDarkGrey.withOpacity(0.5)
-                                          : kWhite.withOpacity(0.5)),
+                                          ? kDarkGrey.withValues(alpha: 0.5)
+                                          : kWhite.withValues(alpha: 0.5)),
                                       borderRadius: BorderRadius.circular(15),
                                     ),
                                     child: Row(
@@ -704,8 +704,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              final date = DateTime.now().subtract(
-                                  const Duration(days: 1));
+                              final date = DateTime.now()
+                                  .subtract(const Duration(days: 1));
                               Get.to(() => DailySummaryScreen(date: date));
                             },
                             child: Container(

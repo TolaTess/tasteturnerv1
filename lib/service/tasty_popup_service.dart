@@ -630,8 +630,6 @@ class TutorialPopupService {
         await prefs.remove(key);
       }
     }
-
-    print('Tutorial preferences reset - all tutorials will show again');
   }
 }
 

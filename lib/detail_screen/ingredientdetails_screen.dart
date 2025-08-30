@@ -138,7 +138,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.2),
+                      color: kAccent.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
@@ -398,8 +398,8 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                     color: isDarkMode
-                                        ? kLightGrey.withOpacity(0.4)
-                                        : kLightGrey.withOpacity(0.2),
+                                        ? kLightGrey.withValues(alpha: 0.4)
+                                        : kLightGrey.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(10)),
                                 child: Row(
                                   children: [
@@ -587,7 +587,7 @@ class TopFeatures extends StatelessWidget {
                   horizontal: getPercentageWidth(1.2, context),
                   vertical: getPercentageHeight(0.8, context)),
               decoration: BoxDecoration(
-                color: kAccent.withOpacity(0.2),
+                color: kAccent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(50),
               ),
               child: Row(

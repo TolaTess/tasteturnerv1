@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
@@ -40,7 +41,7 @@ Widget buildTastyFloatingActionButton({
               context,
               themeProvider.isDarkMode,
               'Premium Feature',
-              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
+              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice! Your free trial ended on ${userService.currentUser.value?.freeTrialDate}.'),
         );
       }
     },
@@ -115,7 +116,7 @@ Widget buildFullWidthAddMealButton({
       if (context.mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to add meal: $e',
+          'Failed to add meal: Please try again later',
           context,
           backgroundColor: kRed,
         );
@@ -346,14 +347,16 @@ bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {
           nutritionalInfo[field] == null ||
           nutritionalInfo[field]!.isEmpty ||
           int.tryParse(nutritionalInfo[field]!) == null) {
-        print(
+        debugPrint(
             'Validation failed for field: $field with value: ${nutritionalInfo[field]}');
         return false;
       }
     }
     return true;
   } catch (e) {
-    print('Error during nutritional info validation: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
     return false;
   }
 }
@@ -396,7 +399,7 @@ Future<List<String>> saveMealsToFirestore(String userId,
     };
 
     if (!_validateNutritionalInfo(processedNutritionalInfo)) {
-      print(
+      debugPrint(
           'Error: Invalid nutritional information: $processedNutritionalInfo');
       continue;
     }
@@ -429,7 +432,9 @@ Future<List<String>> saveMealsToFirestore(String userId,
       await mealCollection.doc(mealId).set(mealJson);
       mealIds.add(appendMealType(mealId, mealType));
     } catch (e) {
-      print('Error saving meal $mealId: $mealType $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
       continue;
     }
   }
@@ -485,7 +490,9 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
       }
     }
   } catch (e) {
-    print('Error fetching existing document: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
   }
 
   // Create a new generation object
@@ -520,7 +527,9 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
   try {
     await docRef.set(mealPlanData);
   } catch (e) {
-    print('Error saving meal plan: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
   }
 }
 
@@ -573,9 +582,13 @@ Widget showPremiumDialog(
       style: TextStyle(color: kAccent),
     ),
     content: Text(
-      message,
+      message +
+          '\n\nYour free trial ended on ${userService.currentUser.value?.freeTrialDate.toString().split(' ')[0]}.',
       style: TextStyle(
-        color: isDarkMode ? kWhite : kBlack,
+        color: isDarkMode
+            ? kWhite.withValues(alpha: 0.8)
+            : kBlack.withValues(alpha: 0.7),
+        fontSize: getTextScale(3.5, context),
       ),
     ),
     actions: [
@@ -754,7 +767,6 @@ Future<XFile?> cropImage(
       imageBytes = await imageFile.readAsBytes();
     }
   } catch (e) {
-    print('Image preprocessing failed, using original: $e');
     imageBytes = await imageFile.readAsBytes();
   }
 
@@ -1064,7 +1076,7 @@ Future<void> handleCameraAction({
       Navigator.pop(context); // Close analysis loading dialog
       showTastySnackbar(
         'Error',
-        'Analysis failed: $e',
+        'Analysis failed: Please try again later',
         context,
         backgroundColor: kRed,
       );
@@ -1077,7 +1089,7 @@ Future<void> handleCameraAction({
     Navigator.pop(context); // Close loading dialog
     showTastySnackbar(
       'Error',
-      'Analysis failed: $e',
+      'Analysis failed: Please try again later',
       context,
       backgroundColor: kRed,
     );
@@ -1334,9 +1346,11 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
         ),
       ),
       content: Text(
-        'AI food analysis is a premium feature. Update to premium to unlock this and many other amazing features!',
+        'AI food analysis is a premium feature. Update to premium to unlock this and many other amazing features! \n\nYour free trial ended on ${userService.currentUser.value?.freeTrialDate.toString().split(' ')[0]}.',
         style: TextStyle(
-          color: isDarkMode ? kWhite.withOpacity(0.8) : kBlack.withOpacity(0.7),
+          color: isDarkMode
+              ? kWhite.withValues(alpha: 0.8)
+              : kBlack.withValues(alpha: 0.7),
           fontSize: getTextScale(3.5, context),
         ),
       ),
@@ -1473,8 +1487,8 @@ Future<Map<String, dynamic>?> showCategoryInputDialog(BuildContext context,
                     'Generate $label meals',
                     style: textTheme.bodyMedium?.copyWith(
                       color: isDarkMode
-                          ? kWhite.withOpacity(0.8)
-                          : kBlack.withOpacity(0.7),
+                          ? kWhite.withValues(alpha: 0.8)
+                          : kBlack.withValues(alpha: 0.7),
                       fontSize: getTextScale(3.5, context),
                     ),
                     textAlign: TextAlign.center,
@@ -1504,8 +1518,8 @@ Future<Map<String, dynamic>?> showCategoryInputDialog(BuildContext context,
 
                           return Card(
                             color: isSelected
-                                ? kAccent.withOpacity(0.2)
-                                : kAccent.withOpacity(0.1),
+                                ? kAccent.withValues(alpha: 0.2)
+                                : kAccent.withValues(alpha: 0.1),
                             child: ListTile(
                               title: Text(
                                 capitalizeFirstLetter(member.name ?? 'Unknown'),
@@ -1521,8 +1535,8 @@ Future<Map<String, dynamic>?> showCategoryInputDialog(BuildContext context,
                                 'Age Group: ${member.ageGroup ?? 'Unknown'}',
                                 style: textTheme.bodySmall?.copyWith(
                                   color: isDarkMode
-                                      ? kWhite.withOpacity(0.7)
-                                      : kBlack.withOpacity(0.7),
+                                      ? kWhite.withValues(alpha: 0.7)
+                                      : kBlack.withValues(alpha: 0.7),
                                   fontSize: getTextScale(3, context),
                                 ),
                               ),
@@ -1638,8 +1652,8 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
                     'Enter ingredients you want in your meal (one at a time)',
                     style: textTheme.bodyMedium?.copyWith(
                       color: isDarkMode
-                          ? kWhite.withOpacity(0.8)
-                          : kBlack.withOpacity(0.7),
+                          ? kWhite.withValues(alpha: 0.8)
+                          : kBlack.withValues(alpha: 0.7),
                       fontSize: getTextScale(3.5, context),
                     ),
                     textAlign: TextAlign.center,
@@ -1657,12 +1671,13 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
                       hintText: 'Enter ingredient...',
                       hintStyle: TextStyle(
                         color: isDarkMode
-                            ? kWhite.withOpacity(0.5)
-                            : kBlack.withOpacity(0.5),
+                            ? kWhite.withValues(alpha: 0.5)
+                            : kBlack.withValues(alpha: 0.5),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: kAccent.withOpacity(0.3)),
+                        borderSide:
+                            BorderSide(color: kAccent.withValues(alpha: 0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -1714,7 +1729,7 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
                         itemCount: ingredients.length,
                         itemBuilder: (context, index) {
                           return Card(
-                            color: kAccent.withOpacity(0.1),
+                            color: kAccent.withValues(alpha: 0.1),
                             child: ListTile(
                               title: Text(
                                 ingredients[index],
@@ -1726,7 +1741,7 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
                               trailing: IconButton(
                                 icon: Icon(
                                   Icons.remove_circle,
-                                  color: Colors.red.withOpacity(0.7),
+                                  color: Colors.red.withValues(alpha: 0.7),
                                 ),
                                 onPressed: () {
                                   setState(() {

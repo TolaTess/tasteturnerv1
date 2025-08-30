@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'constants.dart';
+import 'helper/utils.dart';
 import 'themes/theme_provider.dart';
 import 'themes/dark_mode.dart';
 import 'themes/light_mode.dart';
@@ -46,7 +47,9 @@ void main() async {
       'enableHandwriting': false,
     });
   } catch (e) {
-    print('Platform channel call error: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
   }
 
   await dotenv.load(fileName: 'assets/env/.env');
@@ -75,7 +78,7 @@ void main() async {
   // Any other non-UI async setup
   await FirebaseService.instance.fetchGeneralData();
   await MealManager.instance.fetchMealsByCategory("All");
-  
+
   // Register NotificationService with GetX
   final notificationService = NotificationService();
   Get.put(notificationService, permanent: true);
@@ -86,19 +89,23 @@ void main() async {
       // Parse the payload to determine what to show
       if (payload.contains('meal_plan_reminder') ||
           payload.contains('evening_review')) {
-        print('Notification tapped: $payload');
+        debugPrint('Notification tapped: $payload');
 
         // Use the notification handler service to process the payload
         try {
           final handlerService = Get.find<NotificationHandlerService>();
           await handlerService.handleNotificationPayload(payload);
         } catch (e) {
-          print('Notification handler service not available yet: $e');
+          showTastySnackbar(
+              'Something went wrong', 'Please try again later', Get.context!,
+              backgroundColor: kRed);
           // The service will be available once the app is fully initialized
         }
       }
     } catch (e) {
-      print('Error handling notification tap: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -122,7 +129,9 @@ void main() async {
       ],
     );
   } catch (e) {
-    print('Notification init error: $e');
+    showTastySnackbar(
+        'Something went wrong', 'Please try again later', Get.context!,
+        backgroundColor: kRed);
     // Don't crash the app for notification errors
   }
   await MobileAds.instance.initialize();

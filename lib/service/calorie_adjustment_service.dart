@@ -62,7 +62,7 @@ class CalorieAdjustmentService extends GetxController {
       // Also save the current date
       await prefs.setString('adjustment_date', today);
     } catch (e) {
-      print('DEBUG: Error saving adjustment to SharedPreferences: $e');
+      debugPrint('DEBUG: Error saving adjustment to SharedPreferences: $e');
     }
   }
 
@@ -88,7 +88,7 @@ class CalorieAdjustmentService extends GetxController {
 
       update();
     } catch (e) {
-      print('DEBUG: Error loading adjustments from SharedPreferences: $e');
+      debugPrint('DEBUG: Error loading adjustments from SharedPreferences: $e');
     }
   }
 
@@ -111,7 +111,8 @@ class CalorieAdjustmentService extends GetxController {
       // Clear the adjustment date
       await prefs.remove('adjustment_date');
     } catch (e) {
-      print('DEBUG: Error clearing adjustments from SharedPreferences: $e');
+      debugPrint(
+          'DEBUG: Error clearing adjustments from SharedPreferences: $e');
     }
   }
 
@@ -147,9 +148,8 @@ class CalorieAdjustmentService extends GetxController {
               adjustmentMealType = 'Dinner';
               break;
             case 'dinner':
-              adjustmentMealType = notAllowedMealType == 'snack'
-                  ? 'Fruits'
-                  : 'Snacks';
+              adjustmentMealType =
+                  notAllowedMealType == 'snack' ? 'Fruits' : 'Snacks';
               break;
           }
 

@@ -617,12 +617,14 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                   vertical: getPercentageHeight(1, context)),
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
-                color:
-                    isDarkMode ? kDarkGrey.withOpacity(0.8) : Colors.grey[100],
+                color: isDarkMode
+                    ? kDarkGrey.withValues(alpha: 0.8)
+                    : Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color:
-                      isDarkMode ? kWhite.withOpacity(0.2) : Colors.grey[300]!,
+                  color: isDarkMode
+                      ? kWhite.withValues(alpha: 0.2)
+                      : Colors.grey[300]!,
                 ),
               ),
               child: Column(
@@ -784,16 +786,16 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             vertical: getPercentageHeight(0.5, context)),
         decoration: BoxDecoration(
           color: selectedValue != null
-              ? kAccent.withOpacity(0.8)
+              ? kAccent.withValues(alpha: 0.8)
               : isDarkMode
-                  ? kWhite.withOpacity(0.1)
+                  ? kWhite.withValues(alpha: 0.1)
                   : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selectedValue != null
                 ? kAccent
                 : isDarkMode
-                    ? kWhite.withOpacity(0.3)
+                    ? kWhite.withValues(alpha: 0.3)
                     : Colors.grey[400]!,
             width: 1,
           ),
@@ -817,7 +819,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                 padding: EdgeInsets.symmetric(
                     horizontal: getPercentageWidth(1, context), vertical: 2),
                 decoration: BoxDecoration(
-                  color: kWhite.withOpacity(0.2),
+                  color: kWhite.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

@@ -175,7 +175,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         await mealManager.searchMeals(widget.searchIngredient);
       }
     } catch (e) {
-      print('Error refreshing recipes: $e');
+      debugPrint('Error refreshing recipes: $e');
       // Show error message to user
       if (mounted) {
         showTastySnackbar(
@@ -270,7 +270,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
   Future<void> addMealsToMealPlan(
       List<String> selectedMealIds, String? mealPlanDate) async {
     if (mealPlanDate == null) {
-      print('Meal plan date is required.');
+      debugPrint('Meal plan date is required.');
       return;
     }
 
@@ -329,7 +329,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
 
       Get.back();
     } catch (e) {
-      print('Error adding meals to meal plan: $e');
+      debugPrint('Error adding meals to meal plan: $e');
     }
   }
 
@@ -670,7 +670,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   onMealToggle: toggleMealSelection,
                   screen: widget.screen,
                   onRecipeTap: _navigateToRecipeDetail,
-                  label: selectedCategory,  
+                  label: selectedCategory,
                 ),
               ],
             ),

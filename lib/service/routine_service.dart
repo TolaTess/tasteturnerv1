@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
-import '../data_models/routine_item.dart';
+import '../data_models/routine_item.dart';        
+import 'package:flutter/material.dart' show debugPrint;
 
 class RoutineService {
   static RoutineService? _instance;
@@ -34,7 +35,7 @@ class RoutineService {
           .map((doc) => RoutineItem.fromMap({...doc.data(), 'title': doc.id}))
           .toList();
     } catch (e) {
-      print('Error getting routine items: $e');
+      debugPrint('Error getting routine items: $e');
       return [];
     }
   }
@@ -94,7 +95,7 @@ class RoutineService {
           .doc(item.title)
           .update(item.toMap());
     } catch (e) {
-      print('Error updating routine item: $e');
+      debugPrint('Error updating routine item: $e');
     }
   }
 
@@ -107,7 +108,7 @@ class RoutineService {
           .doc(item.title)
           .update({'isEnabled': !item.isEnabled});
     } catch (e) {
-      print('Error toggling routine item: $e');
+      debugPrint('Error toggling routine item: $e');
     }
   }
 
@@ -125,7 +126,7 @@ class RoutineService {
           .doc(item.title)
           .set(item.toMap());
     } catch (e) {
-      print('Error adding routine item: $e');
+      debugPrint('Error adding routine item: $e');
     }
   }
 }

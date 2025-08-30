@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import '../constants.dart';
+import '../helper/utils.dart';
 import '../screens/tomorrow_action_items_screen.dart';
 import 'user_service.dart';
 
@@ -38,24 +40,20 @@ class NotificationHandlerService extends GetxService {
         hasMealPlan: hasMealPlan,
         notificationType: type,
       );
-    } catch (e) {
-      print('Error handling notification payload: $e');
+      } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
   // Parse notification payload string with better Android compatibility
   Map<String, dynamic>? _parsePayload(String payload) {
     try {
-      print('Raw payload received: $payload');
 
       // Try JSON parsing first (more reliable)
       try {
         final jsonPayload = json.decode(payload);
-        print('JSON parsing successful: $jsonPayload');
         return Map<String, dynamic>.from(jsonPayload);
-      } catch (jsonError) {
-        print('JSON parsing failed, trying manual parsing: $jsonError');
-      }
+      } catch (jsonError) {}
 
       // Fallback to manual parsing for backward compatibility
       // Remove the curly braces and split by comma
@@ -84,11 +82,8 @@ class NotificationHandlerService extends GetxService {
         }
       }
 
-      print('Manual parsing result: $result');
       return result;
-    } catch (e) {
-      print('Error parsing notification payload: $e');
-      print('Payload that caused error: $payload');
+    } catch (e) { 
       return null;
     }
   }
@@ -112,8 +107,8 @@ class NotificationHandlerService extends GetxService {
       if (summaryDoc.exists) {
         return summaryDoc.data() ?? {};
       }
-    } catch (e) {
-      print('Error loading today\'s summary: $e');
+    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
 
     return {};
@@ -134,8 +129,8 @@ class NotificationHandlerService extends GetxService {
             hasMealPlan: hasMealPlan,
             notificationType: notificationType,
           ));
-    } catch (e) {
-      print('Error showing action items screen: $e');
+    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -160,8 +155,8 @@ class NotificationHandlerService extends GetxService {
         hasMealPlan: hasMealPlan,
         notificationType: 'manual',
       );
-    } catch (e) {
-      print('Error showing action items: $e');
+    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
   }
 
@@ -183,8 +178,8 @@ class NotificationHandlerService extends GetxService {
         final mealsList = data?['meals'] as List<dynamic>? ?? [];
         return mealsList.isNotEmpty;
       }
-    } catch (e) {
-      print('Error checking meal plan: $e');
+    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
     }
 
     return false;

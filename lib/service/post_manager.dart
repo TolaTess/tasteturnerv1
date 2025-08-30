@@ -11,6 +11,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../helper/notifications_helper.dart';
+import '../helper/utils.dart';
 import 'battle_service.dart';
 
 class PostController extends GetxController {
@@ -49,9 +50,9 @@ class PostController extends GetxController {
               post.username = userDoc.data()?['displayName'] ?? '';
               post.isPremium = userDoc.data()?['isPremium'] ?? false;
             }
-          } catch (e) {
-            print('Error fetching user avatar: $e');
-          }
+          } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
+        }
         }
       }
 
@@ -85,7 +86,6 @@ class PostController extends GetxController {
 
       if (!userDoc.exists) {
         // Handle the case where the user document does not exist
-        print('User document not found.');
         return [];
       }
 
@@ -99,7 +99,6 @@ class PostController extends GetxController {
       return postIds.isNotEmpty ? await getPostsByIds(postIds) : [];
     } catch (e) {
       // Log any errors during the process
-      print('Error fetching user posts: $e');
       return [];
     }
   }
@@ -238,18 +237,13 @@ class PostController extends GetxController {
       final usersPostsSnapshot = await usersPostsDoc.get();
 
       if (!usersPostsSnapshot.exists) {
-        print('Creating usersPosts document for user: $userId');
         await usersPostsDoc.set({
           'posts': [],
           'userId': userId,
           'createdAt': DateTime.now().toIso8601String(),
         });
-        print('Successfully created usersPosts document for user: $userId');
-      } else {
-        print('UsersPosts document already exists for user: $userId');
-      }
+      } else {}
     } catch (e) {
-      print('Error ensuring usersPosts document exists for user $userId: $e');
       throw Exception('Failed to ensure usersPosts document exists: $e');
     }
   }
@@ -267,14 +261,12 @@ class PostController extends GetxController {
         }
 
         if (!File(imagePath).existsSync()) {
-          print('File does not exist at path: $imagePath');
           continue;
         }
 
         // Validate file size before processing
         if (!isFileSizeValid(imagePath, 20)) {
           // 20MB max input size
-          print('File too large: $imagePath');
           continue;
         }
 
@@ -291,7 +283,7 @@ class PostController extends GetxController {
           // Ensure cleanup of temporary files
           await File(compressedPath)
               .delete()
-              .catchError((e) => print('Error cleaning up: $e'));
+              .catchError((e) {});
         }
       }
 
@@ -318,11 +310,8 @@ class PostController extends GetxController {
         'posts': FieldValue.arrayUnion([postRef.id]),
       });
 
-      print('Committing batch for post upload...');
       await batch.commit();
-      print('Successfully uploaded post: ${postRef.id} for user: $userId');
     } catch (e) {
-      print('Error uploading post: $e');
       throw Exception('Failed to upload post: $e');
     }
   }
@@ -333,7 +322,6 @@ class PostController extends GetxController {
       final postSnapshot = await postRef.get();
 
       if (!postSnapshot.exists) {
-        print('Post not found.');
         return;
       }
 
@@ -352,14 +340,11 @@ class PostController extends GetxController {
         await usersPostsDoc.update({
           'posts': FieldValue.arrayRemove([postId]),
         });
-      } else {
-        print('UsersPosts document not found for user: $userId');
-      }
+      } else {}
 
       // Delete the post document
       await postRef.delete();
     } catch (e) {
-      print('Error deleting post and images: $e');
       rethrow;
     }
   }
@@ -381,7 +366,6 @@ class PostController extends GetxController {
   }) async {
     try {
       if (updateData == null || updateData.isEmpty) {
-        print('No update data provided');
         return;
       }
 
@@ -389,14 +373,12 @@ class PostController extends GetxController {
       final postSnapshot = await postRef.get();
 
       if (!postSnapshot.exists) {
-        print('Post not found: $postId');
         return;
       }
 
       // Update the post document with provided fields
       await postRef.update(updateData);
     } catch (e) {
-      print('Error updating post: $e');
       throw Exception('Failed to update post: $e');
     }
   }

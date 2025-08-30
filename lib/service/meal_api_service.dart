@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/material.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../data_models/meal_model.dart';
+
 
 class MealApiService {
   static const String baseUrl = 'https://www.themealdb.com/api/json/v1/1';
@@ -85,7 +87,7 @@ class MealApiService {
       }
       return allMeals;
     } catch (e, stackTrace) {
-      print('Stack trace: $stackTrace');
+      debugPrint('Stack trace: $stackTrace');
       return [];
     }
   }
@@ -135,8 +137,8 @@ class MealApiService {
         category: apiMeal['strCategory']?.toString() ?? '',
       );
     } catch (e, stackTrace) {
-      print('Error converting meal: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Error converting meal: $e');
+      debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }

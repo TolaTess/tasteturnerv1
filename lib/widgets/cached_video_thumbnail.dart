@@ -94,7 +94,7 @@ class _CachedVideoThumbnailState extends State<CachedVideoThumbnail> {
         });
       }
     } catch (e) {
-      print('Error loading video thumbnail: $e');
+      debugPrint('Error loading video thumbnail: $e');
       setState(() {
         _hasError = true;
         _isLoading = false;
@@ -117,7 +117,7 @@ class _CachedVideoThumbnailState extends State<CachedVideoThumbnail> {
     } else if (_hasError || _cachedThumbnailPath == null) {
       content = widget.errorWidget ??
           Container(
-            color: kBlueLight.withOpacity(0.5),
+            color: kBlueLight.withValues(alpha: 0.5),
             child: const Center(
               child: Icon(
                 Icons.videocam,
@@ -135,7 +135,7 @@ class _CachedVideoThumbnailState extends State<CachedVideoThumbnail> {
         errorBuilder: (context, error, stackTrace) {
           return widget.errorWidget ??
               Container(
-                color: kBlueLight.withOpacity(0.5),
+                color: kBlueLight.withValues(alpha: 0.5),
                 child: const Center(
                   child: Icon(
                     Icons.videocam,

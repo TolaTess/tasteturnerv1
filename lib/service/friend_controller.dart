@@ -32,7 +32,6 @@ class FriendController extends GetxController {
       }).toList();
       allUsersList.assignAll(users);
     } catch (e) {
-      print('Error fetching all users: $e');
       allUsersList.clear();
     }
   }
@@ -61,7 +60,6 @@ class FriendController extends GetxController {
         });
       }
     } catch (e) {
-      print('Failed to load friend data: $e');
     }
     return null;
   }
@@ -94,7 +92,6 @@ class FriendController extends GetxController {
         friendsMap.clear();
       }
     } catch (e) {
-      print("Error fetching friends: $e");
       friendsMap.clear(); // Clear the map in case of an error
     }
   }
@@ -113,8 +110,6 @@ class FriendController extends GetxController {
         followingList.assignAll(following.map((id) => id.toString()).toSet());
       }
     } catch (e) {
-      print('Error fetching following list: $e');
-
       // Clear the sets if there's an error
       followingList.clear();
     }
@@ -169,10 +164,8 @@ class FriendController extends GetxController {
 
         // Save fetched data to SharedPreferences
       } else {
-        print("User not found in Firestore.");
       }
     } catch (e) {
-      print("Error fetching user data: $e");
     }
   }
 
@@ -209,8 +202,7 @@ class FriendController extends GetxController {
           userProfileData.value = user;
         }
       }
-    } catch (e) {
-      print("Error updating user data: $e");
+    } catch (e) { 
     }
   }
 

@@ -96,7 +96,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
             );
           }
         } catch (e) {
-          debugPrint("Error saving shopping list: $e");
+          if (mounted) {
+            showTastySnackbar(
+              'Error',
+              'Failed to save shopping list: please try again',
+              currentContext,
+              backgroundColor: Colors.red,
+            );
+          }
         }
       });
     }
@@ -107,7 +114,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   Future<void> removeFromShoppingList(String userId, MacroData item) async {
     try {
       if (item.id == null) {
-        print("Cannot remove item with null ID");
+        debugPrint("Cannot remove item with null ID");
         return;
       }
 
@@ -124,7 +131,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print("Error removing item from shopping list: $e");
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to remove item from shopping list: please try again',
+          Get.context!,
+          backgroundColor: Colors.red,
+        );
+      }
       throw Exception("Failed to remove item from shopping list");
     }
   }
@@ -144,7 +158,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
       final docSnapshot = await userMealsRef.get();
 
       if (!docSnapshot.exists) {
-        print("No shopping list found for week $week of year $year.");
+        debugPrint("No shopping list found for week $week of year $year.");
         return {};
       }
 
@@ -159,7 +173,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 
       return {};
     } catch (e) {
-      print("Error fetching shopping list for week $week: $e");
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to fetch shopping list for week $week: please try again',
+          Get.context!,
+          backgroundColor: Colors.red,
+        );
+      }
       return {};
     }
   }
@@ -518,7 +539,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: kAccentLight.withOpacity(0.2),
+                                color: kAccentLight.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: kAccentLight),
                               ),
@@ -584,7 +605,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   }
                 },
                 backgroundColor:
-                    isDarkMode ? kLightGrey : kAccent.withOpacity(0.60),
+                    isDarkMode ? kLightGrey : kAccent.withValues(alpha: 0.60),
                 foregroundColor: isDarkMode ? kWhite : kBlack,
                 elevation: 6,
                 shape: RoundedRectangleBorder(

@@ -93,7 +93,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     final File videoFile = File(videoPath);
     final int originalSize = await videoFile.length();
 
-    print(
+    debugPrint(
         'Original video size: ${(originalSize / (1024 * 1024)).toStringAsFixed(2)} MB');
 
     // Set reasonable file size limits for battle videos (8 seconds max)
@@ -133,7 +133,14 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       );
       return thumbnailPath;
     } catch (e) {
-      print('Failed to generate video thumbnail: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to generate video thumbnail: please try again',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
       return null;
     }
   }
@@ -155,7 +162,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
             )
           : await picker.pickVideo(
               source: ImageSource.camera,
-              maxDuration: Duration(seconds: 8),
+              maxDuration: const Duration(seconds: 8),
             );
 
       if (media != null) {
@@ -476,7 +483,6 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         Get.back();
       }
     } catch (e) {
-      print('Error uploading battle media: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error uploading media: $e')),
@@ -512,8 +518,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               Icons.add_a_photo,
               size: getIconScale(15, context),
               color: getThemeProvider(context).isDarkMode
-                  ? kWhite.withOpacity(0.7)
-                  : kDarkGrey.withOpacity(0.7),
+                  ? kWhite.withValues(alpha: 0.7)
+                  : kDarkGrey.withValues(alpha: 0.7),
             ),
           ),
         ),
@@ -699,8 +705,8 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               width: double.infinity,
               decoration: BoxDecoration(
                 color: getThemeProvider(context).isDarkMode
-                    ? kDarkGrey.withOpacity(0.5)
-                    : kWhite.withOpacity(0.5),
+                    ? kDarkGrey.withValues(alpha: 0.5)
+                    : kWhite.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: TextButton(

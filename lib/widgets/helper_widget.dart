@@ -119,7 +119,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
             isLoading = false;
           });
           if (result.error != null) {
-            print('Error fetching posts: ${result.error}');
+            debugPrint('Error fetching posts: ${result.error}');
           }
         }
       } else {
@@ -131,7 +131,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
         }
       }
     } catch (e) {
-      print('Error fetching content: $e');
+      debugPrint('Error fetching content: $e');
       if (mounted) {
         setState(() {
           searchContentDatas = [];
@@ -167,7 +167,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
         });
       }
     } catch (e) {
-      print('Error loading more posts: $e');
+      debugPrint('Error loading more posts: $e');
     }
   }
 
@@ -355,7 +355,6 @@ class SearchContentGridState extends State<SearchContentGrid> {
     final bool isMediaVideo =
         isVideo || (mediaPath != null && _isVideoUrl(mediaPath));
 
-
     return GestureDetector(
       onTap: () {
         if (widget.listType == "meals") {
@@ -373,8 +372,9 @@ class SearchContentGridState extends State<SearchContentGrid> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color:
-                isDarkMode ? kWhite.withOpacity(0.1) : kBlack.withOpacity(0.1),
+            color: isDarkMode
+                ? kWhite.withValues(alpha: 0.1)
+                : kBlack.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -402,13 +402,13 @@ class SearchContentGridState extends State<SearchContentGrid> {
                   width: double.infinity,
                   height: double.infinity,
                   color: isDarkMode
-                      ? kBlack.withOpacity(0.3)
-                      : kWhite.withOpacity(0.3),
+                      ? kBlack.withValues(alpha: 0.3)
+                      : kWhite.withValues(alpha: 0.3),
                   child: Icon(
                     Icons.image,
                     color: isDarkMode
-                        ? kWhite.withOpacity(0.5)
-                        : kBlack.withOpacity(0.5),
+                        ? kWhite.withValues(alpha: 0.5)
+                        : kBlack.withValues(alpha: 0.5),
                   ),
                 ),
 
@@ -528,7 +528,7 @@ class _ChallengePostsHorizontalListState
         });
       }
     } catch (e) {
-      print('Error loading battle posts: $e');
+      debugPrint('Error loading battle posts: $e');
       if (mounted) {
         setState(() {
           challengePosts = [];
@@ -647,10 +647,14 @@ class _ChallengePostsHorizontalListState
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkMode ? kWhite.withOpacity(0.1) : kBlack.withOpacity(0.1),
+          color: isDarkMode
+              ? kWhite.withValues(alpha: 0.1)
+              : kBlack.withValues(alpha: 0.1),
           width: 1,
         ),
-        color: isDarkMode ? kBlack.withOpacity(0.3) : kWhite.withOpacity(0.3),
+        color: isDarkMode
+            ? kBlack.withValues(alpha: 0.3)
+            : kWhite.withValues(alpha: 0.3),
       ),
       child: GestureDetector(
         onTap: () {
@@ -696,13 +700,13 @@ class _ChallengePostsHorizontalListState
                           width: double.infinity,
                           height: double.infinity,
                           color: isDarkMode
-                              ? kBlack.withOpacity(0.3)
-                              : kWhite.withOpacity(0.3),
+                              ? kBlack.withValues(alpha: 0.3)
+                              : kWhite.withValues(alpha: 0.3),
                           child: Icon(
                             Icons.image,
                             color: isDarkMode
-                                ? kWhite.withOpacity(0.5)
-                                : kBlack.withOpacity(0.5),
+                                ? kWhite.withValues(alpha: 0.5)
+                                : kBlack.withValues(alpha: 0.5),
                           ),
                         ),
 
@@ -754,8 +758,8 @@ class _ChallengePostsHorizontalListState
                         _formatDate(createdAt),
                         style: textTheme.bodySmall?.copyWith(
                           color: isDarkMode
-                              ? kWhite.withOpacity(0.7)
-                              : kBlack.withOpacity(0.7),
+                              ? kWhite.withValues(alpha: 0.7)
+                              : kBlack.withValues(alpha: 0.7),
                           fontSize: getTextScale(2, context),
                         ),
                         maxLines: 1,

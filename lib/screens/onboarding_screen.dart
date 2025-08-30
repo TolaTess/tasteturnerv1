@@ -123,7 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _submitOnboarding() async {
     try {
       if (widget.userId.isEmpty) {
-        print("Error: User ID is missing.");
+        debugPrint("Error: User ID is missing.");
         return;
       }
 
@@ -226,13 +226,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         try {
           await requestUMPConsent();
         } catch (e) {
-          print("Error requesting UMP consent: $e");
+          debugPrint("Error requesting UMP consent: $e");
         }
       } catch (e) {
         // Close loading dialog
         Get.back();
 
-        print("Error saving user data: $e");
+        debugPrint("Error saving user data: $e");
         Get.snackbar(
           'Error',
           'Failed to save user data. Please try again.',
@@ -241,7 +241,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         );
       }
     } catch (e) {
-      print("Error in _submitOnboarding: $e");
+      debugPrint("Error in _submitOnboarding: $e");
       Get.snackbar(
         'Error',
         'Something went wrong. Please try again.',
@@ -629,9 +629,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 title: Text(
                   goal,
                   style: textTheme.titleMedium?.copyWith(
-                      color: selectedGoals.contains(goal)
-                          ? kAccentLight
-                          : kWhite,
+                      color:
+                          selectedGoals.contains(goal) ? kAccentLight : kWhite,
                       fontSize: getTextScale(4, context)),
                 ),
                 value: goal,
@@ -844,9 +843,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             title.isNotEmpty
                 ? Text(
                     title,
-                    style: textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: kAccent),
+                    style: textTheme.displaySmall
+                        ?.copyWith(fontWeight: FontWeight.w800, color: kAccent),
                   )
                 : const SizedBox.shrink(),
             SizedBox(height: getPercentageHeight(2, context)),
@@ -998,11 +996,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         // Consent info updated successfully
         ConsentForm.loadAndShowConsentFormIfRequired((formError) {
           if (formError != null) {
-            print('formError: $formError');
+            debugPrint('formError: $formError');
             // Consent gathering failed, but you can still check if ads can be requested
             _setFirebaseConsent();
           } else {
-            print('formError: null');
+            debugPrint('formError: null');
             // Consent has been gathered
             _setFirebaseConsent();
           }

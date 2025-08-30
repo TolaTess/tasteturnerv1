@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
-
+import 'package:flutter/material.dart' show debugPrint;
 
 class BattleService extends GetxController {
   static final BattleService instance = Get.put(BattleService());
@@ -32,7 +32,7 @@ class BattleService extends GetxController {
         }
       });
     } catch (e) {
-      print('Error updating points for user $userId: $e');
+      debugPrint('Error updating points for user $userId: $e');
     }
   }
 
@@ -49,7 +49,7 @@ class BattleService extends GetxController {
       final uploadTask = await ref.putFile(imageFile);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
-      print('Error uploading image to storage: $e');
+      debugPrint('Error uploading image to storage: $e');
       throw Exception('Failed to upload image to storage');
     }
   }
@@ -78,7 +78,7 @@ class BattleService extends GetxController {
       final String downloadUrl = await snapshot.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      print('Error uploading battle video: $e');
+      debugPrint('Error uploading battle video: $e');
       rethrow;
     }
   }
