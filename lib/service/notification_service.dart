@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import 'notification_handler_service.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 class NotificationService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
@@ -192,7 +193,7 @@ class NotificationService {
                 final handler = Get.find<NotificationHandlerService>();
                 await handler.handleNotificationPayload(json.encode(payload));
               } catch (e) {
-                print('Error processing timer notification payload: $e');
+                debugPrint('Error processing timer notification payload: $e');
               }
             }
 
@@ -201,7 +202,7 @@ class NotificationService {
               body: body,
             );
           } catch (e) {
-            print('Error sending timer-based notification: $e');
+            debugPrint('Error sending timer-based notification: $e');
           }
         });
 
@@ -215,13 +216,13 @@ class NotificationService {
           body,
           scheduledTime,
           notificationDetails(),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.alarmClock,
           matchDateTimeComponents: DateTimeComponents.time,
           payload: payload != null ? json.encode(payload) : null,
         );
       }
     } catch (e) {
-      print('Error scheduling notification: $e');
+      debugPrint('Error scheduling notification: $e');
       rethrow;
     }
   }
@@ -253,12 +254,7 @@ class NotificationService {
     await notificationPlugin.cancelAll();
   }
 
-  // Check if we should use Timer-based approach for Android short delays
-  bool _shouldUseTimerForAndroid(Duration delay) {
-    return Platform.isAndroid && delay.inMinutes <= 60; // 1 hour threshold
-  }
-
-  // Smart notification scheduling that automatically chooses the best approach
+  // Smart notification scheduling using the most reliable method for all platforms
   Future<void> scheduleSmartNotification({
     required int id,
     required String title,
@@ -266,47 +262,18 @@ class NotificationService {
     required Duration delay,
     Map<String, dynamic>? payload,
   }) async {
-    if (_shouldUseTimerForAndroid(delay)) {
-      await _scheduleTimerNotification(
-        id: id,
-        title: title,
-        body: body,
-        delay: delay,
-        payload: payload,
-      );
-    } else {
-      await scheduleTestNotification(
-        id: id,
-        title: title,
-        body: body,
-        delay: delay,
-        payload: payload,
-      );
-    }
+    // Use alarmClock for all delays - it's the most reliable on Android 14+
+    await scheduleDelayedNotification(
+      id: id,
+      title: title,
+      body: body,
+      delay: delay,
+      payload: payload,
+    );
   }
 
-  // Timer-based notification scheduling (Android workaround)
-  Future<void> _scheduleTimerNotification({
-    required int id,
-    required String title,
-    required String body,
-    required Duration delay,
-    Map<String, dynamic>? payload,
-  }) async {
-    Timer(delay, () async {
-      try {
-        await showNotification(
-          title: title,
-          body: body,
-        );
-      } catch (e) {
-        print('Error sending timer-based notification: $e');
-      }
-    });
-  }
-
-  // Test method for very short delays (useful for debugging)
-  Future<void> scheduleTestNotification({
+  // Schedule delayed notification with platform-optimized approach
+  Future<void> scheduleDelayedNotification({
     required int id,
     required String title,
     required String body,
@@ -330,78 +297,21 @@ class NotificationService {
     }
 
     try {
-      // For Android with short delays, use Timer-based approach for reliability
-      if (Platform.isAndroid && delay.inMinutes <= 60) {
-
-
-        // Use Timer for short delays on Android
-        Timer(delay, () async {
-          try {
-            await showNotification(
-              title: title,
-              body: body,
-            );
-
-          } catch (e) {
-            print('Error sending timer-based notification: $e');
-          }
-        });
-
-
-        return;
-      }
-
       final scheduledTime = tz.TZDateTime.now(tz.local).add(delay);
 
-
-      // For Android, try multiple scheduling approaches to improve reliability
-      if (Platform.isAndroid) {
-        try {
-          // First attempt: Use exactAllowWhileIdle
-          await notificationPlugin.zonedSchedule(
-            id,
-            title,
-            body,
-            scheduledTime,
-            notificationDetails(),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            matchDateTimeComponents: DateTimeComponents.time,
-            payload: payload != null ? payload.toString() : null,
-          );
-
-        } catch (e) {
-          print('First Android attempt failed: $e');
-
-          // Second attempt: Use exact mode
-          await notificationPlugin.zonedSchedule(
-            id,
-            title,
-            body,
-            scheduledTime,
-            notificationDetails(),
-            androidScheduleMode: AndroidScheduleMode.exact,
-            matchDateTimeComponents: DateTimeComponents.time,
-            payload: payload != null ? payload.toString() : null,
-          );
-
-        }
-      } else {
-        // For iOS, use the original approach
-        await notificationPlugin.zonedSchedule(
-          id,
-          title,
-          body,
-          scheduledTime,
-          notificationDetails(),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload != null ? payload.toString() : null,
-        );
-      }
-
-
+      // Use alarmClock for Android 14+ compatibility, works for all delays
+      await notificationPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledTime,
+        notificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: payload != null ? payload.toString() : null,
+      );
     } catch (e) {
-      print('Error scheduling test notification: $e');
+      debugPrint('Error scheduling delayed notification: $e');
       rethrow;
     }
   }
@@ -439,7 +349,7 @@ class NotificationService {
 
       return result;
     } catch (e) {
-      print('Error parsing notification payload: $e');
+      debugPrint('Error parsing notification payload: $e');
       return null;
     }
   }
@@ -504,7 +414,7 @@ class NotificationService {
       body,
       scheduledTime,
       notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.alarmClock,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
