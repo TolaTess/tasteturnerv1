@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -88,7 +89,8 @@ void main() async {
     try {
       // Parse the payload to determine what to show
       if (payload.contains('meal_plan_reminder') ||
-          payload.contains('evening_review')) {
+          payload.contains('evening_review') ||
+          payload.contains('water_reminder')) {
         debugPrint('Notification tapped: $payload');
 
         // Use the notification handler service to process the payload
@@ -109,6 +111,7 @@ void main() async {
     }
   }
 
+  // Initialize notifications service only
   try {
     await notificationService.initNotification(
       onNotificationTapped: (String? payload) {
@@ -117,22 +120,10 @@ void main() async {
         }
       },
     );
-    await notificationService.scheduleMultipleDailyReminders(
-      reminders: [
-        DailyReminder(
-          id: 5002,
-          title: "Water Reminder 💧",
-          body: "Stay hydrated! Don't forget to track your water intake.",
-          hour: 11,
-          minute: 0,
-        ),
-      ],
-    );
+    debugPrint('Notifications service initialized successfully');
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
-    // Don't crash the app for notification errors
+    debugPrint('Error initializing notifications: $e');
+    // Continue without notifications if they fail
   }
   await MobileAds.instance.initialize();
 

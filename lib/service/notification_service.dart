@@ -80,11 +80,17 @@ class NotificationService {
       {Function(String?)? onNotificationTapped}) async {
     if (_isInitialized) return;
 
-    // Initialize timezone data
-    tz.initializeTimeZones();
+    try {
+      // Initialize timezone data safely
+      tz.initializeTimeZones();
 
-    // Get user's timezone
-    _userTimeZone = await _getUserTimeZone();
+      // Get user's timezone with error handling
+      _userTimeZone = await _getUserTimeZone();
+    } catch (e) {
+      debugPrint('Error initializing timezone data: $e');
+      // Fallback to local timezone
+      _userTimeZone = 'UTC';
+    }
 
     const initSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');

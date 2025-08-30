@@ -386,7 +386,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await firebaseService.fetchGeneralData();
     loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
     await macroManager.fetchIngredients();
-    _scheduleMealReminderNotification();
   }
 
   Future<void> _scheduleMealReminderNotification() async {
@@ -472,6 +471,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           'hasMealPlan': true,
         },
       );
+    }
+
+    // Schedule water reminder notification
+    _scheduleWaterReminder();
+  }
+
+  // Schedule water reminder notification
+  Future<void> _scheduleWaterReminder() async {
+    if (notificationService == null) return;
+
+    try {
+      // Schedule daily water reminder at 11 AM
+      await notificationService!.scheduleDailyReminder(
+        id: 5002,
+        title: "Water Reminder 💧",
+        body: "Stay hydrated! Don't forget to track your water intake.",
+        hour: 11,
+        minute: 0,
+      );
+      debugPrint('Daily water reminder scheduled for 11:00 AM');
+    } catch (e) {
+      debugPrint('Error scheduling water reminder: $e');
     }
   }
 

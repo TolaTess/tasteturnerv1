@@ -28,7 +28,16 @@ class NotificationHandlerService extends GetxService {
       final date = parsedPayload['date'] as String?;
       final hasMealPlan = parsedPayload['hasMealPlan'] as bool?;
 
-      if (type == null || date == null || hasMealPlan == null) return;
+      if (type == null || date == null) return;
+
+      // Handle water reminder notifications
+      if (type == 'water_reminder') {
+        await _handleWaterReminder();
+        return;
+      }
+
+      // For meal plan and evening review, hasMealPlan is required
+      if (hasMealPlan == null) return;
 
       // Get today's summary data
       final todaySummary = await _getTodaySummary();
@@ -40,15 +49,20 @@ class NotificationHandlerService extends GetxService {
         hasMealPlan: hasMealPlan,
         notificationType: type,
       );
-      } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+    } catch (e) {
+      debugPrint('Error handling notification payload: $e');
+      // Only show snackbar if context is available
+      if (Get.context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
+      }
     }
   }
 
   // Parse notification payload string with better Android compatibility
   Map<String, dynamic>? _parsePayload(String payload) {
     try {
-
       // Try JSON parsing first (more reliable)
       try {
         final jsonPayload = json.decode(payload);
@@ -83,7 +97,8 @@ class NotificationHandlerService extends GetxService {
       }
 
       return result;
-    } catch (e) { 
+    } catch (e) {
+      debugPrint('Error parsing notification payload: $e');
       return null;
     }
   }
@@ -107,7 +122,9 @@ class NotificationHandlerService extends GetxService {
       if (summaryDoc.exists) {
         return summaryDoc.data() ?? {};
       }
-    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+    } catch (e) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
     }
 
@@ -129,7 +146,9 @@ class NotificationHandlerService extends GetxService {
             hasMealPlan: hasMealPlan,
             notificationType: notificationType,
           ));
-    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+    } catch (e) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
     }
   }
@@ -155,7 +174,9 @@ class NotificationHandlerService extends GetxService {
         hasMealPlan: hasMealPlan,
         notificationType: 'manual',
       );
-    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+    } catch (e) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
     }
   }
@@ -178,10 +199,33 @@ class NotificationHandlerService extends GetxService {
         final mealsList = data?['meals'] as List<dynamic>? ?? [];
         return mealsList.isNotEmpty;
       }
-    } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
+    } catch (e) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
     }
 
     return false;
+  }
+
+  // Handle water reminder notification
+  Future<void> _handleWaterReminder() async {
+    try {
+      // Navigate to water tracking or show a simple message
+      // For now, we'll just show a snackbar
+      if (Get.context != null) {
+        showTastySnackbar(
+          'Water Reminder 💧',
+          'Time to track your water intake!',
+          Get.context!,
+          backgroundColor: Colors.blue,
+        );
+      }
+
+      // You can add navigation to water tracking screen here if you have one
+      // Get.to(() => WaterTrackingScreen());
+    } catch (e) {
+      debugPrint('Error handling water reminder: $e');
+    }
   }
 }
