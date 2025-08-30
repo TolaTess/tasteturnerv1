@@ -156,6 +156,12 @@ class GeminiService {
     int retryCount = 0,
     bool useFallback = true,
   }) async {
+    // Always start with Gemini for new requests
+    if (_currentProvider == AIProvider.openrouter && retryCount == 0) {
+      debugPrint('Resetting to Gemini provider for new request');
+      _currentProvider = AIProvider.gemini;
+    }
+
     // Try current provider first
     try {
       return await _makeApiCallToCurrentProvider(
@@ -165,18 +171,39 @@ class GeminiService {
         retryCount: retryCount,
       );
     } catch (e) {
-      // If fallback is enabled and we haven't tried OpenRouter yet, switch providers
+      // If we're using Gemini and it fails, retry with Gemini first
+      if (_currentProvider == AIProvider.gemini && retryCount < _maxRetries) {
+        debugPrint(
+            'Gemini failed, retrying with Gemini (attempt ${retryCount + 1}): $e');
+        return await _makeApiCallWithRetry(
+          endpoint: endpoint,
+          body: body,
+          operation: operation,
+          retryCount: retryCount + 1,
+          useFallback: useFallback,
+        );
+      }
+
+      // If Gemini has been retried and still fails, then try OpenRouter fallback
       if (useFallback &&
           _useOpenRouterFallback &&
-          _currentProvider == AIProvider.gemini) {
-        debugPrint('Gemini failed, switching to OpenRouter: $e');
+          _currentProvider == AIProvider.gemini &&
+          retryCount >= _maxRetries) {
+        debugPrint(
+            'Gemini failed after ${_maxRetries} retries, switching to OpenRouter: $e');
         _currentProvider = AIProvider.openrouter;
-        return await _makeApiCallToCurrentProvider(
+        final result = await _makeApiCallToCurrentProvider(
           endpoint: endpoint,
           body: body,
           operation: operation,
           retryCount: 0, // Reset retry count for new provider
         );
+
+        // Reset back to Gemini for next request after successful OpenRouter fallback
+        _currentProvider = AIProvider.gemini;
+        debugPrint('Reset back to Gemini provider for next request');
+
+        return result;
       }
 
       // If we're already using OpenRouter or fallback is disabled, throw the error
@@ -321,7 +348,35 @@ class GeminiService {
     int retryCount = 0,
   }) async {
     debugPrint('Making OpenRouter API call to $endpoint');
-    debugPrint('Body: $body');
+
+    // Smart body logging - show structure but not image data
+    if (body.containsKey('contents') && body['contents'] is List) {
+      final contents = body['contents'] as List;
+      if (contents.isNotEmpty && contents.first is Map) {
+        final firstContent = contents.first as Map;
+        if (firstContent.containsKey('parts') &&
+            firstContent['parts'] is List) {
+          final parts = firstContent['parts'] as List;
+          final hasImage = parts.any((part) =>
+              part is Map &&
+              (part['inline_data'] != null || part['image_url'] != null));
+
+          if (hasImage) {
+            debugPrint(
+                'Body: [Image analysis request with ${parts.length} parts]');
+          } else {
+            debugPrint('Body: $body');
+          }
+        } else {
+          debugPrint('Body: $body');
+        }
+      } else {
+        debugPrint('Body: $body');
+      }
+    } else {
+      debugPrint('Body: $body');
+    }
+
     debugPrint('Operation: $operation');
     debugPrint('Retry count: $retryCount');
     final apiKey = dotenv.env['OPENROUTER_API_KEY'];
@@ -569,6 +624,12 @@ class GeminiService {
       _currentProvider = AIProvider.openrouter;
       debugPrint('Switched to OpenRouter provider');
     }
+  }
+
+  /// Reset provider back to Gemini (useful after testing or manual switching)
+  void resetToGemini() {
+    _currentProvider = AIProvider.gemini;
+    debugPrint('Reset to Gemini provider');
   }
 
   /// Get available OpenRouter models
@@ -3787,6 +3848,12 @@ Important guidelines:
       }
     }
 
+    // Ensure we start with Gemini for image analysis (retry logic will handle fallback if needed)
+    if (_currentProvider != AIProvider.gemini) {
+      debugPrint('Starting image analysis with Gemini provider');
+      _currentProvider = AIProvider.gemini;
+    }
+
     try {
       // Read and encode the image
       final Uint8List imageBytes = await imageFile.readAsBytes();
@@ -3889,7 +3956,7 @@ Important guidelines:
       // For image analysis, we need to handle both Gemini and OpenRouter differently
       // since OpenRouter has different image handling capabilities
       if (_currentProvider == AIProvider.gemini) {
-        // Use Gemini's image analysis
+        // Use Gemini's image analysis with retry and fallback support
         final response = await _makeApiCallWithRetry(
           endpoint: '${_activeModel}:generateContent',
           body: {
@@ -3951,7 +4018,7 @@ Important guidelines:
           throw Exception('No candidates in API response');
         }
       } else {
-        // Use OpenRouter for image analysis
+        // Use OpenRouter for image analysis with retry support
         final response = await _makeApiCallWithRetry(
           endpoint: 'chat/completions',
           body: {

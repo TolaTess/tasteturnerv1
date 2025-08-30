@@ -37,6 +37,44 @@ class NotificationService {
     await setHasShownUnreadNotification(false);
   }
 
+  /// Convert payload to JSON-safe format by handling Firestore Timestamps and other non-serializable objects
+  Map<String, dynamic> _convertPayloadToJsonSafe(Map<String, dynamic> payload) {
+    final jsonSafePayload = <String, dynamic>{};
+
+    for (final entry in payload.entries) {
+      final key = entry.key;
+      final value = entry.value;
+
+      if (value == null) {
+        jsonSafePayload[key] = null;
+      } else if (value is DateTime) {
+        jsonSafePayload[key] = value.toIso8601String();
+      } else if (value is Map<String, dynamic>) {
+        jsonSafePayload[key] = _convertPayloadToJsonSafe(value);
+      } else if (value is List) {
+        jsonSafePayload[key] = value.map((item) {
+          if (item is Map<String, dynamic>) {
+            return _convertPayloadToJsonSafe(item);
+          } else if (item is DateTime) {
+            return item.toIso8601String();
+          } else {
+            return item;
+          }
+        }).toList();
+      } else if (value is String ||
+          value is int ||
+          value is double ||
+          value is bool) {
+        jsonSafePayload[key] = value;
+      } else {
+        // For any other type, convert to string to ensure JSON safety
+        jsonSafePayload[key] = value.toString();
+      }
+    }
+
+    return jsonSafePayload;
+  }
+
   //initialize
   Future<void> initNotification(
       {Function(String?)? onNotificationTapped}) async {
@@ -191,7 +229,8 @@ class NotificationService {
               // Use the notification handler service to process the payload
               try {
                 final handler = Get.find<NotificationHandlerService>();
-                await handler.handleNotificationPayload(json.encode(payload));
+                await handler.handleNotificationPayload(
+                    json.encode(_convertPayloadToJsonSafe(payload)));
               } catch (e) {
                 debugPrint('Error processing timer notification payload: $e');
               }
@@ -218,7 +257,9 @@ class NotificationService {
           notificationDetails(),
           androidScheduleMode: AndroidScheduleMode.alarmClock,
           matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload != null ? json.encode(payload) : null,
+          payload: payload != null
+              ? json.encode(_convertPayloadToJsonSafe(payload))
+              : null,
         );
       }
     } catch (e) {
@@ -308,7 +349,9 @@ class NotificationService {
         notificationDetails(),
         androidScheduleMode: AndroidScheduleMode.alarmClock,
         matchDateTimeComponents: DateTimeComponents.time,
-        payload: payload != null ? payload.toString() : null,
+        payload: payload != null
+            ? json.encode(_convertPayloadToJsonSafe(payload))
+            : null,
       );
     } catch (e) {
       debugPrint('Error scheduling delayed notification: $e');
