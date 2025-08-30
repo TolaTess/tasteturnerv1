@@ -4073,10 +4073,12 @@ Important guidelines:
   }
 
   Future<Map<String, dynamic>> generateMealsFromIngredients(
-      List<dynamic> displayedItems, BuildContext context, bool isDineIn) async {
+      List<dynamic> displayedItems,
+      BuildContext parentContext,
+      bool isDineIn) async {
     try {
       showDialog(
-        context: context,
+        context: parentContext,
         builder: (context) => const LoadingScreen(
           loadingText: 'Searching for existing meals...',
         ),
@@ -4096,7 +4098,7 @@ Important guidelines:
       );
 
       // Hide loading dialog
-      Navigator.of(context).pop();
+      Navigator.of(parentContext).pop();
 
       List<Map<String, dynamic>> mealsToShow = [];
       String source = '';
@@ -4123,7 +4125,7 @@ Important guidelines:
       } else {
         // Found 0-1 existing meals - generate new ones with AI
         showDialog(
-          context: context,
+          context: parentContext,
           builder: (context) => const LoadingScreen(
             loadingText: 'Generating new meals with AI...',
           ),
@@ -4136,7 +4138,7 @@ Important guidelines:
         );
 
         // Hide loading dialog
-        Navigator.of(context).pop();
+        Navigator.of(parentContext).pop();
 
         final generatedMeals = mealPlan['meals'] as List<dynamic>? ?? [];
         if (generatedMeals.isEmpty) throw Exception('No meals generated');
@@ -4149,7 +4151,7 @@ Important guidelines:
 
       // Show dialog to let user pick one meal
       final selectedMeal = await showDialog<Map<String, dynamic>>(
-        context: context,
+        context: parentContext,
         barrierDismissible: false, // Prevent dismissing during loading
         builder: (context) {
           final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -4192,6 +4194,8 @@ Important guidelines:
                       allExistingMeals.sublist(currentIndex, endIndex);
                   return meals;
                 }
+                debugPrint(
+                    'Showing ${mealsToShow.length} meals from source: $source');
                 return mealsToShow;
               }
 
@@ -4222,7 +4226,9 @@ Important guidelines:
                 title: Text(
                   source == 'existing_database'
                       ? 'Select from Existing Meals'
-                      : 'Select a Meal',
+                      : source == 'ai_generated'
+                          ? 'Select an AI-Generated Meal'
+                          : 'Select a Meal',
                   style: textTheme.displaySmall?.copyWith(
                       fontSize: getPercentageWidth(7, context),
                       color: kAccent,
@@ -4409,8 +4415,6 @@ Important guidelines:
                               if (currentIndex + mealsPerPage >=
                                   allExistingMeals.length) {
                                 // All meals shown, generate with AI
-                                // Store the outer context for later use
-                                final outerContext = context;
 
                                 // Set generating state
                                 setState(() {
@@ -4418,45 +4422,53 @@ Important guidelines:
                                 });
 
                                 // Generate new meals with AI
-
-                                // Create context with existing meals to avoid duplicates
-                                final existingMealTitles = allExistingMeals
-                                    .map((meal) => meal['title'])
-                                    .toList();
-                                final contextWithExistingMeals = '''
+                                try {
+                                  // Create context with existing meals to avoid duplicates
+                                  final existingMealTitles = allExistingMeals
+                                      .map((meal) => meal['title'])
+                                      .toList();
+                                  final contextWithExistingMeals = '''
 Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
 ''';
 
-                                generateMealsWithAI(
-                                  'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
-                                  contextWithExistingMeals,
-                                ).then((mealPlan) async {
-                                  // Reset generating state
-                                  setState(() {
-                                    isGeneratingAI = false;
-                                  });
+                                  debugPrint('Starting AI meal generation...');
+                                  final mealPlan = await generateMealsWithAI(
+                                    'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
+                                    contextWithExistingMeals,
+                                  );
 
-                                  // Close current dialog and show AI results
-                                  Navigator.of(context).pop();
+                                  debugPrint(
+                                      'AI generation successful: ${mealPlan['meals']?.length ?? 0} meals generated');
+
+                                  // Don't reset generating state yet - do it after updating dialog
 
                                   final generatedMeals =
                                       mealPlan['meals'] as List<dynamic>? ?? [];
-                                  if (generatedMeals.isEmpty)
+                                  debugPrint(
+                                      'Generated meals count: ${generatedMeals.length}');
+                                  if (generatedMeals.isEmpty) {
+                                    debugPrint(
+                                        'No meals generated - throwing exception');
                                     throw Exception('No meals generated');
+                                  }
 
                                   // Save ALL AI-generated meals to Firestore first
                                   final userId = userService.userId;
                                   if (userId == null)
                                     throw Exception('User ID not found');
 
+                                  debugPrint(
+                                      'Saving ${generatedMeals.length} meals to Firestore...');
                                   final List<String> allMealIds =
                                       await saveMealsToFirestore(
                                     userId,
                                     {'meals': generatedMeals},
                                     '',
                                   );
+                                  debugPrint(
+                                      'Saved meals with IDs: $allMealIds');
 
                                   // Update the meals with their new IDs for selection
                                   final mealsWithIds = <Map<String, dynamic>>[];
@@ -4470,201 +4482,42 @@ Generate completely new and different meal ideas using the same ingredients.
                                     mealsWithIds.add(meal);
                                   }
 
-                                  // Show new dialog with AI-generated meals
-                                  if (outerContext.mounted) {
-                                    showDialog<Map<String, dynamic>>(
-                                      context: outerContext,
-                                      barrierDismissible: false,
-                                      builder: (context) {
-                                        final isDarkMode =
-                                            getThemeProvider(context)
-                                                .isDarkMode;
-                                        final textTheme =
-                                            Theme.of(context).textTheme;
-                                        return StatefulBuilder(
-                                          builder: (context, setState) {
-                                            bool isProcessing = false;
-
-                                            return AlertDialog(
-                                              backgroundColor: isDarkMode
-                                                  ? kDarkGrey
-                                                  : kWhite,
-                                              shape:
-                                                  const RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.only(
-                                                  topLeft: Radius.circular(30),
-                                                  topRight: Radius.circular(30),
-                                                ),
-                                              ),
-                                              title: Text(
-                                                'Select an AI-Generated Meal',
-                                                style: textTheme.displaySmall
-                                                    ?.copyWith(
-                                                        fontSize:
-                                                            getPercentageWidth(
-                                                                7, context),
-                                                        color: kAccent,
-                                                        fontWeight:
-                                                            FontWeight.w500),
-                                              ),
-                                              content: SizedBox(
-                                                width: double.maxFinite,
-                                                child: ListView.builder(
-                                                  shrinkWrap: true,
-                                                  itemCount:
-                                                      mealsWithIds.length,
-                                                  itemBuilder:
-                                                      (context, index) {
-                                                    final meal =
-                                                        mealsWithIds[index];
-                                                    final title =
-                                                        meal['title'] ??
-                                                            'Untitled';
-                                                    final categories = (meal[
-                                                                'categories']
-                                                            as List<
-                                                                dynamic>?) ??
-                                                        [];
-
-                                                    return Card(
-                                                      color: colors[index %
-                                                          colors.length],
-                                                      child: ListTile(
-                                                        enabled: !isProcessing,
-                                                        title: Text(
-                                                          title,
-                                                          style: textTheme
-                                                              .bodyLarge
-                                                              ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: isDarkMode
-                                                                ? kWhite
-                                                                : kDarkGrey,
-                                                          ),
-                                                        ),
-                                                        subtitle: categories
-                                                                .isNotEmpty
-                                                            ? Text(
-                                                                'Categories: ${categories.join(', ')}',
-                                                                style: textTheme
-                                                                    .bodyMedium
-                                                                    ?.copyWith(
-                                                                  color: isDarkMode
-                                                                      ? kWhite
-                                                                      : kDarkGrey,
-                                                                ),
-                                                              )
-                                                            : null,
-                                                        onTap: isProcessing
-                                                            ? null
-                                                            : () async {
-                                                                setState(() {
-                                                                  isProcessing =
-                                                                      true;
-                                                                });
-
-                                                                try {
-                                                                  final userId =
-                                                                      userService
-                                                                          .userId;
-                                                                  if (userId ==
-                                                                      null)
-                                                                    throw Exception(
-                                                                        'User ID not found');
-                                                                  final date = DateFormat(
-                                                                          'yyyy-MM-dd')
-                                                                      .format(DateTime
-                                                                          .now());
-
-                                                                  // Use the meal ID that was already saved to Firestore
-                                                                  final selectedMealId =
-                                                                      meal[
-                                                                          'id'];
-                                                                  debugPrint(
-                                                                      'Adding meal ${meal['title']} (ID: $selectedMealId) to calendar');
-
-                                                                  // Add to meal plan
-                                                                  if (selectedMealId !=
-                                                                      null) {
-                                                                    final docRef = firestore
-                                                                        .collection(
-                                                                            'mealPlans')
-                                                                        .doc(
-                                                                            userId)
-                                                                        .collection(
-                                                                            'date')
-                                                                        .doc(
-                                                                            date);
-                                                                    await docRef
-                                                                        .set({
-                                                                      'userId':
-                                                                          userId,
-                                                                      'dayType':
-                                                                          'chef_tasty',
-                                                                      'meals':
-                                                                          FieldValue
-                                                                              .arrayUnion([
-                                                                        selectedMealId
-                                                                      ]),
-                                                                    }, SetOptions(merge: true));
-                                                                  }
-
-                                                                  Navigator.of(
-                                                                          context)
-                                                                      .pop(
-                                                                          meal);
-                                                                } catch (e) {
-                                                                  Navigator.of(
-                                                                          context)
-                                                                      .pop();
-                                                                  handleError(e,
-                                                                      context);
-                                                                }
-                                                              },
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: isProcessing
-                                                      ? null
-                                                      : () =>
-                                                          Navigator.of(context)
-                                                              .pop(),
-                                                  child: Text(
-                                                    'Cancel',
-                                                    style: textTheme.bodyLarge
-                                                        ?.copyWith(
-                                                      color: isProcessing
-                                                          ? kLightGrey
-                                                          : (isDarkMode
-                                                              ? kWhite
-                                                              : kBlack),
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
-                                    );
-                                  }
-                                }).catchError((e) {
+                                  // Update the current dialog to show AI-generated meals
+                                  debugPrint(
+                                      'Updating dialog to show ${mealsWithIds.length} AI-generated meals');
+                                  setState(() {
+                                    isGeneratingAI = false;
+                                    source = 'ai_generated';
+                                    mealsToShow = mealsWithIds;
+                                  });
+                                } catch (e) {
                                   debugPrint(
                                       'AI generation failed with error: $e');
                                   setState(() {
                                     isGeneratingAI = false;
                                   });
-                                  if (outerContext.mounted) {
-                                    handleError(e, outerContext);
+                                  if (context.mounted) {
+                                    // Show error in current dialog instead of closing it
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to generate AI meals. Please try again.',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 3),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    );
                                   }
-                                });
+                                }
                               } else {
                                 // Show more existing meals
                                 refreshMealList();
@@ -4707,8 +4560,8 @@ Generate completely new and different meal ideas using the same ingredients.
 
       return selectedMeal ?? {}; // Return empty map if user cancelled
     } catch (e) {
-      if (context.mounted) {
-        handleError(e, context);
+      if (parentContext.mounted) {
+        handleError(e, parentContext);
       }
       return {};
     }
