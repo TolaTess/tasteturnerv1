@@ -583,6 +583,7 @@ class _ProgramScreenState extends State<ProgramScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
+                  if (showCaloriesAndGoal)...[
                   Expanded(
                     flex: 2,
                     child: Column(
@@ -610,9 +611,10 @@ class _ProgramScreenState extends State<ProgramScreen>
                             fontWeight: FontWeight.w100,
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                   SizedBox(width: getPercentageWidth(4, context)),
                   Expanded(
                     flex: 2,

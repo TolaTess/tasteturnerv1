@@ -92,6 +92,70 @@ class _MessageScreenState extends State<MessageScreen>
     );
   }
 
+  /// Filters disabled chats to show only archived/inactive conversations
+  Future<List<Map<String, dynamic>>> _getFilteredDisabledChats(
+    List<Map<String, dynamic>> disabledChats,
+    String userId,
+  ) async {
+    try {
+      // Filter out any chats that might have become active again
+      // and ensure we only show truly disabled/archived chats
+      final filteredChats = disabledChats
+          .where((chat) =>
+              chat['isActive'] == false &&
+              chat['chatId'] != null &&
+              chat['participants'] != null &&
+              (chat['participants'] as List).contains(userId))
+          .toList();
+
+      // Filter out chats where the friend has no display name
+      final validChats = <Map<String, dynamic>>[];
+
+      for (final chat in filteredChats) {
+        final participants = List<String>.from(chat['participants'] ?? []);
+        final friendId = participants.firstWhere(
+          (id) => id != userId,
+          orElse: () => '',
+        );
+
+        if (friendId.isNotEmpty) {
+          try {
+            // Fetch friend data to check if they have a display name
+            final friend = await friendController.getFriendData(friendId);
+            if (friend != null &&
+                friend.displayName != null &&
+                friend.displayName!.isNotEmpty) {
+              // Add the friend data to the chat for easier access later
+              chat['friendData'] = friend;
+              validChats.add(chat);
+            }
+          } catch (e) {
+            debugPrint("Error fetching friend data for $friendId: $e");
+            // Skip this chat if we can't fetch friend data
+            continue;
+          }
+        }
+      }
+
+      // Sort by last message time (most recent first)
+      validChats.sort((a, b) {
+        final aTime = a['lastMessageTime'] as Timestamp?;
+        final bTime = b['lastMessageTime'] as Timestamp?;
+
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+
+        return bTime.compareTo(aTime); // Most recent first
+      });
+
+      return validChats;
+    } catch (e) {
+      debugPrint("Error filtering disabled chats: $e");
+      return [];
+    }
+  }
+
   void _showDisabledChatsModal(BuildContext context) async {
     final userId = userService.userId ?? '';
     final disabledChats = (await chatController.fetchUserChats(userId))
@@ -111,8 +175,17 @@ class _MessageScreenState extends State<MessageScreen>
       builder: (context) {
         return SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
-          child: disabledChats.isEmpty
-              ? Center(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _getFilteredDisabledChats(disabledChats, userId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final filteredChats = snapshot.data ?? [];
+
+              if (filteredChats.isEmpty) {
+                return Center(
                   child: Text(
                     'No archived chats',
                     style: TextStyle(
@@ -124,74 +197,68 @@ class _MessageScreenState extends State<MessageScreen>
                           : kBlack,
                     ),
                   ),
-                )
-              : ListView.builder(
-                  itemCount: disabledChats.length,
-                  itemBuilder: (context, index) {
-                    final chat = disabledChats[index];
-                    final participants =
-                        List<String>.from(chat['participants'] ?? []);
-                    final friendId = participants.firstWhere(
-                      (id) => id != userId,
-                      orElse: () => '',
-                    );
-                    return ListTile(
-                      tileColor: kAccent.withValues(alpha: 0.2),
-                      leading: Icon(
-                        Icons.chat_bubble_outline,
-                        size: getPercentageWidth(6, context),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: filteredChats.length,
+                itemBuilder: (context, index) {
+                  final chat = filteredChats[index];
+                  final participants =
+                      List<String>.from(chat['participants'] ?? []);
+                  final friendId = participants.firstWhere(
+                    (id) => id != userId,
+                    orElse: () => '',
+                  );
+                  return ListTile(
+                    tileColor: kAccent.withValues(alpha: 0.2),
+                    leading: Icon(
+                      Icons.chat_bubble_outline,
+                      size: getPercentageWidth(6, context),
+                      color: Provider.of<ThemeProvider>(context, listen: false)
+                              .isDarkMode
+                          ? kWhite
+                          : kBlack,
+                    ),
+                    title: Text(
+                      (chat['friendData'] as UserModel?)?.displayName ??
+                          'Unknown',
+                      style: TextStyle(
+                        fontSize: getPercentageHeight(2, context),
+                        fontWeight: FontWeight.w500,
                         color:
                             Provider.of<ThemeProvider>(context, listen: false)
                                     .isDarkMode
                                 ? kWhite
                                 : kBlack,
                       ),
-                      title: FutureBuilder(
-                        future: friendController.getFriendData(friendId),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Text('Loading...');
-                          }
-                          final friend = snapshot.data as UserModel?;
-                          return Text(
-                            friend?.displayName ?? 'Unknown',
-                            style: TextStyle(
-                              fontSize: getPercentageHeight(2, context),
-                              fontWeight: FontWeight.w500,
-                              color: Provider.of<ThemeProvider>(context,
-                                          listen: false)
-                                      .isDarkMode
-                                  ? kWhite
-                                  : kBlack,
-                            ),
-                          );
-                        },
+                    ),
+                    subtitle: Text(
+                      chat['lastMessage'] ?? '',
+                      style: TextStyle(
+                        fontSize: getPercentageHeight(1.8, context),
+                        color:
+                            Provider.of<ThemeProvider>(context, listen: false)
+                                    .isDarkMode
+                                ? kWhite
+                                : kBlack,
                       ),
-                      subtitle: Text(
-                        chat['lastMessage'] ?? '',
-                        style: TextStyle(
-                          fontSize: getPercentageHeight(1.8, context),
-                          color:
-                              Provider.of<ThemeProvider>(context, listen: false)
-                                      .isDarkMode
-                                  ? kWhite
-                                  : kBlack,
-                        ),
-                      ),
-                      onTap: () async {
-                        await chatController.disableChats(chat['chatId'], true);
-                        await chatController.loadUserChats(userId);
-                        if (mounted) Navigator.pop(context);
-                        showTastySnackbar(
-                          'Success',
-                          'Chat was restored',
-                          context,
-                        );
-                      },
-                    );
-                  },
-                ),
+                    ),
+                    onTap: () async {
+                      await chatController.disableChats(chat['chatId'], true);
+                      await chatController.loadUserChats(userId);
+                      if (mounted) Navigator.pop(context);
+                      showTastySnackbar(
+                        'Success',
+                        'Chat was restored',
+                        context,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );
@@ -454,9 +521,7 @@ class _MessageItemState extends State<MessageItem> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final textTheme = Theme.of(context).textTheme;
-    final lastMessage = widget.dataSrc['lastMessage'] as String? ?? '';
     final lastMessageTime = (widget.dataSrc['lastMessageTime'] as Timestamp?)
         ?.toDate()
         .toLocal()

@@ -443,8 +443,8 @@ class UserDeletionService extends GetxController {
   ) async {
     final title = deleteAccount ? 'Delete Account' : 'Delete Data';
     final message = deleteAccount
-        ? 'Are you sure you want to delete your account? This will permanently delete your account and all associated data. This action cannot be undone.'
-        : 'Are you sure you want to delete all your data? This will remove all your posts, meals, chats, and other data. This action cannot be undone.';
+        ? 'Are you sure you want to delete your account? \n\nThis will permanently delete your account and all associated data. This action cannot be undone.'
+        : 'Are you sure you want to delete all your data? \n\nThis will remove all your posts, meals, chats, and other data. This action cannot be undone.';
 
     final result = await showDialog<bool>(
       context: context,

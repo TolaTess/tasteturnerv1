@@ -462,6 +462,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               color: isDarkMode ? kLightGrey : kBlack),
                         ),
                       ),
+                    SizedBox(height: getPercentageHeight(10, context)),
                   ],
                 ),
               ),

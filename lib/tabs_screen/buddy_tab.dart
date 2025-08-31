@@ -1032,7 +1032,8 @@ class _BuddyTabState extends State<BuddyTab> {
                                       context,
                                       'vegetable',
                                       isSelected: selectedMealTypes
-                                          .contains('vegetable'),
+                                          .contains('vegetable') || selectedMealTypes
+                                          .contains('vegetables'),
                                     ),
                                   ),
                                   GestureDetector(

@@ -995,6 +995,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ? null // No destination when family member is selected
                               : AddFoodScreen(
                                   date: currentDate,
+                                  isShowSummary: true,
                                   notAllowedMealType:
                                       _programService.userPrograms.isNotEmpty
                                           ? _programService

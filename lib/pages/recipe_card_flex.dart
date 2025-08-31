@@ -58,6 +58,27 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
         ? widget.recipe.mediaPaths.first
         : extPlaceholderImage;
 
+    Map<String, String> nutritionMap = {};
+
+    if (widget.recipe.macros.isNotEmpty) {
+      nutritionMap = {...widget.recipe.macros};
+      // Always add calories to macros since it's not included in macros but needed
+      if (widget.recipe.calories != null) {
+        nutritionMap['calories'] = widget.recipe.calories.toString();
+      }
+    } else if (widget.recipe.nutrition.isNotEmpty) {
+        nutritionMap = widget.recipe.nutrition;
+    } else if (widget.recipe.nutritionalInfo.isNotEmpty) {
+      nutritionMap = widget.recipe.nutritionalInfo;
+      if (widget.recipe.calories != null && nutritionMap['calories'] == null) {
+        nutritionMap['calories'] = widget.recipe.calories.toString();
+      }
+    } else {
+      nutritionMap = {};
+      if (widget.recipe.calories != null) {
+        nutritionMap['calories'] = widget.recipe.calories.toString();
+      }
+    }
     return GestureDetector(
       onTap: widget.enableSelection
           ? widget.onToggleSelection
@@ -173,13 +194,13 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                           children: [
                             //Serves quantity
                             Text(
-                              "${widget.recipe.calories} kcal",
+                              "${removeAllTextJustNumbers(nutritionMap['calories'] ?? '0')} kcal",
                               style: textTheme.bodyMedium?.copyWith(
                                   fontSize: getPercentageWidth(3, context),
                                   color: kWhite),
                             ),
                             Text(
-                              "${widget.recipe.serveQty == 0 ? '1' : widget.recipe.serveQty} servings",
+                              "${widget.recipe.serveQty == 0 ? '1' : widget.recipe.serveQty.toString()} servings",
                               style: textTheme.bodyMedium?.copyWith(
                                   fontSize: getPercentageWidth(3, context),
                                   color: kWhite),

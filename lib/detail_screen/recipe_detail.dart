@@ -362,7 +362,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
                       Text(
-                        "$serves: ${widget.meal.serveQty}",
+                        "$serves: ${widget.meal.serveQty == 0 ? '1' : widget.meal.serveQty.toString()}",
                         style: textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w400,
                         ),
@@ -811,7 +811,7 @@ class NutritionFacts extends StatelessWidget {
                     // Nutrition type (key)
                     Text(
                       capitalizeFirstLetter(
-                          nutritionEntries[index].key), // Display key
+                          normaliseMacrosText(nutritionEntries[index].key)), // Display key
                       style: textTheme.displayMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w400,
@@ -820,7 +820,7 @@ class NutritionFacts extends StatelessWidget {
                     ),
                     // Quantity (value)
                     Text(
-                      nutritionEntries[index].value +
+                      removeAllTextJustNumbers(nutritionEntries[index].value) +
                           (nutritionEntries[index].key == 'calories'
                               ? ' kcal'
                               : ' g'), // Display value

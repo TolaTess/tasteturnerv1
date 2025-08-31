@@ -73,6 +73,17 @@ String removeDashWithSpace(String messageContent) {
   return capitalizedWords.join(' ');
 }
 
+String removeAllTextJustNumbers(String value) {
+  return value.replaceAll(RegExp(r'[^0-9]'), '');
+}
+
+String normaliseMacrosText(String value) {
+  if (value.toLowerCase().contains('carbohydrates')) {
+    return value.replaceAll('carbohydrates', 'Carbs');
+  }
+  return value;
+}
+
 String getTextBeforeSlash(String input) {
   int slashIndex = input.indexOf('/');
   return slashIndex != -1 ? input.substring(0, slashIndex).trim() : input;

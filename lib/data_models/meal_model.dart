@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../helper/utils.dart';
+
 class Meal {
   final String userId;
   final String title;
@@ -79,7 +81,7 @@ class Meal {
       mediaPaths: List<String>.from(json['mediaPaths'] ?? []),
       serveQty: json['serveQty'] is int
           ? json['serveQty'] as int
-          : int.tryParse(json['serveQty']?.toString() ?? '0') ?? 0,
+          : int.tryParse(removeAllTextJustNumbers(json['serveQty']?.toString() ?? '0')) ?? 1,
       calories: json['calories'] is int
           ? json['calories'] as int
           : int.tryParse(json['calories']?.toString() ?? '0') ?? 0,

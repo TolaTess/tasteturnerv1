@@ -217,47 +217,18 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                               : kDarkGrey,
                         ),
                       ),
-                      SizedBox(height: getPercentageHeight(1, context)),
-                      DropdownButtonFormField<String>(
-                        dropdownColor: getThemeProvider(context).isDarkMode
-                            ? kLightGrey
-                            : kBackgroundColor,
-                        value: selectedCuisine,
-                        decoration: InputDecoration(
-                          focusedBorder: const OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: kAccentLight,
-                            ),
-                          ),
-                          labelText: 'Cuisine Type',
-                          border: const OutlineInputBorder(),
-                          labelStyle: TextStyle(
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                          ),
-                        ),
-                        items: cuisineTypes.map((Map<String, dynamic> cuisine) {
-                          return DropdownMenuItem<String>(
-                            value: cuisine['name'],
-                            child: Text(
-                              cuisine['name'],
-                              style: TextStyle(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kWhite
-                                    : kDarkGrey,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedCuisine = newValue;
-                            });
-                          }
-                        },
-                      ),
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      buildPicker(
+                          context,
+                          cuisineTypes.length,
+                          cuisineTypes.indexOf(cuisineTypes.firstWhere(
+                              (cuisine) => cuisine['name'] == selectedCuisine)),
+                          (index) => setState(() =>
+                              selectedCuisine = cuisineTypes[index]['name']),
+                          getThemeProvider(context).isDarkMode,
+                          cuisineTypes
+                              .map((cuisine) => cuisine['name'] as String)
+                              .toList()),
                       SizedBox(height: getPercentageHeight(2, context)),
                       if (selectedCuisine != 'Balanced') ...[
                         Text(

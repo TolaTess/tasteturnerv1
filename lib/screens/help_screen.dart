@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -50,17 +51,28 @@ class HelpScreen extends StatelessWidget {
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
-                'How do I join a program?',
-                'Navigate to the "Programs" tab to see available programs. Tap on any program to view details and join. You can track your progress and earn rewards.',
+                'How do I join a Program?',
+                'Navigate to the "Programs" tab to see available programs. Tap on any program to view details and join. You can track your progress and earn points.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
                 'What is the Dine In Challenge?',
                 'The Dine In Challenge is our weekly challenge that encourages you to explore different restaurants and get creative with your meal. Join the challenge and earn points for a chance to feature on our dine in leaderboard!',
                 textTheme),
-
-            
-            SizedBox(height: getPercentageHeight(3, context)),
+            SizedBox(height: getPercentageHeight(2, context)),
+            InkWell(
+              onTap: () {
+               launchUrl(Uri.parse('https://tasteturner.com/faq'));
+              },
+              child: Center(
+                child: Text('FAQ', style: textTheme.titleMedium?.copyWith(
+                  color: kAccent,
+                  fontWeight: FontWeight.bold,
+                ),),
+              ),
+            ),
+         
+            SizedBox(height: getPercentageHeight(2, context)),
             Row(
               children: [
                 Expanded(
@@ -155,12 +167,7 @@ class HelpScreen extends StatelessWidget {
               children: [
                 InkWell(
                   onTap: () {
-                    // TODO: Implement contact support
-                    showTastySnackbar(
-                      'Contact Support',
-                      'Support feature coming soon!',
-                      context,
-                    );
+                    launchUrl(Uri.parse('https://tasteturner.com/contact'));
                   },
                   child: Text(
                     'Contact Support',
@@ -172,12 +179,7 @@ class HelpScreen extends StatelessWidget {
                 ),
                 InkWell(
                   onTap: () {
-                    // TODO: Implement privacy policy
-                    showTastySnackbar(
-                      'Privacy Policy',
-                      'Privacy policy coming soon!',
-                      context,
-                    );
+                    launchUrl(Uri.parse('https://tasteturner.com/privacy'));
                   },
                   child: Text(
                     'Privacy Policy',
@@ -195,12 +197,7 @@ class HelpScreen extends StatelessWidget {
               children: [
                 InkWell(
                   onTap: () {
-                    // TODO: Implement terms of service
-                    showTastySnackbar(
-                      'Terms of Service',
-                      'Terms of service coming soon!',
-                      context,
-                    );
+                    launchUrl(Uri.parse('https://tasteturner.com/terms'));
                   },
                   child: Text(
                     'Terms of Service',
@@ -212,12 +209,7 @@ class HelpScreen extends StatelessWidget {
                 ),
                 InkWell(
                   onTap: () {
-                    // TODO: Implement about us
-                    showTastySnackbar(
-                      'About Us',
-                      'About us information coming soon!',
-                      context,
-                    );
+                    launchUrl(Uri.parse('https://tasteturner.com/about'));
                   },
                   child: Text(
                     'About Us',
