@@ -165,7 +165,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
                     color: kWhite, size: getIconScale(3.5, context)),
                 SizedBox(width: 8),
                 Text(
-                  "Your $userGoal goal",
+                  "Meals that match your $userGoal goal",
                   style: textTheme.bodySmall
                       ?.copyWith(fontSize: getTextScale(2.5, context)),
                 ),

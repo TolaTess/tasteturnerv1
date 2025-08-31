@@ -58,6 +58,8 @@ class HelpScreen extends StatelessWidget {
                 'What is the Dine In Challenge?',
                 'The Dine In Challenge is our weekly challenge that encourages you to explore different restaurants and get creative with your meal. Join the challenge and earn points for a chance to feature on our dine in leaderboard!',
                 textTheme),
+
+            
             SizedBox(height: getPercentageHeight(3, context)),
             Row(
               children: [

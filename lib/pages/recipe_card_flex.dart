@@ -179,7 +179,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                                   color: kWhite),
                             ),
                             Text(
-                              "${widget.recipe.serveQty} servings",
+                              "${widget.recipe.serveQty == 0 ? '1' : widget.recipe.serveQty} servings",
                               style: textTheme.bodyMedium?.copyWith(
                                   fontSize: getPercentageWidth(3, context),
                                   color: kWhite),

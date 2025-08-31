@@ -272,7 +272,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
         _apiMeals.addAll(uniqueNewMeals);
         _hasMore.value = uniqueNewMeals.isNotEmpty;
       }
-    } catch (e) { 
+    } catch (e) {
     } finally {
       _isLoading.value = false;
     }
@@ -287,623 +287,643 @@ class _SearchResultGridState extends State<SearchResultGrid> {
       child: StatefulBuilder(
         builder: (context, setState) {
           bool isGenerating = false;
-
-          return GestureDetector(
-            onTap: () async {
-              if (canUseAI() && !isGenerating) {
-                setState(() {
-                  isGenerating = true;
-                });
-
-                try {
-                  dynamic items;
-
-                  // Show appropriate dialog based on whether it's a category or ingredient
-                  if (widget.label != null &&
-                      widget.label!.isNotEmpty &&
-                      widget.search.isNotEmpty &&
-                      widget.search.toLowerCase() ==
-                          widget.label?.toLowerCase()) {
-                    // Category-based meal generation with specific label
-                    try {
-                      items = await showCategoryInputDialog(
-                        context,
-                        label: widget.label!.trim(),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to show category dialog. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                  } else if (widget.search.isNotEmpty &&
-                      widget.search.toLowerCase() != 'general' &&
-                      widget.search.toLowerCase() != 'all') {
-                    // Ingredient-based meal generation
-                    try {
-                      items = await showIngredientInputDialog(
-                        context,
-                        initialIngredient: widget.search.trim(),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to show ingredient dialog. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                  } else {
-                    // General category-based meal generation (fallback)
-                    try {
-                      items = await showCategoryInputDialog(
-                        context,
-                        label: 'general',
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to show category dialog. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                  }
-
-                  // Check if user cancelled the dialog
-                  if (items == null) {
-                    // User cancelled the dialog, no need to show error
-                    return;
-                  }
-
-                  // Show loading dialog while AI is generating meals
-                  showDialog(
-                    context: context,
-                    builder: (context) => const LoadingScreen(
-                      loadingText: 'Generating Meals, Please Wait...',
-                    ),
-                  );
-
-                  // Create appropriate prompt based on whether it's category or ingredient
-                  String prompt;
-                  String contextInfo;
-
-                  if (widget.label != null && items is Map<String, dynamic>) {
-                    // Category-based meal generation
-                    final categoryData = items as Map<String, dynamic>;
-                    final categories =
-                        categoryData['categories'] as List<String>? ?? [];
-
-                    // Validate categories before proceeding
-                    if (categories.isEmpty) {
-                      if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Invalid category data. Please try again.'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    final familyMember =
-                        categoryData['familyMember'] as String?;
-                    final ageGroup = categoryData['ageGroup'] as String?;
-
-                    // Build prompt with family context if available
-                    prompt =
-                        'Generate 3 meals that are: ${categories.join(', ')}.';
-                    if (familyMember != null && ageGroup != null) {
-                      prompt +=
-                          ' These meals are for a $ageGroup family member. Please ensure the meals are age-appropriate and suitable for their dietary needs.';
-                    }
-                    prompt +=
-                        ' Focus on meals that match these categories and dietary requirements.';
-                    contextInfo = 'Category-based meal generation';
-                  } else if (items is List<String>) {
-                    // Ingredient-based meal generation
-                    final ingredients = items as List<String>;
-
-                    // Validate ingredients before proceeding
-                    if (ingredients.isEmpty) {
-                      if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'No valid ingredients provided. Please try again.'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    prompt =
-                        'Generate 2 meals using these ingredients: ${ingredients.join(', ')}. Create delicious and nutritious meals.';
-                    contextInfo = 'Ingredient-based meal generation';
-                  } else {
-                    // Fallback for unexpected data type
-                    if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text('Invalid data format. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  // Use generateMealPlan for both cases
-
-                  final mealPlan = await geminiService.generateMealsWithAI(
-                      prompt, contextInfo);
-
-                  // Close the loading dialog
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-
-                  // Validate meal plan data before proceeding
-                  if (mealPlan == null) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to generate meals. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  if (mealPlan['meals'] == null) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to generate meals. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  if (mealPlan['meals'] is! List) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Failed to generate meals. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  final meals = mealPlan['meals'] as List<dynamic>? ?? [];
-                  if (meals.isEmpty) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'No meals were generated. Please try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  // Show the generated meals in a selection dialog
-                  if (meals.isNotEmpty) {
-                    // Show dialog to let user pick one meal
-                    await showDialog<Map<String, dynamic>>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) {
-                        final isDarkMode = getThemeProvider(context).isDarkMode;
-                        final textTheme = Theme.of(context).textTheme;
-                        return StatefulBuilder(
-                          builder: (context, setState) {
-                            bool isProcessing = false;
-
-                            return AlertDialog(
-                              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(30),
-                                  topRight: Radius.circular(30),
-                                ),
-                              ),
-                              title: Text(
-                                'Select a Meal',
-                                style: textTheme.displaySmall?.copyWith(
-                                    fontSize: getPercentageWidth(7, context),
-                                    color: kAccent,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              content: SizedBox(
-                                width: double.maxFinite,
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: meals.length,
-                                  itemBuilder: (context, index) {
-                                    final meal = meals[index];
-                                    final title = meal['title'] ?? 'Untitled';
-
-                                    String cookingTime =
-                                        meal['cookingTime'] ?? '';
-                                    String cookingMethod =
-                                        meal['cookingMethod'] ?? '';
-
-                                    return Card(
-                                      color: colors[index % colors.length],
-                                      child: ListTile(
-                                        enabled: !isProcessing,
-                                        title: Text(
-                                          title,
-                                          style: textTheme.bodyLarge?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color:
-                                                isDarkMode ? kWhite : kDarkGrey,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (cookingTime.isNotEmpty)
-                                              Text(
-                                                'Cooking Time: $cookingTime',
-                                                style: textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: isDarkMode
-                                                      ? kWhite
-                                                      : kDarkGrey,
-                                                ),
-                                              ),
-                                            if (cookingMethod.isNotEmpty)
-                                              Text(
-                                                'Method: $cookingMethod',
-                                                style: textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: isDarkMode
-                                                      ? kWhite
-                                                      : kDarkGrey,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        onTap: isProcessing
-                                            ? null
-                                            : () async {
-                                                setState(() {
-                                                  isProcessing = true;
-                                                });
-
-                                                try {
-                                                  // Save all generated meals to Firestore first
-                                                  final userId =
-                                                      userService.userId;
-                                                  if (userId == null)
-                                                    throw Exception(
-                                                        'User ID not found');
-
-                                                  // Convert AI-generated meals to the format expected by saveMealsToFirestore
-                                                  final mealsToSave =
-                                                      <Map<String, dynamic>>[];
-                                                  for (final aiMeal in meals) {
-                                                    final convertedMeal = Map<
-                                                        String,
-                                                        dynamic>.from(aiMeal);
-                                                    // Remove AI-specific fields that might cause issues
-                                                    convertedMeal
-                                                        .remove('source');
-                                                    convertedMeal.remove('id');
-                                                    mealsToSave
-                                                        .add(convertedMeal);
-                                                  }
-
-                                                  final mealPlanToSave = {
-                                                    'meals': mealsToSave,
-                                                  };
-
-                                                  List<String> allMealIds = [];
-                                                  try {
-                                                    allMealIds =
-                                                        await saveMealsToFirestore(
-                                                            userId,
-                                                            mealPlanToSave,
-                                                            '');
-                                                  } catch (e) {
-                                                    throw Exception(
-                                                        'Failed to save meals to database');
-                                                  }
-
-                                                  // Validate that meals were saved successfully
-                                                  if (allMealIds.isEmpty) {
-                                                    throw Exception(
-                                                        'No meals were saved to database');
-                                                  }
-
-                                                  // Find the selected meal's index
-                                                  final int selectedIndex =
-                                                      meals.indexWhere((m) =>
-                                                          m['title'] ==
-                                                          meal['title']);
-                                                  final String? selectedMealId =
-                                                      (selectedIndex != -1 &&
-                                                              selectedIndex <
-                                                                  allMealIds
-                                                                      .length)
-                                                          ? allMealIds[
-                                                              selectedIndex]
-                                                          : null;
-
-                                                  // Validate that we found a valid meal ID
-                                                  if (selectedMealId == null ||
-                                                      selectedMealId.isEmpty) {
-                                                    throw Exception(
-                                                        'Failed to identify selected meal');
-                                                  }
-
-                                                  // Format the meal ID for meal plan storage
-                                                  String mealPlanId =
-                                                      selectedMealId ?? '';
-                                                  final isFamilyMode =
-                                                      userService
-                                                              .currentUser
-                                                              .value
-                                                              ?.familyMode ??
-                                                          false;
-
-                                                  if (isFamilyMode &&
-                                                      selectedMealId != null) {
-                                                    // Check if we have family member context from category search
-                                                    final familyMember = widget
-                                                                .label !=
-                                                            null
-                                                        ? ((items as Map<String,
-                                                                    dynamic>)[
-                                                                'familyMember']
-                                                            as String?)
-                                                        : null;
-                                                    if (familyMember != null) {
-                                                      mealPlanId =
-                                                          '$selectedMealId/$familyMember';
-                                                    } else {
-                                                      // Default to current user
-                                                      mealPlanId =
-                                                          '$selectedMealId';
-                                                    }
-                                                  }
-
-                                                  // Validate mealPlanId before proceeding
-                                                  if (mealPlanId.isEmpty) {
-                                                    throw Exception(
-                                                        'Invalid meal plan ID');
-                                                  }
-
-                                                  // Store the meal in the meal plan for today
-                                                  final today = DateTime.now();
-                                                  final formattedDate =
-                                                      DateFormat('yyyy-MM-dd')
-                                                          .format(today);
-
-                                                  // Validate formattedDate before proceeding
-                                                  if (formattedDate.isEmpty) {
-                                                    throw Exception(
-                                                        'Invalid date format');
-                                                  }
-
-                                                  final docRef = firestore
-                                                      .collection('mealPlans')
-                                                      .doc(userId)
-                                                      .collection('date')
-                                                      .doc(formattedDate);
-
-                                                  // Validate userId before proceeding
-                                                  if (userId.isEmpty) {
-                                                    throw Exception(
-                                                        'Invalid user ID');
-                                                  }
-
-                                                  DocumentSnapshot docSnapshot;
-                                                  try {
-                                                    docSnapshot =
-                                                        await docRef.get();
-                                                  } catch (e) {
-                                                    throw Exception(
-                                                        'Failed to access meal plan document');
-                                                  }
-
-                                                  try {
-                                                    if (docSnapshot.exists) {
-                                                      // Update existing document
-                                                      await docRef.update({
-                                                        'meals': FieldValue
-                                                            .arrayUnion(
-                                                                [mealPlanId]),
-                                                        'date': formattedDate,
-                                                        'isSpecial': (docSnapshot
-                                                                        .data()
-                                                                    as Map<
-                                                                        String,
-                                                                        dynamic>?)?[
-                                                                'isSpecial'] ??
-                                                            false,
-                                                        'userId': userId,
-                                                        'timestamp': FieldValue
-                                                            .serverTimestamp(),
-                                                      });
-                                                    } else {
-                                                      // Create new document
-                                                      await docRef.set({
-                                                        'meals': [mealPlanId],
-                                                        'date': formattedDate,
-                                                        'isSpecial': false,
-                                                        'userId': userId,
-                                                        'timestamp': FieldValue
-                                                            .serverTimestamp(),
-                                                      });
-                                                    }
-                                                  } catch (e) {
-                                                    throw Exception(
-                                                        'Failed to update meal plan');
-                                                  }
-
-                                                  if (context.mounted) {
-                                                    Navigator.of(context).pop();
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                            'Meal created and added to today\'s meal plan!'),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                      ),
-                                                    );
-                                                  }
-                                                } catch (e) {
-                                                  if (context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                            'Failed to create meal: $e'),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                } finally {
-                                                  setState(() {
-                                                    isProcessing = false;
-                                                  });
-                                                }
-                                              },
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: Text(
-                                    'Cancel',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: getTextScale(3.5, context),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    );
-                  } else {
-                    throw Exception('No meals generated');
-                  }
-                } catch (e) {
-                  // Show error message if meal generation fails
-                  String errorMessage =
-                      'Failed to generate meals. Please try again.';
-
-                  if (e.toString().contains('overloaded') ||
-                      e.toString().contains('503')) {
-                    errorMessage =
-                        'AI service is temporarily busy. Please try again in a few minutes.';
-                  } else if (e.toString().contains('fallback')) {
-                    errorMessage =
-                        'Using backup meal suggestions while AI service is unavailable.';
-                  }
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(errorMessage),
-                      backgroundColor: e.toString().contains('fallback')
-                          ? Colors.orange
-                          : Colors.red,
-                      duration: Duration(
-                          seconds: e.toString().contains('fallback') ? 3 : 5),
-                    ),
-                  );
-                } finally {
+        
+            return GestureDetector(
+              onTap: () async {
+                if (canUseAI() && !isGenerating && widget.screen != 'technique') {
                   setState(() {
-                    isGenerating = false;
+                    isGenerating = true;
                   });
-                }
-              } else {
-                showPremiumRequiredDialog(context, isDarkMode);
-              }
-            },
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(height: getPercentageHeight(10, context)),
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: 1),
-                  duration: const Duration(seconds: 15),
-                  curve: Curves.easeInOut,
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                          value * 200 - 100, 0), // Moves from -100 to +100
-                      child: CircleAvatar(
-                        backgroundColor: isDarkMode ? kWhite : kBlack,
-                        radius: getResponsiveBoxSize(context, 18, 18),
-                        backgroundImage: AssetImage(tastyImage),
+
+                  try {
+                    dynamic items;
+
+                    // Show appropriate dialog based on whether it's a category or ingredient
+                    if (widget.label != null &&
+                        widget.label!.isNotEmpty &&
+                        widget.search.isNotEmpty &&
+                        widget.search.toLowerCase() ==
+                            widget.label?.toLowerCase()) {
+                      // Category-based meal generation with specific label
+                      try {
+                        items = await showCategoryInputDialog(
+                          context,
+                          label: widget.label!.trim(),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to show category dialog. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                    } else if (widget.search.isNotEmpty &&
+                        widget.search.toLowerCase() != 'general' &&
+                        widget.search.toLowerCase() != 'all') {
+                      // Ingredient-based meal generation
+                      try {
+                        items = await showIngredientInputDialog(
+                          context,
+                          initialIngredient: widget.search.trim(),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to show ingredient dialog. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                    } else {
+                      // General category-based meal generation (fallback)
+                      try {
+                        items = await showCategoryInputDialog(
+                          context,
+                          label: 'general',
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to show category dialog. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                    }
+
+                    // Check if user cancelled the dialog
+                    if (items == null) {
+                      // User cancelled the dialog, no need to show error
+                      return;
+                    }
+
+                    // Show loading dialog while AI is generating meals
+                    showDialog(
+                      context: context,
+                      builder: (context) => const LoadingScreen(
+                        loadingText: 'Generating Meals, Please Wait...',
                       ),
                     );
-                  },
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  "No meals available.",
-                  style: textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    fontSize: getTextScale(6, context),
-                    color: kAccentLight,
+
+                    // Create appropriate prompt based on whether it's category or ingredient
+                    String prompt;
+                    String contextInfo;
+
+                    if (widget.label != null && items is Map<String, dynamic>) {
+                      // Category-based meal generation
+                      final categoryData = items as Map<String, dynamic>;
+                      final categories =
+                          categoryData['categories'] as List<String>? ?? [];
+
+                      // Validate categories before proceeding
+                      if (categories.isEmpty) {
+                        if (context.mounted) {
+                          Navigator.of(context).pop(); // Close loading dialog
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Invalid category data. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      final familyMember =
+                          categoryData['familyMember'] as String?;
+                      final ageGroup = categoryData['ageGroup'] as String?;
+
+                      // Build prompt with family context if available
+                      prompt =
+                          'Generate 3 meals that are: ${categories.join(', ')}.';
+                      if (familyMember != null && ageGroup != null) {
+                        prompt +=
+                            ' These meals are for a $ageGroup family member. Please ensure the meals are age-appropriate and suitable for their dietary needs.';
+                      }
+                      prompt +=
+                          ' Focus on meals that match these categories and dietary requirements.';
+                      contextInfo = 'Category-based meal generation';
+                    } else if (items is List<String>) {
+                      // Ingredient-based meal generation
+                      final ingredients = items as List<String>;
+
+                      // Validate ingredients before proceeding
+                      if (ingredients.isEmpty) {
+                        if (context.mounted) {
+                          Navigator.of(context).pop(); // Close loading dialog
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'No valid ingredients provided. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      prompt =
+                          'Generate 2 meals using these ingredients: ${ingredients.join(', ')}. Create delicious and nutritious meals.';
+                      contextInfo = 'Ingredient-based meal generation';
+                    } else {
+                      // Fallback for unexpected data type
+                      if (context.mounted) {
+                        Navigator.of(context).pop(); // Close loading dialog
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Invalid data format. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // Use generateMealPlan for both cases
+
+                    final mealPlan = await geminiService.generateMealsWithAI(
+                        prompt, contextInfo);
+
+                    // Close the loading dialog
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+
+                    // Validate meal plan data before proceeding
+                    if (mealPlan == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to generate meals. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    if (mealPlan['meals'] == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to generate meals. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    if (mealPlan['meals'] is! List) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to generate meals. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+                    if (meals.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'No meals were generated. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // Show the generated meals in a selection dialog
+                    if (meals.isNotEmpty) {
+                      // Show dialog to let user pick one meal
+                      await showDialog<Map<String, dynamic>>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) {
+                          final isDarkMode =
+                              getThemeProvider(context).isDarkMode;
+                          final textTheme = Theme.of(context).textTheme;
+                          return StatefulBuilder(
+                            builder: (context, setState) {
+                              bool isProcessing = false;
+
+                              return AlertDialog(
+                                backgroundColor:
+                                    isDarkMode ? kDarkGrey : kWhite,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                    topRight: Radius.circular(30),
+                                  ),
+                                ),
+                                title: Text(
+                                  'Select a Meal',
+                                  style: textTheme.displaySmall?.copyWith(
+                                      fontSize: getPercentageWidth(7, context),
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                content: SizedBox(
+                                  width: double.maxFinite,
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: meals.length,
+                                    itemBuilder: (context, index) {
+                                      final meal = meals[index];
+                                      final title = meal['title'] ?? 'Untitled';
+
+                                      String cookingTime =
+                                          meal['cookingTime'] ?? '';
+                                      String cookingMethod =
+                                          meal['cookingMethod'] ?? '';
+
+                                      return Card(
+                                        color: colors[index % colors.length],
+                                        child: ListTile(
+                                          enabled: !isProcessing,
+                                          title: Text(
+                                            title,
+                                            style:
+                                                textTheme.bodyLarge?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: isDarkMode
+                                                  ? kWhite
+                                                  : kDarkGrey,
+                                            ),
+                                          ),
+                                          subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (cookingTime.isNotEmpty)
+                                                Text(
+                                                  'Cooking Time: $cookingTime',
+                                                  style: textTheme.bodyMedium
+                                                      ?.copyWith(
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kDarkGrey,
+                                                  ),
+                                                ),
+                                              if (cookingMethod.isNotEmpty)
+                                                Text(
+                                                  'Method: $cookingMethod',
+                                                  style: textTheme.bodyMedium
+                                                      ?.copyWith(
+                                                    color: isDarkMode
+                                                        ? kWhite
+                                                        : kDarkGrey,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          onTap: isProcessing
+                                              ? null
+                                              : () async {
+                                                  setState(() {
+                                                    isProcessing = true;
+                                                  });
+
+                                                  try {
+                                                    // Save all generated meals to Firestore first
+                                                    final userId =
+                                                        userService.userId;
+                                                    if (userId == null)
+                                                      throw Exception(
+                                                          'User ID not found');
+
+                                                    // Convert AI-generated meals to the format expected by saveMealsToFirestore
+                                                    final mealsToSave = <Map<
+                                                        String, dynamic>>[];
+                                                    for (final aiMeal
+                                                        in meals) {
+                                                      final convertedMeal = Map<
+                                                          String,
+                                                          dynamic>.from(aiMeal);
+                                                      // Remove AI-specific fields that might cause issues
+                                                      convertedMeal
+                                                          .remove('source');
+                                                      convertedMeal
+                                                          .remove('id');
+                                                      mealsToSave
+                                                          .add(convertedMeal);
+                                                    }
+
+                                                    final mealPlanToSave = {
+                                                      'meals': mealsToSave,
+                                                    };
+
+                                                    List<String> allMealIds =
+                                                        [];
+                                                    try {
+                                                      allMealIds =
+                                                          await saveMealsToFirestore(
+                                                              userId,
+                                                              mealPlanToSave,
+                                                              '');
+                                                    } catch (e) {
+                                                      throw Exception(
+                                                          'Failed to save meals to database');
+                                                    }
+
+                                                    // Validate that meals were saved successfully
+                                                    if (allMealIds.isEmpty) {
+                                                      throw Exception(
+                                                          'No meals were saved to database');
+                                                    }
+
+                                                    // Find the selected meal's index
+                                                    final int selectedIndex =
+                                                        meals.indexWhere((m) =>
+                                                            m['title'] ==
+                                                            meal['title']);
+                                                    final String?
+                                                        selectedMealId =
+                                                        (selectedIndex != -1 &&
+                                                                selectedIndex <
+                                                                    allMealIds
+                                                                        .length)
+                                                            ? allMealIds[
+                                                                selectedIndex]
+                                                            : null;
+
+                                                    // Validate that we found a valid meal ID
+                                                    if (selectedMealId ==
+                                                            null ||
+                                                        selectedMealId
+                                                            .isEmpty) {
+                                                      throw Exception(
+                                                          'Failed to identify selected meal');
+                                                    }
+
+                                                    // Format the meal ID for meal plan storage
+                                                    String mealPlanId =
+                                                        selectedMealId ?? '';
+                                                    final isFamilyMode =
+                                                        userService
+                                                                .currentUser
+                                                                .value
+                                                                ?.familyMode ??
+                                                            false;
+
+                                                    if (isFamilyMode &&
+                                                        selectedMealId !=
+                                                            null) {
+                                                      // Check if we have family member context from category search
+                                                      final familyMember = widget
+                                                                  .label !=
+                                                              null
+                                                          ? ((items as Map<
+                                                                      String,
+                                                                      dynamic>)[
+                                                                  'familyMember']
+                                                              as String?)
+                                                          : null;
+                                                      if (familyMember !=
+                                                          null) {
+                                                        mealPlanId =
+                                                            '$selectedMealId/$familyMember';
+                                                      } else {
+                                                        // Default to current user
+                                                        mealPlanId =
+                                                            '$selectedMealId';
+                                                      }
+                                                    }
+
+                                                    // Validate mealPlanId before proceeding
+                                                    if (mealPlanId.isEmpty) {
+                                                      throw Exception(
+                                                          'Invalid meal plan ID');
+                                                    }
+
+                                                    // Store the meal in the meal plan for today
+                                                    final today =
+                                                        DateTime.now();
+                                                    final formattedDate =
+                                                        DateFormat('yyyy-MM-dd')
+                                                            .format(today);
+
+                                                    // Validate formattedDate before proceeding
+                                                    if (formattedDate.isEmpty) {
+                                                      throw Exception(
+                                                          'Invalid date format');
+                                                    }
+
+                                                    final docRef = firestore
+                                                        .collection('mealPlans')
+                                                        .doc(userId)
+                                                        .collection('date')
+                                                        .doc(formattedDate);
+
+                                                    // Validate userId before proceeding
+                                                    if (userId.isEmpty) {
+                                                      throw Exception(
+                                                          'Invalid user ID');
+                                                    }
+
+                                                    DocumentSnapshot
+                                                        docSnapshot;
+                                                    try {
+                                                      docSnapshot =
+                                                          await docRef.get();
+                                                    } catch (e) {
+                                                      throw Exception(
+                                                          'Failed to access meal plan document');
+                                                    }
+
+                                                    try {
+                                                      if (docSnapshot.exists) {
+                                                        // Update existing document
+                                                        await docRef.update({
+                                                          'meals': FieldValue
+                                                              .arrayUnion(
+                                                                  [mealPlanId]),
+                                                          'date': formattedDate,
+                                                          'isSpecial': (docSnapshot
+                                                                          .data()
+                                                                      as Map<
+                                                                          String,
+                                                                          dynamic>?)?[
+                                                                  'isSpecial'] ??
+                                                              false,
+                                                          'userId': userId,
+                                                          'timestamp': FieldValue
+                                                              .serverTimestamp(),
+                                                        });
+                                                      } else {
+                                                        // Create new document
+                                                        await docRef.set({
+                                                          'meals': [mealPlanId],
+                                                          'date': formattedDate,
+                                                          'isSpecial': false,
+                                                          'userId': userId,
+                                                          'timestamp': FieldValue
+                                                              .serverTimestamp(),
+                                                        });
+                                                      }
+                                                    } catch (e) {
+                                                      throw Exception(
+                                                          'Failed to update meal plan');
+                                                    }
+
+                                                    if (context.mounted) {
+                                                      Navigator.of(context)
+                                                          .pop();
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              'Meal created and added to today\'s meal plan!'),
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                        ),
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              'Failed to create meal: $e'),
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                        ),
+                                                      );
+                                                    }
+                                                  } finally {
+                                                    setState(() {
+                                                      isProcessing = false;
+                                                    });
+                                                  }
+                                                },
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: getTextScale(3.5, context),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      );
+                    } else {
+                      throw Exception('No meals generated');
+                    }
+                  } catch (e) {
+                    // Show error message if meal generation fails
+                    String errorMessage =
+                        'Failed to generate meals. Please try again.';
+
+                    if (e.toString().contains('overloaded') ||
+                        e.toString().contains('503')) {
+                      errorMessage =
+                          'AI service is temporarily busy. Please try again in a few minutes.';
+                    } else if (e.toString().contains('fallback')) {
+                      errorMessage =
+                          'Using backup meal suggestions while AI service is unavailable.';
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(errorMessage),
+                        backgroundColor: e.toString().contains('fallback')
+                            ? Colors.orange
+                            : Colors.red,
+                        duration: Duration(
+                            seconds: e.toString().contains('fallback') ? 3 : 5),
+                      ),
+                    );
+                  } finally {
+                    setState(() {
+                      isGenerating = false;
+                    });
+                  }
+                } else {
+                  if(widget.screen != 'technique') {
+                    showPremiumRequiredDialog(context, isDarkMode);
+                  }
+                }
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: getPercentageHeight(10, context)),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(seconds: 15),
+                    curve: Curves.easeInOut,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(
+                            value * 200 - 100, 0), // Moves from -100 to +100
+                        child: CircleAvatar(
+                          backgroundColor: isDarkMode ? kWhite : kBlack,
+                          radius: getResponsiveBoxSize(context, 18, 18),
+                          backgroundImage: AssetImage(tastyImage),
+                        ),
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  canUseAI()
-                      ? 'Generate Meals with ${capitalizeFirstLetter(widget.search)}!'
-                      : 'Go Premium to generate a Meal!',
-                  style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: kAccent,
+                  const SizedBox(height: 5),
+                  Text(
+                    "No meals available.",
+                    style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      fontSize: getTextScale(6, context),
+                      color: kAccentLight,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
+                  const SizedBox(height: 10),
+                  if (widget.screen != 'technique')
+                    Text(
+                      canUseAI()
+                          ? 'Generate Meals with ${capitalizeFirstLetter(widget.search)}!'
+                          : 'Go Premium to generate a Meal!',
+                      style: textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: kAccent,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
+              ),
+            );
         },
       ),
     );

@@ -144,11 +144,21 @@ exports.calculateDailyNutrition = functions.firestore
                   const calories =
                     typeof item.calories === "number" ? item.calories : 0;
 
-                  // Extract macro data from the macros object
-                  const macros = item.macros || {};
-                  const protein = typeof macros.protein === "number" ? macros.protein : 0;
-                  const carbs = typeof macros.carbs === "number" ? macros.carbs : 0;
-                  const fat = typeof macros.fat === "number" ? macros.fat : 0;
+                  // Extract macro data from various possible sources
+                  let protein = 0, carbs = 0, fat = 0;
+                  if (item.macros && typeof item.macros === "object") {
+                    protein = typeof item.macros.protein === "number" ? item.macros.protein : 0;
+                    carbs = typeof item.macros.carbs === "number" ? item.macros.carbs : 0;
+                    fat = typeof item.macros.fat === "number" ? item.macros.fat : 0;
+                  } else if (item.nutrition && typeof item.nutrition === "object") {
+                    protein = parseFloat(item.nutrition.protein) || 0;
+                    carbs = parseFloat(item.nutrition.carbs) || 0;
+                    fat = parseFloat(item.nutrition.fat) || 0;
+                  } else if (item.nutritionalInfo && typeof item.nutritionalInfo === "object") {
+                    protein = parseFloat(item.nutritionalInfo.protein) || 0;
+                    carbs = parseFloat(item.nutritionalInfo.carbs) || 0;
+                    fat = parseFloat(item.nutritionalInfo.fat) || 0;
+                  }
 
                   // Debug logging for macro data
                   if (protein > 0 || carbs > 0 || fat > 0) {
