@@ -1032,3 +1032,195 @@ exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) 
     };
   }
 });
+
+/**
+ * Firebase Function to process pending meals with AI-generated details
+ * Uses exponential backoff retry logic with jitter for reliability
+ */
+exports.processPendingMeals = functions.pubsub
+  .schedule('every 1 minutes')
+  .onRun(async (context) => {
+    try {
+      console.log('--- Starting meal processing job ---');
+      
+      // Get all meals that need processing
+      const pendingMealsQuery = admin.firestore()
+        .collection('meals')
+        .where('needsProcessing', '==', true)
+        .where('status', '==', 'pending')
+        .orderBy('processingPriority', 'asc')
+        .limit(10); // Process 10 meals at a time to avoid timeouts
+      
+      const pendingMealsSnapshot = await pendingMealsQuery.get();
+      
+      if (pendingMealsSnapshot.empty) {
+        console.log('No pending meals to process');
+        return null;
+      }
+      
+      console.log(`Found ${pendingMealsSnapshot.docs.length} pending meals to process`);
+      
+      const processingPromises = pendingMealsSnapshot.docs.map(async (doc) => {
+        const mealData = doc.data();
+        const mealId = doc.id;
+        
+        try {
+          // Mark as processing to prevent duplicate processing
+          await doc.ref.update({
+            status: 'processing',
+            lastProcessingAttempt: admin.firestore.FieldValue.serverTimestamp(),
+            processingAttempts: admin.firestore.FieldValue.increment(1)
+          });
+          
+          console.log(`Processing meal: ${mealData.title} (ID: ${mealId})`);
+          
+          // Generate full meal details using AI
+          const fullMealDetails = await generateFullMealDetails(
+            mealData.title,
+            mealData.ingredients || {},
+            mealData.mealType || 'general'
+          );
+          
+          // Update meal with complete details
+          await doc.ref.update({
+            ...fullMealDetails,
+            status: 'completed',
+            needsProcessing: false,
+            completedAt: admin.firestore.FieldValue.serverTimestamp(),
+            version: 'complete'
+          });
+          
+          console.log(`Successfully completed meal: ${mealData.title}`);
+          
+        } catch (error) {
+          console.error(`Error processing meal ${mealData.title}:`, error);
+          
+          // Implement exponential backoff with jitter
+          const attempts = (mealData.processingAttempts || 0) + 1;
+          const maxAttempts = 5;
+          
+          // Calculate backoff delay with jitter
+          const baseDelay = Math.pow(2, attempts) * 1000; // Base delay in ms
+          const jitter = Math.random() * 1000; // Random jitter up to 1 second
+          const totalDelay = baseDelay + jitter;
+          
+          // Schedule retry by updating priority (lower priority = processed later)
+          const retryTime = Date.now() + totalDelay;
+          await doc.ref.update({
+            status: 'pending',
+            needsProcessing: true,
+            processingPriority: retryTime,
+            lastError: error.message,
+            processingAttempts: attempts
+          });
+          
+          console.log(`Scheduled retry for meal ${mealData.title} in ${Math.round(totalDelay/1000)}s (attempt ${attempts})`);
+          
+          // Only mark as failed after max attempts
+          if (attempts >= maxAttempts) {
+            await doc.ref.update({
+              status: 'failed',
+              needsProcessing: false,
+              failedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`Marked meal ${mealData.title} as failed after ${attempts} attempts`);
+          }
+        }
+      });
+      
+      // Wait for all meals to be processed
+      await Promise.all(processingPromises);
+      
+      console.log('--- Meal processing job completed ---');
+      return null;
+      
+    } catch (error) {
+      console.error('Error in meal processing job:', error);
+      return null;
+    }
+  });
+
+/**
+ * Helper function to generate full meal details using AI
+ */
+async function generateFullMealDetails(title, basicIngredients, mealType) {
+  try {
+    // Use Gemini API to generate complete meal details
+    const prompt = `Generate complete meal details for: ${title}
+    
+    Basic ingredients: ${JSON.stringify(basicIngredients)}
+    Meal type: ${mealType}
+    
+    Please provide:
+    1. Complete ingredient list with measurements
+    2. Step-by-step cooking instructions
+    3. Nutritional information (calories, protein, carbs, fat)
+    4. Cooking time and difficulty
+    5. Serving size
+    6. Dietary categories (vegan, gluten-free, etc.)
+    7. Cuisine type
+    
+    Format as JSON with these fields:
+    {
+      "ingredients": {
+        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+        "ingredient2": "amount with unit"
+      },
+      "instructions": ["step1", "step2", ...],
+      "calories": number,
+      "nutritionalInfo": {
+        "calories": number,
+        "protein": number,
+        "carbs": number,
+        "fat": number
+      },
+      "cookingTime": "X minutes",
+      "difficulty": "easy/medium/hard",
+      "serveQty": number,
+      "categories": ["category1", "category2"],
+      "cuisine": "cuisine type"
+      "type": "protein|grain|vegetable"
+    }`;
+    
+    const result = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      .generateContent(prompt);
+    
+    const response = result.response.text();
+    
+    // Parse JSON response
+    try {
+      const mealDetails = JSON.parse(response);
+      
+      // Validate that we have the essential fields
+      if (!mealDetails.ingredients || !mealDetails.instructions || !mealDetails.nutritionalInfo) {
+        throw new Error('Missing essential meal fields in AI response');
+      }
+      
+      // Return validated meal data
+      return {
+        ingredients: mealDetails.ingredients,
+        instructions: mealDetails.instructions,
+        calories: mealDetails.calories || 300,
+        nutritionalInfo: mealDetails.nutritionalInfo,
+        cookingTime: mealDetails.cookingTime || '30 minutes',
+        difficulty: mealDetails.difficulty || 'medium',
+        serveQty: mealDetails.serveQty || 1,
+        type: mealDetails.type || 'protein',
+        categories: mealDetails.categories || [mealType],
+        cuisine: mealDetails.cuisine || 'general',
+        aiGenerated: true,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+    } catch (parseError) {
+      console.error('Error parsing AI response:', parseError);
+      // Don't return fallback data - let the retry logic handle this
+      throw new Error(`Failed to parse AI response: ${parseError.message}`);
+    }
+    
+  } catch (error) {
+    console.error('Error generating meal details:', error);
+    // Don't return fallback data - let the retry logic handle this
+    throw error;
+  }
+}

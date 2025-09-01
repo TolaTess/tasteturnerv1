@@ -162,7 +162,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
               onPressed: () {
                 Navigator.pop(context); // Close dialog
                 if (widget.isDontShowPicker) {
-                  _generateMealPlan();
+                  _generateMealPlan(selectedCuisine);
                 } else {
                   _showMealPlanOptionsDialog(); // Show meal plan options directly
                 }
@@ -448,7 +448,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      _generateMealPlan();
+                      _generateMealPlan(selectedCuisine);
                     },
                     child: const Text(
                       'Generate Plan',
@@ -467,7 +467,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   }
 
   // Prepare the prompt for Gemini
-  Future<void> _generateMealPlan() async {
+  Future<void> _generateMealPlan(String cuisine) async {
     if (!canUseAI()) {
       final isDarkMode = getThemeProvider(context).isDarkMode;
       showPremiumRequiredDialog(context, isDarkMode);
@@ -481,7 +481,17 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
       final mealPlan = await geminiService.generateMealsIntelligently(
-          prompt, mealPlanContext);
+          prompt, mealPlanContext, cuisine);
+
+      debugPrint('mealPlan: $mealPlan');
+
+      // Check if meal generation failed
+      if (mealPlan['error'] == true || mealPlan['source'] == 'failed') {
+        Navigator.of(context).pop(); // Close loading dialog
+        _showMealGenerationErrorDialog(mealPlan['message'] ??
+            'Failed to generate meals. Please try again.');
+        return;
+      }
 
       final userId = userService.userId;
       if (userId == null) throw Exception('User ID not found');
@@ -489,115 +499,23 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // Collect meal IDs with proper meal type suffixes
+      // Note: Meals are already saved by generateMealsIntelligently, so we just collect IDs
       List<String> mealIds = [];
+      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+      final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-      if (mealPlan['source'] == 'mixed' ||
-          mealPlan['source'] == 'ai_generated') {
-        // Handle mixed or AI-generated meals
-        final meals = mealPlan['meals'] as List<dynamic>? ?? [];
+      for (int i = 0; i < meals.length; i++) {
+        final meal = meals[i];
+        String mealType = meal['mealType']?.toString().toLowerCase() ?? '';
+        final mealId = meal['id'] as String? ?? '';
 
-        if (mealPlan['source'] == 'mixed') {
-          // Mixed source: some existing, some new
-          final newMeals = meals
-              .where((meal) =>
-                  meal['source'] == 'ai_generated' ||
-                  meal['id'] == null ||
-                  meal['id'] == '')
-              .toList();
-
-          if (newMeals.isNotEmpty) {
-            // Save new meals to Firestore first
-            final mealsToSave = <Map<String, dynamic>>[];
-            for (final aiMeal in newMeals) {
-              final convertedMeal = Map<String, dynamic>.from(aiMeal);
-              // Remove AI-specific fields that might cause issues
-              convertedMeal.remove('source');
-              convertedMeal.remove('id');
-              mealsToSave.add(convertedMeal);
-            }
-
-            final mealPlanToSave = {
-              'meals': mealsToSave,
-            };
-
-            final List<String> savedMealIds = await saveMealsToFirestore(
-                userId, mealPlanToSave, selectedCuisine);
-
-            // Collect all meal IDs with proper meal type suffixes
-            final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
-            for (int i = 0; i < meals.length; i++) {
-              final meal = meals[i];
-              String mealType =
-                  meal['mealType']?.toString().toLowerCase() ?? '';
-              final mealId = meal['id'] as String? ?? '';
-
-              // If no mealType is specified, assign based on position
-              if (mealType.isEmpty) {
-                mealType = mealTypes[i % mealTypes.length];
-              }
-
-              if (meal['source'] == 'existing_database' && mealId.isNotEmpty) {
-                // Use existing meal ID with meal type suffix
-                mealIds.add(appendMealType(mealId, mealType));
-              } else if (meal['source'] == 'ai_generated' || mealId.isEmpty) {
-                // Find the corresponding saved meal ID (already has meal type suffix from saveMealsToFirestore)
-                final mealIndex = newMeals.indexOf(meal);
-                if (mealIndex >= 0 && mealIndex < savedMealIds.length) {
-                  // The savedMealIds already have meal type suffixes, so use them directly
-                  mealIds.add(savedMealIds[mealIndex]);
-                }
-              }
-            }
-          } else {
-            // All meals are existing, add meal type suffixes
-            final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
-            for (int i = 0; i < meals.length; i++) {
-              final meal = meals[i];
-              String mealType =
-                  meal['mealType']?.toString().toLowerCase() ?? '';
-              final mealId = meal['id'] as String? ?? '';
-
-              // If no mealType is specified, assign based on position
-              if (mealType.isEmpty) {
-                mealType = mealTypes[i % mealTypes.length];
-              }
-
-              if (mealId.isNotEmpty) {
-                mealIds.add(appendMealType(mealId, mealType));
-              }
-            }
-          }
-        } else {
-          // All meals are AI-generated, they should have meal types
-          final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
-          for (int i = 0; i < meals.length; i++) {
-            final meal = meals[i];
-            String mealType = meal['mealType']?.toString().toLowerCase() ?? '';
-            final mealId = meal['id'] as String? ?? '';
-
-            // If no mealType is specified, assign based on position
-            if (mealType.isEmpty) {
-              mealType = mealTypes[i % mealTypes.length];
-            }
-
-            if (mealId.isNotEmpty) {
-              mealIds.add(appendMealType(mealId, mealType));
-            }
-          }
+        // If no mealType is specified, assign based on position
+        if (mealType.isEmpty) {
+          mealType = mealTypes[i % mealTypes.length];
         }
-      } else {
-        // For existing_database source, assign meal types based on position
-        final meals = mealPlan['meals'] as List<dynamic>? ?? [];
-        final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-        for (int i = 0; i < meals.length; i++) {
-          final meal = meals[i];
-          final mealId = meal['id'] as String? ?? '';
-          if (mealId.isNotEmpty) {
-            // Cycle through meal types: breakfast, lunch, dinner, snack, then repeat
-            final mealType = mealTypes[i % mealTypes.length];
-            mealIds.add(appendMealType(mealId, mealType));
-          }
+        if (mealId.isNotEmpty) {
+          mealIds.add(appendMealType(mealId, mealType));
         }
       }
 
@@ -627,6 +545,34 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) => noItemTastyWidget(
           'Generating Meal Plan, Please Wait...', '', context, false, ''),
+    );
+  }
+
+  // Helper method to show meal generation error dialog
+  void _showMealGenerationErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Meal Generation Failed'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _generateMealPlan(selectedCuisine); // Retry
+              },
+              child: Text('Try Again'),
+            ),
+          ],
+        );
+      },
     );
   }
 

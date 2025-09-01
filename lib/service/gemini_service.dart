@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -703,96 +705,51 @@ class GeminiService {
 
   /// Get fallback meal suggestions when AI is unavailable
   Future<Map<String, dynamic>> _getFallbackMeals(String prompt) async {
-    // Simple keyword-based fallback
-    final keywords = prompt.toLowerCase().split(' ');
-
-    // Pre-defined meal templates based on common keywords
-    final fallbackMeals = [
-      {
-        'title': 'Quick Pasta Primavera',
-        'ingredients': {
-          'pasta': '200g',
-          'vegetables': 'mixed',
-          'olive oil': '2 tbsp'
-        },
-        'instructions': ['Boil pasta', 'Sauté vegetables', 'Combine and serve'],
-        'nutritionalInfo': {
-          'calories': 350,
-          'protein': 12,
-          'carbs': 45,
-          'fat': 8
-        },
-        'categories': ['quick', 'vegetarian', 'fallback'],
-        'cookingTime': '15 minutes',
-        'cookingMethod': 'stovetop'
-      },
-      {
-        'title': 'Simple Grilled Chicken Salad',
-        'ingredients': {
-          'chicken breast': '150g',
-          'lettuce': '1 head',
-          'tomatoes': '2'
-        },
-        'instructions': ['Grill chicken', 'Chop vegetables', 'Assemble salad'],
-        'nutritionalInfo': {
-          'calories': 280,
-          'protein': 35,
-          'carbs': 8,
-          'fat': 12
-        },
-        'categories': ['healthy', 'protein-rich', 'fallback'],
-        'cookingTime': '20 minutes',
-        'cookingMethod': 'grill'
-      },
-      {
-        'title': 'Easy Vegetable Stir Fry',
-        'ingredients': {
-          'vegetables': 'mixed',
-          'soy sauce': '2 tbsp',
-          'oil': '1 tbsp'
-        },
-        'instructions': ['Heat oil', 'Stir fry vegetables', 'Add sauce'],
-        'nutritionalInfo': {
-          'calories': 200,
-          'protein': 6,
-          'carbs': 25,
-          'fat': 10
-        },
-        'categories': ['vegetarian', 'quick', 'fallback'],
-        'cookingTime': '10 minutes',
-        'cookingMethod': 'stir fry'
-      }
-    ];
-
-    // Filter meals based on keywords
-    List<Map<String, dynamic>> filteredMeals = fallbackMeals;
-
-    if (keywords.contains('quick') || keywords.contains('fast')) {
-      filteredMeals = filteredMeals
-          .where((meal) =>
-              meal['cookingTime'].toString().contains('10') ||
-              meal['cookingTime'].toString().contains('15'))
-          .toList();
-    }
-
-    if (keywords.contains('vegetarian') || keywords.contains('vegan')) {
-      filteredMeals = filteredMeals
-          .where((meal) => meal['categories'].contains('vegetarian'))
-          .toList();
-    }
-
-    if (keywords.contains('protein') || keywords.contains('meat')) {
-      filteredMeals = filteredMeals
-          .where((meal) => meal['categories'].contains('protein-rich'))
-          .toList();
-    }
-
+    // Return empty lists instead of sample meals
+    // This will trigger the user to try again
     return {
-      'meals': filteredMeals.isNotEmpty ? filteredMeals : fallbackMeals,
+      'mealTitles': [],
+      'mealPlan': [],
+      'distribution': {},
       'source': 'fallback',
-      'message':
-          'AI service temporarily unavailable. Here are some suggested meals:'
+      'message': 'AI service temporarily unavailable. Please try again.'
     };
+  }
+
+  /// Try OpenAI as fallback when Gemini fails
+  Future<Map<String, dynamic>> _tryOpenAIFallback(
+      String prompt, String contextInformation) async {
+    try {
+      debugPrint('Attempting OpenAI fallback...');
+
+      // TODO: Implement OpenAI API call here
+      // For now, return empty results to trigger user retry
+
+      return {
+        'mealTitles': [],
+        'mealPlan': [],
+        'distribution': {},
+        'source': 'openai_fallback',
+        'message': 'OpenAI fallback not yet implemented. Please try again.'
+      };
+    } catch (e) {
+      debugPrint('OpenAI fallback error: $e');
+      rethrow;
+    }
+  }
+
+  /// Parse calories value ensuring it's a valid number
+  int _parseCalories(dynamic calories) {
+    if (calories == null) return 0;
+
+    if (calories is int) return calories;
+    if (calories is double) return calories.round();
+    if (calories is String) {
+      final parsed = int.tryParse(calories);
+      return parsed ?? 0;
+    }
+
+    return 0;
   }
 
   /// Normalize and deduplicate ingredients to prevent variations like "sesameseed" vs "sesame seed"
@@ -2643,7 +2600,60 @@ USER CONTEXT:
     // Fix common JSON issues from AI responses
     jsonStr = _sanitizeJsonString(jsonStr);
 
-    return jsonDecode(jsonStr);
+    try {
+      return jsonDecode(jsonStr);
+    } catch (e) {
+      // If parsing still fails, try to extract just the JSON part
+      debugPrint(
+          'Initial JSON parsing failed, attempting to extract valid JSON...');
+
+      // Try to find the start and end of JSON content
+      final jsonStart = jsonStr.indexOf('{');
+      final jsonEnd = jsonStr.lastIndexOf('}');
+
+      if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
+        final extractedJson = jsonStr.substring(jsonStart, jsonEnd + 1);
+        debugPrint(
+            'Extracted JSON: ${extractedJson.substring(0, extractedJson.length > 200 ? 200 : extractedJson.length)}...');
+
+        // Clean the extracted JSON more aggressively
+        final cleanedExtractedJson = _aggressiveJsonCleanup(extractedJson);
+
+        try {
+          return jsonDecode(cleanedExtractedJson);
+        } catch (extractError) {
+          debugPrint('Extracted JSON parsing also failed: $extractError');
+          debugPrint(
+              'Attempting to extract partial data from malformed JSON...');
+
+          // Try to extract partial data even from malformed JSON
+          final partialData =
+              _extractPartialDataFromMalformedJson(extractedJson);
+          if (partialData.isNotEmpty) {
+            debugPrint('Successfully extracted partial data: $partialData');
+            return partialData;
+          }
+
+          throw Exception(
+              'Failed to parse JSON even after extraction: $extractError');
+        }
+      }
+
+      // If all else fails, try to extract partial data
+      debugPrint(
+          'All JSON parsing methods failed. Attempting partial data extraction...');
+      try {
+        final partialData = _extractPartialDataFromMalformedJson(jsonStr);
+        if (partialData.isNotEmpty) {
+          debugPrint('Successfully extracted partial data from malformed JSON');
+          return partialData;
+        }
+      } catch (partialError) {
+        debugPrint('Partial data extraction also failed: $partialError');
+      }
+
+      throw Exception('Could not extract valid JSON from response: $e');
+    }
   }
 
   // Sanitize JSON string to fix common AI response issues
@@ -2680,6 +2690,13 @@ USER CONTEXT:
         RegExp(r'"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])', multiLine: true),
         (match) => '"${match.group(1)}": ${match.group(2)}');
 
+    // Fix quoted numeric values that should be numbers (e.g., "calories": "200" -> "calories": 200)
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(
+            r'"(calories|protein|carbs|fat|fiber|sugar|sodium)":\s*"(\d+(?:\.\d+)?)"',
+            multiLine: true),
+        (match) => '"${match.group(1)}": ${match.group(2)}');
+
     // Fix unquoted nutritional values like "protein": 40g to "protein": "40g"
     jsonStr = jsonStr.replaceAllMapped(
         RegExp(
@@ -2701,9 +2718,47 @@ USER CONTEXT:
             '"${match.group(1)}": ${match.group(2)}' // Keep these as numbers
         );
 
+    // Fix any quoted numeric values that should be numbers (general case)
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]+)":\s*"(\d+(?:\.\d+)?)"(?=\s*[,}\]])', multiLine: true),
+        (match) => '"${match.group(1)}": ${match.group(2)}');
+
+    // Remove control characters (newlines, carriage returns, tabs) from JSON strings
+    jsonStr = jsonStr.replaceAll(RegExp(r'[\r\n\t]'), ' ');
+
+    // Clean up multiple spaces
+    jsonStr = jsonStr.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Fix incomplete JSON by adding missing closing braces/brackets
+    int openBraces = jsonStr.split('{').length - 1;
+    int closeBraces = jsonStr.split('}').length - 1;
+    int openBrackets = jsonStr.split('[').length - 1;
+    int closeBrackets = jsonStr.split(']').length - 1;
+
+    // Add missing closing braces/brackets
+    while (closeBraces < openBraces) {
+      jsonStr += '}';
+      closeBraces++;
+    }
+    while (closeBrackets < openBrackets) {
+      jsonStr += ']';
+      closeBrackets++;
+    }
+
     // Fix unterminated strings - look for strings that don't end with a quote
     jsonStr = jsonStr.replaceAllMapped(
         RegExp(r'"([^"]*?)(?=\s*[,}\]])', multiLine: true), (match) {
+      final value = match.group(1) ?? '';
+      // If the value doesn't end with a quote, add one
+      if (!value.endsWith('"')) {
+        return '"$value"';
+      }
+      return match.group(0) ?? '';
+    });
+
+    // Fix unterminated strings at the end of the JSON
+    jsonStr = jsonStr.replaceAllMapped(RegExp(r'"([^"]*?)$', multiLine: true),
+        (match) {
       final value = match.group(1) ?? '';
       // If the value doesn't end with a quote, add one
       if (!value.endsWith('"')) {
@@ -2769,6 +2824,192 @@ USER CONTEXT:
         (match) => ': "${match.group(1)}"');
 
     return jsonStr;
+  }
+
+  /// Aggressively clean JSON that has severe formatting issues
+  String _aggressiveJsonCleanup(String jsonStr) {
+    // Remove all control characters and normalize whitespace
+    jsonStr = jsonStr.replaceAll(RegExp(r'[\r\n\t\x00-\x1F\x7F]'), ' ');
+
+    // Clean up multiple spaces
+    jsonStr = jsonStr.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Fix broken string values that might have been split by newlines
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'"([^"]*?)\s*,\s*"([^"]*?)"', multiLine: true),
+        (match) => '"${match.group(1)} ${match.group(2)}"');
+
+    // Fix broken array items that might have been split
+    jsonStr = jsonStr.replaceAllMapped(
+        RegExp(r'}\s*,\s*{', multiLine: true), (match) => '},{');
+
+    // Ensure proper comma placement
+    jsonStr = jsonStr.replaceAll(RegExp(r',\s*}'), '}');
+    jsonStr = jsonStr.replaceAll(RegExp(r',\s*]'), ']');
+
+    return jsonStr.trim();
+  }
+
+  /// Extract partial data from malformed JSON using regex patterns
+  Map<String, dynamic> _extractPartialDataFromMalformedJson(
+      String malformedJson) {
+    final Map<String, dynamic> extractedData = {};
+
+    try {
+      // Extract meal plan array
+      final mealPlanMatches = RegExp(r'"title":\s*"([^"]+)"', multiLine: true)
+          .allMatches(malformedJson);
+      final mealTypeMatches =
+          RegExp(r'"mealType":\s*"([^"]+)"', multiLine: true)
+              .allMatches(malformedJson);
+      final typeMatches = RegExp(r'"type":\s*"([^"]+)"', multiLine: true)
+          .allMatches(malformedJson);
+      final caloriesMatches =
+          RegExp(r'"calories":\s*"?(\d+)"?', multiLine: true)
+              .allMatches(malformedJson);
+
+      // Extract ingredients using regex
+      final ingredientsMatches =
+          RegExp(r'"ingredients":\s*\{([^}]+)\}', multiLine: true)
+              .allMatches(malformedJson);
+
+      // Build meal plan from extracted data
+      final List<Map<String, dynamic>> mealPlan = [];
+      final int maxMeals = math.min(
+          [mealPlanMatches.length, mealTypeMatches.length, typeMatches.length]
+              .reduce(math.min),
+          10 // Cap at 10 meals
+          );
+
+      for (int i = 0; i < maxMeals; i++) {
+        final meal = <String, dynamic>{};
+
+        if (i < mealPlanMatches.length) {
+          meal['title'] =
+              mealPlanMatches.elementAt(i).group(1) ?? 'Untitled Meal $i';
+        }
+
+        if (i < mealTypeMatches.length) {
+          meal['mealType'] =
+              mealTypeMatches.elementAt(i).group(1) ?? 'breakfast';
+        }
+
+        if (i < typeMatches.length) {
+          meal['type'] = typeMatches.elementAt(i).group(1) ?? 'protein';
+        }
+
+        if (i < caloriesMatches.length) {
+          meal['calories'] =
+              int.tryParse(caloriesMatches.elementAt(i).group(1) ?? '300') ??
+                  300;
+        } else {
+          meal['calories'] = 300; // Default calories
+        }
+
+        // Extract ingredients for this meal if available
+        if (i < ingredientsMatches.length) {
+          final ingredientsText =
+              ingredientsMatches.elementAt(i).group(1) ?? '';
+          meal['ingredients'] =
+              _extractIngredientsFromMalformedJson(ingredientsText);
+        } else {
+          meal['ingredients'] = {
+            'ingredient': '1 serving'
+          }; // Default ingredients
+        }
+
+        // Add nutritional info
+        meal['nutritionalInfo'] = {
+          'calories': meal['calories'],
+          'protein': 20,
+          'carbs': 25,
+          'fat': 10,
+        };
+
+        mealPlan.add(meal);
+      }
+
+      // Extract distribution if available
+      final Map<String, dynamic> distribution = {};
+      final breakfastMatches = RegExp(r'"breakfast":\s*(\d+)', multiLine: true)
+          .allMatches(malformedJson);
+      final lunchMatches = RegExp(r'"lunch":\s*(\d+)', multiLine: true)
+          .allMatches(malformedJson);
+      final dinnerMatches = RegExp(r'"dinner":\s*(\d+)', multiLine: true)
+          .allMatches(malformedJson);
+      final snackMatches = RegExp(r'"snack":\s*(\d+)', multiLine: true)
+          .allMatches(malformedJson);
+
+      if (breakfastMatches.isNotEmpty)
+        distribution['breakfast'] =
+            int.tryParse(breakfastMatches.first.group(1) ?? '2') ?? 2;
+      if (lunchMatches.isNotEmpty)
+        distribution['lunch'] =
+            int.tryParse(lunchMatches.first.group(1) ?? '3') ?? 3;
+      if (dinnerMatches.isNotEmpty)
+        distribution['dinner'] =
+            int.tryParse(dinnerMatches.first.group(1) ?? '3') ?? 3;
+      if (snackMatches.isNotEmpty)
+        distribution['snack'] =
+            int.tryParse(snackMatches.first.group(1) ?? '2') ?? 2;
+
+      // If no distribution found, create default based on meal count
+      if (distribution.isEmpty) {
+        distribution['breakfast'] = 2;
+        distribution['lunch'] = 3;
+        distribution['dinner'] = 3;
+        distribution['snack'] = 2;
+      }
+
+      extractedData['mealPlan'] = mealPlan;
+      extractedData['distribution'] = distribution;
+
+      debugPrint(
+          'Successfully extracted ${mealPlan.length} meals from malformed JSON');
+    } catch (e) {
+      debugPrint('Error extracting partial data: $e');
+    }
+
+    return extractedData;
+  }
+
+  /// Extract ingredients from text using regex
+  Map<String, dynamic> _extractIngredientsFromMalformedJson(
+      String ingredientsText) {
+    final Map<String, dynamic> ingredients = {};
+
+    try {
+      // Look for patterns like "ingredient": "amount" or "ingredient": amount
+      final ingredientMatches =
+          RegExp(r'"([^"]+)":\s*"?([^",}]+)"?', multiLine: true)
+              .allMatches(ingredientsText);
+
+      for (final match in ingredientMatches) {
+        final ingredient = match.group(1)?.trim() ?? '';
+        final amount = match.group(2)?.trim() ?? '1 serving';
+
+        if (ingredient.isNotEmpty) {
+          ingredients[ingredient] = amount;
+        }
+      }
+
+      // If no structured ingredients found, try to extract individual ingredients
+      if (ingredients.isEmpty) {
+        final individualIngredients =
+            RegExp(r'"([^"]+)"', multiLine: true).allMatches(ingredientsText);
+        for (final match in individualIngredients) {
+          final ingredient = match.group(1)?.trim() ?? '';
+          if (ingredient.isNotEmpty && !ingredient.contains(':')) {
+            ingredients[ingredient] = '1 serving';
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting ingredients: $e');
+      ingredients['ingredient'] = '1 serving'; // Fallback
+    }
+
+    return ingredients;
   }
 
   // Normalize meal plan data similar to FoodAnalysis normalization
@@ -3158,8 +3399,8 @@ USER CONTEXT:
     }
   }
 
-  /// Generate meal titles and types based on user context and requirements
-  Future<Map<String, dynamic>> generateMealTitles(
+  /// Generate meal titles, types, and basic ingredients based on user context and requirements
+  Future<Map<String, dynamic>> generateMealTitlesAndIngredients(
       String prompt, String contextInformation) async {
     // Initialize model if not already done
     if (_activeModel == null) {
@@ -3173,16 +3414,23 @@ USER CONTEXT:
     final aiContext = await _buildAIContext();
     final userContext = await _getUserContext();
 
-    try {
-      final response = await _makeApiCallWithRetry(
-        endpoint: '${_activeModel}:generateContent',
-        operation: 'generate meal titles',
-        body: {
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text": '''
+    // Try Gemini with retry logic
+    const maxRetries = 3;
+    String lastResponseText = ''; // Store last response for partial extraction
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        debugPrint('Attempting Gemini API call (attempt $attempt/$maxRetries)');
+
+        final response = await _makeApiCallWithRetry(
+          endpoint: '${_activeModel}:generateContent',
+          operation: 'generate meal titles and ingredients',
+          body: {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": '''
 You are a professional nutritionist and meal planner.
 
 $aiContext
@@ -3193,50 +3441,17 @@ $contextInformation
 
 $userContext
 
-Based on the user's request and context, generate a meal plan with titles and meal types that would be appropriate and varied. 
+Based on the user's request and context, generate a meal plan with titles, meal types, and basic ingredients that would be appropriate and varied. 
 
-IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use code blocks (```json), do NOT add any text before or after the JSON. Start directly with { and end with }.
+IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use code blocks (```json), do NOT add any text before or after the JSON. Do NOT include newlines, carriage returns, or control characters within JSON strings. Start directly with { and end with }.
 {
   "mealPlan": [
     {
-      "title": "Greek Yogurt with Berries and Nuts",
-      "mealType": "breakfast"
-    },
-    {
-      "title": "Avocado Toast with Eggs",
-      "mealType": "breakfast"
-    },
-    {
-      "title": "Grilled Chicken with Roasted Vegetables",
-      "mealType": "lunch"
-    },
-    {
-      "title": "Quinoa Buddha Bowl",
-      "mealType": "lunch"
-    },
-    {
-      "title": "Mediterranean Salad with Tuna",
-      "mealType": "lunch"
-    },
-    {
-      "title": "Salmon with Steamed Broccoli",
-      "mealType": "dinner"
-    },
-    {
-      "title": "Vegetarian Pasta Primavera",
-      "mealType": "dinner"
-    },
-    {
-      "title": "Beef Stir Fry with Brown Rice",
-      "mealType": "dinner"
-    },
-    {
-      "title": "Apple with Almond Butter",
-      "mealType": "snack"
-    },
-    {
-      "title": "Hummus with Carrot Sticks",
-      "mealType": "snack"
+      "title": "Creative meal name based on user request",
+      "mealType": "breakfast|lunch|dinner|snack",
+      "type": "protein|grain|vegetable|fruit",
+      "ingredients": {"ingredient1": "amount with unit", "ingredient2": "amount with unit"}
+      "calories": number,
     }
   ],
   "distribution": {
@@ -3254,7 +3469,11 @@ CRITICAL REQUIREMENTS:
   * 3 lunch meals (mealType: "lunch")
   * 3 dinner meals (mealType: "dinner") 
   * 2 snack meals (mealType: "snack")
+- Each meal MUST have a valid nutritionalInfo map with valid calorie, protein, carbs, and fat values
 - Each meal MUST have a valid mealType field set to one of: "breakfast", "lunch", "dinner", "snack"
+- Each meal MUST have a valid type field set to one of: "protein", "grain", "vegetable", "fruit"
+- Each meal MUST have a ingredients map with 3-5 key ingredients and values with units
+- Focus on common, accessible ingredients that users can easily find
 - Make titles descriptive but concise
 - Ensure variety in ingredients and cooking methods
 - Consider dietary preferences and restrictions
@@ -3262,99 +3481,158 @@ CRITICAL REQUIREMENTS:
 - For category-based requests, ensure meals fit the categories
 - Make titles appetizing and clear about what the meal contains
 '''
-                }
-              ]
+                  }
+                ]
+              }
+            ],
+            "generationConfig": {
+              "temperature": 0.7,
+              "topK": 40,
+              "topP": 0.95,
+              "maxOutputTokens": 1024,
+            },
+          },
+        );
+
+        if (response['candidates'] == null || response['candidates'].isEmpty) {
+          throw Exception('No response from AI model');
+        }
+
+        final content = response['candidates'][0]['content'];
+        if (content == null ||
+            content['parts'] == null ||
+            content['parts'].isEmpty) {
+          throw Exception('Invalid response structure from AI model');
+        }
+
+        final text = content['parts'][0]['text'];
+        if (text == null || text.isEmpty) {
+          throw Exception('Empty response from AI model');
+        }
+
+        // Store the text for potential partial data extraction
+        lastResponseText = text;
+
+        // Parse the JSON response - handle both raw JSON and markdown-wrapped JSON
+        String jsonText = text.trim();
+
+        // Remove markdown code blocks if present
+        if (jsonText.startsWith('```json')) {
+          jsonText = jsonText.substring(7); // Remove ```json
+        }
+        if (jsonText.startsWith('```')) {
+          jsonText = jsonText.substring(3); // Remove ```
+        }
+        if (jsonText.endsWith('```')) {
+          jsonText = jsonText.substring(0, jsonText.length - 3); // Remove ```
+        }
+
+        jsonText = jsonText.trim();
+
+        // Use existing JSON cleaning methods from GeminiService
+        Map<String, dynamic> jsonResponse;
+        try {
+          jsonResponse = _extractJsonObject(text);
+        } catch (parseError) {
+          debugPrint(
+              'JSON parsing failed after using existing cleaning methods: $parseError');
+          debugPrint(
+              'Original text: ${text.substring(0, text.length > 200 ? 200 : text.length)}...');
+          throw Exception('Invalid JSON response from AI: $parseError');
+        }
+
+        // Debug logging to see the AI response structure
+        debugPrint('AI Response keys: ${jsonResponse.keys.toList()}');
+        debugPrint('AI Response: $jsonResponse');
+
+        final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
+
+        // Debug logging to see meal plan structure
+        if (mealPlan.isNotEmpty) {
+          debugPrint('First meal keys: ${mealPlan[0].keys.toList()}');
+          debugPrint('First meal: ${mealPlan[0]}');
+        }
+
+        final mealTitles =
+            mealPlan.map((meal) => meal['title'] as String).toList();
+
+        // Return both meal titles and the full meal plan data
+        return {
+          'mealTitles': mealTitles,
+          'mealPlan': mealPlan,
+          'distribution':
+              jsonResponse['distribution'] as Map<String, dynamic>? ??
+                  {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
+        };
+      } catch (e) {
+        debugPrint('Gemini attempt $attempt failed: $e');
+
+        // If this is the last attempt, try OpenAI as fallback
+        if (attempt == maxRetries) {
+          try {
+            debugPrint('All Gemini attempts failed. Trying OpenAI fallback...');
+            final openaiResult =
+                await _tryOpenAIFallback(prompt, contextInformation);
+            if (openaiResult['mealPlan'] != null &&
+                openaiResult['mealPlan'].isNotEmpty) {
+              debugPrint('OpenAI fallback successful');
+              return openaiResult;
             }
-          ],
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 1024,
-          },
-        },
-      );
+          } catch (openaiError) {
+            debugPrint('OpenAI fallback also failed: $openaiError');
+          }
 
-      if (response['candidates'] == null || response['candidates'].isEmpty) {
-        throw Exception('No response from AI model');
+          // If both Gemini and OpenAI fail, try to extract partial data from the last failed response
+          debugPrint(
+              'All AI attempts failed. Trying to extract partial data from last response...');
+          try {
+            final partialData =
+                _extractPartialDataFromMalformedJson(lastResponseText);
+            if (partialData.isNotEmpty && partialData['mealPlan'] != null) {
+              final mealPlan = partialData['mealPlan'] as List<dynamic>;
+              final mealTitles =
+                  mealPlan.map((meal) => meal['title'] as String).toList();
+
+              debugPrint(
+                  'Successfully extracted partial data: ${mealTitles.length} meals');
+              return {
+                'mealTitles': mealTitles,
+                'mealPlan': mealPlan,
+                'distribution': partialData['distribution'] ??
+                    {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2},
+                'source': 'partial_extraction',
+                'message':
+                    'Extracted partial meal data from malformed AI response. Some details may be incomplete.'
+              };
+            }
+          } catch (extractError) {
+            debugPrint('Partial data extraction also failed: $extractError');
+          }
+
+          // If all else fails, return empty results
+          return {
+            'mealTitles': [],
+            'mealPlan': [],
+            'distribution': {},
+            'source': 'failed',
+            'message': 'AI service temporarily unavailable. Please try again.'
+          };
+        }
+
+        // Wait before retrying (exponential backoff)
+        final delay = Duration(seconds: math.pow(2, attempt - 1).toInt());
+        await Future.delayed(delay);
       }
-
-      final content = response['candidates'][0]['content'];
-      if (content == null ||
-          content['parts'] == null ||
-          content['parts'].isEmpty) {
-        throw Exception('Invalid response structure from AI model');
-      }
-
-      final text = content['parts'][0]['text'];
-      if (text == null || text.isEmpty) {
-        throw Exception('Empty response from AI model');
-      }
-
-      // Parse the JSON response - handle both raw JSON and markdown-wrapped JSON
-      String jsonText = text.trim();
-
-      // Remove markdown code blocks if present
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.substring(7); // Remove ```json
-      }
-      if (jsonText.startsWith('```')) {
-        jsonText = jsonText.substring(3); // Remove ```
-      }
-      if (jsonText.endsWith('```')) {
-        jsonText = jsonText.substring(0, jsonText.length - 3); // Remove ```
-      }
-
-      jsonText = jsonText.trim();
-
-      final jsonResponse = json.decode(jsonText) as Map<String, dynamic>;
-      final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
-      final mealTitles =
-          mealPlan.map((meal) => meal['title'] as String).toList();
-
-      // Return both meal titles and the full meal plan data
-      return {
-        'mealTitles': mealTitles,
-        'mealPlan': mealPlan,
-        'distribution': jsonResponse['distribution'] as Map<String, dynamic>? ??
-            {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
-      };
-    } catch (e) {
-      // Return fallback data with 10 meals
-      return {
-        'mealTitles': [
-          'Greek Yogurt with Berries and Nuts',
-          'Avocado Toast with Eggs',
-          'Grilled Chicken with Roasted Vegetables',
-          'Quinoa Buddha Bowl',
-          'Mediterranean Salad with Tuna',
-          'Salmon with Steamed Broccoli',
-          'Vegetarian Pasta Primavera',
-          'Beef Stir Fry with Brown Rice',
-          'Apple with Almond Butter',
-          'Hummus with Carrot Sticks',
-        ],
-        'mealPlan': [
-          {
-            'title': 'Greek Yogurt with Berries and Nuts',
-            'mealType': 'breakfast'
-          },
-          {'title': 'Avocado Toast with Eggs', 'mealType': 'breakfast'},
-          {
-            'title': 'Grilled Chicken with Roasted Vegetables',
-            'mealType': 'lunch'
-          },
-          {'title': 'Quinoa Buddha Bowl', 'mealType': 'lunch'},
-          {'title': 'Mediterranean Salad with Tuna', 'mealType': 'lunch'},
-          {'title': 'Salmon with Steamed Broccoli', 'mealType': 'dinner'},
-          {'title': 'Vegetarian Pasta Primavera', 'mealType': 'dinner'},
-          {'title': 'Beef Stir Fry with Brown Rice', 'mealType': 'dinner'},
-          {'title': 'Apple with Almond Butter', 'mealType': 'snack'},
-          {'title': 'Hummus with Carrot Sticks', 'mealType': 'snack'},
-        ],
-        'distribution': {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2}
-      };
     }
+
+    // This should never be reached, but just in case
+    return {
+      'mealTitles': [],
+      'mealPlan': [],
+      'distribution': {},
+      'source': 'failed',
+      'message': 'AI service temporarily unavailable. Please try again.'
+    };
   }
 
   /// Check which meal titles already exist in the database (fuzzy matching)
@@ -3457,6 +3735,7 @@ CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code block
       "title": "Dish name",
       "type": "protein|grain|vegetable",
       "mealType": "breakfast | lunch | dinner | snack",
+      "calories": number,
       "cookingTime": "time in minutes",
       "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
       "ingredients": {
@@ -3522,22 +3801,8 @@ Important guidelines:
         throw Exception('Empty response from AI model');
       }
 
-      // Parse the JSON response - first sanitize in case AI returns markdown code blocks
-      String cleanedText = text.trim();
-      if (cleanedText.startsWith('```json')) {
-        cleanedText = cleanedText.replaceFirst('```json', '').trim();
-      }
-      if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replaceFirst('```', '').trim();
-      }
-      if (cleanedText.endsWith('```')) {
-        cleanedText =
-            cleanedText.substring(0, cleanedText.lastIndexOf('```')).trim();
-      }
-
-      debugPrint(
-          'Cleaned AI response text: ${cleanedText.substring(0, math.min(200, cleanedText.length))}...');
-      final jsonResponse = json.decode(cleanedText) as Map<String, dynamic>;
+      // Use existing JSON cleaning methods from GeminiService
+      final jsonResponse = _extractJsonObject(text);
 
       // Convert AI response to proper meal format (same as generateMealPlan)
       final meals = jsonResponse['meals'] as List<dynamic>? ?? [];
@@ -3564,14 +3829,16 @@ Important guidelines:
     }
   }
 
-  /// Generate meals using the new intelligent approach: titles first, then check existing, then generate missing
+  /// Generate meals using the new intelligent approach: titles first, then check existing,
+  /// then save basic data for Firebase Functions processing
   Future<Map<String, dynamic>> generateMealsIntelligently(
-      String prompt, String contextInformation) async {
+      String prompt, String contextInformation, String cuisine) async {
     try {
-      // Step 1: Generate meal titles and types
-      final mealData = await generateMealTitles(prompt, contextInformation);
+      // Step 1: Generate meal titles, types, and basic ingredients
+      final mealData =
+          await generateMealTitlesAndIngredients(prompt, contextInformation);
       final mealTitles = mealData['mealTitles'] as List<String>;
-      print('mealTitles: ${mealTitles}');
+      debugPrint('Generated meal titles: ${mealTitles}');
       final mealPlan = mealData['mealPlan'] as List<dynamic>;
       final distribution = mealData['distribution'] as Map<String, dynamic>;
 
@@ -3581,50 +3848,71 @@ Important guidelines:
 
       // Step 2: Check which titles already exist in database
       final existingMeals = await checkExistingMealsByTitles(mealTitles);
-      debugPrint('existingMeals: ${existingMeals.length}');
-      // Step 3: Identify missing titles with their meal types
+      debugPrint('Found ${existingMeals.length} existing meals');
+
+      // Step 3: Identify missing meals with their meal types and basic ingredients
       final missingMeals = <Map<String, dynamic>>[];
       for (final meal in mealPlan) {
         final title = meal['title'] as String;
         final mealType = meal['mealType'] as String;
+        final calories = _parseCalories(meal['calories']);
+        final type = meal['type'] as String;
+
+        // Debug logging to see what's in the meal data
+        debugPrint('Processing meal: $title');
+        debugPrint('Meal data keys: ${meal.keys.toList()}');
+        debugPrint('Meal data: $meal');
+
+        // Check for ingredients in multiple possible field names
+        Map<String, dynamic> basicIngredients = {};
+        if (meal['ingredients'] != null) {
+          basicIngredients = meal['ingredients'] as Map<String, dynamic>;
+        } else if (meal['basicIngredients'] != null) {
+          // Handle case where AI returns basicIngredients instead of ingredients
+          final basicList = meal['basicIngredients'] as List<dynamic>?;
+          if (basicList != null) {
+            // Convert list to map with default amounts
+            for (final ingredient in basicList) {
+              basicIngredients[ingredient.toString()] = '1 serving';
+            }
+          }
+        }
+
+        debugPrint('Extracted ingredients: $basicIngredients');
+
         if (!existingMeals.containsKey(title)) {
           missingMeals.add({
             'title': title,
             'mealType': mealType,
+            'calories': calories,
+            'type': type,
+            'ingredients': basicIngredients,
+            'nutritionalInfo': meal['nutritionalInfo'] ?? {},
           });
         }
       }
-      final missingTitles =
-          missingMeals.map((m) => m['title'] as String).toList();
-      debugPrint('missingMeals: ${missingMeals.length}');
-      // Step 4: Generate only the missing meals
-      List<Map<String, dynamic>> newMeals = [];
-      if (missingTitles.isNotEmpty) {
-        // Use generateMealsWithAI instead of generateSpecificMeals
-        // Pass the missing titles and their meal types in the context information
-        final enhancedContextInformation = '''
-$contextInformation
 
-IMPORTANT: Generate meals for these specific titles with their meal types:
-${missingMeals.map((meal) => '- ${meal['title']} (mealType: ${meal['mealType']})').join('\n')}
+      debugPrint('Need to generate ${missingMeals.length} new meals');
+      debugPrint('Missing meals: $missingMeals');
 
-Use the EXACT meal titles and meal types provided above. Do not generate any other meals.
-''';
-
-        final mealPlanResult = await generateMealsWithAI(
-          'Generate meals for the specified titles',
-          enhancedContextInformation,
-        );
-        final meals = mealPlanResult['meals'] as List<dynamic>? ?? [];
-        newMeals = meals.cast<Map<String, dynamic>>();
+      // Step 4: Save basic meals to Firestore with 'pending' status for Firebase Functions processing
+      Map<String, dynamic> saveResult = {};
+      if (missingMeals.isNotEmpty) {
+        saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine);
+        debugPrint(
+            'Saved ${missingMeals.length} basic meals to Firestore with pending status');
       }
 
-      // Step 5: Combine existing and new meals
+      // Step 5: Combine existing and new meals for immediate return
       final allMeals = <Map<String, dynamic>>[];
+
       // Add existing meals with their planned meal types
       for (final meal in mealPlan) {
         final title = meal['title'] as String;
         final mealType = meal['mealType'] as String;
+        final calories = _parseCalories(meal['calories']);
+        final type = meal['type'] as String;
+
         if (existingMeals.containsKey(title)) {
           final existingMeal = existingMeals[title]!;
           allMeals.add({
@@ -3633,59 +3921,116 @@ Use the EXACT meal titles and meal types provided above. Do not generate any oth
             'categories': existingMeal.categories,
             'ingredients': existingMeal.ingredients,
             'calories': existingMeal.calories,
+            'nutritionalInfo': existingMeal.nutritionalInfo,
             'instructions': existingMeal.instructions,
-            'mealType': mealType, // Include the planned meal type
+            'mealType': mealType,
             'source': 'existing_database',
+            'status': 'completed',
           });
+        } else {
+          // Add new meals with basic data (will be processed by Firebase Functions)
+          final mealIds = saveResult['mealIds'] as Map<String, String>;
+          final mealId = mealIds[title];
+
+          if (mealId != null) {
+            allMeals.add({
+              'id': mealId,
+              'title': title,
+              'categories': [type],
+              'ingredients': meal['ingredients'] ?? {},
+              'calories': calories,
+              'nutritionalInfo': {},
+              'instructions': [],
+              'mealType': mealType,
+              'source': 'ai_generated',
+              'status': 'pending', // Firebase Functions will process this
+            });
+          }
         }
       }
 
-      // Add new meals
-      allMeals.addAll(newMeals);
-      // Calculate nutritional summary
+      // Calculate basic nutritional summary (estimates for new meals)
       int totalCalories = 0;
       int totalProtein = 0;
       int totalCarbs = 0;
       int totalFat = 0;
 
       for (final meal in allMeals) {
-        // Handle existing meals (they have 'calories' field)
         if (meal['source'] == 'existing_database') {
-          totalCalories += (meal['calories'] ?? 0) as int;
-          // For existing meals, we might not have detailed macros, so estimate
+          // Use actual data for existing meals
+          totalCalories += _parseCalories(meal['calories']);
           totalProtein += 20; // Estimate
           totalCarbs += 25; // Estimate
           totalFat += 10; // Estimate
         } else {
-          // Handle new AI-generated meals (they have 'nutritionalInfo' field)
-          final nutritionalInfo =
-              meal['nutritionalInfo'] as Map<String, dynamic>?;
-          if (nutritionalInfo != null) {
-            totalCalories += (nutritionalInfo['calories'] ?? 0) as int;
-            totalProtein += (nutritionalInfo['protein'] ?? 0) as int;
-            totalCarbs += (nutritionalInfo['carbs'] ?? 0) as int;
-            totalFat += (nutritionalInfo['fat'] ?? 0) as int;
-          }
+          // Estimate for new meals (will be updated when Firebase Functions processing completes)
+          totalCalories += 300; // Average meal estimate
+          totalProtein += 25; // Average protein estimate
+          totalCarbs += 30; // Average carbs estimate
+          totalFat += 12; // Average fat estimate
         }
       }
+
+      // Check if meal generation failed (empty mealPlan indicates failure)
+      if (allMeals.isEmpty) {
+        return {
+          'meals': [],
+          'source': 'failed',
+          'message': 'Failed to generate meals. Please try again.',
+          'error': true
+        };
+      }
+
       return {
         'meals': allMeals,
         'source': 'mixed',
         'count': allMeals.length,
         'message':
-            'Generated ${newMeals.length} new meals and found ${existingMeals.length} existing meals',
+            'Generated ${missingMeals.length} new meals and found ${existingMeals.length} existing meals. Details are being populated by Firebase Functions.',
         'existingCount': existingMeals.length,
-        'newCount': newMeals.length,
+        'newCount': missingMeals.length,
+        'pendingCount': missingMeals.length,
         'nutritionalSummary': {
           'totalCalories': totalCalories,
           'totalProtein': totalProtein,
           'totalCarbs': totalCarbs,
           'totalFat': totalFat,
         },
+        'firebaseProcessing': {
+          'active': missingMeals.isNotEmpty,
+          'total': missingMeals.length,
+          'pending': missingMeals.length,
+          'completed': 0,
+          'failed': 0,
+        },
       };
     } catch (e) {
-      // Fallback to original method
-      return await generateMealPlan(prompt, contextInformation);
+      debugPrint('Error in generateMealsIntelligently: $e');
+      // Return error response instead of falling back to generateMealPlan
+      // which has a different data structure
+      return {
+        'meals': [],
+        'source': 'failed',
+        'count': 0,
+        'message': 'Failed to generate meals. Please try again.',
+        'error': true,
+        'existingCount': 0,
+        'newCount': 0,
+        'pendingCount': 0,
+        'nutritionalSummary': {
+          'totalCalories': 0,
+          'totalProtein': 0,
+          'totalCarbs': 0,
+          'totalFat': 0,
+        },
+        'firebaseProcessing': {
+          'active': false,
+          'total': 0,
+          'pending': 0,
+          'completed': 0,
+          'failed': 0,
+        },
+      };
     }
   }
 
@@ -3781,6 +4126,7 @@ CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code block
       "title": "Dish name",
       "type": "protein|grain|vegetable",
       "mealType": "breakfast | lunch | dinner | snack",
+      "calories": number,
       "cookingTime": "time in minutes",
       "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
       "ingredients": {
@@ -4521,23 +4867,11 @@ Generate completely new and different meal ideas using the same ingredients.
                                   });
                                   if (context.mounted) {
                                     // Show error in current dialog instead of closing it
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Failed to generate AI meals. Please try again.',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        backgroundColor: Colors.red,
-                                        duration: const Duration(seconds: 3),
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                      ),
+                                    showTastySnackbar(
+                                      'Error',
+                                      'Failed to generate AI meals. Please try again.',
+                                      context,
+                                      backgroundColor: kRed,
                                     );
                                   }
                                 }
@@ -5341,6 +5675,143 @@ Important guidelines:
     }
 
     return ingredients;
+  }
+
+  /// Save basic meals to Firestore with minimal data for Firebase Functions processing
+  Future<Map<String, dynamic>> saveBasicMealsToFirestore(
+      List<Map<String, dynamic>> newMeals, String cuisine) async {
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) {
+        throw Exception('User ID not available');
+      }
+
+      final mealIds = <String, String>{};
+      final batch = firestore.batch();
+
+      for (final meal in newMeals) {
+        final mealRef = firestore.collection('meals').doc();
+        final mealId = mealRef.id;
+
+        // Create basic meal document with status 'pending' for Firebase Functions processing
+        final basicMealData = {
+          'title': meal['title'],
+          'mealType': meal['mealType'],
+          'calories': _parseCalories(meal['calories']),
+          'categories': [cuisine],
+          'nutritionalInfo': {},
+          'ingredients': meal['ingredients'] ?? {},
+          'status': 'pending', // Firebase Functions will process this
+          'createdAt': FieldValue.serverTimestamp(),
+          'type': meal['type'],
+          'userId': tastyId,
+          'source': 'ai_generated',
+          'version': 'basic',
+          'processingAttempts': 0, // Track retry attempts
+          'lastProcessingAttempt': null, // Timestamp of last attempt
+          'processingPriority':
+              DateTime.now().millisecondsSinceEpoch, // FIFO processing
+          'needsProcessing': true, // Flag for Firebase Functions
+        };
+
+        // Debug logging to check ingredients and calories
+        debugPrint('Saving meal: ${meal['title']}');
+        debugPrint('Calories: ${meal['calories']}');
+        debugPrint('Ingredients: ${meal['ingredients']}');
+        debugPrint('Basic meal data: $basicMealData');
+
+        batch.set(mealRef, basicMealData);
+        mealIds[meal['title']] = mealId;
+      }
+
+      // Commit all meals in a single batch
+      await batch.commit();
+      debugPrint(
+          'Saved ${newMeals.length} basic meals to Firestore with pending status');
+
+      // Create a map of meal titles to their ingredients
+      final mealIngredientsMap = <String, Map<String, dynamic>>{};
+      for (final meal in newMeals) {
+        final title = meal['title'] as String;
+        mealIngredientsMap[title] = meal['ingredients'] as Map<String, dynamic>;
+      }
+
+      return {
+        'mealIds': mealIds,
+        'ingredients': mealIngredientsMap,
+      };
+    } catch (e) {
+      debugPrint('Error saving basic meals to Firestore: $e');
+      rethrow;
+    }
+  }
+
+  /// Get meal processing status for UI updates (Firebase Functions approach)
+  Stream<Map<String, dynamic>> getMealProcessingStatus(List<String> mealIds) {
+    if (mealIds.isEmpty) {
+      return Stream.value({'active': false, 'completed': 0, 'total': 0});
+    }
+
+    return firestore
+        .collection('meals')
+        .where(FieldPath.documentId, whereIn: mealIds)
+        .snapshots()
+        .map((snapshot) {
+      int completed = 0;
+      int failed = 0;
+      int pending = 0;
+
+      for (final doc in snapshot.docs) {
+        final status = doc.data()['status'] as String? ?? 'pending';
+        switch (status) {
+          case 'completed':
+            completed++;
+            break;
+          case 'failed':
+            failed++;
+            break;
+          case 'pending':
+          default:
+            pending++;
+            break;
+        }
+      }
+
+      final total = mealIds.length;
+      final isActive = pending > 0;
+
+      return {
+        'active': isActive,
+        'completed': completed,
+        'failed': failed,
+        'pending': pending,
+        'total': total,
+        'progress': total > 0 ? (completed / total) : 0.0,
+      };
+    });
+  }
+
+  /// Check if all meals in a list are completed (Firebase Functions approach)
+  Future<bool> areAllMealsCompleted(List<String> mealIds) async {
+    if (mealIds.isEmpty) return true;
+
+    try {
+      final snapshot = await firestore
+          .collection('meals')
+          .where(FieldPath.documentId, whereIn: mealIds)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        final status = doc.data()['status'] as String? ?? 'pending';
+        if (status != 'completed') {
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error checking meal completion status: $e');
+      return false;
+    }
   }
 }
 

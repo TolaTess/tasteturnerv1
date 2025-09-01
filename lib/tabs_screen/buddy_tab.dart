@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -11,6 +14,7 @@ import '../widgets/info_icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../helper/helper_functions.dart';
 import '../widgets/category_selector.dart';
+import '../widgets/meal_processing_progress_bar.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -31,6 +35,12 @@ class _BuddyTabState extends State<BuddyTab> {
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> _familyMemberCategories = [];
 
+  // Meal processing state
+  List<String> _processingMealIds = [];
+  bool _showProgressBar = false;
+  Timer? _progressBarTimer;
+  Timer? _mealStatusTimer;
+
   // Toggle meal type selection
   void toggleMealTypeSelection(String mealType) {
     final currentSelection = Set<String>.from(selectedMealTypesNotifier.value);
@@ -49,8 +59,17 @@ class _BuddyTabState extends State<BuddyTab> {
 
     return meals.where((mealWithType) {
       final meal = mealWithType.meal;
-      final category = meal.category?.toLowerCase() ?? '';
-      return selectedMealTypes.contains(category);
+
+      // Check if any selected meal type matches either category OR type
+      bool matches = selectedMealTypes.any((selectedType) {
+        final normalizedSelectedType = selectedType.toLowerCase();
+        final mealCategory = meal.category?.toLowerCase() ?? '';
+        final mealType = meal.type?.toLowerCase() ?? '';
+
+        return mealCategory == normalizedSelectedType ||
+            mealType == normalizedSelectedType;
+      });
+      return matches;
     }).toList();
   }
 
@@ -82,6 +101,8 @@ class _BuddyTabState extends State<BuddyTab> {
   @override
   void dispose() {
     selectedMealTypesNotifier.dispose();
+    _progressBarTimer?.cancel();
+    _mealStatusTimer?.cancel();
     super.dispose();
   }
 
@@ -166,11 +187,131 @@ class _BuddyTabState extends State<BuddyTab> {
         .get();
   }
 
-  void _navigateToChooseDietWithUser(BuildContext context) {
+  /// Update meal processing status for Firebase Functions approach
+  void _updateMealProcessingStatus(List<String> mealIds,
+      {bool showForDuration = false}) {
+    setState(() {
+      _processingMealIds = mealIds;
+      _showProgressBar = mealIds.isNotEmpty;
+    });
+
+    // Auto-hide progress bar after 10 seconds if requested
+    if (showForDuration && mealIds.isNotEmpty) {
+      _progressBarTimer?.cancel();
+      _progressBarTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted) {
+          setState(() {
+            _showProgressBar = false;
+          });
+        }
+      });
+    }
+  }
+
+  /// Start monitoring meal status from a meal plan generation
+  void startMealProcessingMonitoring(List<String> mealIds) {
+    debugPrint(
+        '🔄 Starting meal processing monitoring for ${mealIds.length} meals');
+
+    // Show progress bar initially for 10 seconds
+    _updateMealProcessingStatus(mealIds, showForDuration: true);
+
+    // Start periodic status checking
+    _mealStatusTimer?.cancel();
+    _mealStatusTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _checkMealProcessingStatus(mealIds, timer);
+    });
+  }
+
+  /// Check meal processing status and update UI accordingly
+  void _checkMealProcessingStatus(List<String> mealIds, Timer timer) async {
+    try {
+      int pendingCount = 0;
+      int completedCount = 0;
+      int failedCount = 0;
+
+      for (final mealId in mealIds) {
+        final meal = await mealManager.getMealbyMealID(mealId);
+        if (meal != null) {
+          final status = meal.status?.toLowerCase() ?? 'pending';
+          switch (status) {
+            case 'pending':
+            case 'processing':
+              pendingCount++;
+              break;
+            case 'completed':
+              completedCount++;
+              break;
+            case 'failed':
+              failedCount++;
+              break;
+          }
+        } else {
+          pendingCount++; // Assume pending if meal not found
+        }
+      }
+
+      debugPrint(
+          '📊 Meal status: $completedCount completed, $pendingCount pending, $failedCount failed');
+
+      // Show progress bar if there are still pending meals
+      if (pendingCount > 0) {
+        if (!_showProgressBar) {
+          setState(() {
+            _showProgressBar = true;
+          });
+        }
+      } else {
+        // All meals are completed or failed
+        timer.cancel();
+
+        if (completedCount > 0) {
+          _onMealProcessingCompleted();
+        }
+
+        // Refresh the UI to show updated meals
+        _initializeBuddyData();
+      }
+    } catch (e) {
+      debugPrint('❌ Error checking meal status: $e');
+    }
+  }
+
+  /// Handle meal processing completion (Firebase Functions approach)
+  void _onMealProcessingCompleted() {
+    setState(() {
+      _showProgressBar = false;
+    });
+
+    // Show completion snackbar
+    Get.snackbar(
+      '🎉 Meal Plan Complete!',
+      'All meal details have been populated by Firebase Functions.',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: kAccent,
+      colorText: kWhite,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  /// Handle meal processing retry (Firebase Functions approach)
+  void _onMealProcessingRetry() {
+    // Firebase Functions automatically retry with exponential backoff
+    Get.snackbar(
+      '🔄 Firebase Functions Retry',
+      'Failed meals will be automatically retried with exponential backoff.',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.orange,
+      colorText: kWhite,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  Future<dynamic> _navigateToChooseDietWithUser(BuildContext context) async {
     final currentUser = userService.currentUser.value;
     if (currentUser == null) {
       navigateToChooseDiet(context);
-      return;
+      return null;
     }
 
     // Get the selected family member name
@@ -194,6 +335,7 @@ class _BuddyTabState extends State<BuddyTab> {
         familyMemberKcal: familyMemberKcal,
         familyMemberGoal: familyMemberGoal,
         familyMemberType: familyMemberType);
+    return null;
   }
 
   Future<List<Map<String, dynamic>>> _fetchMealsFromIds(
@@ -309,7 +451,7 @@ class _BuddyTabState extends State<BuddyTab> {
     return mostCommonCategory;
   }
 
-  Widget _buildDefaultView(BuildContext context) {
+  Widget _buildDefaultView(BuildContext context, bool mealEmpty) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final isPremium = userService.currentUser.value?.isPremium ?? false;
@@ -442,15 +584,24 @@ class _BuddyTabState extends State<BuddyTab> {
                     ),
                     child: Column(
                       children: [
-                        if (isPremium) ...[
+                        if (isPremium && !mealEmpty) ...[
                           _buildFeatureItem(context, Icons.restaurant_menu,
                               "Personalized Meal Plans"),
                           _buildFeatureItem(context, Icons.psychology,
                               "AI-Powered Recommendations"),
                           _buildFeatureItem(context, Icons.trending_up,
                               "Track Your Progress"),
+                        ] else if (mealEmpty) ...[
+                          Text(
+                            "No meal plans available \n\nTry generating a meal plan!",
+                            style: textTheme.displaySmall?.copyWith(
+                              color: isDarkMode ? kWhite : kDarkGrey,
+                              fontSize: getTextScale(5.5, context),
+                              fontWeight: FontWeight.w200,
+                            ),
+                          ),
                         ] else ...[
-                          if (isInFreeTrial) ...[
+                          if (isInFreeTrial && !mealEmpty) ...[
                             Text(
                               "Free Trial Active",
                               style: textTheme.titleMedium?.copyWith(
@@ -460,7 +611,7 @@ class _BuddyTabState extends State<BuddyTab> {
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
-                              "Enjoy premium features until ${DateFormat('MMM d, yyyy').format(freeTrialDate!)}",
+                              "Enjoy premium features until ${DateFormat('MMM d, yyyy').format(freeTrialDate)}",
                               textAlign: TextAlign.center,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: isDarkMode
@@ -522,7 +673,16 @@ class _BuddyTabState extends State<BuddyTab> {
                         borderRadius: BorderRadius.circular(15),
                         onTap: () async {
                           if (canUseAI()) {
-                            _navigateToChooseDietWithUser(context);
+                            final result =
+                                await _navigateToChooseDietWithUser(context);
+                            // If meal plan was generated, start monitoring
+                            if (result != null &&
+                                result is Map &&
+                                result['mealIds'] != null) {
+                              final mealIds =
+                                  List<String>.from(result['mealIds']);
+                              startMealProcessingMonitoring(mealIds);
+                            }
                           } else {
                             showPremiumRequiredDialog(context, isDarkMode);
                           }
@@ -674,7 +834,17 @@ class _BuddyTabState extends State<BuddyTab> {
               darkModeAccentColor: kDarkModeAccent,
             ),
           ],
-          // Main content
+
+          // Meal processing progress bar
+          if (_showProgressBar) ...[
+            SizedBox(height: getPercentageHeight(1, context)),
+            MealProcessingProgressBar(
+              mealIds: _processingMealIds,
+              onCompleted: _onMealProcessingCompleted,
+              onRetry: _onMealProcessingRetry,
+            ),
+          ],
+
           Expanded(
             child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
               future: _buddyDataFuture,
@@ -686,7 +856,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
                 final docs = snapshot.data?.docs ?? [];
                 if (docs.isEmpty) {
-                  return _buildDefaultView(context);
+                  return _buildDefaultView(context, false);
                 }
 
                 final mealPlan = docs.last.data();
@@ -694,7 +864,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 final currentUser = userService.currentUser.value;
 
                 if (mealPlan == null) {
-                  return _buildDefaultView(context);
+                  return _buildDefaultView(context, false);
                 }
 
                 final generations = (mealPlan['generations'] as List<dynamic>?)
@@ -703,7 +873,7 @@ class _BuddyTabState extends State<BuddyTab> {
                     [];
 
                 if (generations.isEmpty) {
-                  return _buildDefaultView(context);
+                  return _buildDefaultView(context, false);
                 }
 
                 // Filter generations based on family member name
@@ -728,7 +898,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 }
 
                 if (filteredGenerations.isEmpty) {
-                  return _buildDefaultView(context);
+                  return _buildDefaultView(context, false);
                 }
 
                 final selectedGeneration = filteredGenerations[
@@ -736,7 +906,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
                 // Check if nutritional summary exists, if not show default UI
                 if (selectedGeneration['nutritionalSummary'] == null) {
-                  return _buildDefaultView(context);
+                  return _buildDefaultView(context, false);
                 }
 
                 final diet =
@@ -765,13 +935,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
                     final meals = mealsSnapshot.data ?? [];
                     if (meals.isEmpty) {
-                      return noItemTastyWidget(
-                        'No meals available for this generation.',
-                        '',
-                        context,
-                        false,
-                        '',
-                      );
+                      return _buildDefaultView(context, true);
                     }
 
                     final groupedMeals = meals.first['groupedMeals']
@@ -849,7 +1013,17 @@ class _BuddyTabState extends State<BuddyTab> {
                                   // final canGenerate =
                                   //     await checkMealPlanGenerationLimit(context);
                                   if (canUseAI()) {
-                                    _navigateToChooseDietWithUser(context);
+                                    final result =
+                                        await _navigateToChooseDietWithUser(
+                                            context);
+                                    // If meal plan was generated, start monitoring
+                                    if (result != null &&
+                                        result is Map &&
+                                        result['mealIds'] != null) {
+                                      final mealIds =
+                                          List<String>.from(result['mealIds']);
+                                      startMealProcessingMonitoring(mealIds);
+                                    }
                                   } else {
                                     // showGenerationLimitDialog(context,
                                     //     isDarkMode: isDarkMode);
@@ -1032,8 +1206,9 @@ class _BuddyTabState extends State<BuddyTab> {
                                       context,
                                       'vegetable',
                                       isSelected: selectedMealTypes
-                                          .contains('vegetable') || selectedMealTypes
-                                          .contains('vegetables'),
+                                              .contains('vegetable') ||
+                                          selectedMealTypes
+                                              .contains('vegetables'),
                                     ),
                                   ),
                                   GestureDetector(
@@ -1235,14 +1410,18 @@ class _BuddyTabState extends State<BuddyTab> {
           itemBuilder: (context, index) {
             final mealWithType = meals[index];
             final meal = mealWithType.meal;
-
+            final mealCategory = (meal.category?.isNotEmpty == true)
+                ? meal.category!.toLowerCase()
+                : (meal.type?.isNotEmpty == true)
+                    ? meal.type!.toLowerCase()
+                    : '';
             return Container(
               margin: EdgeInsets.symmetric(
                 horizontal: getPercentageWidth(4, context),
                 vertical: getPercentageHeight(1, context),
               ),
               decoration: BoxDecoration(
-                color: getMealTypeColor(meal.category ?? 'default'),
+                color: getMealTypeColor(mealCategory),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(
@@ -1257,7 +1436,9 @@ class _BuddyTabState extends State<BuddyTab> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.asset(
-                      getMealTypeImage(meal.category ?? 'default'),
+                      getMealTypeImage(
+                        mealCategory,
+                      ),
                       fit: BoxFit.cover,
                     ),
                   ),

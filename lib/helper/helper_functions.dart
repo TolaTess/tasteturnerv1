@@ -362,7 +362,7 @@ bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {
 }
 
 Future<List<String>> saveMealsToFirestore(String userId,
-    Map<String, dynamic>? mealPlan, String selectedCuisine) async {
+    Map<String, dynamic>? mealPlan, String selectedCuisine, {bool isBasic = false}) async {
   if (mealPlan == null ||
       mealPlan['meals'] == null ||
       mealPlan['meals'] is! List) {

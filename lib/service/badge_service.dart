@@ -6,7 +6,6 @@ import '../constants.dart';
 import '../data_models/badge_system_model.dart';
 import '../helper/utils.dart';
 
-
 class BadgeService extends GetxController {
   static BadgeService instance = Get.find();
 
@@ -314,8 +313,32 @@ class BadgeService extends GetxController {
           .where((badge) => badge.criteria.type == actionType)
           .toList();
 
-      for (final badge in relevantBadges) {
-        await _evaluateBadgeProgress(userId, badge, actionData);
+      // Early return if no relevant badges
+      if (relevantBadges.isEmpty) return;
+
+      // For one-time badges (target = 1), check if any are already earned
+      final oneTimeBadges =
+          relevantBadges.where((badge) => badge.criteria.target == 1).toList();
+      if (oneTimeBadges.isNotEmpty) {
+        // Check database for already earned one-time badges
+        final earnedBadgeIds = await _getEarnedBadgeIds(
+            userId, oneTimeBadges.map((b) => b.id).toList());
+
+        // Filter out already earned one-time badges
+        final badgesToProcess = relevantBadges
+            .where((badge) =>
+                badge.criteria.target != 1 ||
+                !earnedBadgeIds.contains(badge.id))
+            .toList();
+
+        for (final badge in badgesToProcess) {
+          await _evaluateBadgeProgress(userId, badge, actionData);
+        }
+      } else {
+        // Process all badges if none are one-time
+        for (final badge in relevantBadges) {
+          await _evaluateBadgeProgress(userId, badge, actionData);
+        }
       }
     } catch (e) {
       debugPrint('Error checking badge progress: $e');
@@ -326,12 +349,34 @@ class BadgeService extends GetxController {
   Future<void> _evaluateBadgeProgress(
       String userId, Badge badge, Map<String, dynamic>? actionData) async {
     try {
-      // Get current progress
+      // CRITICAL: Check database state first to prevent duplicate awards
+      final existingBadgeDoc = await _firestore
+          .collection('user_badge_progress')
+          .doc(userId)
+          .collection('badges')
+          .doc(badge.id)
+          .get();
+
+      // If badge already exists and is earned, skip immediately
+      if (existingBadgeDoc.exists) {
+        final existingData = existingBadgeDoc.data()!;
+        if (existingData['isEarned'] == true) {
+          debugPrint(
+              'Badge ${badge.id} already earned for user $userId, skipping');
+          return;
+        }
+      }
+
+      // Get current progress from local cache
       UserBadgeProgress? currentProgress =
           userProgress.firstWhereOrNull((p) => p.badgeId == badge.id);
 
-      // If badge already earned, skip
-      if (currentProgress?.isEarned == true) return;
+      // Double-check: If badge already earned in local cache, skip
+      if (currentProgress?.isEarned == true) {
+        debugPrint(
+            'Badge ${badge.id} already earned in local cache for user $userId, skipping');
+        return;
+      }
 
       // Calculate new progress based on criteria
       final newProgress =
@@ -348,9 +393,10 @@ class BadgeService extends GetxController {
         shouldAwardBadge = newProgress >= badge.criteria.target;
       }
 
-      // Check if badge is earned
+      // Check if badge should be earned
       if (shouldAwardBadge) {
-        await _awardBadge(userId, badge);
+        // Final safety check before awarding
+        await _awardBadgeWithSafetyCheck(userId, badge);
       } else {
         await _updateProgress(userId, badge, newProgress);
       }
@@ -453,38 +499,63 @@ class BadgeService extends GetxController {
     }
   }
 
-  /// Award badge to user
-  Future<void> _awardBadge(String userId, Badge badge) async {
+  /// Award badge to user with additional safety checks
+  Future<void> _awardBadgeWithSafetyCheck(String userId, Badge badge) async {
     try {
-      final now = DateTime.now();
-      final badgeProgress = UserBadgeProgress(
-        badgeId: badge.id,
-        userId: userId,
-        isEarned: true,
-        currentProgress: badge.criteria.target,
-        targetProgress: badge.criteria.target,
-        startedAt: now,
-        earnedAt: now,
-        lastUpdated: now,
-      );
+      // Use a Firestore transaction to ensure atomicity and prevent duplicates
+      await _firestore.runTransaction((transaction) async {
+        final badgeRef = _firestore
+            .collection('user_badge_progress')
+            .doc(userId)
+            .collection('badges')
+            .doc(badge.id);
 
-      await _firestore
-          .collection('user_badge_progress')
-          .doc(userId)
-          .collection('badges')
-          .doc(badge.id)
-          .set(badgeProgress.toFirestore());
+        // Check if badge already exists within the transaction
+        final existingBadge = await transaction.get(badgeRef);
 
-      // Update user points
-      await _updateUserPoints(userId, badge.rewards.points);
+        if (existingBadge.exists && existingBadge.data()?['isEarned'] == true) {
+          debugPrint(
+              'Badge ${badge.id} already earned for user $userId (transaction check)');
+          return; // Exit transaction without changes
+        }
 
-      // Show notification (simplified without external dependency)
+        // Create badge progress
+        final now = DateTime.now();
+        final badgeProgress = UserBadgeProgress(
+          badgeId: badge.id,
+          userId: userId,
+          isEarned: true,
+          currentProgress: badge.criteria.target,
+          targetProgress: badge.criteria.target,
+          startedAt: now,
+          earnedAt: now,
+          lastUpdated: now,
+        );
+
+        // Award the badge atomically
+        transaction.set(badgeRef, badgeProgress.toFirestore());
+
+        // Update points atomically
+        final pointsRef = _firestore.collection('points').doc(userId);
+        transaction.set(
+            pointsRef,
+            {
+              'points': FieldValue.increment(badge.rewards.points),
+              'lastUpdated': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+
+        debugPrint(
+            'Badge ${badge.id} awarded to user $userId (+${badge.rewards.points} points)');
+      });
+
+      // Show notification after successful transaction
       _showBadgeNotification(badge);
 
       // Refresh user progress
       await loadUserProgress(userId);
     } catch (e) {
-      debugPrint('Error awarding badge: $e');
+      debugPrint('Error awarding badge with safety check: $e');
     }
   }
 
@@ -522,6 +593,37 @@ class BadgeService extends GetxController {
       }
     } catch (e) {
       debugPrint('Error updating progress: $e');
+    }
+  }
+
+  /// Get earned badge IDs for specific badges
+  Future<List<String>> _getEarnedBadgeIds(
+      String userId, List<String> badgeIds) async {
+    try {
+      final earnedIds = <String>[];
+
+      // Get all badge documents concurrently
+      final futures = badgeIds
+          .map((badgeId) => _firestore
+              .collection('user_badge_progress')
+              .doc(userId)
+              .collection('badges')
+              .doc(badgeId)
+              .get())
+          .toList();
+
+      final docs = await Future.wait(futures);
+
+      for (int i = 0; i < docs.length; i++) {
+        if (docs[i].exists && docs[i].data()?['isEarned'] == true) {
+          earnedIds.add(badgeIds[i]);
+        }
+      }
+
+      return earnedIds;
+    } catch (e) {
+      debugPrint('Error getting earned badge IDs: $e');
+      return [];
     }
   }
 

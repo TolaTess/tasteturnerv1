@@ -51,6 +51,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     if (_meal == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -145,10 +146,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
               // Directions title
               if (_meal!.instructions.isNotEmpty &&
-                  _meal!.instructions.first.isNotEmpty)
+                  _meal!.instructions.first.isNotEmpty) ...[
                 DirectionsTittle(
                   meal: _meal!,
                 ),
+              ] else ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                        top: getPercentageHeight(5, context)),
+                    child: Text('Meal is processing, please check back later',
+                        textAlign: TextAlign.center,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: kAccentLight,
+                          fontSize: getTextScale(3, context),
+                          fontWeight: FontWeight.w200,
+                        )),
+                  ),
+                ),
+              ],
 
               // Directions detail
               if (_meal!.instructions.isNotEmpty &&
@@ -810,8 +826,8 @@ class NutritionFacts extends StatelessWidget {
                   children: [
                     // Nutrition type (key)
                     Text(
-                      capitalizeFirstLetter(
-                          normaliseMacrosText(nutritionEntries[index].key)), // Display key
+                      capitalizeFirstLetter(normaliseMacrosText(
+                          nutritionEntries[index].key)), // Display key
                       style: textTheme.displayMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                         fontWeight: FontWeight.w400,
@@ -869,13 +885,15 @@ class IngredientsTittle extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(ingredients,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? kWhite : kBlack,
-                  fontWeight: FontWeight.bold,
-                )),
-            Text("${meal.ingredients.length} $items",
-                style: textTheme.bodySmall?.copyWith())
+            if (meal.ingredients.isNotEmpty) ...[
+              Text(ingredients,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontWeight: FontWeight.bold,
+                  )),
+              Text("${meal.ingredients.length} $items",
+                  style: textTheme.bodySmall?.copyWith())
+            ]
           ],
         ),
       ),
@@ -904,12 +922,14 @@ class IngredientsDetail extends StatelessWidget {
         child: Row(
           children: [
             // Generate IngredientsCard using the map entries
-            ...meal.ingredients.entries.map(
-              (entry) => IngredientsCard(
-                ingredientName: entry.key,
-                ingredientQty: entry.value,
+            if (meal.ingredients.isNotEmpty) ...[
+              ...meal.ingredients.entries.map(
+                (entry) => IngredientsCard(
+                  ingredientName: entry.key,
+                  ingredientQty: entry.value,
+                ),
               ),
-            ),
+            ]
           ],
         ),
       ),
