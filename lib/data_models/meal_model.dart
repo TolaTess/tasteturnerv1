@@ -59,6 +59,7 @@ class Meal {
       'macros': macros,
       'nutritionalInfo': nutritionalInfo,
       'steps': instructions,
+      'instructions': instructions,
       'categories': categories,
       'mediaType': mediaType,
       'category': category,
@@ -106,7 +107,8 @@ class Meal {
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
       instructions:
-          json['steps'] != null ? List<String>.from(json['steps'] as List) : [],
+          json['steps'] != null ? List<String>.from(json['steps'] as List) : json['instructions'] != null ? List<String>.from(json['instructions'] as List) : [],
+          
       categories: json['categories'] != null
           ? List<String>.from(json['categories'] as List)
           : [],

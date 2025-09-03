@@ -1047,7 +1047,7 @@ exports.processPendingMeals = functions.pubsub
       const pendingMealsQuery = admin.firestore()
         .collection('meals')
         .where('needsProcessing', '==', true)
-        .where('status', '==', 'pending')
+        .where('status', 'in', ['pending', 'failed'])
         .orderBy('processingPriority', 'asc')
         .limit(10); // Process 10 meals at a time to avoid timeouts
       
@@ -1104,24 +1104,26 @@ exports.processPendingMeals = functions.pubsub
           const jitter = Math.random() * 1000; // Random jitter up to 1 second
           const totalDelay = baseDelay + jitter;
           
-          // Schedule retry by updating priority (lower priority = processed later)
-          const retryTime = Date.now() + totalDelay;
-          await doc.ref.update({
-            status: 'pending',
-            needsProcessing: true,
-            processingPriority: retryTime,
-            lastError: error.message,
-            processingAttempts: attempts
-          });
-          
-          console.log(`Scheduled retry for meal ${mealData.title} in ${Math.round(totalDelay/1000)}s (attempt ${attempts})`);
-          
-          // Only mark as failed after max attempts
-          if (attempts >= maxAttempts) {
+          if (attempts < maxAttempts) {
+            // Schedule retry by updating priority (lower priority = processed later)
+            const retryTime = Date.now() + totalDelay;
+            await doc.ref.update({
+              status: 'pending',
+              needsProcessing: true,
+              processingPriority: retryTime,
+              lastError: error.message,
+              processingAttempts: attempts
+            });
+            
+            console.log(`Scheduled retry for meal ${mealData.title} in ${Math.round(totalDelay/1000)}s (attempt ${attempts})`);
+          } else {
+            // Mark as failed after max attempts - ONLY update status, preserve existing meal data
             await doc.ref.update({
               status: 'failed',
-              needsProcessing: false,
-              failedAt: admin.firestore.FieldValue.serverTimestamp()
+              needsProcessing: true,
+              failedAt: admin.firestore.FieldValue.serverTimestamp(),
+              lastError: error.message,
+              processingAttempts: attempts
             });
             console.log(`Marked meal ${mealData.title} as failed after ${attempts} attempts`);
           }
@@ -1178,7 +1180,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
       "difficulty": "easy/medium/hard",
       "serveQty": number,
       "categories": ["category1", "category2"],
-      "cuisine": "cuisine type"
+      "cuisine": "Italian, Mexican, etc."
       "type": "protein|grain|vegetable"
     }`;
     
@@ -1187,9 +1189,11 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
     
     const response = result.response.text();
     
-    // Parse JSON response
+    console.log(`Raw AI response for ${title}:`, response.substring(0, Math.min(response.length, 500)) + '...');
+    
+    // Parse JSON response with robust error handling and extraction
     try {
-      const mealDetails = JSON.parse(response);
+      const mealDetails = await processAIResponse(response, 'meal_generation');
       
       // Validate that we have the essential fields
       if (!mealDetails.ingredients || !mealDetails.instructions || !mealDetails.nutritionalInfo) {
@@ -1222,5 +1226,715 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
     console.error('Error generating meal details:', error);
     // Don't return fallback data - let the retry logic handle this
     throw error;
+  }
+}
+
+/**
+ * Process AI response with robust JSON parsing and extraction
+ * Based on methods from the Gemini service
+ */
+async function processAIResponse(text, operation) {
+  // Check if text is empty or contains error message
+  if (!text || text.startsWith('Error:')) {
+    return createFallbackResponse(operation, 'Empty or error response from API');
+  }
+
+  try {
+    // Use robust validation for meal generation
+    if (operation === 'meal_generation') {
+      console.log('Processing meal generation response with robust extraction...');
+      const result = validateAndExtractMealData(text);
+      console.log('Successfully extracted meal data:', Object.keys(result));
+      return result;
+    }
+
+    const jsonData = extractJsonObject(text);
+    
+    // Validate required fields based on operation
+    validateResponseStructure(jsonData, operation);
+    
+    return jsonData;
+  } catch (e) {
+    // Try to extract partial JSON if possible
+    try {
+      const partialJson = extractPartialJson(text, operation);
+      if (partialJson && Object.keys(partialJson).length > 0) {
+        return partialJson;
+      }
+    } catch (partialError) {
+      console.log('Partial JSON recovery failed:', partialError);
+    }
+
+         // Return a fallback structure based on operation type
+     console.log(`Creating fallback response for ${operation} due to error:`, e.toString());
+     return createFallbackResponse(operation, e.toString());
+  }
+}
+
+/**
+ * Extract JSON object from AI response text
+ */
+function extractJsonObject(text) {
+  let jsonStr = text.trim();
+
+  // Remove markdown code block syntax if present
+  if (jsonStr.startsWith('```json')) {
+    jsonStr = jsonStr.replace(/^```json\s*/, '').trim();
+  }
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/^```\s*/, '').trim();
+  }
+  if (jsonStr.endsWith('```')) {
+    jsonStr = jsonStr.substring(0, jsonStr.lastIndexOf('```')).trim();
+  }
+
+  // Fix common JSON issues from AI responses
+  jsonStr = sanitizeJsonString(jsonStr);
+
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    // If parsing still fails, try to extract just the JSON part
+    console.log('Initial JSON parsing failed, attempting to extract valid JSON...');
+
+    // Try to find the start and end of JSON content
+    const jsonStart = jsonStr.indexOf('{');
+    const jsonEnd = jsonStr.lastIndexOf('}');
+
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const extractedJson = jsonStr.substring(jsonStart, jsonEnd + 1);
+      console.log('Extracted JSON:', extractedJson.substring(0, Math.min(extractedJson.length, 200)) + '...');
+
+      // Clean the extracted JSON more aggressively
+      const cleanedExtractedJson = aggressiveJsonCleanup(extractedJson);
+
+      try {
+        return JSON.parse(cleanedExtractedJson);
+      } catch (extractError) {
+        console.log('Extracted JSON parsing also failed:', extractError);
+        console.log('Attempting to extract partial data from malformed JSON...');
+
+        // Try to extract partial data even from malformed JSON
+        const partialData = extractPartialDataFromMalformedJson(extractedJson);
+        if (partialData && Object.keys(partialData).length > 0) {
+          console.log('Successfully extracted partial data:', partialData);
+          return partialData;
+        }
+
+        throw new Error(`Failed to parse JSON even after extraction: ${extractError.message}`);
+      }
+    }
+
+    // If all else fails, try to extract partial data
+    console.log('All JSON parsing methods failed. Attempting partial data extraction...');
+    try {
+      const partialData = extractPartialDataFromMalformedJson(jsonStr);
+      if (partialData && Object.keys(partialData).length > 0) {
+        console.log('Successfully extracted partial data from malformed JSON');
+        return partialData;
+      }
+    } catch (partialError) {
+      console.log('Partial data extraction also failed:', partialError);
+    }
+
+    throw new Error(`Could not extract valid JSON from response: ${e.message}`);
+  }
+}
+
+/**
+ * Sanitize JSON string to fix common AI response issues
+ */
+function sanitizeJsonString(jsonStr) {
+  // Fix trailing quotes after ANY numeric values - more comprehensive approach
+  // This catches cases like "healthScore": 6", "calories": 450", etc.
+  jsonStr = jsonStr.replace(/"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, '"$1": $2');
+
+  // Fix trailing quotes after numbers that might have spaces (e.g., "healthScore": 6 " -> "healthScore": 6)
+  jsonStr = jsonStr.replace(/"([^"]+)":\s*(\d+(?:\.\d+)?)\s*"(?=\s*[,}\]])/g, '"$1": $2');
+
+  // Fix any remaining trailing quotes after numbers (catch-all)
+  jsonStr = jsonStr.replace(/":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, ': $1');
+
+  // Fix any other numeric fields with trailing quotes
+  jsonStr = jsonStr.replace(/"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, '"$1": $2');
+
+  // Fix quoted numeric values that should be numbers (e.g., "calories": "200" -> "calories": 200)
+  jsonStr = jsonStr.replace(/"((?:calories|protein|carbs|fat|fiber|sugar|sodium))":\s*"(\d+(?:\.\d+)?)"/g, '"$1": $2');
+
+  // Fix unquoted nutritional values like "protein": 40g to "protein": "40g"
+  jsonStr = jsonStr.replace(/"((?:calories|protein|carbs|fat|fiber|sugar|sodium))":\s*(\d+(?:\.\d+)?[a-zA-Z]*)/g, '"$1": "$2"');
+
+  // Fix unquoted numeric values followed by units like 40g, 25mg, etc.
+  jsonStr = jsonStr.replace(/:\s*(\d+(?:\.\d+)?[a-zA-Z]+)(?=[,\]\}])/g, ': "$1"');
+
+  // Fix missing quotes around standalone numbers that should be strings
+  jsonStr = jsonStr.replace(/"((?:totalCalories|totalProtein|totalCarbs|totalFat))":\s*(\d+(?:\.\d+)?)/g, '"$1": $2');
+
+  // Fix any quoted numeric values that should be numbers (general case)
+  jsonStr = jsonStr.replace(/"([^"]+)":\s*"(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, '"$1": $2');
+
+  // Remove control characters (newlines, carriage returns, tabs) from JSON strings
+  jsonStr = jsonStr.replace(/[\r\n\t]/g, ' ');
+
+  // Clean up multiple spaces
+  jsonStr = jsonStr.replace(/\s+/g, ' ');
+
+  // Fix incomplete JSON by adding missing closing braces/brackets
+  let openBraces = (jsonStr.match(/\{/g) || []).length;
+  let closeBraces = (jsonStr.match(/\}/g) || []).length;
+  let openBrackets = (jsonStr.match(/\[/g) || []).length;
+  let closeBrackets = (jsonStr.match(/\]/g) || []).length;
+
+  // Add missing closing braces/brackets
+  while (closeBraces < openBraces) {
+    jsonStr += '}';
+    closeBraces++;
+  }
+  while (closeBrackets < openBrackets) {
+    jsonStr += ']';
+    closeBrackets++;
+  }
+
+  // Fix unterminated strings - look for strings that don't end with a quote
+  jsonStr = jsonStr.replace(/"([^"]*?)(?=\s*[,}\]])/g, (match, value) => {
+    // If the value doesn't end with a quote, add one
+    if (!value.endsWith('"')) {
+      return `"${value}"`;
+    }
+    return match;
+  });
+
+  // Fix unterminated strings at the end of the JSON
+  jsonStr = jsonStr.replace(/"([^"]*?)$/g, (match, value) => {
+    // If the value doesn't end with a quote, add one
+    if (!value.endsWith('"')) {
+      return `"${value}"`;
+    }
+    return match;
+  });
+
+  // Fix specific diet type unterminated strings
+  jsonStr = jsonStr.replace(/"diet":\s*"([^"]*?)(?=\s*[,}\]])/g, (match, dietValue) => {
+    if (!dietValue.endsWith('"')) {
+      return `"diet": "${dietValue}"`;
+    }
+    return match;
+  });
+
+  // Fix diet field with missing quotes in the middle (e.g., "diet": "low-carb", dairy-free")
+  jsonStr = jsonStr.replace(/"diet":\s*"([^"]*?)",\s*([^"]*?)"(?=\s*[,}\]])/g, (match, firstPart, secondPart) => {
+    return `"diet": "${firstPart}, ${secondPart}"`;
+  });
+
+  // Fix diet field with unquoted values after comma (e.g., "diet": "low-carb", dairy-free)
+  jsonStr = jsonStr.replace(/"diet":\s*"([^"]*?)",\s*([^"]*?)(?=\s*[,}\]])/g, (match, firstPart, secondPart) => {
+    return `"diet": "${firstPart}, ${secondPart}"`;
+  });
+
+  // Fix double quotes in string values (e.g., "title": "value"")
+  jsonStr = jsonStr.replace(/"([^"]*?)""(?=\s*[,}\]])/g, '"$1"');
+
+  // Fix broken value where comma-suffixed text is outside quotes
+  // Example: "onion": "1/4 medium", chopped" -> "onion": "1/4 medium, chopped"
+  jsonStr = jsonStr.replace(/"([\w\s]+)":\s*"([^"]*?)",\s*([A-Za-z][^",}\]]*)"/g, (match, key, first, second) => {
+    return `"${key}": "${first}, ${second}"`;
+  });
+
+  // Fix unquoted nutritional values with units (e.g., "protein": 20g -> "protein": "20g")
+  jsonStr = jsonStr.replace(/"((?:calories|protein|carbs|fat|fiber|sugar|sodium))":\s*(\d+[a-zA-Z]+)/g, '"$1": "$2"');
+
+  // Fix any remaining unquoted values with units that might be missed
+  jsonStr = jsonStr.replace(/:\s*(\d+[a-zA-Z]+)(?=[,\]\}])/g, ': "$1"');
+
+  return jsonStr;
+}
+
+/**
+ * Aggressively clean JSON that has severe formatting issues
+ */
+function aggressiveJsonCleanup(jsonStr) {
+  // Remove all control characters and normalize whitespace
+  jsonStr = jsonStr.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ');
+
+  // Clean up multiple spaces
+  jsonStr = jsonStr.replace(/\s+/g, ' ');
+
+  // Fix broken string values that might have been split by newlines
+  jsonStr = jsonStr.replace(/"([^"]*?)\s*,\s*"([^"]*?)"/g, '"$1 $2"');
+
+  // Fix broken array items that might have been split
+  jsonStr = jsonStr.replace(/\}\s*,\s*\{/g, '},{');
+
+  // Ensure proper comma placement
+  jsonStr = jsonStr.replace(/,\s*}/g, '}');
+  jsonStr = jsonStr.replace(/,\s*]/g, ']');
+
+  return jsonStr.trim();
+}
+
+/**
+ * Extract partial data from malformed JSON using regex patterns
+ */
+function extractPartialDataFromMalformedJson(malformedJson) {
+  const extractedData = {};
+
+  try {
+    // Extract meal plan array
+    const mealPlanMatches = malformedJson.match(/"title":\s*"([^"]+)"/g) || [];
+    const mealTypeMatches = malformedJson.match(/"mealType":\s*"([^"]+)"/g) || [];
+    const typeMatches = malformedJson.match(/"type":\s*"([^"]+)"/g) || [];
+    const caloriesMatches = malformedJson.match(/"calories":\s*"?(\d+)"?/g) || [];
+
+    // Extract ingredients using regex
+    const ingredientsMatches = malformedJson.match(/"ingredients":\s*\{([^}]+)\}/g) || [];
+
+    // Build meal plan from extracted data
+    const mealPlan = [];
+    const maxMeals = Math.min(
+      [mealPlanMatches.length, mealTypeMatches.length, typeMatches.length].reduce((a, b) => Math.min(a, b)),
+      10 // Cap at 10 meals
+    );
+
+    for (let i = 0; i < maxMeals; i++) {
+      const meal = {};
+
+      if (i < mealPlanMatches.length) {
+        const titleMatch = mealPlanMatches[i].match(/"title":\s*"([^"]+)"/);
+        meal.title = titleMatch ? titleMatch[1] : `Untitled Meal ${i}`;
+      }
+
+      if (i < mealTypeMatches.length) {
+        const mealTypeMatch = mealTypeMatches[i].match(/"mealType":\s*"([^"]+)"/);
+        meal.mealType = mealTypeMatch ? mealTypeMatch[1] : 'breakfast';
+      }
+
+      if (i < typeMatches.length) {
+        const typeMatch = typeMatches[i].match(/"type":\s*"([^"]+)"/);
+        meal.type = typeMatch ? typeMatch[1] : 'protein';
+      }
+
+      if (i < caloriesMatches.length) {
+        const caloriesMatch = caloriesMatches[i].match(/"calories":\s*"?(\d+)"?/);
+        meal.calories = caloriesMatch ? parseInt(caloriesMatch[1]) || 300 : 300;
+      } else {
+        meal.calories = 300; // Default calories
+      }
+
+      // Extract ingredients for this meal if available
+      if (i < ingredientsMatches.length) {
+        const ingredientsText = ingredientsMatches[i].match(/"ingredients":\s*\{([^}]+)\}/);
+        meal.ingredients = ingredientsText ? extractIngredientsFromMalformedJson(ingredientsText[1]) : { 'ingredient': '1 serving' };
+      } else {
+        meal.ingredients = { 'ingredient': '1 serving' }; // Default ingredients
+      }
+
+      // Add nutritional info
+      meal.nutritionalInfo = {
+        calories: meal.calories,
+        protein: 20,
+        carbs: 25,
+        fat: 10,
+      };
+
+      mealPlan.push(meal);
+    }
+
+    // Extract distribution if available
+    const distribution = {};
+    const breakfastMatches = malformedJson.match(/"breakfast":\s*(\d+)/g) || [];
+    const lunchMatches = malformedJson.match(/"lunch":\s*(\d+)/g) || [];
+    const dinnerMatches = malformedJson.match(/"dinner":\s*(\d+)/g) || [];
+    const snackMatches = malformedJson.match(/"snack":\s*(\d+)/g) || [];
+
+    if (breakfastMatches.length > 0) {
+      const breakfastMatch = breakfastMatches[0].match(/"breakfast":\s*(\d+)/);
+      distribution.breakfast = breakfastMatch ? parseInt(breakfastMatch[1]) : 1;
+    }
+    if (lunchMatches.length > 0) {
+      const lunchMatch = lunchMatches[0].match(/"lunch":\s*(\d+)/);
+      distribution.lunch = lunchMatch ? parseInt(lunchMatch[1]) : 1;
+    }
+    if (dinnerMatches.length > 0) {
+      const dinnerMatch = dinnerMatches[0].match(/"dinner":\s*(\d+)/);
+      distribution.dinner = dinnerMatch ? parseInt(dinnerMatch[1]) : 1;
+    }
+    if (snackMatches.length > 0) {
+      const snackMatch = snackMatches[0].match(/"snack":\s*(\d+)/);
+      distribution.snack = snackMatch ? parseInt(snackMatch[1]) : 1;
+    }
+
+    if (mealPlan.length > 0) {
+      extractedData.meals = mealPlan;
+      if (Object.keys(distribution).length > 0) {
+        extractedData.distribution = distribution;
+      }
+      extractedData.confidence = 'extracted';
+      extractedData.notes = 'Data extracted from malformed JSON using regex patterns';
+    }
+
+    return extractedData;
+  } catch (e) {
+    console.log('Partial data extraction failed:', e);
+    return {};
+  }
+}
+
+/**
+ * Extract ingredients from malformed JSON text
+ */
+function extractIngredientsFromMalformedJson(ingredientsText) {
+  const ingredients = {};
+
+  try {
+    // Extract individual ingredients
+    const ingredientMatches = ingredientsText.match(/"([^"]+)":\s*"([^"]+)"/g) || [];
+
+    for (const match of ingredientMatches) {
+      const keyMatch = match.match(/"([^"]+)":\s*"([^"]+)"/);
+      if (keyMatch) {
+        const key = keyMatch[1].trim();
+        const value = keyMatch[2].trim();
+        if (key && value) {
+          ingredients[key] = value;
+        }
+      }
+    }
+
+    return Object.keys(ingredients).length > 0 ? ingredients : { 'unknown ingredient': '1 portion' };
+  } catch (e) {
+    return { 'unknown ingredient': '1 portion' };
+  }
+}
+
+/**
+ * Validate and extract meal data from AI response
+ */
+function validateAndExtractMealData(rawResponse) {
+  try {
+    // First attempt: extract JSON from markdown code blocks if present
+    const cleanedResponse = extractJsonFromMarkdown(rawResponse);
+    const completedResponse = completeTruncatedJson(cleanedResponse);
+    const sanitized = sanitizeJsonString(completedResponse);
+    const data = JSON.parse(sanitized);
+
+    // Validate and normalize the data
+    const result = validateAndNormalizeMealData(data);
+    return result;
+  } catch (e) {
+    // Second attempt: use existing partial extraction method
+    const partialData = extractPartialJson(rawResponse, 'meal_generation');
+    if (partialData && Object.keys(partialData).length > 0 && isValidPartialResponse(partialData, 'meal_generation')) {
+      return validateAndNormalizeMealData(partialData);
+    }
+
+    // Third attempt: extract meal data from malformed response
+    const extractedData = extractMealDataFromRawText(rawResponse);
+    if (extractedData && Object.keys(extractedData).length > 0) {
+      return validateAndNormalizeMealData(extractedData);
+    }
+
+    // Return fallback if all extraction attempts fail
+    return createFallbackResponse('meal_generation', 'Complete extraction failed');
+  }
+}
+
+/**
+ * Extract JSON from markdown code blocks
+ */
+function extractJsonFromMarkdown(text) {
+  // Remove markdown code block markers
+  let cleaned = text.replace(/^```json\s*/gm, '');
+  cleaned = cleaned.replace(/\s*```$/gm, '');
+  return cleaned.trim();
+}
+
+/**
+ * Attempt to complete truncated JSON responses
+ */
+function completeTruncatedJson(text) {
+  // Check if the JSON appears to be truncated
+  if (!text.trim().endsWith('}')) {
+    // Count opening and closing braces
+    const openBraces = (text.match(/\{/g) || []).length;
+    const closeBraces = (text.match(/\}/g) || []).length;
+
+    // If we have more opening braces than closing braces, try to complete
+    if (openBraces > closeBraces) {
+      const missingBraces = openBraces - closeBraces;
+      text += '}'.repeat(missingBraces);
+
+      // Also check for incomplete arrays
+      const openBrackets = (text.match(/\[/g) || []).length;
+      const closeBrackets = (text.match(/\]/g) || []).length;
+      if (openBrackets > closeBrackets) {
+        const missingBrackets = openBrackets - closeBrackets;
+        text += ']'.repeat(missingBrackets);
+      }
+
+      console.log(`Attempted to complete truncated JSON by adding ${missingBraces} closing braces`);
+    }
+  }
+
+  return text;
+}
+
+/**
+ * Extract meal data from raw text using regex patterns
+ */
+function extractMealDataFromRawText(rawResponse) {
+  const extractedData = {};
+
+  try {
+    // Extract meal title
+    const titleMatch = rawResponse.match(/"title":\s*"([^"]+)"/);
+    if (titleMatch) {
+      extractedData.title = titleMatch[1];
+    }
+
+    // Extract ingredients
+    const ingredientsMatch = rawResponse.match(/"ingredients":\s*\{([^}]+)\}/);
+    if (ingredientsMatch) {
+      extractedData.ingredients = extractIngredientsFromText(ingredientsMatch[1]);
+    }
+
+    // Extract instructions
+    const instructionsMatch = rawResponse.match(/"instructions":\s*\[([^\]]+)\]/);
+    if (instructionsMatch) {
+      extractedData.instructions = extractInstructionsFromText(instructionsMatch[1]);
+    }
+
+    // Extract nutritional info
+    const caloriesMatch = rawResponse.match(/"calories":\s*"?(\d+)"?/);
+    if (caloriesMatch) {
+      const calories = parseInt(caloriesMatch[1]) || 300;
+      extractedData.calories = calories;
+      extractedData.nutritionalInfo = {
+        calories: calories,
+        protein: Math.floor(calories * 0.15 / 4), // 15% of calories from protein
+        carbs: Math.floor(calories * 0.55 / 4),   // 55% of calories from carbs
+        fat: Math.floor(calories * 0.30 / 9),     // 30% of calories from fat
+      };
+    }
+
+    // Extract other fields
+    const cookingTimeMatch = rawResponse.match(/"cookingTime":\s*"([^"]+)"/);
+    if (cookingTimeMatch) {
+      extractedData.cookingTime = cookingTimeMatch[1];
+    }
+
+    const difficultyMatch = rawResponse.match(/"difficulty":\s*"([^"]+)"/);
+    if (difficultyMatch) {
+      extractedData.difficulty = difficultyMatch[1];
+    }
+
+    const serveQtyMatch = rawResponse.match(/"serveQty":\s*"?(\d+)"?/);
+    if (serveQtyMatch) {
+      extractedData.serveQty = parseInt(serveQtyMatch[1]) || 1;
+    }
+
+    const typeMatch = rawResponse.match(/"type":\s*"([^"]+)"/);
+    if (typeMatch) {
+      extractedData.type = typeMatch[1];
+    }
+
+    const cuisineMatch = rawResponse.match(/"cuisine":\s*"([^"]+)"/);
+    if (cuisineMatch) {
+      extractedData.cuisine = cuisineMatch[1];
+    }
+
+    // Extract categories
+    const categoriesMatch = rawResponse.match(/"categories":\s*\[([^\]]+)\]/);
+    if (categoriesMatch) {
+      extractedData.categories = extractCategoriesFromText(categoriesMatch[1]);
+    }
+
+    extractedData.confidence = 'extracted';
+    extractedData.notes = 'Data extracted from raw text using regex patterns';
+
+    return extractedData;
+  } catch (e) {
+    console.log('Meal data extraction failed:', e);
+    return {};
+  }
+}
+
+/**
+ * Extract ingredients from text
+ */
+function extractIngredientsFromText(ingredientsText) {
+  const ingredients = {};
+
+  try {
+    // Extract individual ingredients
+    const ingredientMatches = ingredientsText.match(/"([^"]+)":\s*"([^"]+)"/g) || [];
+
+    for (const match of ingredientMatches) {
+      const keyMatch = match.match(/"([^"]+)":\s*"([^"]+)"/);
+      if (keyMatch) {
+        const key = keyMatch[1].trim();
+        const value = keyMatch[2].trim();
+        if (key && value) {
+          ingredients[key] = value;
+        }
+      }
+    }
+
+    return Object.keys(ingredients).length > 0 ? ingredients : { 'unknown ingredient': '1 portion' };
+  } catch (e) {
+    return { 'unknown ingredient': '1 portion' };
+  }
+}
+
+/**
+ * Extract instructions from text
+ */
+function extractInstructionsFromText(instructionsText) {
+  const instructions = [];
+
+  try {
+    // Extract individual instructions
+    const instructionMatches = instructionsText.match(/"([^"]+)"/g) || [];
+
+    for (const match of instructionMatches) {
+      const instruction = match.replace(/"/g, '').trim();
+      if (instruction && instruction.length > 0) {
+        instructions.push(instruction);
+      }
+    }
+
+    return instructions.length > 0 ? instructions : ['Food analyzed by AI'];
+  } catch (e) {
+    return ['Food analyzed by AI'];
+  }
+}
+
+/**
+ * Extract categories from text
+ */
+function extractCategoriesFromText(categoriesText) {
+  const categories = [];
+
+  try {
+    // Extract individual categories
+    const categoryMatches = categoriesText.match(/"([^"]+)"/g) || [];
+
+    for (const match of categoryMatches) {
+      const category = match.replace(/"/g, '').trim();
+      if (category && category.length > 0) {
+        categories.push(category);
+      }
+    }
+
+    return categories;
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Validate response structure based on operation type
+ */
+function validateResponseStructure(data, operation) {
+  switch (operation) {
+    case 'meal_generation':
+      if (!data.ingredients || !data.instructions) {
+        throw new Error('Missing required fields: ingredients or instructions');
+      }
+      break;
+    default:
+      // No validation for other operations
+      break;
+  }
+}
+
+/**
+ * Check if partial response is valid
+ */
+function isValidPartialResponse(data, operation) {
+  switch (operation) {
+    case 'meal_generation':
+      return data.ingredients && data.instructions;
+    default:
+      return Object.keys(data).length > 0;
+  }
+}
+
+/**
+ * Extract partial JSON when full parsing fails
+ */
+function extractPartialJson(text, operation) {
+  // This is a simplified version - in practice, you might want more sophisticated extraction
+  try {
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const extractedJson = text.substring(jsonStart, jsonEnd + 1);
+      return JSON.parse(extractedJson);
+    }
+  } catch (e) {
+    // Extraction failed
+  }
+  
+  return {};
+}
+
+/**
+ * Validate and normalize meal data
+ */
+function validateAndNormalizeMealData(data) {
+  const normalizedData = {};
+
+  // Basic meal info
+  normalizedData.title = data.title || 'Untitled Meal';
+  normalizedData.ingredients = data.ingredients || { 'unknown ingredient': '1 portion' };
+  normalizedData.instructions = data.instructions || ['Food analyzed by AI'];
+  normalizedData.calories = data.calories || 300;
+  normalizedData.nutritionalInfo = data.nutritionalInfo || {
+    calories: data.calories || 300,
+    protein: 20,
+    carbs: 25,
+    fat: 10,
+  };
+  normalizedData.cookingTime = data.cookingTime || '30 minutes';
+  normalizedData.difficulty = data.difficulty || 'medium';
+  normalizedData.serveQty = data.serveQty || 1;
+  normalizedData.type = data.type || 'protein';
+  normalizedData.categories = data.categories || ['general'];
+  normalizedData.cuisine = data.cuisine || 'general';
+
+  return normalizedData;
+}
+
+/**
+ * Create fallback response for failed AI operations
+ */
+function createFallbackResponse(operation, error) {
+  switch (operation) {
+    case 'meal_generation':
+      return {
+        ingredients: { 'unknown ingredient': '1 portion' },
+        instructions: [
+          'Analysis failed: ' + error,
+          'Please create meal manually'
+        ],
+        calories: 300,
+        nutritionalInfo: {
+          calories: 300,
+          protein: 15,
+          carbs: 30,
+          fat: 10
+        },
+        cookingTime: '30 minutes',
+        difficulty: 'medium',
+        serveQty: 1,
+        type: 'protein',
+        categories: ['error-fallback'],
+        cuisine: 'general',
+        confidence: 'low',
+        notes: 'Analysis failed: ' + error + '. Please verify all information manually.'
+      };
+    default:
+      return { error: true, message: 'Operation failed: ' + error };
   }
 }

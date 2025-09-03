@@ -153,15 +153,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ] else ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.only(
-                        top: getPercentageHeight(5, context)),
-                    child: Text('Meal is processing, please check back later',
-                        textAlign: TextAlign.center,
-                        style: textTheme.labelSmall?.copyWith(
-                          color: kAccentLight,
-                          fontSize: getTextScale(3, context),
-                          fontWeight: FontWeight.w200,
-                        )),
+                    padding:
+                        EdgeInsets.only(bottom: getPercentageHeight(15, context)),
+                    child: noItemTastyWidget(
+                      'Meal is processing...',
+                      'Please check back later',
+                      context,
+                      false,
+                      '',
+                    ),
                   ),
                 ),
               ],

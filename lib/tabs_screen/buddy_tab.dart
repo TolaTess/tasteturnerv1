@@ -14,7 +14,6 @@ import '../widgets/info_icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../helper/helper_functions.dart';
 import '../widgets/category_selector.dart';
-import '../widgets/meal_processing_progress_bar.dart';
 
 class BuddyTab extends StatefulWidget {
   const BuddyTab({super.key});
@@ -832,16 +831,6 @@ class _BuddyTabState extends State<BuddyTab> {
               isDarkMode: isDarkMode,
               accentColor: kAccentLight,
               darkModeAccentColor: kDarkModeAccent,
-            ),
-          ],
-
-          // Meal processing progress bar
-          if (_showProgressBar) ...[
-            SizedBox(height: getPercentageHeight(1, context)),
-            MealProcessingProgressBar(
-              mealIds: _processingMealIds,
-              onCompleted: _onMealProcessingCompleted,
-              onRetry: _onMealProcessingRetry,
             ),
           ],
 
