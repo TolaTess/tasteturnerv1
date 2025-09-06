@@ -15,6 +15,8 @@ class UserModel {
   DateTime? created_At;
   final bool? familyMode;
   final List<FamilyMember>? familyMembers;
+  Map<String, dynamic>? ageVerification;
+  Map<String, dynamic>? termsAcceptance;
 
   UserModel({
     this.userId,
@@ -31,6 +33,8 @@ class UserModel {
     this.freeTrialDate,
     this.familyMode = false,
     this.familyMembers = const [],
+    this.ageVerification,
+    this.termsAcceptance,
   });
 
   // Convert from Firestore document snapshot
@@ -47,6 +51,18 @@ class UserModel {
     Map<String, dynamic> preferences = {};
     if (data['preferences'] != null && data['preferences'] is Map) {
       preferences = Map<String, dynamic>.from(data['preferences']);
+    }
+
+    // Safely convert ageVerification map
+    Map<String, dynamic>? ageVerification;
+    if (data['ageVerification'] != null && data['ageVerification'] is Map) {
+      ageVerification = Map<String, dynamic>.from(data['ageVerification']);
+    }
+
+    // Safely convert termsAcceptance map
+    Map<String, dynamic>? termsAcceptance;
+    if (data['termsAcceptance'] != null && data['termsAcceptance'] is Map) {
+      termsAcceptance = Map<String, dynamic>.from(data['termsAcceptance']);
     }
 
     // Handle created_At as Timestamp or String
@@ -81,6 +97,8 @@ class UserModel {
               ?.map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
+      ageVerification: ageVerification,
+      termsAcceptance: termsAcceptance,
     );
   }
 
@@ -101,6 +119,8 @@ class UserModel {
           freeTrialDate != null ? Timestamp.fromDate(freeTrialDate!) : null,
       'familyMode': familyMode,
       'familyMembers': familyMembers?.map((f) => f.toMap()).toList(),
+      'ageVerification': ageVerification,
+      'termsAcceptance': termsAcceptance,
     };
   }
 
@@ -122,7 +142,8 @@ class UserModel {
     if (data['preferences'] != null) {
       final preference = Map<String, dynamic>.from(data['preferences']);
       // Convert FieldValue to current timestamp string if present
-      if (preference['lastUpdated'] != null && preference['lastUpdated'] is FieldValue) {
+      if (preference['lastUpdated'] != null &&
+          preference['lastUpdated'] is FieldValue) {
         preference['lastUpdated'] = DateTime.now().toIso8601String();
       }
       data['preferences'] = preference;
@@ -141,6 +162,18 @@ class UserModel {
     Map<String, dynamic> preferences = {};
     if (map['preferences'] != null && map['preferences'] is Map) {
       preferences = Map<String, dynamic>.from(map['preferences']);
+    }
+
+    // Safely convert ageVerification map
+    Map<String, dynamic>? ageVerification;
+    if (map['ageVerification'] != null && map['ageVerification'] is Map) {
+      ageVerification = Map<String, dynamic>.from(map['ageVerification']);
+    }
+
+    // Safely convert termsAcceptance map
+    Map<String, dynamic>? termsAcceptance;
+    if (map['termsAcceptance'] != null && map['termsAcceptance'] is Map) {
+      termsAcceptance = Map<String, dynamic>.from(map['termsAcceptance']);
     }
 
     // Handle created_At as String or Timestamp
@@ -175,11 +208,15 @@ class UserModel {
               ?.map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
+      ageVerification: ageVerification,
+      termsAcceptance: termsAcceptance,
     );
   }
 
   UserModel copyWith({
     List<FamilyMember>? familyMembers,
+    Map<String, dynamic>? ageVerification,
+    Map<String, dynamic>? termsAcceptance,
   }) {
     return UserModel(
       displayName: displayName ?? this.displayName,
@@ -196,6 +233,8 @@ class UserModel {
       bio: bio ?? this.bio,
       dob: dob ?? this.dob,
       following: following,
+      ageVerification: ageVerification ?? this.ageVerification,
+      termsAcceptance: termsAcceptance ?? this.termsAcceptance,
     );
   }
 }

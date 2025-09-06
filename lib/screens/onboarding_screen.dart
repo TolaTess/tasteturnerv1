@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -53,6 +54,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Set<String> selectedAllergies = {};
   String selectedCuisineType = '';
 
+  // Age verification and terms
+  bool isOver13 = false;
+  bool hasAcceptedTerms = false;
+  String? ageVerificationError;
+
   // List<Map<String, String>> familyMembers = [];
 
   @override
@@ -91,13 +97,77 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return profaneWords.any(text.toLowerCase().contains);
   }
 
+  /// Verify date format (dd-mm only)
+  void _verifyAge() {
+    final dobText = dobController.text.trim();
+    if (dobText.isEmpty) {
+      setState(() {
+        isOver13 = false;
+        ageVerificationError = null;
+      });
+      return;
+    }
+
+    try {
+      // Parse the date (dd-mm format)
+      final parts = dobText.split('-');
+      if (parts.length != 2) {
+        setState(() {
+          isOver13 = false;
+          ageVerificationError = 'Please enter date in dd-mm format';
+        });
+        return;
+      }
+
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+
+      if (day == null ||
+          month == null ||
+          day < 1 ||
+          day > 31 ||
+          month < 1 ||
+          month > 12) {
+        setState(() {
+          isOver13 = false;
+          ageVerificationError = 'Please enter a valid date';
+        });
+        return;
+      }
+
+      // Check if the date is valid (basic validation)
+      try {
+        DateTime(2024, month, day); // Use a leap year to test validity
+        setState(() {
+          isOver13 = true; // If date format is valid, assume user is over 13
+          ageVerificationError = null;
+        });
+      } catch (e) {
+        setState(() {
+          isOver13 = false;
+          ageVerificationError = 'Please enter a valid date';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isOver13 = false;
+        ageVerificationError = 'Please enter a valid date';
+      });
+    }
+  }
+
   /// ✅ Check if all required fields are filled before enabling "Next"
   void _validateInputs() {
     setState(() {
       switch (_currentPage) {
         case 0:
           final name = nameController.text.trim();
-          _isNextEnabled = name.isNotEmpty && !isProfane(name);
+          final dobText = dobController.text.trim();
+          // Name is required, DOB is optional but if provided must be valid format, terms must be accepted
+          _isNextEnabled = name.isNotEmpty &&
+              !isProfane(name) &&
+              (dobText.isEmpty || (isOver13 && ageVerificationError == null)) &&
+              hasAcceptedTerms;
           break;
         case 1:
           _isNextEnabled = true; // Feature tour page - always enabled
@@ -173,6 +243,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'grainDishes': 2,
           'vegDishes': 3,
           'lastUpdated': FieldValue.serverTimestamp(),
+        },
+        // Date format verification and terms acceptance
+        ageVerification: {
+          'dateFormatValid': isOver13,
+          'dateOfBirth': dobController.text.trim().isNotEmpty
+              ? dobController.text.trim()
+              : null,
+          'verifiedAt': FieldValue.serverTimestamp(),
+        },
+        termsAcceptance: {
+          'hasAccepted': hasAcceptedTerms,
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'version': '1.0', // You can version your terms
         },
         // familyMembers:
         //     familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
@@ -377,6 +460,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           controller: dobController,
           style:
               TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(4),
+            DateInputFormatter(),
+          ],
+          onChanged: (_) {
+            _verifyAge();
+            _validateInputs();
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF3F3F3),
@@ -386,7 +478,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             labelStyle: const TextStyle(color: Color(0xffefefef)),
             hintStyle: TextStyle(
                 color: kLightGrey, fontSize: getTextScale(3.5, context)),
-            hintText: "Enter your date of birth (MM-dd) (optional)",
+            hintText: "Enter your date of birth (dd-mm-yyyy) (optional)",
             floatingLabelBehavior: FloatingLabelBehavior.always,
             contentPadding: EdgeInsets.only(
               top: getPercentageHeight(1.5, context),
@@ -514,6 +606,120 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 textAlign: TextAlign.center,
               ),
             ),
+
+          // Age verification status
+          if (dobController.text.trim().isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(3, context)),
+              decoration: BoxDecoration(
+                color: isOver13
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isOver13 ? Colors.green : Colors.red,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isOver13 ? Icons.check_circle : Icons.error,
+                    color: isOver13 ? Colors.green : Colors.red,
+                    size: getPercentageWidth(4, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Expanded(
+                    child: Text(
+                      isOver13
+                          ? 'Date format verified'
+                          : (ageVerificationError ??
+                              'Date format verification required'),
+                      style: TextStyle(
+                        color: isOver13 ? Colors.green : Colors.red,
+                        fontSize: getTextScale(3, context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Terms and conditions
+          SizedBox(height: getPercentageHeight(3, context)),
+          Container(
+            padding: EdgeInsets.all(getPercentageWidth(4, context)),
+            decoration: BoxDecoration(
+              color: kDarkGrey,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: hasAcceptedTerms ? kAccentLight : Colors.grey,
+                width: 2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Age Verification',
+                  style: TextStyle(
+                    color: kWhite,
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(1, context)),
+                Text(
+                  'By using TasteTurner, you agree to:',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: kWhite,
+                    fontSize: getTextScale(3.5, context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(1, context)),
+                Text(
+                  '• You are at least 13 years old\n'
+                  '• Date of birth should be entered in dd-mm format (e.g., 15-01)',
+                  style: TextStyle(
+                    color: kWhite.withValues(alpha: 0.6),
+                    fontSize: getTextScale(3, context),
+                    height: 1.4,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: hasAcceptedTerms,
+                      onChanged: (value) {
+                        setState(() {
+                          hasAcceptedTerms = value ?? false;
+                          _validateInputs();
+                        });
+                      },
+                      activeColor: kAccentLight,
+                      checkColor: kWhite,
+                    ),
+                    Expanded(
+                      child: Text(
+                        'I agree to the terms and conditions and confirm that all information provided is accurate',
+                        style: TextStyle(
+                          color: kWhite,
+                          fontSize: getTextScale(3.2, context),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
       description:
@@ -634,6 +840,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           decoration: BoxDecoration(
             color: kDarkGrey,
             borderRadius: BorderRadius.circular(10),
+             border: Border.all(
+                color: selectedGoals.isNotEmpty ? kAccentLight : Colors.grey,
+                width: 2,
+              ),
           ),
           child: Column(
             children: healthGoalsNoFamily.map((goal) {
@@ -1034,6 +1244,38 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     await FirebaseAnalytics.instance.setConsent(
       adStorageConsentGranted: canRequest,
       analyticsStorageConsentGranted: canRequest,
+    );
+  }
+}
+
+/// Custom input formatter for date input (dd-mm)
+class DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+
+    // Remove all non-digits
+    final digitsOnly = text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Limit to 4 digits (ddmm)
+    final limitedDigits =
+        digitsOnly.length > 4 ? digitsOnly.substring(0, 4) : digitsOnly;
+
+    // Format with dash
+    String formatted = '';
+    for (int i = 0; i < limitedDigits.length; i++) {
+      if (i == 2) {
+        formatted += '-';
+      }
+      formatted += limitedDigits[i];
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

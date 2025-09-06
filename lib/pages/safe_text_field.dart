@@ -115,10 +115,12 @@ class _SafeTextFieldState extends State<SafeTextField> {
 
 class SafeTextFormField extends FormField<String> {
   final TextEditingController? controller;
+  final List<TextInputFormatter>? inputFormatters;
 
   SafeTextFormField({
     Key? key,
     this.controller,
+    this.inputFormatters,
     InputDecoration? decoration,
     TextStyle? style,
     bool obscureText = false,
@@ -151,6 +153,7 @@ class SafeTextFormField extends FormField<String> {
               obscureText: obscureText,
               readOnly: readOnly,
               keyboardType: keyboardType,
+              inputFormatters: inputFormatters,
               onChanged: (value) {
                 field.didChange(value);
                 if (onChanged != null) {
