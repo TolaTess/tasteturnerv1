@@ -1,6 +1,7 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
@@ -106,17 +107,44 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
   Future<void> _load54321ShoppingList() async {
     final userId = userService.userId;
-    if (userId == null) return;
+    if (userId == null) {
+      debugPrint('54321 Load: No user ID found');
+      return;
+    }
 
     try {
-      final savedList = await geminiService.get54321ShoppingList(userId);
-      if (mounted && savedList != null) {
+      // Use MacroManager instead of GeminiService
+      final savedListData = await _macroManager.getLatest54321ShoppingList();
+      debugPrint(
+          '54321 Load: Received data: ${savedListData != null ? 'Yes' : 'No'}');
+
+      if (savedListData != null) {
+        debugPrint('54321 Load: Full data structure: $savedListData');
+        debugPrint('54321 Load: Keys: ${savedListData.keys.toList()}');
+        debugPrint('54321 Load: Tips: ${savedListData['tips']}');
+        debugPrint('54321 Load: Meal Ideas: ${savedListData['mealIdeas']}');
+        debugPrint(
+            '54321 Load: Estimated Cost: ${savedListData['estimatedCost']}');
+        debugPrint(
+            '54321 Load: Generated from: ${savedListData['generatedFrom']}');
+      }
+
+      if (mounted) {
         setState(() {
-          _shoppingList54321 = savedList;
+          _shoppingList54321 = savedListData;
         });
+        debugPrint(
+            '54321 Load: _shoppingList54321 set to: ${_shoppingList54321 != null ? 'NOT NULL' : 'NULL'}');
+        debugPrint(
+            '54321 Load: State updated, should show empty: ${_shouldShow54321EmptyState()}');
       }
     } catch (e) {
       debugPrint('Error loading 54321 shopping list: $e');
+      if (mounted) {
+        setState(() {
+          _shoppingList54321 = null;
+        });
+      }
     }
   }
 
@@ -217,7 +245,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
     }
   }
 
-  Future<void> _generate54321ShoppingList() async {
+  Future<void> generate54321ShoppingList() async {
     if (_isLoading54321) return;
 
     // Check premium access
@@ -232,24 +260,33 @@ class _ShoppingTabState extends State<ShoppingTab> {
     });
 
     try {
-      // Get user context from userService instead of private method
-      final currentUser = userService.currentUser.value;
-      final dietaryRestrictions =
-          currentUser?.settings['dietPreference'] != 'balanced'
-              ? currentUser?.settings['dietPreference']
-              : null;
-      final familyMode = currentUser?.familyMode ?? false;
+      debugPrint(
+          'Generating new 54321 shopping list using ingredients collection...');
 
-      final result = await geminiService.generateAndSave54321ShoppingList(
-        dietaryRestrictions: dietaryRestrictions,
-        additionalContext: 'Family mode: ${familyMode ? 'Yes' : 'No'}',
-      );
+      // Generate and save the new shopping list using MacroManager
+      final shoppingListData =
+          await _macroManager.generateAndSave54321ShoppingList();
+      FirebaseAnalytics.instance.logEvent(name: '54321_shopping');
 
-      if (mounted) {
-        setState(() {
-          _shoppingList54321 = result;
-          _isLoading54321 = false;
-        });
+      if (shoppingListData != null) {
+        debugPrint('Successfully generated 54321 shopping list');
+
+        if (mounted) {
+          setState(() {
+            _shoppingList54321 = shoppingListData;
+            _isLoading54321 = false;
+          });
+        }
+
+        // Show success message
+        showTastySnackbar(
+          'Success!',
+          'New 54321 shopping list generated with diet preferences',
+          context,
+          backgroundColor: kGreen,
+        );
+      } else {
+        throw Exception('Failed to generate shopping list');
       }
     } catch (e) {
       if (mounted) {
@@ -524,11 +561,83 @@ class _ShoppingTabState extends State<ShoppingTab> {
     );
   }
 
+  String isLessThanCategory(String category, int count) {
+    final dietPreference =
+        userService.currentUser.value?.settings['dietPreference'];
+    if (category == 'fruits') {
+      return count < 4 ? 'less fruits on ${dietPreference}' : '';
+    } else if (category == 'proteins') {
+      return count < 3 ? 'less protein on ${dietPreference}' : count > 3 ? 'more protein on ${dietPreference}' : '';
+    } else if (category == 'vegetables') {
+      return count < 5 ? 'less vegetable on ${dietPreference}' : '';
+    } else if (category == 'sauces') {
+      return count < 2 ? 'less sauce on ${dietPreference}' : '';
+    } else if (category == 'grains') {
+      return count < 1 ? 'less grain on ${dietPreference}' : '';
+    } else if (category == 'treats') {
+      return count < 1 ? 'less treat on ${dietPreference}' : '';
+    }
+    return '';
+  }
+
   String _getItemCountText() {
     final consolidatedCounts = _getConsolidatedCounts();
     final purchasedCount = consolidatedCounts['purchased'] ?? 0;
     final totalCount = consolidatedCounts['total'] ?? 0;
     return '$purchasedCount / $totalCount';
+  }
+
+  bool _shouldShow54321EmptyState() {
+    debugPrint(
+        '54321 Empty State: Called with _shoppingList54321 = ${_shoppingList54321 != null ? 'NOT NULL' : 'NULL'}');
+
+    // Show empty state if:
+    // 1. No shopping list data at all
+    if (_shoppingList54321 == null) {
+      debugPrint('54321 Empty State: No shopping list data');
+      return true;
+    }
+
+    // 2. Shopping list data exists but has no actual shopping list content
+    final shoppingListData =
+        _shoppingList54321!['shoppingList'] as Map<String, dynamic>?;
+
+    // Handle nested shoppingList structure
+    Map<String, dynamic>? shoppingList;
+    if (shoppingListData != null &&
+        shoppingListData.containsKey('shoppingList')) {
+      // Nested structure: {shoppingList: {shoppingList: {...}}}
+      shoppingList = shoppingListData['shoppingList'] as Map<String, dynamic>?;
+    } else {
+      // Direct structure: {shoppingList: {...}}
+      shoppingList = shoppingListData;
+    }
+
+    if (shoppingList == null || shoppingList.isEmpty) {
+      return true;
+    }
+
+    // 3. Shopping list exists but all categories are empty
+    final categories = [
+      'vegetables',
+      'fruits',
+      'proteins',
+      'sauces',
+      'grains',
+      'treats'
+    ];
+    bool hasAnyItems = false;
+
+    for (final category in categories) {
+      final items = shoppingList[category] as List<dynamic>?;
+      if (items != null && items.isNotEmpty) {
+        hasAnyItems = true;
+        break;
+      }
+    }
+
+    final shouldShowEmpty = !hasAnyItems;
+    return shouldShowEmpty;
   }
 
   Widget _build54321View(
@@ -548,7 +657,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 onPressed: _isLoading54321
                     ? null
                     : (canUseAI()
-                        ? _generate54321ShoppingList
+                        ? generate54321ShoppingList
                         : () {
                             final isDarkMode =
                                 getThemeProvider(context).isDarkMode;
@@ -593,7 +702,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
           // 54321 Shopping List
           Expanded(
-            child: _shoppingList54321 == null
+            child: _shouldShow54321EmptyState()
                 ? _build54321EmptyState(context, isDarkMode, textTheme)
                 : _build54321ShoppingList(context, isDarkMode, textTheme),
           ),
@@ -677,17 +786,70 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
   Widget _build54321ShoppingList(
       BuildContext context, bool isDarkMode, TextTheme textTheme) {
-    final shoppingList =
+    final shoppingListData =
         _shoppingList54321!['shoppingList'] as Map<String, dynamic>;
+
+    // Handle nested shoppingList structure
+    Map<String, dynamic> shoppingList;
+    if (shoppingListData.containsKey('shoppingList')) {
+      // Nested structure: {shoppingList: {shoppingList: {...}}}
+      shoppingList = shoppingListData['shoppingList'] as Map<String, dynamic>;
+    } else {
+      // Direct structure: {shoppingList: {...}}
+      shoppingList = shoppingListData;
+    }
+
     final tips = _shoppingList54321!['tips'] as List<dynamic>? ?? [];
     final mealIdeas = _shoppingList54321!['mealIdeas'] as List<dynamic>? ?? [];
     final estimatedCost = _shoppingList54321!['estimatedCost'] as String? ?? '';
+    final generatedAt = _shoppingList54321!['generatedAt'] as String?;
+
+    debugPrint('54321 Shopping List: Tips: $tips');
+    debugPrint('54321 Shopping List: Meal Ideas: $mealIdeas');
+    debugPrint('54321 Shopping List: Estimated Cost: $estimatedCost');
+
+    // Format the generation date
+    String formattedDate = '';
+    if (generatedAt != null) {
+      try {
+        final date = DateTime.parse(generatedAt);
+        formattedDate = DateFormat('MMM dd, yyyy \'at\' h:mm a').format(date);
+      } catch (e) {
+        formattedDate = 'Recently generated';
+      }
+    }
 
     return ListView(
       padding: EdgeInsets.symmetric(
         horizontal: getPercentageWidth(2, context),
       ),
       children: [
+        // Generation date card
+        if (formattedDate.isNotEmpty)
+          Card(
+            color: isDarkMode
+                ? kLightGrey.withValues(alpha: 0.2)
+                : kWhite.withValues(alpha: 0.9),
+            child: Padding(
+              padding: EdgeInsets.all(getPercentageWidth(3, context)),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule,
+                      color: kAccent, size: getPercentageWidth(5, context)),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Expanded(
+                    child: Text(
+                      'Generated: $formattedDate',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // Cost estimate card
         if (estimatedCost.isNotEmpty)
           Card(
@@ -780,7 +942,21 @@ class _ShoppingTabState extends State<ShoppingTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: getPercentageHeight(1, context)),
-          _buildSectionHeader(category['title'] as String, textTheme, context),
+          Row(
+            children: [
+              _buildSectionHeader(
+                  category['title'] as String, textTheme, context),
+              if (isLessThanCategory(category['key'] as String, items.length) !=
+                  '') ...[
+                Text(
+                  '- (${isLessThanCategory(category['key'] as String, items.length) != '' ? isLessThanCategory(category['key'] as String, items.length) : ''})',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: kAccentLight,
+                  ),
+                ),
+              ]
+            ],
+          ),
           ...items.map((item) => _build54321ItemCard(
                 context,
                 isDarkMode,
@@ -824,7 +1000,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
               children: [
                 Expanded(
                   child: Text(
-                    name,
+                    capitalizeFirstLetter(name),
                     style: textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? kWhite : kBlack,

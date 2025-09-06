@@ -41,6 +41,7 @@ class _DineInScreenState extends State<DineInScreen> {
   bool isLoadingChallenge = false;
   String? challengeDate;
   String? savedChallengeDate; // Store the user's saved challenge date
+  List<String> excludedIngredients = [];
 
   @override
   void initState() {
@@ -49,6 +50,14 @@ class _DineInScreenState extends State<DineInScreen> {
     _loadChallengeData();
     _generateIngredientPair();
     _checkChallengeNotification();
+    loadExcludedIngredients();
+  }
+
+  loadExcludedIngredients() async {
+    await firebaseService.fetchGeneralData();
+    excludedIngredients = firebaseService.generalData['excludeIngredients']
+        .toString()
+        .split(',');
   }
 
   // Local storage keys

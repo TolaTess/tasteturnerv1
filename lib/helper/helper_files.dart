@@ -249,21 +249,13 @@ List<MacroData> updateIngredientListByType(
     switch (selectedCategoryLower) {
       case 'protein':
         // Check if type is protein or if categories contain exact "protein" match
-        return ingredientType == 'protein' ||
-            ingredient.categories
-                .any((category) => category.toLowerCase() == 'protein');
+        return ingredientType == 'protein';
       case 'grain':
-        return ingredientType == 'grain' ||
-            ingredient.categories
-                .any((category) => category.toLowerCase() == 'grain');
+        return ingredientType == 'grain';
       case 'vegetable':
-        return ingredientType == 'vegetable' ||
-            ingredient.categories
-                .any((category) => category.toLowerCase() == 'vegetable');
+        return ingredientType == 'vegetable';
       case 'fruit':
-        return ingredientType == 'fruit' ||
-            ingredient.categories
-                .any((category) => category.toLowerCase() == 'fruit');
+        return ingredientType == 'fruit';
       default:
         // For other categories, check if any category exactly matches
         return ingredient.categories

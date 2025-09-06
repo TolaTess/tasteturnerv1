@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -33,12 +32,6 @@ class _BuddyTabState extends State<BuddyTab> {
   bool familyMode = false;
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> _familyMemberCategories = [];
-
-  // Meal processing state
-  List<String> _processingMealIds = [];
-  bool _showProgressBar = false;
-  Timer? _progressBarTimer;
-  Timer? _mealStatusTimer;
 
   // Toggle meal type selection
   void toggleMealTypeSelection(String mealType) {
@@ -100,8 +93,6 @@ class _BuddyTabState extends State<BuddyTab> {
   @override
   void dispose() {
     selectedMealTypesNotifier.dispose();
-    _progressBarTimer?.cancel();
-    _mealStatusTimer?.cancel();
     super.dispose();
   }
 
@@ -184,126 +175,6 @@ class _BuddyTabState extends State<BuddyTab> {
         .orderBy(FieldPath.documentId, descending: true)
         .limit(1)
         .get();
-  }
-
-  /// Update meal processing status for Firebase Functions approach
-  void _updateMealProcessingStatus(List<String> mealIds,
-      {bool showForDuration = false}) {
-    setState(() {
-      _processingMealIds = mealIds;
-      _showProgressBar = mealIds.isNotEmpty;
-    });
-
-    // Auto-hide progress bar after 10 seconds if requested
-    if (showForDuration && mealIds.isNotEmpty) {
-      _progressBarTimer?.cancel();
-      _progressBarTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted) {
-          setState(() {
-            _showProgressBar = false;
-          });
-        }
-      });
-    }
-  }
-
-  /// Start monitoring meal status from a meal plan generation
-  void startMealProcessingMonitoring(List<String> mealIds) {
-    debugPrint(
-        '🔄 Starting meal processing monitoring for ${mealIds.length} meals');
-
-    // Show progress bar initially for 10 seconds
-    _updateMealProcessingStatus(mealIds, showForDuration: true);
-
-    // Start periodic status checking
-    _mealStatusTimer?.cancel();
-    _mealStatusTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _checkMealProcessingStatus(mealIds, timer);
-    });
-  }
-
-  /// Check meal processing status and update UI accordingly
-  void _checkMealProcessingStatus(List<String> mealIds, Timer timer) async {
-    try {
-      int pendingCount = 0;
-      int completedCount = 0;
-      int failedCount = 0;
-
-      for (final mealId in mealIds) {
-        final meal = await mealManager.getMealbyMealID(mealId);
-        if (meal != null) {
-          final status = meal.status?.toLowerCase() ?? 'pending';
-          switch (status) {
-            case 'pending':
-            case 'processing':
-              pendingCount++;
-              break;
-            case 'completed':
-              completedCount++;
-              break;
-            case 'failed':
-              failedCount++;
-              break;
-          }
-        } else {
-          pendingCount++; // Assume pending if meal not found
-        }
-      }
-
-      debugPrint(
-          '📊 Meal status: $completedCount completed, $pendingCount pending, $failedCount failed');
-
-      // Show progress bar if there are still pending meals
-      if (pendingCount > 0) {
-        if (!_showProgressBar) {
-          setState(() {
-            _showProgressBar = true;
-          });
-        }
-      } else {
-        // All meals are completed or failed
-        timer.cancel();
-
-        if (completedCount > 0) {
-          _onMealProcessingCompleted();
-        }
-
-        // Refresh the UI to show updated meals
-        _initializeBuddyData();
-      }
-    } catch (e) {
-      debugPrint('❌ Error checking meal status: $e');
-    }
-  }
-
-  /// Handle meal processing completion (Firebase Functions approach)
-  void _onMealProcessingCompleted() {
-    setState(() {
-      _showProgressBar = false;
-    });
-
-    // Show completion snackbar
-    Get.snackbar(
-      '🎉 Meal Plan Complete!',
-      'All meal details have been populated by Firebase Functions.',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: kAccent,
-      colorText: kWhite,
-      duration: const Duration(seconds: 3),
-    );
-  }
-
-  /// Handle meal processing retry (Firebase Functions approach)
-  void _onMealProcessingRetry() {
-    // Firebase Functions automatically retry with exponential backoff
-    Get.snackbar(
-      '🔄 Firebase Functions Retry',
-      'Failed meals will be automatically retried with exponential backoff.',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.orange,
-      colorText: kWhite,
-      duration: const Duration(seconds: 2),
-    );
   }
 
   Future<dynamic> _navigateToChooseDietWithUser(BuildContext context) async {
@@ -672,16 +543,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         borderRadius: BorderRadius.circular(15),
                         onTap: () async {
                           if (canUseAI()) {
-                            final result =
-                                await _navigateToChooseDietWithUser(context);
-                            // If meal plan was generated, start monitoring
-                            if (result != null &&
-                                result is Map &&
-                                result['mealIds'] != null) {
-                              final mealIds =
-                                  List<String>.from(result['mealIds']);
-                              startMealProcessingMonitoring(mealIds);
-                            }
+                            await _navigateToChooseDietWithUser(context);
                           } else {
                             showPremiumRequiredDialog(context, isDarkMode);
                           }
@@ -852,10 +714,6 @@ class _BuddyTabState extends State<BuddyTab> {
                 final isDarkMode = getThemeProvider(context).isDarkMode;
                 final currentUser = userService.currentUser.value;
 
-                if (mealPlan == null) {
-                  return _buildDefaultView(context, false);
-                }
-
                 final generations = (mealPlan['generations'] as List<dynamic>?)
                         ?.map((gen) => gen as Map<String, dynamic>)
                         .toList() ??
@@ -999,23 +857,10 @@ class _BuddyTabState extends State<BuddyTab> {
                                   ),
                                 ),
                                 onPressed: () async {
-                                  // final canGenerate =
-                                  //     await checkMealPlanGenerationLimit(context);
                                   if (canUseAI()) {
-                                    final result =
-                                        await _navigateToChooseDietWithUser(
-                                            context);
-                                    // If meal plan was generated, start monitoring
-                                    if (result != null &&
-                                        result is Map &&
-                                        result['mealIds'] != null) {
-                                      final mealIds =
-                                          List<String>.from(result['mealIds']);
-                                      startMealProcessingMonitoring(mealIds);
-                                    }
+                                    await _navigateToChooseDietWithUser(
+                                        context);
                                   } else {
-                                    // showGenerationLimitDialog(context,
-                                    //     isDarkMode: isDarkMode);
                                     showPremiumRequiredDialog(
                                         context, isDarkMode);
                                   }

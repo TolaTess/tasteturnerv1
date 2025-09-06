@@ -50,7 +50,7 @@ class _SpinScreenState extends State<SpinScreen>
             return !excludedIngredients.any((excluded) =>
                 type == excluded.toLowerCase() ||
                 type.contains(excluded.toLowerCase())) &&
-                !['sweetener', 'condiment', 'pastry', 'dairy', 'oil', 'herb', 'spice', 'liquid']
+                !['sweetener', 'condiment', 'pastry', 'dairy', 'oil', 'herb', 'spice', 'liquid', 'seed', 'nut']
                 .contains(type);
           }).toList();
 

@@ -113,10 +113,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
       _purchaseError = null;
     });
     try {
+      final userId = userService.userId;
       if (isYearlySelected) {
-        await PaymentService().buyYearly();
+        await PaymentService().buyYearly(userId: userId);
       } else {
-        await PaymentService().buyMonthly();
+        await PaymentService().buyMonthly(userId: userId);
       }
     } catch (e) {
       setState(() {

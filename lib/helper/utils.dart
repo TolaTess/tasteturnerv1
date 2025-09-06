@@ -74,7 +74,20 @@ String removeDashWithSpace(String messageContent) {
 }
 
 String removeAllTextJustNumbers(String value) {
-  return value.replaceAll(RegExp(r'[^0-9]'), '');
+  // Remove all non-numeric characters except hyphen
+  String cleanValue = value.replaceAll(RegExp(r'[^0-9\-]'), '');
+  
+  // Check if there's a range (contains hyphen)
+  if (cleanValue.contains('-')) {
+    List<String> range = cleanValue.split('-');
+    if (range.length == 2) {
+      // Return the higher number in the range
+      return range[1];
+    }
+  }
+  
+  // If no range, just return the cleaned number
+  return cleanValue.replaceAll('-', '');
 }
 
 String normaliseMacrosText(String value) {
@@ -933,99 +946,6 @@ double getProportionalHeight(double inputHeight, BuildContext context) {
 }
 
 // Define list of ingredients to exclude (common seasonings, herbs, spices)
-const excludedIngredients = [
-  'salt',
-  'ingredient',
-  'pepper',
-  'onion',
-  'garlic',
-  'basil',
-  'oregano',
-  'thyme',
-  'rosemary',
-  'parsley',
-  'cilantro',
-  'cumin',
-  'paprika',
-  'cinnamon',
-  'turmeric',
-  'ginger',
-  'bay leaf',
-  'bay leaves',
-  'nutmeg',
-  'cloves',
-  'cardamom',
-  'chili powder',
-  'curry powder',
-  'allspice',
-  'sage',
-  'dill',
-  'mint',
-  'coriander',
-  'cayenne',
-  'black pepper',
-  'lemon',
-  'lime',
-  'mint',
-  'rosemary',
-  'thyme',
-  'oregano',
-  'lemon juice',
-  'olive oil',
-  'vegetable oil',
-  'red onion',
-  'oil',
-  'butter',
-  'ghee',
-  'margarine',
-  'broth',
-  'chicken broth',
-  'beef broth',
-  'vegetable broth',
-  'fish broth',
-  'chicken stock',
-  'beef stock',
-  'vegetable stock',
-  'vinegar',
-  'soy sauce',
-  'ketchup',
-  'mustard',
-  'mayonnaise',
-  'hot sauce',
-  'bbq sauce',
-  'barbecue sauce',
-  'hot sauce',
-  'bbq sauce',
-  'cream',
-  'cheese',
-  'yogurt',
-  'sour cream',
-  'sauce',
-  'gravy',
-  'syrup',
-  'jam',
-  'avocado oil',
-  'red onion',
-  'olive oil',
-  'sesame oil',
-  'peanut oil',
-  'coconut oil',
-  'peanut butter',
-  'almond butter',
-  'cashew butter',
-  'hazelnut butter',
-  'walnut butter',
-  'macadamia nut butter',
-  'peanut',
-  'spices',
-  'spice',
-  'herbs',
-  'herb',
-  'water',
-  'milk',
-  'juice',
-  'juices'
-];
 
 const vegetables = [
   'broccoli',

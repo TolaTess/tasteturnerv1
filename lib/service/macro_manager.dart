@@ -781,4 +781,1114 @@ class MacroManager extends GetxController {
     _isFetching = false;
     await fetchIngredients();
   }
+
+  /// Generate and save a new 54321 shopping list from ingredients collection
+  /// This is the main public method to be called from the UI
+  Future<Map<String, dynamic>?> generateAndSave54321ShoppingList() async {
+    try {
+      // Generate the shopping list
+      final shoppingListData = await generate54321ShoppingListFromIngredients();
+
+      // Save to Firestore
+      await save54321ShoppingListToFirestore(shoppingListData);
+
+      return shoppingListData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Generate a 54321 shopping list from local ingredients collection
+  /// 5 vegetables, 4 fruits, 3 proteins, 2 condiments/sauces, 1 grain, 1 treat
+  /// Filters ingredients based on user's diet preferences
+  Future<Map<String, dynamic>>
+      generate54321ShoppingListFromIngredients() async {
+    try {
+      await _ensureDataFetched();
+
+      if (ingredient.isEmpty) {
+        return _getFallback54321Data();
+      }
+
+      // Get user's diet preference (single string)
+      final dietPreference = userService
+              .currentUser.value?.settings['dietPreference']
+              ?.toString()
+              .toLowerCase() ??
+          'balanced';
+
+      // Get excluded ingredients from Firebase
+      final excludedIngredients = await _getExcludedIngredients();
+
+      // Categorize ingredients by type and filter by diet preference and exclusions
+      final vegetables = ingredient
+          .where((item) =>
+              item.type.toLowerCase() == 'vegetable' &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+      final fruits = ingredient
+          .where((item) =>
+              item.type.toLowerCase() == 'fruit' &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+      final proteins = ingredient
+          .where((item) =>
+              item.type.toLowerCase() == 'protein' &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+      final grains = ingredient
+          .where((item) =>
+              item.type.toLowerCase() == 'grain' &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+      final condiments = ingredient
+          .where((item) =>
+              (item.type.toLowerCase() == 'condiment' ||
+                  item.type.toLowerCase() == 'sauce' ||
+                  item.type.toLowerCase() == 'spread') &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+      final treats = ingredient
+          .where((item) =>
+              (item.type.toLowerCase() == 'treat' ||
+                  item.type.toLowerCase() == 'snack' ||
+                  item.type.toLowerCase() == 'dessert') &&
+              _isIngredientAllowedForDiet(item, dietPreference) &&
+              _isIngredientNotExcluded(item, excludedIngredients))
+          .toList();
+
+      // Shuffle and select items
+      vegetables.shuffle(Random());
+      fruits.shuffle(Random());
+      proteins.shuffle(Random());
+      grains.shuffle(Random());
+      condiments.shuffle(Random());
+      treats.shuffle(Random());
+
+      // Build the shopping list with diet-appropriate adjustments
+      final shoppingList = <String, List<Map<String, dynamic>>>{};
+      final selectedIngredients =
+          <String>[]; // Track selected ingredients for variation checks
+
+      // Add vegetables (or skip if carnivore)
+      if (vegetables.isNotEmpty && dietPreference != 'carnivore') {
+        final selectedVegetables =
+            _selectVariedIngredients(vegetables, 5, selectedIngredients);
+        shoppingList['vegetables'] = selectedVegetables
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('vegetable'),
+                  'category': 'vegetable',
+                  'notes': _getNoteForCategory('vegetable')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedVegetables.map((item) => item.title.toLowerCase()));
+      }
+
+      // Add fruits (or skip if carnivore, limit if keto)
+      if (fruits.isNotEmpty && dietPreference != 'carnivore') {
+        final fruitCount =
+            (dietPreference == 'keto' || dietPreference == 'ketogenic') ? 2 : 4;
+        final selectedFruits =
+            _selectVariedIngredients(fruits, fruitCount, selectedIngredients);
+        shoppingList['fruits'] = selectedFruits
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('fruit'),
+                  'category': 'fruit',
+                  'notes': _getNoteForCategory('fruit')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedFruits.map((item) => item.title.toLowerCase()));
+      }
+
+      // Add proteins (essential for all diets)
+      if (proteins.isNotEmpty) {
+        final proteinCount = dietPreference == 'carnivore'
+            ? 6
+            : 3; // More proteins for carnivore
+        final selectedProteins = _selectVariedIngredients(
+            proteins, proteinCount, selectedIngredients);
+        shoppingList['proteins'] = selectedProteins
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('protein'),
+                  'category': 'protein',
+                  'notes': _getNoteForCategory('protein')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedProteins.map((item) => item.title.toLowerCase()));
+      }
+
+      // Add condiments/sauces (if available)
+      if (dietPreference == 'carnivore') {
+        // For carnivore diet, use static sauce options
+        final carnivoreSauces = ['Ghee', 'Butter', 'Tallow', 'Lard'];
+        carnivoreSauces.shuffle(Random());
+        final selectedSauces = carnivoreSauces.take(2).toList();
+
+        shoppingList['sauces'] = selectedSauces
+            .map((sauce) => {
+                  'name': sauce,
+                  'amount': _getAmountForCategory('sauce'),
+                  'category': 'sauce',
+                  'notes': _getNoteForCategory('sauce')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedSauces.map((sauce) => sauce.toLowerCase()));
+      } else if (condiments.isNotEmpty) {
+        final selectedCondiments =
+            _selectVariedIngredients(condiments, 2, selectedIngredients);
+        shoppingList['sauces'] = selectedCondiments
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('sauce'),
+                  'category': 'sauce',
+                  'notes': _getNoteForCategory('sauce')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedCondiments.map((item) => item.title.toLowerCase()));
+      }
+
+      // Add grains (skip for keto, carnivore, paleo)
+      if (grains.isNotEmpty &&
+          !['keto', 'ketogenic', 'carnivore', 'paleo']
+              .contains(dietPreference)) {
+        final selectedGrains =
+            _selectVariedIngredients(grains, 1, selectedIngredients);
+        shoppingList['grains'] = selectedGrains
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('grain'),
+                  'category': 'grain',
+                  'notes': _getNoteForCategory('grain')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedGrains.map((item) => item.title.toLowerCase()));
+      }
+
+      // Add treats (if available and allowed)
+      if (treats.isNotEmpty) {
+        final selectedTreats =
+            _selectVariedIngredients(treats, 1, selectedIngredients);
+        shoppingList['treats'] = selectedTreats
+            .map((item) => {
+                  'name': item.title,
+                  'amount': _getAmountForCategory('treat'),
+                  'category': 'treat',
+                  'notes': _getNoteForCategory('treat')
+                })
+            .toList();
+        selectedIngredients
+            .addAll(selectedTreats.map((item) => item.title.toLowerCase()));
+      }
+
+      // If we don't have enough items due to diet restrictions, add more proteins or vegetables
+      final totalCurrentItems = shoppingList.values
+          .map((list) => list.length)
+          .fold(0, (a, b) => a + b);
+
+      if (totalCurrentItems < 10) {
+        // Add more proteins if available
+        final remainingProteins =
+            proteins.skip(shoppingList['proteins']?.length ?? 0).toList();
+        if (remainingProteins.isNotEmpty &&
+            (shoppingList['proteins']?.length ?? 0) < 6) {
+          final additionalProteins = _selectVariedIngredients(
+              remainingProteins, 2, selectedIngredients);
+          final additionalProteinsData = additionalProteins
+              .map((item) => {
+                    'name': item.title.replaceAll('cooked', '').trim(),
+                    'amount': _getAmountForCategory('protein'),
+                    'category': 'protein',
+                    'notes': _getNoteForCategory('protein')
+                  })
+              .toList();
+          shoppingList['proteins'] = [
+            ...(shoppingList['proteins'] ?? []),
+            ...additionalProteinsData
+          ];
+          selectedIngredients.addAll(
+              additionalProteins.map((item) => item.title.toLowerCase()));
+        }
+
+        // Add more vegetables if not carnivore
+        if (dietPreference != 'carnivore') {
+          final remainingVegetables =
+              vegetables.skip(shoppingList['vegetables']?.length ?? 0).toList();
+          if (remainingVegetables.isNotEmpty &&
+              (shoppingList['vegetables']?.length ?? 0) < 7) {
+            final additionalVegetables = _selectVariedIngredients(
+                remainingVegetables, 2, selectedIngredients);
+            final additionalVegetablesData = additionalVegetables
+                .map((item) => {
+                      'name': item.title.replaceAll('cooked', '').trim(),
+                      'amount': _getAmountForCategory('vegetable'),
+                      'category': 'vegetable',
+                      'notes': _getNoteForCategory('vegetable')
+                    })
+                .toList();
+            shoppingList['vegetables'] = [
+              ...(shoppingList['vegetables'] ?? []),
+              ...additionalVegetablesData
+            ];
+            selectedIngredients.addAll(
+                additionalVegetables.map((item) => item.title.toLowerCase()));
+          }
+        }
+      }
+
+      // Calculate total items
+      final totalItems = shoppingList.values
+          .map((list) => (list as List).length)
+          .reduce((a, b) => a + b);
+
+      // Generate tips and meal ideas based on diet preference
+      final tips = _generateShoppingTips(dietPreference);
+      final mealIdeas = _generateMealIdeas(shoppingList, dietPreference);
+      final estimatedCost = _estimateCost(totalItems);
+
+      return {
+        'shoppingList': shoppingList,
+        'totalItems': totalItems,
+        'estimatedCost': estimatedCost,
+        'tips': tips,
+        'mealIdeas': mealIdeas,
+      };
+    } catch (e) {
+      return _getFallback54321Data();
+    }
+  }
+
+  /// Get realistic amount for ingredients based on category
+  String _getAmountForCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'vegetable':
+        final vegetableAmounts = ['1 bunch', '500g', '1 bag'];
+        return vegetableAmounts[Random().nextInt(vegetableAmounts.length)];
+
+      case 'fruit':
+        final fruitAmounts = ['500g', '3 pieces', '1 bag'];
+        return fruitAmounts[Random().nextInt(fruitAmounts.length)];
+
+      case 'protein':
+        final proteinAmounts = ['500g', '1 pack', '800g'];
+        return proteinAmounts[Random().nextInt(proteinAmounts.length)];
+
+      case 'sauce':
+        final sauceAmounts = [
+          '250ml',
+          '500ml',
+        ];
+        return sauceAmounts[Random().nextInt(sauceAmounts.length)];
+
+      case 'grain':
+        final grainAmounts = ['500g', '1 bag', '1 pack'];
+        return grainAmounts[Random().nextInt(grainAmounts.length)];
+
+      case 'treat':
+        final treatAmounts = ['100g', '1 bar', '1 piece'];
+        return treatAmounts[Random().nextInt(treatAmounts.length)];
+
+      default:
+        return '1 piece';
+    }
+  }
+
+  /// Get relevant note for ingredients based on category
+  String _getNoteForCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'vegetable':
+        final vegetableNotes = [
+          'Fresh and crisp',
+          'Organic if possible',
+          'Mixed colors',
+          'Seasonal variety',
+        ];
+        return vegetableNotes[Random().nextInt(vegetableNotes.length)];
+
+      case 'fruit':
+        final fruitNotes = [
+          'Ripe and sweet',
+          'Juicy and fresh',
+        ];
+        return fruitNotes[Random().nextInt(fruitNotes.length)];
+
+      case 'protein':
+        final proteinNotes = ['Fresh if possible', 'Organic if possible'];
+        return proteinNotes[Random().nextInt(proteinNotes.length)];
+
+      case 'sauce':
+        final sauceNotes = [
+          'Check expiry date',
+          'Shake before use',
+          'Store in cool place',
+          'Natural ingredients',
+          'No artificial colors',
+          'Low sodium option'
+        ];
+        return sauceNotes[Random().nextInt(sauceNotes.length)];
+
+      case 'grain':
+        final grainNotes = ['Whole grain preferred', 'Store in cool dry place'];
+        return grainNotes[Random().nextInt(grainNotes.length)];
+
+      case 'treat':
+        final treatNotes = [
+          'Check ingredients',
+          'Moderate portion',
+          'No artificial flavors',
+          'Enjoy in moderation',
+          'Premium quality'
+        ];
+        return treatNotes[Random().nextInt(treatNotes.length)];
+
+      default:
+        return 'Fresh and good quality';
+    }
+  }
+
+  /// Generate shopping tips based on diet preference
+  List<String> _generateShoppingTips(String dietPreference) {
+    final tips = <String>[];
+
+    // Base tips for everyone
+    tips.addAll([
+      'Buy seasonal produce for better prices and freshness',
+      'Check for sales on proteins and bulk items',
+      'Store ingredients properly to extend their shelf life',
+    ]);
+
+    // Diet-specific tips
+    switch (dietPreference) {
+      case 'keto':
+      case 'ketogenic':
+        tips.addAll([
+          'Focus on high-fat, low-carb options',
+          'Check nutrition labels for hidden carbs',
+          'Buy avocados and nuts for healthy fats'
+        ]);
+        break;
+      case 'carnivore':
+        tips.addAll([
+          'Choose grass-fed and organic meats when possible',
+          'Buy organ meats for additional nutrients',
+          'Consider buying in bulk for better prices'
+        ]);
+        break;
+      case 'vegan':
+        tips.addAll([
+          'Check labels for hidden animal products',
+          'Buy a variety of plant proteins',
+          'Choose fortified plant milks for B12 and calcium'
+        ]);
+        break;
+      case 'paleo':
+        tips.addAll([
+          'Focus on whole, unprocessed foods',
+          'Buy organic when possible',
+          'Avoid packaged foods with additives'
+        ]);
+        break;
+      default:
+        tips.add('Plan your meals around the ingredients you buy');
+    }
+
+    return tips.take(5).toList();
+  }
+
+  /// Generate meal ideas based on selected ingredients and diet preference
+  List<String> _generateMealIdeas(
+      Map<String, dynamic> shoppingList, String dietPreference) {
+    final ideas = <String>[];
+
+    // Get ingredient names for meal ideas
+    final vegetables =
+        (shoppingList['vegetables'] as List<Map<String, dynamic>>?)
+                ?.map((v) => v['name'] as String)
+                .toList() ??
+            [];
+    final fruits = (shoppingList['fruits'] as List<Map<String, dynamic>>?)
+            ?.map((f) => f['name'] as String)
+            .toList() ??
+        [];
+    final proteins = (shoppingList['proteins'] as List<Map<String, dynamic>>?)
+            ?.map((p) => p['name'] as String)
+            .toList() ??
+        [];
+    final grains = (shoppingList['grains'] as List<Map<String, dynamic>>?)
+            ?.map((g) => g['name'] as String)
+            .toList() ??
+        [];
+
+    // Generate diet-appropriate meal ideas
+    if (dietPreference == 'carnivore') {
+      if (proteins.isNotEmpty) {
+        ideas.add(
+            'Pan-seared ${capitalizeFirstLetter(proteins.first)} with butter');
+        if (proteins.length > 1) {
+          ideas.add(
+              '${capitalizeFirstLetter(proteins[1])} steak with bone broth');
+        }
+        ideas.add('Grilled ${proteins.first} with sea salt');
+      }
+    } else if (dietPreference == 'vegan') {
+      if (vegetables.isNotEmpty && proteins.isNotEmpty) {
+        ideas.add(
+            '${capitalizeFirstLetter(proteins.first)} stir-fry with ${capitalizeFirstLetter(vegetables.first)}');
+      }
+      if (fruits.isNotEmpty) {
+        ideas.add(
+            '${capitalizeFirstLetter(fruits.first)} smoothie bowl with plant protein');
+      }
+      if (vegetables.length >= 2) {
+        ideas.add(
+            'Roasted ${capitalizeFirstLetter(vegetables[0])} and ${capitalizeFirstLetter(vegetables[1])} Buddha bowl');
+      }
+    } else {
+      // General meal ideas
+      if (vegetables.isNotEmpty && proteins.isNotEmpty) {
+        ideas.add(
+            'Grilled ${capitalizeFirstLetter(proteins.first)} with roasted ${capitalizeFirstLetter(vegetables.first)}');
+      }
+      if (proteins.isNotEmpty && grains.isNotEmpty) {
+        ideas.add(
+            '${capitalizeFirstLetter(proteins.first)} with ${capitalizeFirstLetter(grains.first)}');
+      }
+      if (fruits.isNotEmpty) {
+        ideas.add('Fresh ${capitalizeFirstLetter(fruits.first)} smoothie bowl');
+      }
+      if (vegetables.length >= 2) {
+        ideas.add(
+            'Mixed ${capitalizeFirstLetter(vegetables[0])} and ${capitalizeFirstLetter(vegetables[1])} salad');
+      }
+    }
+
+    return ideas.take(3).toList();
+  }
+
+  /// Estimate cost based on number of items
+  String _estimateCost(int totalItems) {
+    if (totalItems <= 10) return '\$30-50';
+    if (totalItems <= 15) return '\$50-70';
+    return '\$70-100';
+  }
+
+  /// Fallback data when ingredients are not available
+  Map<String, dynamic> _getFallback54321Data() {
+    return {
+      'shoppingList': {
+        'vegetables': [
+          {
+            'name': 'Spinach',
+            'amount': '1 bunch',
+            'category': 'vegetable',
+            'notes': 'Fresh and crisp'
+          },
+          {
+            'name': 'Carrots',
+            'amount': '500g',
+            'category': 'vegetable',
+            'notes': 'Organic if possible'
+          },
+          {
+            'name': 'Bell Peppers',
+            'amount': '3 pieces',
+            'category': 'vegetable',
+            'notes': 'Mixed colors'
+          },
+          {
+            'name': 'Broccoli',
+            'amount': '1 head',
+            'category': 'vegetable',
+            'notes': 'Fresh green'
+          },
+          {
+            'name': 'Tomatoes',
+            'amount': '4 pieces',
+            'category': 'vegetable',
+            'notes': 'Ripe and firm'
+          }
+        ],
+        'fruits': [
+          {
+            'name': 'Bananas',
+            'amount': '1 bunch',
+            'category': 'fruit',
+            'notes': 'Yellow with green tips'
+          },
+          {
+            'name': 'Apples',
+            'amount': '6 pieces',
+            'category': 'fruit',
+            'notes': 'Crisp and sweet'
+          },
+          {
+            'name': 'Oranges',
+            'amount': '4 pieces',
+            'category': 'fruit',
+            'notes': 'Juicy and fresh'
+          },
+          {
+            'name': 'Berries',
+            'amount': '250g',
+            'category': 'fruit',
+            'notes': 'Mixed berries'
+          }
+        ],
+        'proteins': [
+          {
+            'name': 'Chicken Breast',
+            'amount': '500g',
+            'category': 'protein',
+            'notes': 'Skinless and boneless'
+          },
+          {
+            'name': 'Eggs',
+            'amount': '12 pieces',
+            'category': 'protein',
+            'notes': 'Fresh farm eggs'
+          },
+          {
+            'name': 'Salmon',
+            'amount': '300g',
+            'category': 'protein',
+            'notes': 'Wild caught if available'
+          }
+        ],
+        'sauces': [
+          {
+            'name': 'Olive Oil',
+            'amount': '250ml',
+            'category': 'sauce',
+            'notes': 'Extra virgin'
+          },
+          {
+            'name': 'Hummus',
+            'amount': '200g',
+            'category': 'sauce',
+            'notes': 'Classic or flavored'
+          }
+        ],
+        'grains': [
+          {
+            'name': 'Brown Rice',
+            'amount': '500g',
+            'category': 'grain',
+            'notes': 'Organic whole grain'
+          }
+        ],
+        'treats': [
+          {
+            'name': 'Dark Chocolate',
+            'amount': '100g',
+            'category': 'treat',
+            'notes': '70% cocoa or higher'
+          }
+        ]
+      },
+      'totalItems': 16,
+      'estimatedCost': '\$50-70',
+      'tips': [
+        'Buy seasonal produce for better prices',
+        'Check for sales on proteins',
+        'Store vegetables properly to extend freshness'
+      ],
+      'mealIdeas': [
+        'Grilled chicken with roasted vegetables',
+        'Salmon with rice and steamed broccoli',
+        'Egg scramble with fresh vegetables'
+      ]
+    };
+  }
+
+  /// Get excluded ingredients from Firebase
+  Future<List<String>> _getExcludedIngredients() async {
+    try {
+      await firebaseService.fetchGeneralData();
+      final excludedIngredients = firebaseService
+          .generalData['excludeIngredients']
+          .toString()
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      return excludedIngredients;
+    } catch (e) {
+      debugPrint('Error getting excluded ingredients: $e');
+      return [];
+    }
+  }
+
+  /// Check if an ingredient should be excluded based on type and excluded ingredients list
+  bool _isIngredientNotExcluded(
+      MacroData ingredient, List<String> excludedIngredients) {
+    final ingredientType = ingredient.type.toLowerCase();
+    final ingredientTitle = ingredient.title.toLowerCase();
+
+    // Check if ingredient type is in excluded types
+    final excludedTypes = [
+      'sweetener',
+      'pastry',
+      'dairy',
+      'oil',
+      'herb',
+      'spice',
+      'liquid'
+    ];
+    if (excludedTypes.contains(ingredientType)) {
+      return false;
+    }
+
+    // Check if ingredient title contains any excluded ingredient
+    for (final excluded in excludedIngredients) {
+      if (ingredientTitle.contains(excluded) ||
+          excluded.contains(ingredientTitle)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// Select varied ingredients avoiding duplicates and similar items
+  List<MacroData> _selectVariedIngredients(List<MacroData> ingredients,
+      int count, List<String> selectedIngredients) {
+    final selected = <MacroData>[];
+    final available = List<MacroData>.from(ingredients);
+
+    while (selected.length < count && available.isNotEmpty) {
+      // Find ingredients that don't conflict with already selected ones
+      final nonConflicting = available.where((ingredient) {
+        final ingredientTitle = ingredient.title.toLowerCase();
+
+        // Check if this ingredient conflicts with any already selected
+        for (final selectedTitle in selectedIngredients) {
+          if (_ingredientsConflict(ingredientTitle, selectedTitle)) {
+            return false;
+          }
+        }
+
+        // Check if this ingredient conflicts with any in the current selection
+        for (final selectedIngredient in selected) {
+          if (_ingredientsConflict(
+              ingredientTitle, selectedIngredient.title.toLowerCase())) {
+            return false;
+          }
+        }
+
+        return true;
+      }).toList();
+
+      if (nonConflicting.isEmpty) {
+        // If no non-conflicting ingredients, just take the first available
+        selected.add(available.removeAt(0));
+      } else {
+        // Select a random non-conflicting ingredient
+        nonConflicting.shuffle(Random());
+        final selectedIngredient = nonConflicting.first;
+        selected.add(selectedIngredient);
+        available.remove(selectedIngredient);
+      }
+    }
+
+    return selected;
+  }
+
+  /// Check if two ingredients conflict (are too similar)
+  bool _ingredientsConflict(String ingredient1, String ingredient2) {
+    // Split ingredients into words for better comparison
+    final words1 = ingredient1
+        .split(RegExp(r'[\s\-_]+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final words2 = ingredient2
+        .split(RegExp(r'[\s\-_]+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    // Check if any word from one ingredient appears in the other
+    for (final word1 in words1) {
+      for (final word2 in words2) {
+        if (word1 == word2 ||
+            (word1.length > 2 &&
+                word2.length > 2 &&
+                (word1.contains(word2) || word2.contains(word1)))) {
+          return true;
+        }
+      }
+    }
+
+    // Check for common variations (e.g., "pork" vs "pork belly", "lemon" vs "lemon zest")
+    if (ingredient1.contains(ingredient2) ||
+        ingredient2.contains(ingredient1)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Check if an ingredient is allowed for the user's diet preference
+  bool _isIngredientAllowedForDiet(
+      MacroData ingredient, String dietPreference) {
+    if (dietPreference.isEmpty || dietPreference == 'balanced') {
+      return true; // No diet restrictions, allow all ingredients
+    }
+
+    final ingredientType = ingredient.type.toLowerCase();
+    final ingredientTitle = ingredient.title.toLowerCase();
+    final ingredientCategories =
+        ingredient.categories.map((c) => c.toLowerCase()).toList();
+
+    switch (dietPreference) {
+      case 'keto':
+      case 'ketogenic':
+        // Keto: Only low-carb foods - vegetables, proteins, fats, limited fruits
+        return ingredientCategories.contains('vegetable') ||
+            ingredientCategories.contains('meat') ||
+            ingredientCategories.contains('fish') ||
+            ingredientCategories.contains('poultry') ||
+            ingredientCategories.contains('seafood') ||
+            ingredientCategories.contains('egg') ||
+            ingredientCategories.contains('dairy') ||
+            ingredientCategories.contains('oil') ||
+            ingredientCategories.contains('nut') ||
+            ingredientCategories.contains('seed') ||
+            ingredientCategories.contains('keto') ||
+            ingredientType == 'vegetable' ||
+            ingredientType == 'dairy' ||
+            ingredientType == 'oil' ||
+            ingredientType == 'nut' ||
+            ingredientType == 'seed' ||
+            (ingredientCategories.contains('fruit') &&
+                _isLowCarbFruit(ingredientTitle)) ||
+            (ingredientType == 'fruit' && _isLowCarbFruit(ingredientTitle));
+
+      case 'carnivore':
+        // Carnivore: Only animal products
+        return ingredientCategories.contains('meat') ||
+            ingredientCategories.contains('fish') ||
+            ingredientCategories.contains('poultry') ||
+            ingredientCategories.contains('seafood') ||
+            ingredientCategories.contains('egg') ||
+            ingredientCategories.contains('dairy') ||
+            ingredientCategories.contains('red meat') ||
+            ingredientCategories.contains('game meat') ||
+            ingredientCategories.contains('white meat') ||
+            ingredientCategories.contains('carnivore') ||
+            ingredientCategories.contains('dairy') ||
+            _isMeat(ingredientTitle) ||
+            _isFish(ingredientTitle) ||
+            _isCarnivoreSauce(ingredientTitle);
+
+      case 'vegan':
+        // Vegan: Only plant-based foods
+        return ingredientCategories.contains('vegetable') ||
+            ingredientCategories.contains('fruit') ||
+            ingredientCategories.contains('grain') ||
+            ingredientCategories.contains('legume') ||
+            ingredientCategories.contains('nut') ||
+            ingredientCategories.contains('seed') ||
+            ingredientCategories.contains('oil') ||
+            ingredientCategories.contains('vegan') ||
+            ingredientType == 'vegetable' ||
+            ingredientType == 'fruit' ||
+            ingredientType == 'grain' ||
+            ingredientType == 'legume' ||
+            ingredientType == 'nut' ||
+            ingredientType == 'seed' ||
+            ingredientType == 'oil';
+
+      case 'vegetarian':
+        // Vegetarian: Only plant-based foods + dairy and eggs
+        return ingredientCategories.contains('vegetable') ||
+            ingredientCategories.contains('fruit') ||
+            ingredientCategories.contains('grain') ||
+            ingredientCategories.contains('legume') ||
+            ingredientCategories.contains('nut') ||
+            ingredientCategories.contains('seed') ||
+            ingredientCategories.contains('oil') ||
+            ingredientCategories.contains('dairy') ||
+            ingredientCategories.contains('egg') ||
+            ingredientCategories.contains('vegetarian') ||
+            ingredientType == 'vegetable' ||
+            ingredientType == 'fruit' ||
+            ingredientType == 'grain' ||
+            ingredientType == 'legume' ||
+            ingredientType == 'nut' ||
+            ingredientType == 'seed' ||
+            ingredientType == 'oil' ||
+            ingredientType == 'dairy' ||
+            ingredientType == 'egg';
+
+      case 'paleo':
+        // Paleo: Only whole foods - vegetables, fruits, proteins, nuts, seeds
+        return ingredientCategories.contains('vegetable') ||
+            ingredientCategories.contains('fruit') ||
+            ingredientCategories.contains('meat') ||
+            ingredientCategories.contains('fish') ||
+            ingredientCategories.contains('poultry') ||
+            ingredientCategories.contains('seafood') ||
+            ingredientCategories.contains('egg') ||
+            ingredientCategories.contains('nut') ||
+            ingredientCategories.contains('seed') ||
+            ingredientCategories.contains('oil') ||
+            ingredientType == 'vegetable' ||
+            ingredientType == 'fruit' ||
+            ingredientType == 'protein' ||
+            ingredientType == 'nut' ||
+            ingredientType == 'seed' ||
+            ingredientType == 'oil' ||
+            ingredientType == 'egg';
+
+      case 'pescatarian':
+        // Pescatarian: Only fish, seafood, vegetables, fruits, grains, dairy, eggs
+        return ingredientCategories.contains('fish') ||
+            ingredientCategories.contains('seafood') ||
+            ingredientCategories.contains('vegetable') ||
+            ingredientCategories.contains('fruit') ||
+            ingredientCategories.contains('grain') ||
+            ingredientCategories.contains('dairy') ||
+            ingredientCategories.contains('egg') ||
+            ingredientCategories.contains('nut') ||
+            ingredientCategories.contains('seed') ||
+            ingredientCategories.contains('oil') ||
+            ingredientCategories.contains('pescatarian') ||
+            ingredientType == 'vegetable' ||
+            ingredientType == 'fruit' ||
+            ingredientType == 'grain' ||
+            ingredientType == 'dairy' ||
+            ingredientType == 'egg' ||
+            ingredientType == 'nut' ||
+            ingredientType == 'seed' ||
+            ingredientType == 'oil' ||
+            _isFish(ingredientTitle);
+
+      case 'gluten-free':
+        // Gluten-free: Everything except gluten-containing foods
+        return !ingredientCategories.contains('gluten') &&
+            !ingredientCategories.contains('wheat') &&
+            !ingredientCategories.contains('barley') &&
+            !ingredientCategories.contains('rye') &&
+            !_containsGluten(ingredientTitle);
+
+      case 'dairy-free':
+        // Dairy-free: Everything except dairy products
+        return !ingredientCategories.contains('dairy') &&
+            !ingredientCategories.contains('milk') &&
+            !ingredientCategories.contains('cheese') &&
+            !_isDairy(ingredientTitle);
+
+      case 'low-carb':
+        // Low-carb: Limited grains and high-carb foods
+        return !ingredientCategories.contains('grain') &&
+            !ingredientCategories.contains('high-carb') &&
+            !ingredientCategories.contains('sugar') &&
+            ingredientType != 'grain' &&
+            !_isHighCarb(ingredientTitle);
+    }
+
+    return true;
+  }
+
+  /// Helper methods for diet filtering
+  bool _isLowCarbFruit(String title) {
+    final lowCarbFruits = [
+      'avocado',
+      'berries',
+      'strawberry',
+      'raspberry',
+      'blackberry',
+      'lime',
+      'lemon'
+    ];
+    return lowCarbFruits.any((fruit) => title.contains(fruit));
+  }
+
+  bool _isAnimalProduct(String title) {
+    final animalProducts = [
+      'meat',
+      'chicken',
+      'beef',
+      'pork',
+      'fish',
+      'salmon',
+      'tuna',
+      'egg',
+      'milk',
+      'cheese',
+      'butter',
+      'yogurt'
+    ];
+    return animalProducts.any((product) => title.contains(product));
+  }
+
+  bool _isMeat(String title) {
+    final meats = ['chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat'];
+    return meats.any((meat) => title.contains(meat));
+  }
+
+  bool _isFish(String title) {
+    final fish = [
+      'fish',
+      'salmon',
+      'tuna',
+      'cod',
+      'mackerel',
+      'sardine',
+      'trout'
+    ];
+    return fish.any((f) => title.contains(f));
+  }
+
+  bool _isDairy(String title) {
+    final dairy = ['milk', 'cheese', 'butter', 'yogurt', 'cream', 'dairy'];
+    return dairy.any((d) => title.contains(d));
+  }
+
+  bool _containsGluten(String title) {
+    final glutenSources = ['wheat', 'barley', 'rye', 'bread', 'pasta', 'flour'];
+    return glutenSources.any((gluten) => title.contains(gluten));
+  }
+
+  bool _isHighCarb(String title) {
+    final highCarbFoods = [
+      'potato',
+      'rice',
+      'pasta',
+      'bread',
+      'banana',
+      'grape',
+      'mango'
+    ];
+    return highCarbFoods.any((carb) => title.contains(carb));
+  }
+
+  bool _isCarnivoreSauce(String title) {
+    final carnivoreSauces = ['ghee', 'butter', 'tallow', 'lard'];
+    return carnivoreSauces.any((sauce) => title.contains(sauce));
+  }
+
+  /// Save 54321 shopping list to Firestore
+  /// Automatically deletes older lists to keep only the 2 most recent ones
+  Future<void> save54321ShoppingListToFirestore(
+      Map<String, dynamic> shoppingListData) async {
+    try {
+      final userId = auth.currentUser?.uid;
+      if (userId == null) {
+        return;
+      }
+
+      final now = DateTime.now();
+      final dateId =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}-${now.second.toString().padLeft(2, '0')}';
+
+      // Check existing lists and delete old ones if more than 1 exist
+      await _cleanupOld54321Lists(userId);
+
+      final docRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .doc(dateId);
+
+      await docRef.set({
+        'shoppingList': shoppingListData['shoppingList'],
+        'totalItems': shoppingListData['totalItems'],
+        'estimatedCost': shoppingListData['estimatedCost'],
+        'tips': shoppingListData['tips'],
+        'mealIdeas': shoppingListData['mealIdeas'],
+        'timestamp': FieldValue.serverTimestamp(),
+        'generatedAt': now.toIso8601String(),
+        'userId': userId,
+        'generatedFrom':
+            'ingredients_collection', // Mark as generated from ingredients
+      });
+    } catch (e) {
+      return;
+    }
+  }
+
+  /// Clean up old 54321 shopping lists, keeping only the 2 most recent ones
+  Future<void> _cleanupOld54321Lists(String userId) async {
+    try {
+      final querySnapshot = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      // If we have more than 1 existing list, delete the oldest ones
+      if (querySnapshot.docs.length > 1) {
+        final docsToDelete =
+            querySnapshot.docs.skip(1).toList(); // Skip the most recent one
+
+        // Delete the older lists
+        final batch = firestore.batch();
+        for (final doc in docsToDelete) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        debugPrint(
+            'Cleaned up ${docsToDelete.length} old 54321 shopping lists');
+      }
+    } catch (e) {
+      debugPrint('Error cleaning up old 54321 lists: $e');
+    }
+  }
+
+  /// Get the latest 54321 shopping list from Firestore
+  Future<Map<String, dynamic>?> getLatest54321ShoppingList() async {
+    try {
+      final userId = auth.currentUser?.uid;
+      if (userId == null) {
+        debugPrint('No user ID found for getting 54321 shopping list');
+        return null;
+      }
+
+      final querySnapshot = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList54321')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        final data = doc.data();
+        debugPrint('Retrieved 54321 shopping list from Firestore: ${doc.id}');
+
+        return {
+          'id': doc.id,
+          'shoppingList': data['shoppingList'],
+          'totalItems': data['totalItems'] ?? 0,
+          'estimatedCost': data['estimatedCost'] ?? 'Not available',
+          'tips': data['tips'] ?? [],
+          'mealIdeas': data['mealIdeas'] ?? [],
+          'generatedAt': data['generatedAt'],
+          'timestamp': data['timestamp'],
+          'generatedFrom': data['generatedFrom'] ?? 'unknown',
+        };
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error getting 54321 shopping list from Firestore: $e');
+      return null;
+    }
+  }
 }
