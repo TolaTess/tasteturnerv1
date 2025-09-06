@@ -52,18 +52,34 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
             children: [
               SafeTextField(
                 controller: titleController,
+                enabled: isNewItem, // Only allow editing title for new items
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: isDarkMode ? kWhite : kBlack,
+                      color: isNewItem
+                          ? (isDarkMode ? kWhite : kBlack)
+                          : kLightGrey, // Grey out when disabled
                     ),
                 decoration: InputDecoration(
                   labelText: 'Title',
                   labelStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: isDarkMode ? kWhite : kBlack,
+                        color: isNewItem
+                            ? (isDarkMode ? kWhite : kBlack)
+                            : kLightGrey, // Grey out label when disabled
                       ),
                   enabledBorder: outlineInputBorder(20),
                   focusedBorder: outlineInputBorder(20),
+                  disabledBorder: outlineInputBorder(20).copyWith(
+                    borderSide: BorderSide(color: kLightGrey.withOpacity(0.5)),
+                  ),
+                  fillColor: isNewItem
+                      ? (isDarkMode ? kDarkGrey : kWhite)
+                      : (isDarkMode
+                          ? Colors.grey[800]
+                          : Colors
+                              .grey[200]), // Different background when disabled
+                  filled: true,
                 ),
               ),
+              const SizedBox(height: 16),
               SafeTextField(
                 controller: valueController,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -81,6 +97,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                   focusedBorder: outlineInputBorder(20),
                 ),
               ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: selectedType,
                 decoration: InputDecoration(
@@ -95,9 +112,10 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                           value: type,
                           child: Text(
                             type.toUpperCase(),
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kBlack,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: isDarkMode ? kWhite : kBlack,
+                                    ),
                           ),
                         ))
                     .toList(),
@@ -117,22 +135,27 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
             child: Text(
               'Cancel',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                    color:
+                        getThemeProvider(context).isDarkMode ? kWhite : kBlack,
                   ),
             ),
           ),
           TextButton(
             onPressed: () async {
-              if (titleController.text.isEmpty ||
+              // For new items, check both title and value
+              // For existing items, only check value since title can't be changed
+              if ((isNewItem && titleController.text.isEmpty) ||
                   valueController.text.isEmpty) {
                 return;
               }
 
               final newItem = RoutineItem(
-                id: titleController.text,
+                id: item?.id ?? titleController.text,
                 title: titleController.text,
                 value: valueController.text,
                 type: selectedType,
+                isEnabled: item?.isEnabled ?? true,
+                isCompleted: item?.isCompleted ?? false,
               );
 
               if (isNewItem) {
@@ -151,6 +174,56 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
               isNewItem ? 'Add' : 'Save',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: kAccent,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDeleteDialog(RoutineItem item, bool isDarkMode) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Delete Routine Item',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${item.title}"? This action cannot be undone.',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _routineService.deleteRoutineItem(widget.userId, item);
+              setState(() {
+                _routineItems = _routineService.getRoutineItems(widget.userId);
+              });
+              if (mounted) Navigator.pop(context);
+            },
+            child: Text(
+              'Delete',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: kRed,
                   ),
             ),
           ),
@@ -198,9 +271,11 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    bool isEnabled = item.title == 'Water Intake' ||
+                    // Check if this is an essential item that cannot be deleted
+                    bool isEssential = item.title == 'Water Intake' ||
                         item.title == 'Nutrition Goal' ||
-                        item.title == 'Steps';
+                        item.title == 'Steps' ||
+                        item.title == 'Water';
                     return Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -215,22 +290,31 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                         ),
                         child: ListTile(
                           title: Text(
-                            item.title,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kBlack,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                            item.title == 'Water Intake'
+                                ? 'Water'
+                                : item.title == 'Nutrition Goal'
+                                    ? 'Meals'
+                                    : capitalizeFirstLetter(item.title),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: isDarkMode ? kWhite : kBlack,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                           ),
                           subtitle: Text(
                             item.value,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: kLightGrey,
                                 ),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (!isEnabled)
+                              // Edit button - show for all non-essential items
+                              if (!isEssential)
                                 IconButton(
                                   icon: Icon(Icons.edit,
                                       color: isDarkMode ? kWhite : kBlack,
@@ -238,6 +322,16 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                   onPressed: () =>
                                       _showEditDialog(item, isDarkMode),
                                 ),
+                              // Delete button - show for all non-essential items
+                              if (!isEssential)
+                                IconButton(
+                                  icon: Icon(Icons.delete,
+                                      color: kRed,
+                                      size: getIconScale(7, context)),
+                                  onPressed: () =>
+                                      _showDeleteDialog(item, isDarkMode),
+                                ),
+                              // Visibility toggle button
                               IconButton(
                                 icon: Icon(
                                   item.isEnabled
@@ -256,7 +350,6 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                   if (item.isEnabled &&
                                       disabledCount == totalItems - 1) {
                                     // If we're disabling the last enabled item
-
                                     await _routineService.setAllDisabled(true);
                                   } else if (!item.isEnabled &&
                                       disabledCount == totalItems) {
@@ -264,7 +357,7 @@ class _DailyRoutineListState extends State<DailyRoutineList> {
                                     await _routineService.setAllDisabled(false);
                                   }
 
-                                  await _routineService.toggleRoutineItem(  
+                                  await _routineService.toggleRoutineItem(
                                     widget.userId,
                                     item,
                                   );

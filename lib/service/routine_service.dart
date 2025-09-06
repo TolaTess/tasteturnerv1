@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
-import '../data_models/routine_item.dart';        
+import '../data_models/routine_item.dart';
 import 'package:flutter/material.dart' show debugPrint;
 
 class RoutineService {
@@ -127,6 +127,31 @@ class RoutineService {
           .set(item.toMap());
     } catch (e) {
       debugPrint('Error adding routine item: $e');
+    }
+  }
+
+  Future<void> deleteRoutineItem(String userId, RoutineItem item) async {
+    try {
+      // Prevent deletion of essential items
+      final essentialItems = [
+        'Water Intake',
+        'Nutrition Goal',
+        'Steps',
+        'Water',
+      ];
+      if (essentialItems.contains(item.title)) {
+        debugPrint('Cannot delete essential routine item: ${item.title}');
+        return;
+      }
+
+      await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine')
+          .doc(item.title)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting routine item: $e');
     }
   }
 }

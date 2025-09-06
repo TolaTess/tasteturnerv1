@@ -28,6 +28,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
   final RxBool _isExpanded = false.obs;
   // Add test mode flag
   final bool _isTestMode = false; // Set to true to use test data
+  List<String> excludedIngredients = [];
 
   @override
   void initState() {
@@ -35,9 +36,17 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
     if (_isTestMode) {
       _initializeTestData();
     } else {
+      _loadExcludedIngredients();
       _initializeIngredientData();
       _scheduleWeeklyUpdate();
     }
+  }
+
+  Future<void> _loadExcludedIngredients() async {
+    await firebaseService.fetchGeneralData();
+    excludedIngredients = firebaseService.generalData['excludeIngredients']
+        .toString()
+        .split(',');
   }
 
   // Add test data initialization
@@ -62,7 +71,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
 
       if (shouldUpdate && DateTime.now().hour == 12) {
         // It's time to update the data
-        await _loadIngredientData();
+        await _loadIngredientData(excludedIngredients);
 
         // Save the current top ingredients for static display
         await prefs.setString('top_ingredient_1', _topIngredient1.value);
@@ -86,7 +95,7 @@ class _WeeklyIngredientBattleState extends State<WeeklyIngredientBattle> {
     }
   }
 
-  Future<void> _loadIngredientData() async {
+  Future<void> _loadIngredientData(List<String> excludedIngredients) async {
     try {
       // Get meals from the last 7 days
       final now = DateTime.now();

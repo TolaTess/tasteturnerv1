@@ -330,7 +330,11 @@ class _DailyRoutineListHorizontalState
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  capitalizeFirstLetter(item.title),
+                  item.title == 'Water Intake'
+                      ? 'Water'
+                      : item.title == 'Nutrition Goal'
+                          ? 'Meals'
+                          : capitalizeFirstLetter(item.title),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode
@@ -428,7 +432,11 @@ class _DailyRoutineListHorizontalState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          capitalizeFirstLetter(item.title),
+                          item.title == 'Water Intake'
+                              ? 'Water'
+                              : item.title == 'Nutrition Goal'
+                                  ? 'Meals'
+                                  : capitalizeFirstLetter(item.title),
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
                                     fontWeight: FontWeight.w600,
