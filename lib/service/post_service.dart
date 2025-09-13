@@ -210,21 +210,20 @@ class PostService extends GetxService {
     }
   }
 
-  /// Get battle posts for the current week (Monday to Friday)
+  /// Get battle posts for the current week (Monday to Sunday)
   Future<List<Map<String, dynamic>>> getBattlePostsForCurrentWeek({
     int limit = 20,
   }) async {
     try {
-      // Calculate current week's Monday and Friday
+      // Calculate current week's Monday and Sunday
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
       final sunday = monday.add(const Duration(days: 6));
 
-      // Set time to start of Monday and end of Friday
+      // Set time to start of Monday and end of Sunday
       final weekStart = DateTime(monday.year, monday.month, monday.day);
       final weekEnd =
           DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-
       final HttpsCallable callable =
           _functions.httpsCallable('getChallengePostsForWeek');
       final HttpsCallableResult result = await callable.call({

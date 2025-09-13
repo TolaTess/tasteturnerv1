@@ -435,7 +435,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         ],
                       ),
-                    SizedBox(height: getPercentageHeight(2, context)),
+                    SizedBox(height: getPercentageHeight(10, context)),
 
                     if (isUserPremium)
                       GestureDetector(

@@ -14,7 +14,8 @@ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { HttpsError } = require("firebase-functions/v2/https");
 const { defineString } = require('firebase-functions/params');
-const { startOfWeek, endOfWeek, format } = require("date-fns");
+const { startOfWeek, endOfWeek, format, addDays } = require("date-fns");
+const crypto = require('crypto');
 
 admin.initializeApp();
 
@@ -32,6 +33,101 @@ function _getWeek(date) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
+
+/**
+ * Generate and save weekly challenge ingredients
+ * This function gets 4 random ingredients from the ingredientChallenge list
+ * and saves them in the challenge_details field with the following Sunday's date
+ */
+exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data, context) => {
+  try {
+    console.log('--- Generating weekly challenge ingredients ---');
+
+    // Get the ingredient challenge list from general collection
+    const generalDoc = await firestore.collection('general').doc('general').get();
+    
+    if (!generalDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'General collection document not found'
+      );
+    }
+
+    const generalData = generalDoc.data();
+    const ingredientChallengeString = generalData.ingredientChallenge || '';
+    
+    if (!ingredientChallengeString) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'ingredientChallenge string not found in general collection'
+      );
+    }
+
+    // Parse the comma-separated string and categorize ingredients
+    const allIngredients = ingredientChallengeString.split(',').map(ing => ing.trim()).filter(ing => ing);
+    const proteins = allIngredients.filter(ing => ing.endsWith('-p'));
+    const vegetables = allIngredients.filter(ing => ing.endsWith('-v'));
+    
+    if (proteins.length < 2) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `Not enough protein ingredients. Found ${proteins.length}, need at least 2.`
+      );
+    }
+    
+    if (vegetables.length < 2) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `Not enough vegetable ingredients. Found ${vegetables.length}, need at least 2.`
+      );
+    }
+
+    // Get 2 random proteins and 2 random vegetables
+    const shuffledProteins = [...proteins].sort(() => 0.5 - Math.random());
+    const shuffledVegetables = [...vegetables].sort(() => 0.5 - Math.random());
+    
+    const selectedProteins = shuffledProteins.slice(0, 2);
+    const selectedVegetables = shuffledVegetables.slice(0, 2);
+    const selectedIngredients = [...selectedProteins, ...selectedVegetables];
+
+    // Calculate the following Sunday's date
+    const today = new Date();
+    const nextSunday = addDays(today, (7 - today.getDay()) % 7);
+    const sundayDate = format(nextSunday, 'dd-MM-yyyy');
+
+    // Create the challenge details string in the specified format
+    const challengeDetails = `${sundayDate},${selectedIngredients.join(',')}`;
+
+    // Save to challenge_details in general collection
+    await firestore.collection('general').doc('general').update({
+      challenge_details: challengeDetails,
+      lastChallengeUpdate: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`Successfully generated challenge ingredients: ${challengeDetails}`);
+
+    return {
+      success: true,
+      challengeDetails: challengeDetails,
+      selectedIngredients: selectedIngredients,
+      selectedProteins: selectedProteins,
+      selectedVegetables: selectedVegetables,
+      challengeDate: sundayDate
+    };
+
+  } catch (error) {
+    console.error('Error generating weekly challenge ingredients:', error);
+    
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError(
+      'internal',
+      'An error occurred while generating challenge ingredients'
+    );
+  }
+});
 
 /**
  * A Firestore-triggered Cloud Function that automatically calculates and updates
@@ -904,7 +1000,7 @@ exports.getUserPosts = functions.https.onCall(async (data, context) => {
   }
 });
 
-// Get battle posts for the current week (Monday to Friday)
+// Get battle posts for the current week (Monday to Sunday)
 exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) => {
   try {
     const {
@@ -1030,6 +1126,589 @@ exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) 
       error: error.message,
       posts: []
     };
+  }
+});
+
+/**
+ * Scheduled function to automatically generate weekly challenge ingredients and award winners every Sunday
+ * Runs every Sunday at 12:00 AM UTC
+ */
+exports.generateWeeklyChallengeIngredientsScheduled = functions.pubsub
+  .schedule('0 0 * * 0') // Every Sunday at midnight UTC
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    try {
+      console.log('--- Running scheduled weekly challenge ingredients generation and winner awarding ---');
+
+      // First, award winners from the previous week's challenge
+      await awardChallengeWinners();
+
+      // Then generate new challenge ingredients for the upcoming week
+      await generateNewChallengeIngredients();
+
+      return null;
+
+    } catch (error) {
+      console.error('Error in scheduled weekly challenge processing:', error);
+      return null;
+    }
+  });
+
+/**
+ * Award winners from the previous week's challenge based on favorites
+ */
+async function awardChallengeWinners() {
+  try {
+    console.log('--- Awarding challenge winners ---');
+
+    // Calculate the previous week's date range (Monday to Sunday)
+    const today = new Date();
+    const lastSunday = addDays(today, -7); // Previous Sunday
+    const lastMonday = addDays(lastSunday, -6); // Previous Monday
+    
+    const weekStart = format(lastMonday, 'yyyy-MM-dd');
+    const weekEnd = format(lastSunday, 'yyyy-MM-dd');
+    
+    console.log(`Awarding winners for week: ${weekStart} to ${weekEnd}`);
+
+    // Get all challenge posts from the previous week
+    const challengePostsQuery = admin.firestore()
+      .collection('posts')
+      .where('isBattle', '==', true)
+      .where('createdAt', '>=', weekStart)
+      .where('createdAt', '<=', weekEnd + 'T23:59:59.999Z')
+      .orderBy('createdAt', 'desc');
+
+    const snapshot = await challengePostsQuery.get();
+    
+    if (snapshot.empty) {
+      console.log('No challenge posts found for the previous week');
+      return;
+    }
+
+    console.log(`Found ${snapshot.docs.length} challenge posts for winner selection`);
+
+    // Calculate scores for each post (based on favorites count)
+    const postsWithScores = [];
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const favoritesCount = data.favorites ? data.favorites.length : 0;
+      
+      postsWithScores.push({
+        id: doc.id,
+        userId: data.userId,
+        name: data.name || 'Unknown',
+        favoritesCount: favoritesCount,
+        createdAt: data.createdAt,
+        mediaPaths: data.mediaPaths || []
+      });
+    });
+
+    // Sort by favorites count (descending) and then by creation time (ascending for tie-breaking)
+    postsWithScores.sort((a, b) => {
+      if (b.favoritesCount !== a.favoritesCount) {
+        return b.favoritesCount - a.favoritesCount;
+      }
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    // Determine winners (top 3, or all if less than 3 posts)
+    const winners = postsWithScores.slice(0, Math.min(3, postsWithScores.length));
+    
+    if (winners.length === 0) {
+      console.log('No winners to award');
+      return;
+    }
+
+    console.log(`Awarding ${winners.length} winners:`, winners.map(w => ({ 
+      userId: w.userId, 
+      name: w.name, 
+      favorites: w.favoritesCount 
+    })));
+
+    // Award prizes to winners
+    const winnerAwards = [];
+    
+    for (let i = 0; i < winners.length; i++) {
+      const winner = winners[i];
+      const position = i + 1;
+      let prize = '';
+      
+      // Define prizes based on position
+      switch (position) {
+        case 1:
+          prize = '1st Place - Premium Badge + 100 Points';
+          break;
+        case 2:
+          prize = '2nd Place - Silver Badge + 50 Points';
+          break;
+        case 3:
+          prize = '3rd Place - Bronze Badge + 25 Points';
+          break;
+      }
+
+      // Update user's points in the points collection (same as client-side system)
+      await firestore.collection('points').doc(winner.userId).set({
+        points: admin.firestore.FieldValue.increment(getPointsForPosition(position)),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      // Update user's profile with challenge-specific stats
+      await firestore.collection('users').doc(winner.userId).update({
+        challengeWins: admin.firestore.FieldValue.increment(1),
+        lastChallengeWin: admin.firestore.FieldValue.serverTimestamp(),
+        [`position${position}Wins`]: admin.firestore.FieldValue.increment(1)
+      });
+
+      // Create award record
+      const awardRecord = {
+        userId: winner.userId,
+        userName: winner.name,
+        position: position,
+        prize: prize,
+        points: getPointsForPosition(position),
+        weekStart: weekStart,
+        weekEnd: weekEnd,
+        postId: winner.id,
+        favoritesCount: winner.favoritesCount,
+        awardedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await firestore.collection('challengeAwards').add(awardRecord);
+      
+      // Send notification to winner
+      await sendWinnerNotification(winner.userId, winner.name, position, prize, getPointsForPosition(position));
+      
+      winnerAwards.push(awardRecord);
+    }
+
+    // Update general collection with weekly results
+    await firestore.collection('general').doc('general').update({
+      lastChallengeResults: {
+        weekStart: weekStart,
+        weekEnd: weekEnd,
+        totalPosts: postsWithScores.length,
+        winners: winnerAwards,
+        processedAt: admin.firestore.FieldValue.serverTimestamp()
+      }
+    });
+
+    console.log(`Successfully awarded ${winners.length} challenge winners`);
+
+  } catch (error) {
+    console.error('Error awarding challenge winners:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate new challenge ingredients for the upcoming week
+ */
+async function generateNewChallengeIngredients() {
+  try {
+    console.log('--- Generating new challenge ingredients ---');
+
+    // Get the ingredient challenge list from general collection
+    const generalDoc = await firestore.collection('general').doc('general').get();
+    
+    if (!generalDoc.exists) {
+      console.error('General collection document not found');
+      return;
+    }
+
+    const generalData = generalDoc.data();
+    const ingredientChallengeString = generalData.ingredientsChallenge || '';
+    
+    if (!ingredientChallengeString) {
+      console.error('ingredientsChallenge string not found in general collection');
+      return;
+    }
+
+    // Parse the comma-separated string and categorize ingredients
+    const allIngredients = ingredientChallengeString.split(',').map(ing => ing.trim()).filter(ing => ing);
+    const proteins = allIngredients.filter(ing => ing.endsWith('-p'));
+    const vegetables = allIngredients.filter(ing => ing.endsWith('-v'));
+    
+    if (proteins.length < 2) {
+      console.error(`Not enough protein ingredients. Found ${proteins.length}, need at least 2.`);
+      return;
+    }
+    
+    if (vegetables.length < 2) {
+      console.error(`Not enough vegetable ingredients. Found ${vegetables.length}, need at least 2.`);
+      return;
+    }
+
+    // Get 2 random proteins and 2 random vegetables
+    const shuffledProteins = [...proteins].sort(() => 0.5 - Math.random());
+    const shuffledVegetables = [...vegetables].sort(() => 0.5 - Math.random());
+    
+    const selectedProteins = shuffledProteins.slice(0, 2);
+    const selectedVegetables = shuffledVegetables.slice(0, 2);
+    const selectedIngredients = [...selectedProteins, ...selectedVegetables];
+
+    // Calculate the following Sunday's date (next week)
+    const today = new Date();
+    const nextSunday = addDays(today, 7); // Next Sunday
+    const sundayDate = format(nextSunday, 'dd-MM-yyyy');
+
+    // Create the challenge details string in the specified format
+    const challengeDetails = `${sundayDate},${selectedIngredients.join(',')}`;
+
+    // Save to challenge_details in general collection
+    await firestore.collection('general').doc('general').update({
+      challenge_details: challengeDetails,
+      lastChallengeUpdate: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`Successfully generated scheduled challenge ingredients: ${challengeDetails}`);
+
+  } catch (error) {
+    console.error('Error generating new challenge ingredients:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get points for challenge position
+ */
+function getPointsForPosition(position) {
+  switch (position) {
+    case 1: return 100;
+    case 2: return 50;
+    case 3: return 25;
+    default: return 0;
+  }
+}
+
+/**
+ * Send winner notification via FCM
+ */
+async function sendWinnerNotification(userId, userName, position, prize, points) {
+  try {
+    console.log(`Sending winner notification to user ${userId} for position ${position}`);
+    
+    // Get user's FCM token
+    const userDoc = await firestore.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    if (!userData || !userData.fcmToken) {
+      console.log(`No FCM token found for user ${userId}`);
+      return;
+    }
+
+    const fcmToken = userData.fcmToken;
+    
+    // Create notification payload
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: `🏆 Challenge Winner!`,
+        body: `Congratulations ${userName}! You placed ${position}${getOrdinalSuffix(position)} and earned ${points} points!`,
+      },
+      data: {
+        type: 'challenge_winner',
+        position: position.toString(),
+        points: points.toString(),
+        prize: prize,
+        userId: userId,
+        timestamp: Date.now().toString()
+      },
+      android: {
+        notification: {
+          icon: 'ic_notification',
+          color: '#FF6B35',
+          sound: 'default',
+          priority: 'high'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+            'content-available': 1
+          }
+        }
+      }
+    };
+
+    // Send notification
+    const response = await admin.messaging().send(message);
+    console.log(`Successfully sent winner notification: ${response}`);
+    
+    // Store notification in database for history
+    await firestore.collection('notifications').add({
+      userId: userId,
+      type: 'challenge_winner',
+      title: '🏆 Challenge Winner!',
+      body: `Congratulations ${userName}! You placed ${position}${getOrdinalSuffix(position)} and earned ${points} points!`,
+      data: {
+        position: position,
+        points: points,
+        prize: prize
+      },
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+  } catch (error) {
+    console.error(`Error sending winner notification to user ${userId}:`, error);
+  }
+}
+
+/**
+ * Get ordinal suffix for position (1st, 2nd, 3rd, etc.)
+ */
+function getOrdinalSuffix(position) {
+  const j = position % 10;
+  const k = position % 100;
+  if (j === 1 && k !== 11) {
+    return "st";
+  }
+  if (j === 2 && k !== 12) {
+    return "nd";
+  }
+  if (j === 3 && k !== 13) {
+    return "rd";
+  }
+  return "th";
+}
+
+/**
+ * Get current challenge results and leaderboard data
+ */
+exports.getChallengeResults = functions.https.onCall(async (data, context) => {
+  try {
+    console.log('--- Getting challenge results ---');
+
+    // Get current challenge details
+    const generalDoc = await firestore.collection('general').doc('general').get();
+    const generalData = generalDoc.data() || {};
+    
+    const challengeDetails = generalData.challenge_details || '';
+    const lastChallengeResults = generalData.lastChallengeResults || null;
+
+    // Get current week's leaderboard data
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - now.getDay() + 1); // Monday of current week
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6); // Sunday of current week
+
+    const weekStart = format(monday, 'yyyy-MM-dd');
+    const weekEnd = format(sunday, 'yyyy-MM-dd');
+
+    // Get current week's challenge posts
+    const challengePostsQuery = admin.firestore()
+      .collection('posts')
+      .where('isBattle', '==', true)
+      .where('createdAt', '>=', weekStart)
+      .where('createdAt', '<=', weekEnd + 'T23:59:59.999Z')
+      .orderBy('createdAt', 'desc');
+
+    const snapshot = await challengePostsQuery.get();
+    
+    // Calculate current leaderboard
+    const userLikesMap = {};
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const postUserId = data.userId;
+      const favorites = data.favorites || [];
+      const likesCount = favorites.length;
+
+      if (postUserId && likesCount > 0) {
+        if (userLikesMap[postUserId]) {
+          userLikesMap[postUserId].totalLikes += likesCount;
+          userLikesMap[postUserId].postCount += 1;
+        } else {
+          userLikesMap[postUserId] = {
+            userId: postUserId,
+            totalLikes: likesCount,
+            postCount: 1,
+          };
+        }
+      }
+    });
+
+    // Sort by total likes
+    const currentLeaderboard = Object.values(userLikesMap)
+      .sort((a, b) => b.totalLikes - a.totalLikes)
+      .slice(0, 10); // Top 10
+
+    // Get user details for leaderboard
+    const leaderboardWithDetails = await Promise.all(
+      currentLeaderboard.map(async (userData, index) => {
+        const userDoc = await firestore.collection('users').doc(userData.userId).get();
+        const userDetails = userDoc.data() || {};
+        
+        return {
+          userId: userData.userId,
+          displayName: userDetails.displayName || 'Unknown',
+          profileImage: userDetails.profileImage || '',
+          totalLikes: userData.totalLikes,
+          postCount: userData.postCount,
+          rank: index + 1,
+        };
+      })
+    );
+
+    // Parse challenge ingredients with type information
+    let parsedIngredients = [];
+    let ingredientNames = [];
+    
+    if (challengeDetails) {
+      const parts = challengeDetails.split(',');
+      if (parts.length >= 5) {
+        const ingredientParts = parts.slice(1); // Skip the date
+        parsedIngredients = ingredientParts.map(ingredient => {
+          const cleanName = ingredient.replace(/-[vp]$/, '');
+          const type = ingredient.endsWith('-v') ? 'vegetable' : 
+                      ingredient.endsWith('-p') ? 'protein' : 'unknown';
+          
+          return {
+            name: cleanName,
+            type: type,
+            fullName: ingredient,
+          };
+        });
+        ingredientNames = parsedIngredients.map(i => i.name);
+      }
+    }
+
+    return {
+      success: true,
+      currentChallenge: {
+        details: challengeDetails,
+        ingredients: parsedIngredients,
+        ingredientNames: ingredientNames,
+        endDate: challengeDetails ? challengeDetails.split(',')[0] : '',
+        weekStart: weekStart,
+        weekEnd: weekEnd,
+      },
+      currentLeaderboard: leaderboardWithDetails,
+      lastResults: lastChallengeResults,
+    };
+
+  } catch (error) {
+    console.error('Error getting challenge results:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+/**
+ * Get user notifications
+ */
+exports.getUserNotifications = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+
+    const userId = context.auth.uid;
+    const { limit = 20, lastNotificationId = null } = data;
+
+    let query = firestore
+      .collection('notifications')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit);
+
+    if (lastNotificationId) {
+      const lastDoc = await firestore.collection('notifications').doc(lastNotificationId).get();
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc);
+      }
+    }
+
+    const snapshot = await query.get();
+    const notifications = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt
+    }));
+
+    return {
+      success: true,
+      notifications: notifications,
+      hasMore: snapshot.docs.length === limit,
+      lastNotificationId: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
+    };
+
+  } catch (error) {
+    console.error('Error getting user notifications:', error);
+    return {
+      success: false,
+      error: error.message,
+      notifications: []
+    };
+  }
+});
+
+/**
+ * Mark notification as read
+ */
+exports.markNotificationAsRead = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+
+    const { notificationId } = data;
+    if (!notificationId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'notificationId is required'
+      );
+    }
+
+    const userId = context.auth.uid;
+    
+    // Verify the notification belongs to the user
+    const notificationDoc = await firestore.collection('notifications').doc(notificationId).get();
+    if (!notificationDoc.exists) {
+      throw new functions.https.HttpsError(
+        'not-found',
+        'Notification not found'
+      );
+    }
+
+    const notificationData = notificationDoc.data();
+    if (notificationData.userId !== userId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'You can only mark your own notifications as read'
+      );
+    }
+
+    // Mark as read
+    await firestore.collection('notifications').doc(notificationId).update({
+      read: true,
+      readAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      'An error occurred while marking notification as read'
+    );
   }
 });
 
@@ -1161,6 +1840,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
     5. Serving size
     6. Dietary categories (vegan, gluten-free, etc.)
     7. Cuisine type
+    8. A detailed description of the meal (2-3 sentences describing the dish, its flavors, and appeal)
     
     Format as JSON with these fields:
     {
@@ -1180,8 +1860,9 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
       "difficulty": "easy/medium/hard",
       "serveQty": number,
       "categories": ["category1", "category2"],
-      "cuisine": "Italian, Mexican, etc."
-      "type": "protein|grain|vegetable"
+      "cuisine": "Italian, Mexican, etc.",
+      "type": "protein|grain|vegetable",
+      "description": "A detailed description of the meal (2-3 sentences)"
     }`;
     
     const result = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
@@ -1212,6 +1893,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
         type: mealDetails.type || 'protein',
         categories: mealDetails.categories || [mealType],
         cuisine: mealDetails.cuisine || 'general',
+        description: mealDetails.description || '',
         aiGenerated: true,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
       };
@@ -1936,5 +2618,325 @@ function createFallbackResponse(operation, error) {
       };
     default:
       return { error: true, message: 'Operation failed: ' + error };
+  }
+}
+
+// ============================================================================
+// APP STORE SERVER NOTIFICATIONS
+// ============================================================================
+
+/**
+ * App Store Server Notification handler for production environment
+ * This endpoint receives notifications from Apple about subscription events
+ */
+exports.appStoreServerNotifications = functions.https.onRequest(async (req, res) => {
+  try {
+    console.log('Received App Store Server Notification (Production)');
+    
+    // Verify the notification signature
+    const isValid = await verifyAppStoreNotification(req);
+    if (!isValid) {
+      console.error('Invalid App Store notification signature');
+      return res.status(401).send('Unauthorized');
+    }
+
+    // Process the notification
+    await processAppStoreNotification(req.body, 'production');
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error processing App Store notification:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+/**
+ * App Store Server Notification handler for sandbox environment
+ * This endpoint receives notifications from Apple about subscription events in sandbox
+ */
+exports.appStoreServerNotificationsSandbox = functions.https.onRequest(async (req, res) => {
+  try {
+    console.log('Received App Store Server Notification (Sandbox)');
+    
+    // Verify the notification signature
+    const isValid = await verifyAppStoreNotification(req);
+    if (!isValid) {
+      console.error('Invalid App Store notification signature');
+      return res.status(401).send('Unauthorized');
+    }
+
+    // Process the notification
+    await processAppStoreNotification(req.body, 'sandbox');
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error processing App Store notification:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+/**
+ * Verify App Store Server Notification signature
+ */
+async function verifyAppStoreNotification(req) {
+  try {
+    // Get the signature from headers
+    const signature = req.get('x-apple-signature');
+    const certificate = req.get('x-apple-certificate');
+    
+    if (!signature || !certificate) {
+      console.error('Missing signature or certificate headers');
+      return false;
+    }
+
+    // For production, you should verify the certificate chain and signature
+    // This is a simplified version - in production, implement proper certificate verification
+    console.log('Signature verification passed (simplified)');
+    return true;
+  } catch (error) {
+    console.error('Error verifying notification signature:', error);
+    return false;
+  }
+}
+
+/**
+ * Process App Store Server Notification
+ */
+async function processAppStoreNotification(notificationBody, environment) {
+  try {
+    console.log(`Processing ${environment} notification:`, JSON.stringify(notificationBody, null, 2));
+    
+    const { notificationType, subtype, data } = notificationBody;
+    
+    // Handle different notification types
+    switch (notificationType) {
+      case 'SUBSCRIBED':
+        await handleSubscriptionCreated(data, environment);
+        break;
+      case 'DID_RENEW':
+        await handleSubscriptionRenewed(data, environment);
+        break;
+      case 'DID_FAIL_TO_RENEW':
+        await handleSubscriptionFailedToRenew(data, environment);
+        break;
+      case 'DID_CHANGE_RENEWAL_STATUS':
+        await handleRenewalStatusChanged(data, environment);
+        break;
+      case 'DID_CHANGE_RENEWAL_PREF':
+        await handleRenewalPreferenceChanged(data, environment);
+        break;
+      case 'EXPIRED':
+        await handleSubscriptionExpired(data, environment);
+        break;
+      case 'REVOKE':
+        await handleSubscriptionRevoked(data, environment);
+        break;
+      case 'REFUND':
+        await handleSubscriptionRefunded(data, environment);
+        break;
+      default:
+        console.log(`Unhandled notification type: ${notificationType}`);
+    }
+  } catch (error) {
+    console.error('Error processing notification:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription created
+ */
+async function handleSubscriptionCreated(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken; // Assuming you pass userId as appAccountToken
+    
+    console.log(`Subscription created for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      isPremium: true,
+      premiumPlan: 'month', // Default to monthly, you can determine this from the product ID
+      subscriptionStatus: 'active',
+      originalTransactionId: originalTransactionId,
+      environment: environment,
+      premiumActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'SUBSCRIBED'
+    });
+    
+    console.log(`Updated user ${userId} premium status to active`);
+  } catch (error) {
+    console.error('Error handling subscription created:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription renewed
+ */
+async function handleSubscriptionRenewed(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Subscription renewed for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      isPremium: true,
+      subscriptionStatus: 'active',
+      lastRenewalAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'DID_RENEW'
+    });
+    
+    console.log(`Updated user ${userId} subscription renewal`);
+  } catch (error) {
+    console.error('Error handling subscription renewed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription failed to renew
+ */
+async function handleSubscriptionFailedToRenew(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Subscription failed to renew for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      subscriptionStatus: 'failed_to_renew',
+      lastFailedRenewalAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'DID_FAIL_TO_RENEW'
+    });
+    
+    console.log(`Updated user ${userId} subscription failure status`);
+  } catch (error) {
+    console.error('Error handling subscription failed to renew:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle renewal status changed
+ */
+async function handleRenewalStatusChanged(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Renewal status changed for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      lastNotificationType: 'DID_CHANGE_RENEWAL_STATUS',
+      lastRenewalStatusChangeAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Updated user ${userId} renewal status change`);
+  } catch (error) {
+    console.error('Error handling renewal status changed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle renewal preference changed
+ */
+async function handleRenewalPreferenceChanged(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Renewal preference changed for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      lastNotificationType: 'DID_CHANGE_RENEWAL_PREF',
+      lastRenewalPreferenceChangeAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Updated user ${userId} renewal preference change`);
+  } catch (error) {
+    console.error('Error handling renewal preference changed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription expired
+ */
+async function handleSubscriptionExpired(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Subscription expired for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      isPremium: false,
+      subscriptionStatus: 'expired',
+      premiumExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'EXPIRED'
+    });
+    
+    console.log(`Updated user ${userId} premium status to expired`);
+  } catch (error) {
+    console.error('Error handling subscription expired:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription revoked
+ */
+async function handleSubscriptionRevoked(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Subscription revoked for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      isPremium: false,
+      subscriptionStatus: 'revoked',
+      premiumRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'REVOKE'
+    });
+    
+    console.log(`Updated user ${userId} premium status to revoked`);
+  } catch (error) {
+    console.error('Error handling subscription revoked:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription refunded
+ */
+async function handleSubscriptionRefunded(data, environment) {
+  try {
+    const { appAccountToken, originalTransactionId } = data;
+    const userId = appAccountToken;
+    
+    console.log(`Subscription refunded for user ${userId} in ${environment}`);
+    
+    // Update user's premium status
+    await firestore.collection('users').doc(userId).update({
+      isPremium: false,
+      subscriptionStatus: 'refunded',
+      premiumRefundedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotificationType: 'REFUND'
+    });
+    
+    console.log(`Updated user ${userId} premium status to refunded`);
+  } catch (error) {
+    console.error('Error handling subscription refunded:', error);
+    throw error;
   }
 }

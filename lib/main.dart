@@ -18,6 +18,7 @@ import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
 import 'service/badge_service.dart';
 import 'service/calendar_sharing_service.dart';
+import 'service/challenge_service.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
@@ -75,6 +76,9 @@ void main() async {
   Get.put(MacroManager(), permanent: true);
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
+  print('Registering ChallengeService...');
+  Get.put(ChallengeService(), permanent: true);
+  print('ChallengeService registered successfully');
 
   // Any other non-UI async setup
   await FirebaseService.instance.fetchGeneralData();

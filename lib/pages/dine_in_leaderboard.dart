@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/user_profile_screen.dart';
+import '../service/challenge_service.dart';
 
 class DineInLeaderboardScreen extends StatefulWidget {
   const DineInLeaderboardScreen({super.key});
@@ -18,13 +18,8 @@ class DineInLeaderboardScreen extends StatefulWidget {
 
 class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     with AutomaticKeepAliveClientMixin {
-  List<Map<String, dynamic>> leaderboardData = [];
-  Map<String, dynamic>? currentUserRank;
-  bool isLoading = true;
+  late ChallengeService challengeService;
   StreamSubscription? _subscription;
-  String weekRange = '';
-  String ingredient = '';
-  String challengeEndDate = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -32,201 +27,16 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
   @override
   void initState() {
     super.initState();
-    _calculateWeekRange();
+    challengeService = Get.find<ChallengeService>();
     _setupDataListeners();
-    _loadChallengeData();
-  }
-
-  Future<void> _loadChallengeData() async {
-    await firebaseService.fetchGeneralData();
-    final challengeDetails = firebaseService.generalData['challenge_details'];
-    if (challengeDetails != null && challengeDetails is String) {
-      setState(() {
-        ingredient = challengeDetails.split(',').sublist(1).join(', ');
-        challengeEndDate = challengeDetails.split(',')[0];
-      });
-      // Parse the end date for scheduling the points award
-      try {
-        final endDateParts = challengeEndDate.split('-');
-        if (endDateParts.length == 3) {
-          final day = int.parse(endDateParts[0]);
-          final month = int.parse(endDateParts[1]);
-          final year = int.parse(endDateParts[2]);
-          final endDateTime =
-              DateTime(year, month, day, 12, 0); // 12 PM on end date
-          _schedulePointsAward(endDateTime);
-        }
-      } catch (e) {
-        showTastySnackbar(
-            'Something went wrong', 'Please try again later', Get.context!,
-            backgroundColor: kRed);
-      }
-    }
-  }
-
-  void _calculateWeekRange() {
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
-
-    final mondayFormatted = '${monday.day}/${monday.month}';
-    final sundayFormatted = '${sunday.day}/${sunday.month}';
-
-    setState(() {
-      weekRange = '$mondayFormatted - $sundayFormatted';
-    });
   }
 
   void _setupDataListeners() {
-    // Listen to posts collection changes for battle posts
-    _subscription = firestore
-        .collection('posts')
-        .where('isBattle', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
-        .limit(100) // Get more posts to ensure we have enough for the week
-        .snapshots()
-        .listen((snapshot) {
-      _updateLeaderboardData(snapshot);
-    });
-  }
-
-  Future<void> _updateLeaderboardData(QuerySnapshot snapshot) async {
-    try {
-      final userId = userService.userId;
-      final Map<String, Map<String, dynamic>> userLikesMap =
-          <String, Map<String, dynamic>>{};
-
-      // Calculate current week's Monday and Friday
-      final now = DateTime.now();
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final sunday = monday.add(const Duration(days: 6));
-
-      // Set time to start of Monday and end of Friday
-      final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd =
-          DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-
-      // Process each battle post
-      for (var doc in snapshot.docs) {
-        final postData = doc.data() as Map<String, dynamic>?;
-        if (postData == null) continue;
-
-        // Check if post is from current week
-        if (postData['createdAt'] != null) {
-          try {
-            final postDate = DateTime.parse(postData['createdAt']);
-            if (postDate.isBefore(weekStart) || postDate.isAfter(weekEnd)) {
-              continue; // Skip posts outside current week
-            }
-          } catch (e) {
-            continue; // Skip posts with invalid dates
-          }
-        } else {
-          continue; // Skip posts without createdAt
-        }
-
-        final postUserId = postData['userId'];
-        final favorites = List<String>.from(postData['favorites'] ?? []);
-        final likesCount = favorites.length;
-
-        if (postUserId != null && likesCount > 0) {
-          if (userLikesMap.containsKey(postUserId)) {
-            userLikesMap[postUserId]!['totalLikes'] += likesCount;
-            userLikesMap[postUserId]!['postCount'] += 1;
-          } else {
-            userLikesMap[postUserId] = {
-              'userId': postUserId,
-              'totalLikes': likesCount,
-              'postCount': 1,
-            };
-          }
-        }
-      }
-
-      // Convert to list and sort by total likes
-      final List<Map<String, dynamic>> data = [];
-      int actualRank = 1;
-
-      // Sort users by total likes (descending)
-      final sortedUsers = userLikesMap.values.toList()
-        ..sort((a, b) =>
-            (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
-
-      for (var userData in sortedUsers) {
-        final docUserId = userData['userId'] as String;
-
-        // Fetch user details
-        final userDoc =
-            await firestore.collection('users').doc(docUserId).get();
-        final userDataFromFirestore = userDoc.data() as Map<String, dynamic>?;
-
-        final userMap = {
-          'id': docUserId,
-          'displayName': userDataFromFirestore?['displayName'] ?? 'Unknown',
-          'profileImage':
-              userDataFromFirestore?['profileImage']?.isNotEmpty == true
-                  ? userDataFromFirestore!['profileImage']
-                  : intPlaceholderImage,
-          'totalLikes': userData['totalLikes'],
-          'postCount': userData['postCount'],
-          'rank': actualRank,
-          'subtitle': userDataFromFirestore?['bio'] ?? 'DINE-IN CHALLENGER',
-        };
-
-        // Check if this is the current user
-        if (docUserId == userId) {
-          currentUserRank = userMap;
-        }
-
-        data.add(userMap);
-        actualRank++;
-      }
-
+    // Listen to challenge service changes
+    _subscription = challengeService.currentLeaderboard.listen((_) {
       if (mounted) {
-        setState(() {
-          leaderboardData = data;
-          isLoading = false;
-        });
+        setState(() {});
       }
-    } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
-  void _schedulePointsAward(DateTime endDateTime) {
-    final now = DateTime.now();
-    final durationUntilEnd = endDateTime.difference(now);
-    if (durationUntilEnd.isNegative) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
-      return;
-    }
-    Timer(durationUntilEnd, () async {
-      final winner = leaderboardData.isNotEmpty ? leaderboardData.first : null;
-      if (winner == null) {
-        return;
-      }
-      final winnerId = winner['id'];
-      const pointsToAward = 100;
-      await badgeService.awardPoints(winnerId, pointsToAward,
-          reason: "Dine-In Challenge Winner");
-      //save into battle_votes collection
-      await firestore
-          .collection('battle_winners')
-          .doc(endDateTime.toString())
-          .set({
-        'battleId': 'dine-in-challenge',
-        'userId': [
-          winnerId,
-        ],
-        'timestamp': DateTime.now(),
-      });
     });
   }
 
@@ -238,28 +48,11 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
 
   Future<void> _onRefresh() async {
     try {
-      setState(() => isLoading = true);
-
-      // Manually trigger a refresh of leaderboard data
-      final snapshot = await firestore
-          .collection('posts')
-          .where('isBattle', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .get();
-
-      await _updateLeaderboardData(snapshot);
-
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      await challengeService.refresh();
     } catch (e) {
       showTastySnackbar(
           'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
     }
   }
 
@@ -315,14 +108,14 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                       child: Column(
                         children: [
                           Text(
-                            'Week: $weekRange',
+                            'Week: ${challengeService.weekRange}',
                             style: textTheme.bodySmall?.copyWith(
                               color: kWhite,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            'Ingredients: ${capitalizeFirstLetter(ingredient)}',
+                            'Ingredients: ${challengeService.currentIngredients.join(', ')}',
                             style: textTheme.bodySmall?.copyWith(
                               color: kWhite,
                               fontWeight: FontWeight.w600,
@@ -357,85 +150,95 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
           ),
 
           // Current User Rank (if exists)
-          if (currentUserRank != null)
-            SliverToBoxAdapter(
+          Obx(() {
+            final userRank =
+                challengeService.getUserRank(userService.userId ?? '');
+            if (userRank == null) return const SizedBox.shrink();
+
+            return SliverToBoxAdapter(
               child: Container(
                 margin: EdgeInsets.all(getPercentageWidth(4, context)),
-                child: _buildCurrentUserCard(),
+                child: userRank.isNotEmpty
+                    ? _buildCurrentUserCard(userRank)
+                    : const SizedBox.shrink(),
               ),
-            ),
+            );
+          }),
 
           // Loading or Leaderboard Content
-          if (isLoading)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(
-                      color: kAccent,
-                      strokeWidth: 3,
-                    ),
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    Text(
-                      'Loading challenge rankings...',
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontSize: getTextScale(3.5, context),
+          Obx(() {
+            if (challengeService.isLoading.value) {
+              return SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(
+                        color: kAccent,
+                        strokeWidth: 3,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (leaderboardData.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.restaurant_outlined,
-                      size: getIconScale(20, context),
-                      color: Colors.grey.withValues(alpha: 0.5),
-                    ),
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    Text(
-                      "No challenge posts this week",
-                      style: TextStyle(
-                        fontSize: getTextScale(4, context),
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Text(
+                        'Loading challenge rankings...',
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontSize: getTextScale(3.5, context),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: getPercentageHeight(1, context)),
-                    Text(
-                      "Start posting your dine-in challenges!",
-                      style: TextStyle(
-                        fontSize: getTextScale(3, context),
-                        color: Colors.grey.withValues(alpha: 0.7),
+                    ],
+                  ),
+                ),
+              );
+            } else if (challengeService.currentLeaderboard.isEmpty) {
+              return SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.restaurant_outlined,
+                        size: getIconScale(20, context),
+                        color: Colors.grey.withValues(alpha: 0.5),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Text(
+                        "No challenge posts this week",
+                        style: TextStyle(
+                          fontSize: getTextScale(4, context),
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      Text(
+                        "Start posting your dine-in challenges!",
+                        style: TextStyle(
+                          fontSize: getTextScale(3, context),
+                          color: Colors.grey.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            )
-          else
-            // Leaderboard List
-            SliverPadding(
-              padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(4, context),
-              ),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final user = leaderboardData[index];
-                    return _buildLeaderboardItem(user, index + 1);
-                  },
-                  childCount: leaderboardData.length,
+              );
+            } else {
+              // Leaderboard List
+              return SliverPadding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(4, context),
                 ),
-              ),
-            ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final user = challengeService.currentLeaderboard[index];
+                      return _buildLeaderboardItem(user, index + 1);
+                    },
+                    childCount: challengeService.currentLeaderboard.length,
+                  ),
+                ),
+              );
+            }
+          }),
 
           // Bottom spacing
           SliverToBoxAdapter(
@@ -446,9 +249,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     );
   }
 
-  Widget _buildCurrentUserCard() {
-    if (currentUserRank == null) return const SizedBox.shrink();
-
+  Widget _buildCurrentUserCard(Map<String, dynamic> userRank) {
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(4, context)),
       decoration: BoxDecoration(
@@ -503,7 +304,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: Text(
-                  "#${currentUserRank!['rank']}",
+                  "#${userRank['rank']}",
                   style: TextStyle(
                     color: kWhite,
                     fontSize: getTextScale(5, context),
@@ -521,8 +322,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                 ),
                 child: CircleAvatar(
                   radius: getResponsiveBoxSize(context, 25, 25),
-                  backgroundImage:
-                      _getImageProvider(currentUserRank!['profileImage']),
+                  backgroundImage: _getImageProvider(userRank['profileImage']),
                 ),
               ),
               SizedBox(width: getPercentageWidth(3, context)),
@@ -533,7 +333,8 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      capitalizeFirstLetter(currentUserRank!['displayName']),
+                      capitalizeFirstLetter(
+                          userRank['displayName'] ?? 'Unknown'),
                       style: TextStyle(
                         color: kWhite,
                         fontSize: getTextScale(4.5, context),
@@ -542,7 +343,7 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${currentUserRank!['totalLikes']} likes • ${currentUserRank!['postCount']} posts',
+                      '${userRank['totalLikes']} likes • ${userRank['postCount']} posts',
                       style: TextStyle(
                         color: kWhite.withValues(alpha: 0.9),
                         fontSize: getTextScale(3.5, context),

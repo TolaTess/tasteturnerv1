@@ -1,19 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
-import '../helper/helper_files.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
-import '../screens/recipes_list_category_screen.dart';
 import '../service/macro_manager.dart';
+import '../service/gemini_service.dart' as gemini;
 import '../widgets/ingredient_battle_widget.dart';
-import '../widgets/optimized_image.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
 
@@ -26,7 +26,17 @@ class DineInScreen extends StatefulWidget {
 
 class _DineInScreenState extends State<DineInScreen> {
   final MacroManager _macroManager = Get.find<MacroManager>();
+  final ImagePicker _imagePicker = ImagePicker();
 
+  // Fridge feature variables
+  List<String> fridgeIngredients = [];
+  final TextEditingController _fridgeController = TextEditingController();
+  bool isAnalyzingFridge = false;
+  File? _fridgeImage;
+  List<Map<String, dynamic>> _fridgeRecipes = [];
+  bool _showFridgeRecipes = false;
+
+  // Legacy variables (keeping for challenge mode)
   MacroData? selectedCarb;
   MacroData? selectedProtein;
   bool isLoading = false;
@@ -35,8 +45,8 @@ class _DineInScreenState extends State<DineInScreen> {
   final Random _random = Random();
 
   // Challenge related variables
-  List<MacroData> challengeIngredients = [];
-  List<MacroData> selectedChallengeIngredients = [];
+  List<Map<String, String>> challengeIngredients = [];
+  List<Map<String, String>> selectedChallengeIngredients = [];
   bool isChallengeMode = false;
   bool isLoadingChallenge = false;
   String? challengeDate;
@@ -48,16 +58,21 @@ class _DineInScreenState extends State<DineInScreen> {
     super.initState();
     _loadSavedMeal();
     _loadChallengeData();
-    _generateIngredientPair();
+    _loadFridgeData();
     _checkChallengeNotification();
     loadExcludedIngredients();
   }
 
+  @override
+  void dispose() {
+    _fridgeController.dispose();
+    super.dispose();
+  }
+
   loadExcludedIngredients() async {
     await firebaseService.fetchGeneralData();
-    excludedIngredients = firebaseService.generalData['excludeIngredients']
-        .toString()
-        .split(',');
+    excludedIngredients =
+        firebaseService.generalData['excludeIngredients'].toString().split(',');
   }
 
   // Local storage keys
@@ -160,19 +175,6 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
-  // Clear saved meal data
-  Future<void> _clearSavedMeal() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_selectedMealKey);
-      await prefs.remove(_selectedCarbKey);
-      await prefs.remove(_selectedProteinKey);
-      await prefs.remove(_mealTimestampKey);
-    } catch (e) {
-      debugPrint('Error clearing saved meal: $e');
-    }
-  }
-
   // Load challenge data from Firebase and local storage
   Future<void> _loadChallengeData() async {
     setState(() {
@@ -187,7 +189,7 @@ class _DineInScreenState extends State<DineInScreen> {
       final challengeDetails = firebaseService.generalData['challenge_details'];
 
       if (challengeDetails != null && challengeDetails is String) {
-        // Parse challenge details: "07-08-2025,carrot,shrimp,pork,aubergine"
+        // Parse challenge details: "07-08-2025,carrot-v,shrimp-p,pork-p,aubergine-v"
         final parts = challengeDetails.split(',');
         if (parts.length >= 5) {
           challengeDate = parts[0];
@@ -200,79 +202,51 @@ class _DineInScreenState extends State<DineInScreen> {
             await _macroManager.fetchIngredients();
           }
 
-          // Find ingredients by name (case-insensitive)
+          // Parse ingredients with new format: "carrot-v,shrimp-p,pork-p,aubergine-v"
           challengeIngredients = [];
-          for (String name in ingredientNames) {
-            final found = _macroManager.ingredient
-                .where((ingredient) =>
-                    ingredient.title.toLowerCase() == name.toLowerCase())
-                .toList();
-            if (found.isNotEmpty) {
-              challengeIngredients.add(found.first);
-            } else {
-              // Try partial matching as fallback
-              final partialMatches = _macroManager.ingredient
-                  .where((ingredient) =>
-                      ingredient.title
-                          .toLowerCase()
-                          .contains(name.toLowerCase()) ||
-                      name
-                          .toLowerCase()
-                          .contains(ingredient.title.toLowerCase()))
-                  .toList();
-              if (partialMatches.isNotEmpty) {
-                challengeIngredients.add(partialMatches.first);
-              }
-            }
+          for (String ingredientString in ingredientNames) {
+            // Extract clean name and type from format like "carrot-v" or "shrimp-p"
+            final cleanName =
+                ingredientString.replaceAll(RegExp(r'-[vp]$'), '');
+            final type = ingredientString.endsWith('-v')
+                ? 'vegetable'
+                : ingredientString.endsWith('-p')
+                    ? 'protein'
+                    : 'unknown';
+
+            // Create simple ingredient map
+            challengeIngredients.add({
+              'name': cleanName,
+              'type': type,
+              'image': type == 'vegetable'
+                  ? 'assets/images/vegetable.jpg'
+                  : 'assets/images/meat.jpg',
+            });
           }
 
           // If no ingredients found, create mock ingredients for testing
           if (challengeIngredients.isEmpty) {
             challengeIngredients = [
-              MacroData(
-                id: 'mock_carrot',
-                title: 'Carrot',
-                type: 'vegetable',
-                mediaPaths: [],
-                calories: 41,
-                macros: {'protein': '0.9', 'carbs': '9.6', 'fat': '0.2'},
-                categories: ['vegetable'],
-                features: {},
-                image: 'assets/images/vegetable.jpg',
-              ),
-              MacroData(
-                id: 'mock_shrimp',
-                title: 'Shrimp',
-                type: 'protein',
-                mediaPaths: [],
-                calories: 85,
-                macros: {'protein': '20.1', 'carbs': '0.2', 'fat': '0.5'},
-                categories: ['protein'],
-                features: {},
-                image: 'assets/images/fish.jpg',
-              ),
-              MacroData(
-                id: 'mock_pork',
-                title: 'Pork',
-                type: 'protein',
-                mediaPaths: [],
-                calories: 242,
-                macros: {'protein': '27.3', 'carbs': '0.0', 'fat': '14.0'},
-                categories: ['protein'],
-                features: {},
-                image: 'assets/images/meat.jpg',
-              ),
-              MacroData(
-                id: 'mock_aubergine',
-                title: 'Aubergine',
-                type: 'vegetable',
-                mediaPaths: [],
-                calories: 25,
-                macros: {'protein': '1.0', 'carbs': '6.0', 'fat': '0.2'},
-                categories: ['vegetable'],
-                features: {},
-                image: 'assets/images/vegetable.jpg',
-              ),
+              {
+                'name': 'Carrot',
+                'type': 'vegetable',
+                'image': 'assets/images/vegetable.jpg'
+              },
+              {
+                'name': 'Shrimp',
+                'type': 'protein',
+                'image': 'assets/images/fish.jpg'
+              },
+              {
+                'name': 'Pork',
+                'type': 'protein',
+                'image': 'assets/images/meat.jpg'
+              },
+              {
+                'name': 'Aubergine',
+                'type': 'vegetable',
+                'image': 'assets/images/vegetable.jpg'
+              },
             ];
           }
 
@@ -303,6 +277,11 @@ class _DineInScreenState extends State<DineInScreen> {
       // Store the saved challenge date for comparison
       savedChallengeDate = savedChallengeDateFromStorage;
 
+      // Set the mode preference
+      setState(() {
+        isChallengeMode = isChallengeModeSaved;
+      });
+
       // Check if saved challenge is for the same week
       if (savedChallengeDateFromStorage == challengeDate &&
           isChallengeModeSaved) {
@@ -313,16 +292,13 @@ class _DineInScreenState extends State<DineInScreen> {
           selectedChallengeIngredients = [];
           for (String id in ingredientIds) {
             final found = challengeIngredients
-                .where((ingredient) => ingredient.id == id)
+                .where((ingredient) =>
+                    ingredient['name']?.toLowerCase() == id.toLowerCase())
                 .toList();
             if (found.isNotEmpty) {
               selectedChallengeIngredients.add(found.first);
             }
           }
-
-          setState(() {
-            isChallengeMode = true;
-          });
         }
       }
     } catch (e) {
@@ -337,7 +313,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
       if (selectedChallengeIngredients.isNotEmpty) {
         final ingredientIds = selectedChallengeIngredients
-            .map((ingredient) => ingredient.id)
+            .map((ingredient) => ingredient['name'] ?? '')
             .toList();
         await prefs.setString(
             _challengeIngredientsKey, jsonEncode(ingredientIds));
@@ -348,18 +324,6 @@ class _DineInScreenState extends State<DineInScreen> {
       showTastySnackbar(
           'Something went wrong', 'Please try again later', Get.context!,
           backgroundColor: kRed);
-    }
-  }
-
-  // Clear challenge data from local storage
-  Future<void> _clearChallengeData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_challengeIngredientsKey);
-      await prefs.remove(_challengeDateKey);
-      await prefs.remove(_isChallengeModeKey);
-    } catch (e) {
-      debugPrint('Error clearing challenge data: $e');
     }
   }
 
@@ -571,6 +535,219 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
+  // Fridge feature methods
+  Future<void> _loadFridgeData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedIngredients = prefs.getStringList('fridge_ingredients') ?? [];
+      final savedImagePath = prefs.getString('fridge_image_path');
+
+      setState(() {
+        fridgeIngredients = savedIngredients;
+        if (savedImagePath != null && File(savedImagePath).existsSync()) {
+          _fridgeImage = File(savedImagePath);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error loading fridge data: $e');
+    }
+  }
+
+  Future<void> _saveFridgeData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('fridge_ingredients', fridgeIngredients);
+      if (_fridgeImage != null) {
+        await prefs.setString('fridge_image_path', _fridgeImage!.path);
+      }
+    } catch (e) {
+      debugPrint('Error saving fridge data: $e');
+    }
+  }
+
+  Future<void> _pickFridgeImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
+      if (image != null) {
+        setState(() {
+          _fridgeImage = File(image.path);
+        });
+        await _analyzeFridgeImage();
+      }
+    } catch (e) {
+      showTastySnackbar(
+        'Error',
+        'Failed to pick image: $e',
+        context,
+        backgroundColor: kRed,
+      );
+    }
+  }
+
+  Future<void> _analyzeFridgeImage() async {
+    if (_fridgeImage == null) return;
+
+    setState(() {
+      isAnalyzingFridge = true;
+    });
+
+    try {
+      // Check if user can use AI features
+      if (!canUseAI()) {
+        showPremiumRequiredDialog(
+            context, getThemeProvider(context).isDarkMode);
+        setState(() {
+          isAnalyzingFridge = false;
+        });
+        return;
+      }
+
+      // Analyze the image with AI
+      final analysisResult =
+          await gemini.geminiService.analyzeFoodImageWithContext(
+        imageFile: _fridgeImage!,
+        additionalContext:
+            'Identify all food items in this fridge image. List only the food items that can be used for cooking.',
+      );
+
+      if (analysisResult['foodItems'] != null) {
+        final foodItems = analysisResult['foodItems'] as List<dynamic>;
+        final ingredients = foodItems
+            .map((item) => item['name'] as String)
+            .where((name) => name.isNotEmpty)
+            .toList();
+
+        setState(() {
+          fridgeIngredients = ingredients;
+        });
+
+        await _saveFridgeData();
+        await _generateFridgeRecipes();
+      }
+    } catch (e) {
+      showTastySnackbar(
+        'Analysis Failed',
+        'Failed to analyze fridge image: $e',
+        context,
+        backgroundColor: kRed,
+      );
+    }
+
+    setState(() {
+      isAnalyzingFridge = false;
+    });
+  }
+
+  Future<void> _addManualIngredient() async {
+    final text = _fridgeController.text.trim();
+    if (text.isEmpty) return;
+
+    final ingredients = text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    setState(() {
+      fridgeIngredients.addAll(ingredients);
+      _fridgeController.clear();
+    });
+
+    await _saveFridgeData();
+    await _generateFridgeRecipes();
+  }
+
+  Future<void> _generateFridgeRecipes() async {
+    if (fridgeIngredients.length < 3) {
+      showTastySnackbar(
+        'Not Enough Ingredients',
+        'Please add at least 3 ingredients to generate recipes',
+        context,
+        backgroundColor: Colors.orange,
+      );
+      return;
+    }
+
+    setState(() {
+      isAnalyzingFridge = true;
+    });
+
+    try {
+      // Check if user can use AI features
+      if (!canUseAI()) {
+        showPremiumRequiredDialog(
+            context, getThemeProvider(context).isDarkMode);
+        setState(() {
+          isAnalyzingFridge = false;
+        });
+        return;
+      }
+
+      // Create mock MacroData objects for the ingredients
+      final mockIngredients = fridgeIngredients
+          .map((ingredient) => MacroData(
+                id: 'fridge_${ingredient.toLowerCase().replaceAll(' ', '_')}',
+                title: ingredient,
+                type: 'ingredient',
+                mediaPaths: [],
+                calories: 0,
+                macros: {},
+                categories: [],
+                features: {},
+                image: '',
+              ))
+          .toList();
+
+      // Generate recipes using the existing service
+      final recipes = await gemini.geminiService.generateMealsFromIngredients(
+        mockIngredients,
+        context,
+        true, // isDineIn
+      );
+
+      if (recipes['meals'] != null) {
+        setState(() {
+          _fridgeRecipes = List<Map<String, dynamic>>.from(recipes['meals']);
+          _showFridgeRecipes = true;
+        });
+      }
+    } catch (e) {
+      showTastySnackbar(
+        'Recipe Generation Failed',
+        'Failed to generate recipes: $e',
+        context,
+        backgroundColor: kRed,
+      );
+    }
+
+    setState(() {
+      isAnalyzingFridge = false;
+    });
+  }
+
+  void _removeFridgeIngredient(String ingredient) {
+    setState(() {
+      fridgeIngredients.remove(ingredient);
+    });
+    _saveFridgeData();
+  }
+
+  void _clearFridge() {
+    setState(() {
+      fridgeIngredients.clear();
+      _fridgeImage = null;
+      _fridgeRecipes.clear();
+      _showFridgeRecipes = false;
+    });
+    _saveFridgeData();
+  }
+
   // Show challenge ingredient selection dialog
   void _showChallengeSelectionDialog() {
     if (challengeIngredients.isEmpty) {
@@ -680,53 +857,29 @@ class _DineInScreenState extends State<DineInScreen> {
                                             kLightGrey.withValues(alpha: 0.3),
                                       ),
                                       child: ClipOval(
-                                        child: ingredient.mediaPaths.isNotEmpty
-                                            ? ingredient.mediaPaths.first
-                                                    .contains('https')
-                                                ? OptimizedImage(
-                                                    imageUrl: ingredient
-                                                        .mediaPaths.first,
-                                                    fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    height: double.infinity,
-                                                  )
-                                                : Image.asset(
-                                                    getAssetImageForItem(
-                                                        ingredient
-                                                            .mediaPaths.first),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context,
-                                                            error,
-                                                            stackTrace) =>
-                                                        Icon(Icons.food_bank,
-                                                            size: getIconScale(
-                                                                8, context)),
-                                                  )
-                                            : ingredient.image.isNotEmpty
-                                                ? Image.asset(
-                                                    getAssetImageForItem(
-                                                        ingredient.image),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context,
-                                                            error,
-                                                            stackTrace) =>
-                                                        Icon(Icons.food_bank,
-                                                            size: getIconScale(
-                                                                8, context)),
-                                                  )
-                                                : Icon(
-                                                    Icons.food_bank,
-                                                    size: getIconScale(
-                                                        8, context),
-                                                    color: kAccent,
-                                                  ),
+                                        child: ingredient['image'] != null
+                                            ? Image.asset(
+                                                ingredient['image']!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                        stackTrace) =>
+                                                    Icon(Icons.food_bank,
+                                                        size: getIconScale(
+                                                            8, context)),
+                                              )
+                                            : Icon(
+                                                Icons.food_bank,
+                                                size: getIconScale(8, context),
+                                                color: kAccent,
+                                              ),
                                       ),
                                     ),
                                     SizedBox(
                                         height:
                                             getPercentageHeight(1, context)),
                                     Text(
-                                      ingredient.title,
+                                      capitalizeFirstLetter(
+                                          ingredient['name'] ?? ''),
                                       textAlign: TextAlign.center,
                                       style: textTheme.bodySmall?.copyWith(
                                         color: isSelected
@@ -810,53 +963,29 @@ class _DineInScreenState extends State<DineInScreen> {
                                             kLightGrey.withValues(alpha: 0.3),
                                       ),
                                       child: ClipOval(
-                                        child: ingredient.mediaPaths.isNotEmpty
-                                            ? ingredient.mediaPaths.first
-                                                    .contains('https')
-                                                ? OptimizedImage(
-                                                    imageUrl: ingredient
-                                                        .mediaPaths.first,
-                                                    fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    height: double.infinity,
-                                                  )
-                                                : Image.asset(
-                                                    getAssetImageForItem(
-                                                        ingredient
-                                                            .mediaPaths.first),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context,
-                                                            error,
-                                                            stackTrace) =>
-                                                        Icon(Icons.food_bank,
-                                                            size: getIconScale(
-                                                                8, context)),
-                                                  )
-                                            : ingredient.image.isNotEmpty
-                                                ? Image.asset(
-                                                    getAssetImageForItem(
-                                                        ingredient.image),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context,
-                                                            error,
-                                                            stackTrace) =>
-                                                        Icon(Icons.food_bank,
-                                                            size: getIconScale(
-                                                                8, context)),
-                                                  )
-                                                : Icon(
-                                                    Icons.food_bank,
-                                                    size: getIconScale(
-                                                        8, context),
-                                                    color: kAccent,
-                                                  ),
+                                        child: ingredient['image'] != null
+                                            ? Image.asset(
+                                                ingredient['image']!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                        stackTrace) =>
+                                                    Icon(Icons.food_bank,
+                                                        size: getIconScale(
+                                                            8, context)),
+                                              )
+                                            : Icon(
+                                                Icons.food_bank,
+                                                size: getIconScale(8, context),
+                                                color: kAccent,
+                                              ),
                                       ),
                                     ),
                                     SizedBox(
                                         height:
                                             getPercentageHeight(1, context)),
                                     Text(
-                                      ingredient.title,
+                                      capitalizeFirstLetter(
+                                          ingredient['name'] ?? ''),
                                       textAlign: TextAlign.center,
                                       style: textTheme.bodySmall?.copyWith(
                                         color: isSelected
@@ -1022,229 +1151,48 @@ class _DineInScreenState extends State<DineInScreen> {
     );
   }
 
-  // Switch to random ingredient mode
+  // Switch between fridge and challenge mode
   void _switchToRandomMode() async {
-    final shouldSwitch = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final isDarkMode = getThemeProvider(context).isDarkMode;
-        final textTheme = Theme.of(context).textTheme;
-        return AlertDialog(
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: Text(
-            'Switch to Random Mode?',
-            style: textTheme.titleLarge?.copyWith(color: kAccent),
-          ),
-          content: Text(
-            'This will clear your current challenge. Continue?',
-            style: textTheme.bodyMedium?.copyWith(
-              color: isDarkMode ? kWhite : kBlack,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(
-                'Keep Challenge',
-                style: textTheme.bodyMedium?.copyWith(color: kAccent),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(
-                'Switch Mode',
-                style: textTheme.bodyMedium?.copyWith(color: kAccent),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldSwitch == true) {
-      await _clearChallengeData();
-      setState(() {
-        isChallengeMode = false;
-        selectedChallengeIngredients.clear();
-      });
-    }
-  }
-
-  Future<void> _generateIngredientPair({bool forceRefresh = false}) async {
-    // Only generate new ingredients if none exist or if forced refresh
-    if (!forceRefresh && selectedCarb != null && selectedProtein != null) {
-      return;
-    }
+    print('Switching mode from $isChallengeMode to ${!isChallengeMode}');
+    print(
+        'Current selectedChallengeIngredients: $selectedChallengeIngredients');
 
     setState(() {
-      isLoading = true;
+      isChallengeMode = !isChallengeMode;
     });
 
+    // Save the mode preference
     try {
-      // Ensure ingredients are fetched
-      if (_macroManager.ingredient.isEmpty) {
-        await _macroManager.fetchIngredients();
-      }
-
-      final ingredients = _macroManager.ingredient;
-
-      // Get carbs (grains, vegetables, carbs) and shuffle properly
-      final allCarbs = ingredients
-          .where((ingredient) =>
-              (ingredient.type.toLowerCase() == 'grain' ||
-                  ingredient.type.toLowerCase() == 'vegetable' ||
-                  ingredient.type.toLowerCase() == 'carb') &&
-              !excludedIngredients.contains(ingredient.title.toLowerCase()))
-          .toList();
-      allCarbs.shuffle(_random);
-      final carbs = allCarbs.take(10).toList();
-
-      // Get proteins and shuffle properly
-      final allProteins = ingredients
-          .where((ingredient) =>
-              ingredient.type.toLowerCase() == 'protein' &&
-              !excludedIngredients.contains(ingredient.title.toLowerCase()))
-          .toList();
-      allProteins.shuffle(_random);
-      final proteins = allProteins.take(10).toList();
-
-      // Randomly select one of each
-      if (carbs.isNotEmpty && proteins.isNotEmpty) {
-        selectedCarb = carbs[_random.nextInt(carbs.length)];
-        selectedProtein = proteins[_random.nextInt(proteins.length)];
-
-        // Clear meal when ingredients change
-        if (forceRefresh) {
-          selectedMeal = null;
-          isAccepted = false;
-        }
-      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_isChallengeModeKey, isChallengeMode);
     } catch (e) {
-      debugPrint('Error generating ingredient pair: $e');
+      debugPrint('Error saving mode preference: $e');
     }
 
-    setState(() {
-      isLoading = false;
-    });
+    print('After switch - isChallengeMode: $isChallengeMode');
+    print(
+        'After switch - selectedChallengeIngredients: $selectedChallengeIngredients');
 
-    // Save the new ingredients to storage
-    _saveMealToStorage();
-  }
-
-  // Method to refresh ingredients
-  Future<void> _refreshIngredients() async {
-    await _generateIngredientPair(forceRefresh: true);
-  }
-
-  void _refreshPair() async {
-    // If there's a saved meal, show confirmation dialog
-    if (selectedMeal != null) {
-      final shouldClear = await _showClearMealDialog();
-      if (!shouldClear) return;
-    }
-
-    // Clear from storage when user explicitly generates new ingredients
-    _clearSavedMeal();
-    // Use the new refresh method which forces new ingredient generation
-    await _refreshIngredients();
-  }
-
-  // Show dialog to confirm clearing existing meal
-  Future<bool> _showClearMealDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final isDarkMode = getThemeProvider(context).isDarkMode;
-        final textTheme = Theme.of(context).textTheme;
-        return AlertDialog(
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: Text(
-            'Generate New Pair?',
-            style: textTheme.titleLarge?.copyWith(color: kAccent),
-          ),
-          content: Text(
-            'You have a saved recipe. Generating new ingredients will clear your current recipe. Continue?',
-            style: textTheme.bodyMedium?.copyWith(
-              color: isDarkMode ? kWhite : kBlack,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(
-                'Keep Current',
-                style: textTheme.bodyMedium?.copyWith(color: kAccent),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(
-                'Generate New',
-                style: textTheme.bodyMedium?.copyWith(color: kAccent),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    return result ?? false;
-  }
-
-  void _acceptPair() {
-    setState(() {
-      isAccepted = true;
-    });
-  }
-
-  void _showDetails(bool isDarkMode, TextTheme textTheme) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor:
-            getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text(
-          'Ingredient Details',
-          style: textTheme.titleLarge?.copyWith(
-            color: kAccent,
-          ),
-        ),
+    // Show feedback to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(
-          '• Use only the listed ingredients plus:\n'
-          '  - Onions\n'
-          '  - Herbs\n'
-          '  - Spices\n\n'
-          '• Create a visually stunning dish\n'
-          '• Take a high-quality photo\n\n'
-          '🏆 Remember: Presentation is key! \n\n Enjoy your meal!',
-          style: textTheme.bodyMedium?.copyWith(
-            color: isDarkMode ? kWhite : kBlack,
-          ),
+          isChallengeMode
+              ? 'Switched to Weekly Challenge mode'
+              : 'Switched to Fridge mode',
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: kAccentLight,
-                ),
-              )),
-        ],
+        backgroundColor: kAccent,
+        duration: Duration(seconds: 2),
       ),
     );
   }
 
   void _navigateToUploadBattle({bool isChallenge = false}) {
-    if (isChallenge && selectedChallengeIngredients.length == 2) {
+    if (isChallenge && selectedChallengeIngredients.length >= 2) {
       // Create battle ID from challenge ingredient names + random number
       final battleId =
-          '${selectedChallengeIngredients[0].title.toLowerCase().replaceAll(' ', '_')}_'
-          '${selectedChallengeIngredients[1].title.toLowerCase().replaceAll(' ', '_')}_'
+          '${selectedChallengeIngredients[0]['name']?.toLowerCase().replaceAll(' ', '_')}_'
+          '${selectedChallengeIngredients[1]['name']?.toLowerCase().replaceAll(' ', '_')}_'
           'challenge_${_random.nextInt(9999).toString().padLeft(4, '0')}';
 
       Navigator.push(
@@ -1277,6 +1225,307 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
+  Widget _buildFridgeInterface(bool isDarkMode, TextTheme textTheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Fridge image or placeholder
+        if (_fridgeImage != null) ...[
+          Container(
+            height: getPercentageHeight(20, context),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: kAccent.withValues(alpha: 0.3)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                _fridgeImage!,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+        ],
+
+        // Add ingredients section
+        Container(
+          padding: EdgeInsets.all(getPercentageWidth(3, context)),
+          decoration: BoxDecoration(
+            color: kAccent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kAccent.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.kitchen, color: kAccent),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Text(
+                    'Add Ingredients',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: kAccent,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+
+              // Text input for manual entry
+              TextField(
+                controller: _fridgeController,
+                decoration: InputDecoration(
+                  hintText:
+                      'Enter ingredients separated by commas (e.g., chicken, rice, broccoli)',
+                  hintStyle: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        BorderSide(color: kAccent.withValues(alpha: 0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        BorderSide(color: kAccent.withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: kAccent),
+                  ),
+                ),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+                maxLines: 2,
+              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickFridgeImage(),
+                      icon: Icon(Icons.camera_alt, color: kAccent),
+                      label: Text(
+                        'Take Photo',
+                        style: textTheme.bodyMedium?.copyWith(color: kAccent),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: kAccent),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Expanded(
+                    child: AppButton(
+                      text: 'Add Ingredients',
+                      onPressed: () => _addManualIngredient(),
+                      type: AppButtonType.primary,
+                      color: kAccent,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: getPercentageHeight(1, context)),
+
+        // Current ingredients list
+        if (fridgeIngredients.isNotEmpty) ...[
+          Text(
+            'Your Fridge Ingredients (${fridgeIngredients.length})',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: kAccent,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(0.5, context)),
+          Wrap(
+            spacing: getPercentageWidth(1, context),
+            runSpacing: getPercentageHeight(0.5, context),
+            children: fridgeIngredients.map((ingredient) {
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                  vertical: getPercentageHeight(0.5, context),
+                ),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: kAccent.withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      capitalizeFirstLetter(ingredient),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: getPercentageWidth(1, context)),
+                    GestureDetector(
+                      onTap: () => _removeFridgeIngredient(ingredient),
+                      child: Icon(
+                        Icons.close,
+                        size: getIconScale(4, context),
+                        color: kAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+
+          // Generate recipes button
+          if (fridgeIngredients.length >= 3) ...[
+            SizedBox(
+              width: double.infinity,
+              child: AppButton(
+                text: isAnalyzingFridge
+                    ? 'Generating Recipes...'
+                    : 'Generate Recipes',
+                onPressed: isAnalyzingFridge
+                    ? () {}
+                    : () {
+                        _generateFridgeRecipes();
+                      },
+                type: AppButtonType.primary,
+                color: kAccent,
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(3, context)),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Expanded(
+                    child: Text(
+                      'Add at least 3 ingredients to generate recipes',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+
+        // Clear fridge button
+        if (fridgeIngredients.isNotEmpty) ...[
+          SizedBox(height: getPercentageHeight(1, context)),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _clearFridge(),
+              icon: Icon(Icons.clear_all, color: kAccentLight),
+              label: Text(
+                'Clear All',
+                style: textTheme.bodySmall?.copyWith(color: kAccentLight),
+              ),
+            ),
+          ),
+        ],
+
+        // Display generated recipes
+        if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
+          SizedBox(height: getPercentageHeight(2, context)),
+          Text(
+            'Recipes Using Your Ingredients',
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: kAccent,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          ...(_fridgeRecipes.map(
+              (recipe) => _buildRecipeCard(recipe, isDarkMode, textTheme))),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRecipeCard(
+      Map<String, dynamic> recipe, bool isDarkMode, TextTheme textTheme) {
+    return Container(
+      margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
+      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+      decoration: BoxDecoration(
+        color: kAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kAccent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.restaurant, color: kAccent),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Expanded(
+                child: Text(
+                  recipe['title'] ?? 'Untitled Recipe',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: kAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          if (recipe['description'] != null) ...[
+            Text(
+              recipe['description'],
+              style: textTheme.bodySmall?.copyWith(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+          ],
+          if (recipe['ingredients'] != null) ...[
+            Text(
+              'Ingredients:',
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: kAccent,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(0.3, context)),
+            ...((recipe['ingredients'] as Map<String, dynamic>).entries.map(
+                  (entry) => Text(
+                    '• ${entry.key}: ${entry.value}',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -1299,25 +1548,26 @@ class _DineInScreenState extends State<DineInScreen> {
             SizedBox(width: getPercentageWidth(2, context)),
             const InfoIconWidget(
               title: 'Dine In',
-              description: 'Get inspired to cook with simple ingredients',
+              description: 'Cook with what you have in your fridge',
               details: [
                 {
-                  'icon': Icons.casino,
-                  'title': 'Random Ingredients',
-                  'description': 'Get two random ingredients to cook with',
+                  'icon': Icons.kitchen,
+                  'title': 'Fridge Ingredients',
+                  'description':
+                      'Add ingredients from your fridge or take a photo',
+                  'color': kBlue,
+                },
+                {
+                  'icon': Icons.auto_awesome,
+                  'title': 'AI Recipe Generation',
+                  'description':
+                      'Get personalized recipes using your ingredients',
                   'color': kBlue,
                 },
                 {
                   'icon': Icons.emoji_events,
                   'title': 'Weekly Challenge',
                   'description': 'Join challenges to win points and rewards',
-                  'color': kBlue,
-                },
-                {
-                  'icon': Icons.restaurant,
-                  'title': 'Simple Cooking',
-                  'description':
-                      'Create delicious meals with just 2 ingredients',
                   'color': kBlue,
                 },
               ],
@@ -1356,7 +1606,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     child: Text(
                       isChallengeMode
                           ? 'Weekly Challenge Ingredients'
-                          : 'Your Random Ingredient Pair',
+                          : 'What\'s in Your Fridge?',
                       textAlign: TextAlign.center,
                       style: textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -1370,7 +1620,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     child: Text(
                       isChallengeMode
                           ? 'Create something amazing with your selected challenge ingredients!'
-                          : 'Create something amazing with these two ingredients!',
+                          : 'Add ingredients from your fridge and get personalized recipes!',
                       textAlign: TextAlign.center,
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kLightGrey : kDarkGrey,
@@ -1385,9 +1635,9 @@ class _DineInScreenState extends State<DineInScreen> {
 
                   SizedBox(height: getPercentageHeight(2, context)),
 
-                  // Ingredient cards
+                  // Fridge or Challenge ingredients
                   if (isChallengeMode &&
-                      selectedChallengeIngredients.isNotEmpty) ...[
+                      selectedChallengeIngredients.length >= 2) ...[
                     // Challenge ingredients display
                     Column(
                       children: [
@@ -1403,41 +1653,44 @@ class _DineInScreenState extends State<DineInScreen> {
                         Row(
                           children: [
                             // First challenge ingredient
-                            Expanded(
-                              child: _buildIngredientCard(
-                                selectedChallengeIngredients[0],
-                                'Challenge',
-                                isDarkMode,
-                                textTheme,
-                                kAccent,
+                            if (selectedChallengeIngredients.isNotEmpty)
+                              Expanded(
+                                child: _buildIngredientCard(
+                                  selectedChallengeIngredients[0],
+                                  'Challenge',
+                                  isDarkMode,
+                                  textTheme,
+                                  kAccent,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: getPercentageWidth(4, context)),
-                            // Plus icon
-                            Container(
-                              padding: EdgeInsets.all(
-                                  getPercentageWidth(3, context)),
-                              decoration: BoxDecoration(
-                                color: kAccent.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
+                            if (selectedChallengeIngredients.length > 1) ...[
+                              SizedBox(width: getPercentageWidth(4, context)),
+                              // Plus icon
+                              Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(3, context)),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  size: getIconScale(8, context),
+                                  color: kAccent,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.add,
-                                size: getIconScale(8, context),
-                                color: kAccent,
+                              SizedBox(width: getPercentageWidth(4, context)),
+                              // Second challenge ingredient
+                              Expanded(
+                                child: _buildIngredientCard(
+                                  selectedChallengeIngredients[1],
+                                  'Challenge',
+                                  isDarkMode,
+                                  textTheme,
+                                  kAccent,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: getPercentageWidth(4, context)),
-                            // Second challenge ingredient
-                            Expanded(
-                              child: _buildIngredientCard(
-                                selectedChallengeIngredients[1],
-                                'Challenge',
-                                isDarkMode,
-                                textTheme,
-                                kAccent,
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                         SizedBox(height: getPercentageHeight(2, context)),
@@ -1454,18 +1707,21 @@ class _DineInScreenState extends State<DineInScreen> {
                                   }
 
                                   try {
-                                    final meal = await geminiService
+                                    // Convert to simple format for AI
+                                    final simpleIngredients =
+                                        selectedChallengeIngredients
+                                            .map((ingredient) =>
+                                                ingredient['name'] ?? '')
+                                            .toList();
+
+                                    final meal = await gemini.geminiService
                                         .generateMealsFromIngredients(
-                                            selectedChallengeIngredients,
-                                            context,
-                                            true);
-                                    if (meal != null) {
-                                      setState(() {
-                                        selectedMeal = meal;
-                                      });
-                                      // Save the meal to storage
-                                      _saveMealToStorage();
-                                    }
+                                            simpleIngredients, context, true);
+                                    setState(() {
+                                      selectedMeal = meal;
+                                    });
+                                    // Save the meal to storage
+                                    _saveMealToStorage();
                                   } catch (e) {
                                     // Handle error
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1505,7 +1761,9 @@ class _DineInScreenState extends State<DineInScreen> {
                                 onPressed: _switchToRandomMode,
                                 icon: Icon(Icons.swap_horiz, color: kAccent),
                                 label: Text(
-                                  'Switch Mode',
+                                  isChallengeMode
+                                      ? 'Switch to Fridge'
+                                      : 'Switch to Challenge',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: kAccent,
                                     fontWeight: FontWeight.w500,
@@ -1694,226 +1952,212 @@ class _DineInScreenState extends State<DineInScreen> {
                         ),
                       ),
                     ],
-                  ] else if (selectedCarb != null &&
-                      selectedProtein != null) ...[
-                    Row(
-                      children: [
-                        // Carb card
-                        Expanded(
-                          child: _buildIngredientCard(
-                            selectedCarb!,
-                            'Grain',
-                            isDarkMode,
-                            textTheme,
-                            getMealTypeColor('grain'),
-                          ),
-                        ),
-                        SizedBox(width: getPercentageWidth(4, context)),
-                        // Plus icon
-                        Container(
-                          padding:
-                              EdgeInsets.all(getPercentageWidth(3, context)),
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.add,
-                            size: getIconScale(8, context),
-                            color: kAccent,
-                          ),
-                        ),
-                        SizedBox(width: getPercentageWidth(4, context)),
-                        // Protein card
-                        Expanded(
-                          child: _buildIngredientCard(
-                            selectedProtein!,
-                            'Protein',
-                            isDarkMode,
-                            textTheme,
-                            getMealTypeColor('protein'),
-                          ),
-                        ),
-                      ],
-                    ),
+                  ] else ...[
+                    // Fridge interface
+                    _buildFridgeInterface(isDarkMode, textTheme),
                   ],
                   SizedBox(height: getPercentageHeight(2, context)),
-                  // Dine in Challenge section
-                  GestureDetector(
-                    onTap: isLoadingChallenge
-                        ? null
-                        : () {
-                            // For testing: if no challenge ingredients loaded, create mock ones
-                            if (challengeIngredients.isEmpty) {
-                              setState(() {
-                                challengeIngredients = [
-                                  MacroData(
-                                    id: 'mock_carrot',
-                                    title: 'Carrot',
-                                    type: 'vegetable',
-                                    mediaPaths: [],
-                                    calories: 41,
-                                    macros: {
-                                      'protein': '0.9',
-                                      'carbs': '9.6',
-                                      'fat': '0.2'
+                  // Dine in Challenge section - only show if not in challenge mode AND no challenge ingredients selected
+                  if (!isChallengeMode &&
+                      selectedChallengeIngredients.isEmpty) ...[
+                    GestureDetector(
+                      onTap: isLoadingChallenge
+                          ? null
+                          : () {
+                              // For testing: if no challenge ingredients loaded, create mock ones
+                              if (challengeIngredients.isEmpty) {
+                                setState(() {
+                                  challengeIngredients = [
+                                    {
+                                      'name': 'Carrot',
+                                      'type': 'vegetable',
+                                      'image': 'assets/images/vegetable.jpg'
                                     },
-                                    categories: ['vegetable'],
-                                    features: {},
-                                    image: 'assets/images/vegetable.jpg',
-                                  ),
-                                  MacroData(
-                                    id: 'mock_shrimp',
-                                    title: 'Shrimp',
-                                    type: 'protein',
-                                    mediaPaths: [],
-                                    calories: 85,
-                                    macros: {
-                                      'protein': '20.1',
-                                      'carbs': '0.2',
-                                      'fat': '0.5'
+                                    {
+                                      'name': 'Shrimp',
+                                      'type': 'protein',
+                                      'image': 'assets/images/fish.jpg'
                                     },
-                                    categories: ['protein'],
-                                    features: {},
-                                    image: 'assets/images/fish.jpg',
-                                  ),
-                                  MacroData(
-                                    id: 'mock_pork',
-                                    title: 'Pork',
-                                    type: 'protein',
-                                    mediaPaths: [],
-                                    calories: 242,
-                                    macros: {
-                                      'protein': '27.3',
-                                      'carbs': '0.0',
-                                      'fat': '14.0'
+                                    {
+                                      'name': 'Pork',
+                                      'type': 'protein',
+                                      'image': 'assets/images/meat.jpg'
                                     },
-                                    categories: ['protein'],
-                                    features: {},
-                                    image: 'assets/images/meat.jpg',
-                                  ),
-                                  MacroData(
-                                    id: 'mock_aubergine',
-                                    title: 'Aubergine',
-                                    type: 'vegetable',
-                                    mediaPaths: [],
-                                    calories: 25,
-                                    macros: {
-                                      'protein': '1.0',
-                                      'carbs': '6.0',
-                                      'fat': '0.2'
+                                    {
+                                      'name': 'Aubergine',
+                                      'type': 'vegetable',
+                                      'image': 'assets/images/vegetable.jpg'
                                     },
-                                    categories: ['vegetable'],
-                                    features: {},
-                                    image: 'assets/images/vegetable.jpg',
+                                  ];
+                                });
+                              }
+                              if (_isChallengeDateInPast()) {
+                                showTastySnackbar('Dine-In Challenge',
+                                    'New challenge coming soon!', context,
+                                    backgroundColor: kAccent);
+                              } else {
+                                _showChallengeSelectionDialog();
+                              }
+                            },
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: kAccentLight.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kAccent.withValues(alpha: 0.3),
+                              blurRadius: 5,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline,
+                              color: kAccentLight,
+                              size: getIconScale(5, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    isLoadingChallenge
+                                        ? 'Loading challenge...'
+                                        : isChallengeMode
+                                            ? _isChallengeEnded()
+                                                ? 'Weekly Challenge Ended!'
+                                                : 'Weekly Challenge Active!'
+                                            : _isChallengeDateInPast()
+                                                ? 'New Challenge Coming Soon!'
+                                                : 'Join this week\'s Dine-In Challenge!',
+                                    textAlign: TextAlign.center,
+                                    style: textTheme.bodyLarge?.copyWith(
+                                      color: isDarkMode ? kDarkGrey : kWhite,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: getPercentageWidth(4, context),
+                                    ),
                                   ),
-                                ];
-                              });
-                            }
-                            if (_isChallengeDateInPast()) {
-                              showTastySnackbar('Dine-In Challenge',
-                                  'New challenge coming soon!', context,
-                                  backgroundColor: kAccent);
-                            } else {
-                              _showChallengeSelectionDialog();
-                            }
-                          },
-                    child: Container(
-                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                      decoration: BoxDecoration(
-                        color: kAccentLight.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: kAccent.withValues(alpha: 0.3),
-                            blurRadius: 5,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline,
-                            color: kAccentLight,
-                            size: getIconScale(5, context),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text(
-                                  isLoadingChallenge
-                                      ? 'Loading challenge...'
-                                      : isChallengeMode
-                                          ? _isChallengeEnded()
-                                              ? 'Weekly Challenge Ended!'
-                                              : 'Weekly Challenge Active!'
-                                          : _isChallengeDateInPast()
-                                              ? 'New Challenge Coming Soon!'
-                                              : 'Join this week\'s Dine-In Challenge!',
-                                  textAlign: TextAlign.center,
-                                  style: textTheme.bodyLarge?.copyWith(
-                                    color: isDarkMode ? kDarkGrey : kWhite,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getPercentageWidth(4, context),
-                                  ),
+                                  if (isChallengeMode &&
+                                      _isChallengeEnded()) ...[
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(0.5, context)),
+                                    Text(
+                                      _isOldChallenge()
+                                          ? 'Old challenge from: ${savedChallengeDate ?? 'Unknown'}'
+                                          : 'Challenge ended: ${challengeDate ?? 'Unknown'}',
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: kDarkGrey,
+                                        fontSize:
+                                            getPercentageWidth(3, context),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (isLoadingChallenge)
+                              SizedBox(
+                                width: getIconScale(5, context),
+                                height: getIconScale(5, context),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: kAccentLight,
                                 ),
-                                if (isChallengeMode && _isChallengeEnded()) ...[
+                              )
+                            else
+                              Icon(
+                                isChallengeMode
+                                    ? (_isChallengeEnded()
+                                        ? Icons.schedule
+                                        : Icons.check_circle)
+                                    : _isChallengeDateInPast()
+                                        ? Icons.schedule
+                                        : Icons.lightbulb_outline,
+                                color: isChallengeMode
+                                    ? (_isChallengeEnded()
+                                        ? Colors.orange
+                                        : kAccent)
+                                    : _isChallengeDateInPast()
+                                        ? Colors.orange
+                                        : kAccentLight,
+                                size: getIconScale(5, context),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // Show "Switch to Weekly Challenge" button when in fridge mode but has challenge ingredients
+                  if (!isChallengeMode &&
+                      selectedChallengeIngredients.isNotEmpty) ...[
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    GestureDetector(
+                      onTap: () => _switchToRandomMode(),
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: kAccent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.emoji_events,
+                              color: kAccent,
+                              size: getIconScale(5, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'You have enrolled in this week\'s challenge!',
+                                    textAlign: TextAlign.center,
+                                    style: textTheme.bodyLarge?.copyWith(
+                                      color: isDarkMode ? kWhite : kBlack,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: getPercentageWidth(4, context),
+                                    ),
+                                  ),
                                   SizedBox(
                                       height:
                                           getPercentageHeight(0.5, context)),
                                   Text(
-                                    _isOldChallenge()
-                                        ? 'Old challenge from: ${savedChallengeDate ?? 'Unknown'}'
-                                        : 'Challenge ended: ${challengeDate ?? 'Unknown'}',
+                                    'Tap to switch to Weekly Challenge mode',
                                     textAlign: TextAlign.center,
                                     style: textTheme.bodySmall?.copyWith(
-                                      color: kDarkGrey,
+                                      color:
+                                          isDarkMode ? kLightGrey : kDarkGrey,
                                       fontSize: getPercentageWidth(3, context),
                                     ),
                                   ),
                                 ],
-                              ],
-                            ),
-                          ),
-                          if (isLoadingChallenge)
-                            SizedBox(
-                              width: getIconScale(5, context),
-                              height: getIconScale(5, context),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: kAccentLight,
                               ),
-                            )
-                          else
-                            Icon(
-                              isChallengeMode
-                                  ? (_isChallengeEnded()
-                                      ? Icons.schedule
-                                      : Icons.check_circle)
-                                  : _isChallengeDateInPast()
-                                      ? Icons.schedule
-                                      : Icons.lightbulb_outline,
-                              color: isChallengeMode
-                                  ? (_isChallengeEnded()
-                                      ? Colors.orange
-                                      : kAccent)
-                                  : _isChallengeDateInPast()
-                                      ? Colors.orange
-                                      : kAccentLight,
-                              size: getIconScale(5, context),
                             ),
-                        ],
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: kAccent,
+                              size: getIconScale(4, context),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
 
                   SizedBox(height: getPercentageHeight(2.5, context)),
 
                   // Action buttons
                   if (isChallengeMode &&
-                      selectedChallengeIngredients.isNotEmpty) ...[
+                      selectedChallengeIngredients.length >= 2) ...[
                     // Challenge mode - show upload button directly
                     if (selectedMeal == null) ...[
                       SizedBox(
@@ -1927,208 +2171,21 @@ class _DineInScreenState extends State<DineInScreen> {
                         ),
                       ),
                     ],
-                  ] else if (!isAccepted) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _refreshPair,
-                            icon: Icon(Icons.refresh, color: kAccent),
-                            label: Text(
-                              'Refresh Pair',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: kAccent,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: kAccent),
-                              padding: EdgeInsets.symmetric(
-                                vertical: getPercentageHeight(1.5, context),
-                              ),
-                            ),
-                          ),
+                  ] else if (!isChallengeMode) ...[
+                    // Fridge mode - show upload button if recipes are generated
+                    if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: AppButton(
+                          text: 'Upload Your Creation',
+                          onPressed: () => _navigateToUploadBattle(),
+                          type: AppButtonType.primary,
+                          color: kAccent,
                         ),
-                        SizedBox(width: getPercentageWidth(4, context)),
-                        Expanded(
-                          child: AppButton(
-                            text: 'Accept Pair',
-                            onPressed: _acceptPair,
-                            type: AppButtonType.primary,
-                            width: 100,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    // Creation submission section
-                    Container(
-                      padding: EdgeInsets.all(getPercentageWidth(4, context)),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: kAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.check_circle, color: kAccent),
-                              SizedBox(width: getPercentageWidth(2, context)),
-                              Text(
-                                'Perfect! Ready to create?',
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: kAccent,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          Text(
-                            'Time to show your culinary creativity! Upload your creation using these ingredients and share it with the community.',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: isDarkMode ? kWhite : kBlack,
-                              fontSize: getPercentageWidth(3.5, context),
-                            ),
-                          ),
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    setState(() {
-                                      isAccepted = false;
-                                    });
-                                  },
-                                  icon: Icon(Icons.arrow_back, color: kAccent),
-                                  label: Text(
-                                    'Go Back',
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: kAccent,
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: kAccent),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: getPercentageWidth(4, context)),
-                              Expanded(
-                                child: AppButton(
-                                  text: 'See Details',
-                                  onPressed: () =>
-                                      _showDetails(isDarkMode, textTheme),
-                                  type: AppButtonType.follow,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    Center(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPink,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Get.to(() => RecipeListCategory(
-                                index: 1,
-                                searchIngredient:
-                                    selectedProtein!.title.toLowerCase(),
-                                screen: 'categories',
-                                isNoTechnique: true,
-                              ));
-                        },
-                        icon: const Icon(Icons.restaurant, color: kWhite),
-                        label: Text('See Recipes for ${selectedProtein!.title}',
-                            style:
-                                textTheme.labelLarge?.copyWith(color: kWhite)),
-                      ),
-                    ),
-
-                    if (selectedMeal == null && !isChallengeMode) ...[
-                      SizedBox(height: getPercentageHeight(2, context)),
-                      Row(
-                        children: [
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Expanded(
-                            flex: 1,
-                            child: GestureDetector(
-                              onTap: () async {
-                                if (!canUseAI()) {
-                                  showPremiumRequiredDialog(
-                                      context, isDarkMode);
-                                  return;
-                                }
-
-                                try {
-                                  final meal = await geminiService
-                                      .generateMealsFromIngredients(
-                                          [selectedCarb!, selectedProtein!],
-                                          context,
-                                          true);
-                                  if (meal != null) {
-                                    setState(() {
-                                      selectedMeal = meal;
-                                    });
-                                    // Save the meal to storage
-                                    _saveMealToStorage();
-                                  }
-                                } catch (e) {
-                                  // Handle error
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text('Failed to generate meal: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: getPercentageWidth(2, context),
-                                    vertical: getPercentageHeight(1, context)),
-                                decoration: BoxDecoration(
-                                  color: kAccentLight.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Use Tasty AI',
-                                  textAlign: TextAlign.center,
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: kAccentLight,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getPercentageWidth(4, context),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(4, context)),
-                          Expanded(
-                            flex: 3,
-                            child: AppButton(
-                              text: 'Upload Creation',
-                              onPressed: () => _navigateToUploadBattle(),
-                              type: AppButtonType.primary,
-                              width: 100,
-                              color: kAccent,
-                            ),
-                          ),
-                        ],
                       ),
                     ],
-                  ],
+                  ] else
+                    ...[],
 
                   // Display selected meal if available
                   if (selectedMeal != null && !isChallengeMode) ...[
@@ -2304,7 +2361,7 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   Widget _buildIngredientCard(
-    MacroData ingredient,
+    Map<String, String> ingredient,
     String typeLabel,
     bool isDarkMode,
     TextTheme textTheme,
@@ -2361,56 +2418,31 @@ class _DineInScreenState extends State<DineInScreen> {
               color: kLightGrey.withValues(alpha: 0.3),
             ),
             child: ClipOval(
-              child: ingredient.mediaPaths.isNotEmpty
-                  ? ingredient.mediaPaths.first.contains('https')
-                      ? OptimizedImage(
-                          imageUrl: ingredient.mediaPaths.first,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        )
-                      : Image.asset(
-                          getAssetImageForItem(ingredient.mediaPaths.first),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.food_bank,
-                              size: getIconScale(10, context)),
-                        )
-                  : ingredient.image.isNotEmpty
-                      ? Image.asset(
-                          getAssetImageForItem(ingredient.image),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.food_bank,
-                              size: getIconScale(10, context)),
-                        )
-                      : Icon(
+              child: ingredient['image'] != null
+                  ? Image.asset(
+                      ingredient['image']!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
                           Icons.food_bank,
-                          size: getIconScale(10, context),
-                          color: kAccent,
-                        ),
+                          size: getIconScale(10, context)),
+                    )
+                  : Icon(
+                      Icons.food_bank,
+                      size: getIconScale(10, context),
+                      color: kAccent,
+                    ),
             ),
           ),
           SizedBox(height: getPercentageHeight(1, context)),
 
           // Ingredient name
           Text(
-            capitalizeFirstLetter(ingredient.title),
+            capitalizeFirstLetter(ingredient['name'] ?? ''),
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: getPercentageWidth(3.5, context),
               color: isDarkMode ? kWhite : kBlack,
-            ),
-          ),
-          SizedBox(height: getPercentageHeight(0.5, context)),
-
-          // Calories
-          Text(
-            '${ingredient.calories} cal',
-            style: textTheme.bodySmall?.copyWith(
-              color: isDarkMode ? kAccent : kLightGrey,
-              fontSize: getPercentageWidth(3, context),
             ),
           ),
         ],
