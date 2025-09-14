@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../service/nutrition_controller.dart';
+import '../service/routine_service.dart';
 import '../screens/tomorrow_action_items_screen.dart';
 import '../service/notification_handler_service.dart';
 
@@ -55,6 +56,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         summaryData = summaryDoc.data()!;
       }
 
+      // Load routine completion data
+      await _loadRoutineCompletionData(userId, dateString);
+
       // Load user goals
       final user = userService.currentUser.value;
       if (user != null) {
@@ -81,6 +85,69 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRoutineCompletionData(
+      String userId, String dateString) async {
+    try {
+      // Load routine completion data
+      final routineDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine_completed')
+          .doc(dateString)
+          .get();
+
+      if (routineDoc.exists) {
+        final routineData = routineDoc.data()!;
+        summaryData['routineCompletionPercentage'] =
+            routineData['completionPercentage'] ?? 0.0;
+      } else {
+        // Calculate routine completion percentage if not stored
+        final routinePercentage =
+            await _calculateRoutineCompletionPercentage(userId, dateString);
+        summaryData['routineCompletionPercentage'] = routinePercentage;
+      }
+    } catch (e) {
+      debugPrint('Error loading routine completion data: $e');
+      summaryData['routineCompletionPercentage'] = 0.0;
+    }
+  }
+
+  Future<double> _calculateRoutineCompletionPercentage(
+      String userId, String dateString) async {
+    try {
+      // Get routine items
+      final routineService = RoutineService.instance;
+      final routineItems = await routineService.getRoutineItems(userId);
+      final enabledItems =
+          routineItems.where((item) => item.isEnabled).toList();
+
+      if (enabledItems.isEmpty) return 0.0;
+
+      // Load completion status
+      final routineDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine_completed')
+          .doc(dateString)
+          .get();
+
+      if (!routineDoc.exists) return 0.0;
+
+      final completionData = routineDoc.data()!;
+      final completedCount = enabledItems.where((item) {
+        final status = completionData[item.title];
+        if (status is bool) return status;
+        if (status is num) return status > 0;
+        return false;
+      }).length;
+
+      return (completedCount / enabledItems.length) * 100;
+    } catch (e) {
+      debugPrint('Error calculating routine completion percentage: $e');
+      return 0.0;
     }
   }
 
@@ -133,6 +200,11 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     final carbsProgress =
         carbsGoal > 0 ? (carbs / carbsGoal).clamp(0.0, 1.0) : 0.0;
     final fatProgress = fatGoal > 0 ? (fat / fatGoal).clamp(0.0, 1.0) : 0.0;
+
+    // Get routine completion percentage
+    final routineCompletionPercentage =
+        summaryData['routineCompletionPercentage'] as double? ?? 0.0;
+    final routineProgress = routineCompletionPercentage / 100.0;
 
     final dateText =
         '${getRelativeDayString(widget.date) == 'Today' ? 'Today\'s' : getRelativeDayString(widget.date) == 'Yesterday' ? 'Yesterday\'s' : '${shortMonthName(widget.date.month)} ${widget.date.day}\'s'} Summary';
@@ -188,10 +260,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             proteinProgress,
             carbsProgress,
             fatProgress,
+            routineProgress,
             calories,
             protein,
             carbs,
             fat,
+            routineCompletionPercentage,
             calorieGoal,
             proteinGoal,
             carbsGoal,
@@ -207,6 +281,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             proteinProgress,
             carbsProgress,
             fatProgress,
+            routineProgress,
             () async {
               // Use the notification handler service to show action items
               try {
@@ -242,6 +317,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             proteinProgress,
             carbsProgress,
             fatProgress,
+            routineProgress,
           ),
         ],
       ),
@@ -254,10 +330,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double proteinProgress,
     double carbsProgress,
     double fatProgress,
+    double routineProgress,
     int calories,
     double protein,
     double carbs,
     double fat,
+    double routineCompletionPercentage,
     double calorieGoal,
     double proteinGoal,
     double carbsGoal,
@@ -318,6 +396,18 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           color: Colors.purple,
           unit: 'g',
         ),
+
+        // // Routine Chart
+        // _buildCircularProgressCard(
+        //   context,
+        //   title: 'Routine',
+        //   current: routineCompletionPercentage,
+        //   goal: 100.0,
+        //   progress: routineProgress,
+        //   icon: Icons.checklist,
+        //   color: kAccent,
+        //   unit: '%',
+        // ),
       ],
     );
   }
@@ -431,6 +521,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double proteinProgress,
     double carbsProgress,
     double fatProgress,
+    double routineProgress,
     Function() onTap,
   ) {
     final textTheme = Theme.of(context).textTheme;
@@ -439,9 +530,13 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
         DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // Calculate overall progress
-    final overallProgress =
-        (calorieProgress + proteinProgress + carbsProgress + fatProgress) / 4;
+    // Calculate overall progress including routine
+    final overallProgress = (calorieProgress +
+            proteinProgress +
+            carbsProgress +
+            fatProgress +
+            routineProgress) /
+        5;
 
     String message;
     Color messageColor;
@@ -529,6 +624,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     double proteinProgress,
     double carbsProgress,
     double fatProgress,
+    double routineProgress,
   ) {
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -724,6 +820,18 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     } else if (dietPreferences.toLowerCase() == 'paleo') {
       recommendations.add(
           'Focus on whole, unprocessed foods and avoid grains, legumes, and dairy for optimal paleo benefits.');
+    }
+
+    // Routine-specific recommendations
+    if (routineProgress < 0.5) {
+      recommendations.add(
+          'Your routine completion is low. Try to complete at least 50% of your daily routine tasks for better consistency.');
+    } else if (routineProgress < 0.8) {
+      recommendations.add(
+          'Good routine progress! Try to complete more routine tasks to reach 80% completion for optimal daily habits.');
+    } else if (routineProgress >= 0.8) {
+      recommendations.add(
+          'Excellent routine completion! You\'re maintaining great daily habits. Keep up the consistency!');
     }
 
     if (recommendations.isEmpty) {

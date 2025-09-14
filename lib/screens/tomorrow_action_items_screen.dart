@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../service/routine_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 
@@ -62,6 +63,66 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     } else {
       tomorrowDate = DateTime.now().add(const Duration(days: 1));
     }
+
+    // Load routine completion data if not already present
+    _loadRoutineCompletionData();
+  }
+
+  Future<void> _loadRoutineCompletionData() async {
+    try {
+      // Only load if routine completion percentage is not already in today's summary
+      if (!widget.todaySummary.containsKey('routineCompletionPercentage')) {
+        final userId = userService.userId ?? '';
+        if (userId.isNotEmpty) {
+          final today = DateTime.now();
+          final todayStr = DateFormat('yyyy-MM-dd').format(today);
+
+          // Calculate routine completion percentage
+          final routinePercentage =
+              await _calculateRoutineCompletionPercentage(userId, todayStr);
+          widget.todaySummary['routineCompletionPercentage'] =
+              routinePercentage;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading routine completion data: $e');
+    }
+  }
+
+  Future<double> _calculateRoutineCompletionPercentage(
+      String userId, String dateString) async {
+    try {
+      // Get routine items
+      final routineService = RoutineService.instance;
+      final routineItems = await routineService.getRoutineItems(userId);
+      final enabledItems =
+          routineItems.where((item) => item.isEnabled).toList();
+
+      if (enabledItems.isEmpty) return 0.0;
+
+      // Load completion status
+      final routineDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('routine_completed')
+          .doc(dateString)
+          .get();
+
+      if (!routineDoc.exists) return 0.0;
+
+      final completionData = routineDoc.data()!;
+      final completedCount = enabledItems.where((item) {
+        final status = completionData[item.title];
+        if (status is bool) return status;
+        if (status is num) return status > 0;
+        return false;
+      }).length;
+
+      return (completedCount / enabledItems.length) * 100;
+    } catch (e) {
+      debugPrint('Error calculating routine completion percentage: $e');
+      return 0.0;
+    }
   }
 
   List<Map<String, dynamic>> _generateActionItems() {
@@ -74,6 +135,8 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     final fat = _parseMacro(widget.todaySummary['fat']);
     final water = _parseMacro(widget.todaySummary['water']);
     final steps = _parseMacro(widget.todaySummary['steps']);
+    final routineCompletionPercentage =
+        _parseMacro(widget.todaySummary['routineCompletionPercentage']);
 
     // Get user goals (you might want to fetch these from user service)
     final settings = userService.currentUser.value?.settings;
@@ -198,6 +261,36 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         'description':
             'You\'ve hit ${((fat / fatGoal) * 100).round()}% of your fat intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar fat intake tomorrow.'} ',
         'icon': Icons.water_drop,
+        'color': kGreen,
+        'priority': 'low',
+      });
+    }
+
+    // Routine completion suggestions
+    if (routineCompletionPercentage < 50) {
+      actionItems.add({
+        'title': 'Improve Routine Consistency',
+        'description':
+            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Try to complete at least 50% of your routine tasks ${isTomorrow ? 'today' : 'tomorrow'} for better consistency.',
+        'icon': Icons.checklist,
+        'color': Colors.orange,
+        'priority': 'high',
+      });
+    } else if (routineCompletionPercentage < 80) {
+      actionItems.add({
+        'title': 'Boost Routine Completion',
+        'description':
+            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Aim for 80% completion ${isTomorrow ? 'today' : 'tomorrow'} to maintain optimal daily habits.',
+        'icon': Icons.checklist,
+        'color': kAccent,
+        'priority': 'medium',
+      });
+    } else {
+      actionItems.add({
+        'title': 'Routine Excellence',
+        'description':
+            'Excellent! You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Keep up the great consistency ${isTomorrow ? 'today' : 'tomorrow'}!',
+        'icon': Icons.checklist,
         'color': kGreen,
         'priority': 'low',
       });

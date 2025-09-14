@@ -875,6 +875,12 @@ class GeminiService {
         return result;
       }
 
+      // Use robust validation for fridge_analysis
+      if (operation == 'fridge_analysis') {
+        final result = _validateAndExtractFridgeAnalysis(text);
+        return result;
+      }
+
       final jsonData = _extractJsonObject(text);
 
       // Apply enhanced ingredient validation and deduplication if ingredients exist
@@ -953,6 +959,218 @@ class GeminiService {
         }
         break;
     }
+  }
+
+  /// Robust JSON validation and extraction for fridge analysis
+  Map<String, dynamic> _validateAndExtractFridgeAnalysis(String rawResponse) {
+    try {
+      // First attempt: extract JSON from markdown code blocks if present
+      final cleanedResponse = _extractJsonFromMarkdown(rawResponse);
+      final completedResponse = _completeTruncatedJson(cleanedResponse);
+      final sanitized = _sanitizeJsonString(completedResponse);
+      final data = jsonDecode(sanitized) as Map<String, dynamic>;
+
+      // Validate and normalize the data
+      final result = _validateAndNormalizeFridgeAnalysisData(data);
+      return result;
+    } catch (e) {
+      // Second attempt: use existing partial extraction method
+      final partialData = _extractPartialJson(rawResponse, 'fridge_analysis');
+      if (partialData.isNotEmpty &&
+          _isValidPartialResponse(partialData, 'fridge_analysis')) {
+        return _validateAndNormalizeFridgeAnalysisData(partialData);
+      }
+
+      // Third attempt: extract fridge analysis data from malformed response
+      final extractedData = _extractFridgeAnalysisFromRawText(rawResponse);
+      if (extractedData.isNotEmpty) {
+        return _validateAndNormalizeFridgeAnalysisData(extractedData);
+      }
+
+      // Return fallback if all extraction attempts fail
+      return _createFallbackResponse(
+          'fridge_analysis', 'Complete extraction failed');
+    }
+  }
+
+  /// Validate and normalize fridge analysis data
+  Map<String, dynamic> _validateAndNormalizeFridgeAnalysisData(
+      Map<String, dynamic> data) {
+    final result = <String, dynamic>{};
+
+    // Validate ingredients array
+    if (data['ingredients'] is List) {
+      final ingredients = (data['ingredients'] as List).map((item) {
+        if (item is Map<String, dynamic>) {
+          return {
+            'name': (item['name'] as String?) ?? 'Unknown ingredient',
+            'category': (item['category'] as String?) ?? 'other',
+            'quantity': (item['quantity'] as String?) ?? 'Unknown quantity',
+            'freshness': (item['freshness'] as String?) ?? 'good',
+            'confidence': (item['confidence'] as String?) ?? 'medium',
+          };
+        }
+        return {
+          'name': 'Unknown ingredient',
+          'category': 'other',
+          'quantity': 'Unknown quantity',
+          'freshness': 'good',
+          'confidence': 'medium',
+        };
+      }).toList();
+      result['ingredients'] = ingredients;
+    } else {
+      result['ingredients'] = [];
+    }
+
+    // Validate suggested meals array
+    if (data['suggestedMeals'] is List) {
+      final meals = (data['suggestedMeals'] as List).map((item) {
+        if (item is Map<String, dynamic>) {
+          return {
+            'title': (item['title'] as String?) ?? 'Untitled Meal',
+            'description': (item['description'] as String?) ?? 'No description',
+            'cookingTime': (item['cookingTime'] as String?) ?? 'Unknown',
+            'difficulty': (item['difficulty'] as String?) ?? 'medium',
+            'ingredients': (item['ingredients'] as Map<String, dynamic>?) ?? {},
+            'instructions': (item['instructions'] as List<dynamic>?) ?? [],
+            'nutritionalInfo':
+                _validateNutritionalInfo(item['nutritionalInfo']),
+            'dietaryFlags': _validateDietaryFlags(item['dietaryFlags']),
+          };
+        }
+        return {
+          'title': 'Untitled Meal',
+          'description': 'No description',
+          'cookingTime': 'Unknown',
+          'difficulty': 'medium',
+          'ingredients': {},
+          'instructions': [],
+          'nutritionalInfo': _createDefaultNutritionalInfo(),
+          'dietaryFlags': _createDefaultDietaryFlags(),
+        };
+      }).toList();
+      result['suggestedMeals'] = meals;
+    } else {
+      result['suggestedMeals'] = [];
+    }
+
+    // Validate other fields
+    result['totalIngredients'] = (data['totalIngredients'] as num?)?.toInt() ??
+        result['ingredients'].length;
+    result['confidence'] = (data['confidence'] as String?) ?? 'medium';
+    result['notes'] = (data['notes'] as String?) ?? 'No additional notes';
+
+    return result;
+  }
+
+  /// Validate nutritional info for fridge analysis
+  Map<String, dynamic> _validateNutritionalInfo(dynamic nutritionalInfo) {
+    if (nutritionalInfo is Map<String, dynamic>) {
+      return {
+        'calories': (nutritionalInfo['calories'] as num?)?.toInt() ?? 0,
+        'protein': (nutritionalInfo['protein'] as num?)?.toInt() ?? 0,
+        'carbs': (nutritionalInfo['carbs'] as num?)?.toInt() ?? 0,
+        'fat': (nutritionalInfo['fat'] as num?)?.toInt() ?? 0,
+        'fiber': (nutritionalInfo['fiber'] as num?)?.toInt() ?? 0,
+        'sugar': (nutritionalInfo['sugar'] as num?)?.toInt() ?? 0,
+        'sodium': (nutritionalInfo['sodium'] as num?)?.toInt() ?? 0,
+      };
+    }
+    return _createDefaultNutritionalInfo();
+  }
+
+  /// Validate dietary flags for fridge analysis
+  Map<String, dynamic> _validateDietaryFlags(dynamic dietaryFlags) {
+    if (dietaryFlags is Map<String, dynamic>) {
+      return {
+        'vegetarian': dietaryFlags['vegetarian'] == true,
+        'vegan': dietaryFlags['vegan'] == true,
+        'glutenFree': dietaryFlags['glutenFree'] == true,
+        'dairyFree': dietaryFlags['dairyFree'] == true,
+        'keto': dietaryFlags['keto'] == true,
+        'lowCarb': dietaryFlags['lowCarb'] == true,
+      };
+    }
+    return _createDefaultDietaryFlags();
+  }
+
+  /// Create default nutritional info
+  Map<String, dynamic> _createDefaultNutritionalInfo() {
+    return {
+      'calories': 0,
+      'protein': 0,
+      'carbs': 0,
+      'fat': 0,
+      'fiber': 0,
+      'sugar': 0,
+      'sodium': 0,
+    };
+  }
+
+  /// Create default dietary flags
+  Map<String, dynamic> _createDefaultDietaryFlags() {
+    return {
+      'vegetarian': false,
+      'vegan': false,
+      'glutenFree': false,
+      'dairyFree': false,
+      'keto': false,
+      'lowCarb': false,
+    };
+  }
+
+  /// Extract fridge analysis data from raw text using regex patterns
+  Map<String, dynamic> _extractFridgeAnalysisFromRawText(String rawResponse) {
+    final result = <String, dynamic>{};
+
+    // Extract ingredients using regex
+    final ingredientPattern =
+        RegExp(r'"name"\s*:\s*"([^"]+)"', multiLine: true);
+    final ingredients = <Map<String, dynamic>>[];
+
+    final ingredientMatches = ingredientPattern.allMatches(rawResponse);
+    for (final match in ingredientMatches) {
+      final name = match.group(1);
+      if (name != null && name.isNotEmpty) {
+        ingredients.add({
+          'name': name,
+          'category': 'other',
+          'quantity': 'Unknown quantity',
+          'freshness': 'good',
+          'confidence': 'medium',
+        });
+      }
+    }
+    result['ingredients'] = ingredients;
+
+    // Extract suggested meals
+    final mealPattern = RegExp(r'"title"\s*:\s*"([^"]+)"', multiLine: true);
+    final meals = <Map<String, dynamic>>[];
+
+    final mealMatches = mealPattern.allMatches(rawResponse);
+    for (final match in mealMatches) {
+      final title = match.group(1);
+      if (title != null && title.isNotEmpty) {
+        meals.add({
+          'title': title,
+          'description': 'No description',
+          'cookingTime': 'Unknown',
+          'difficulty': 'medium',
+          'ingredients': {},
+          'instructions': [],
+          'nutritionalInfo': _createDefaultNutritionalInfo(),
+          'dietaryFlags': _createDefaultDietaryFlags(),
+        });
+      }
+    }
+    result['suggestedMeals'] = meals;
+
+    result['totalIngredients'] = ingredients.length;
+    result['confidence'] = 'medium';
+    result['notes'] = 'Extracted from partial response';
+
+    return result;
   }
 
   /// Robust JSON validation and extraction for food analysis
@@ -3915,6 +4133,169 @@ $distributionText
       'totalCarbs': totalCarbs,
       'totalFat': totalFat,
     };
+  }
+
+  /// Analyze fridge image to identify raw ingredients and suggest meals
+  Future<Map<String, dynamic>> analyzeFridgeImage({
+    required File imageFile,
+    String? dietaryRestrictions,
+  }) async {
+    // Initialize model if not already done
+    if (_activeModel == null) {
+      final initialized = await initializeModel();
+      if (!initialized) {
+        throw Exception('No suitable AI model available');
+      }
+    }
+
+    // Ensure we start with Gemini for image analysis
+    if (_currentProvider != AIProvider.gemini) {
+      debugPrint('Starting fridge image analysis with Gemini provider');
+      _currentProvider = AIProvider.gemini;
+    }
+
+    try {
+      // Read and encode the image
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+      final String base64Image = base64Encode(imageBytes);
+
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+
+      String contextualPrompt =
+          'Analyze this fridge image to identify raw ingredients that can be used for cooking.';
+
+      if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
+        contextualPrompt +=
+            ' Consider dietary restrictions: $dietaryRestrictions.';
+      }
+
+      final prompt = '''
+$aiContext
+
+$contextualPrompt
+
+Identify all visible raw ingredients in this fridge that can be used for cooking. Focus on fresh produce, proteins, dairy, grains, and other cooking ingredients. Ignore processed foods, condiments, or items that are not suitable for main meal preparation.
+
+CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
+
+{
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "category": "vegetable|protein|dairy|grain|fruit|herb|spice|other",
+      "quantity": "estimated amount (e.g., '2 pieces', '1 bunch', '500g')",
+      "freshness": "fresh|good|fair|use_soon",
+      "confidence": "high|medium|low"
+    }
+  ],
+  "suggestedMeals": [
+    {
+      "title": "meal name",
+      "description": "brief description of the meal",
+      "cookingTime": "estimated cooking time",
+      "difficulty": "easy|medium|hard",
+      "ingredients": {
+        "ingredient1": "amount needed",
+        "ingredient2": "amount needed"
+      },
+      "instructions": [
+        "step 1",
+        "step 2",
+        "step 3"
+      ],
+      "nutritionalInfo": {
+        "calories": 0,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 0
+      },
+      "dietaryFlags": {
+        "vegetarian": false,
+        "vegan": false,
+        "glutenFree": false,
+        "dairyFree": false,
+        "keto": false,
+        "lowCarb": false
+      }
+    }
+  ],
+  "totalIngredients": 0,
+  "confidence": "high|medium|low",
+  "notes": "any additional observations about the ingredients or suggestions"
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown or code blocks.
+- Focus on ingredients that can be used for cooking main meals.
+- Provide 2-3 diverse meal suggestions using the identified ingredients.
+- Include realistic cooking times and difficulty levels.
+- All nutritional values must be numbers (not strings).
+- Be specific about ingredient quantities and cooking instructions.
+- Consider what combinations would work well together.
+''';
+
+      // Use Gemini's image analysis
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        body: {
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt},
+                {
+                  "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": base64Image
+                  }
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.2,
+            "topK": 20,
+            "topP": 0.8,
+            "maxOutputTokens": 4096,
+          },
+        },
+        operation: 'analyze fridge image',
+      );
+
+      if (response.containsKey('candidates') &&
+          response['candidates'] is List &&
+          response['candidates'].isNotEmpty) {
+        final candidate = response['candidates'][0];
+
+        if (candidate.containsKey('content') && candidate['content'] is Map) {
+          final content = candidate['content'] as Map<String, dynamic>;
+          final parts = content['parts'] as List<dynamic>?;
+
+          if (parts != null && parts.isNotEmpty) {
+            final text = parts[0]['text'] as String?;
+
+            if (text != null && text.isNotEmpty) {
+              try {
+                final result = _processAIResponse(text, 'fridge_analysis');
+                return result;
+              } catch (e) {
+                throw Exception('Failed to parse fridge analysis JSON: $e');
+              }
+            } else {
+              throw Exception('No text content in Gemini response');
+            }
+          } else {
+            throw Exception('No parts in Gemini response content');
+          }
+        } else {
+          throw Exception('No content in Gemini response candidate');
+        }
+      } else {
+        throw Exception('No candidates in Gemini response');
+      }
+    } catch (e) {
+      throw Exception('Failed to analyze fridge image: $e');
+    }
   }
 
   Future<Map<String, dynamic>> analyzeFoodImageWithContext({

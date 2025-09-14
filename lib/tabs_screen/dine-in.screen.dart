@@ -608,27 +608,36 @@ class _DineInScreenState extends State<DineInScreen> {
         return;
       }
 
-      // Analyze the image with AI
-      final analysisResult =
-          await gemini.geminiService.analyzeFoodImageWithContext(
+      // Analyze the fridge image with specialized AI method
+      final analysisResult = await gemini.geminiService.analyzeFridgeImage(
         imageFile: _fridgeImage!,
-        additionalContext:
-            'Identify all food items in this fridge image. List only the food items that can be used for cooking.',
       );
 
-      if (analysisResult['foodItems'] != null) {
-        final foodItems = analysisResult['foodItems'] as List<dynamic>;
-        final ingredients = foodItems
+      if (analysisResult['ingredients'] != null) {
+        final ingredients = analysisResult['ingredients'] as List<dynamic>;
+        final ingredientNames = ingredients
             .map((item) => item['name'] as String)
             .where((name) => name.isNotEmpty)
             .toList();
 
         setState(() {
-          fridgeIngredients = ingredients;
+          fridgeIngredients = ingredientNames;
         });
 
         await _saveFridgeData();
-        await _generateFridgeRecipes();
+
+        // If we have suggested meals from the analysis, use them directly
+        if (analysisResult['suggestedMeals'] != null) {
+          final suggestedMeals =
+              analysisResult['suggestedMeals'] as List<dynamic>;
+          setState(() {
+            _fridgeRecipes = List<Map<String, dynamic>>.from(suggestedMeals);
+            _showFridgeRecipes = true;
+          });
+        } else {
+          // Fallback to generating recipes from ingredients
+          await _generateFridgeRecipes();
+        }
       }
     } catch (e) {
       showTastySnackbar(
@@ -1494,6 +1503,8 @@ class _DineInScreenState extends State<DineInScreen> {
             ],
           ),
           SizedBox(height: getPercentageHeight(1, context)),
+
+          // Description
           if (recipe['description'] != null) ...[
             Text(
               recipe['description'],
@@ -1503,6 +1514,38 @@ class _DineInScreenState extends State<DineInScreen> {
             ),
             SizedBox(height: getPercentageHeight(0.5, context)),
           ],
+
+          // Cooking info
+          Row(
+            children: [
+              if (recipe['cookingTime'] != null) ...[
+                Icon(Icons.timer,
+                    size: getIconScale(4, context), color: kAccent),
+                SizedBox(width: getPercentageWidth(1, context)),
+                Text(
+                  recipe['cookingTime'],
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(4, context)),
+              ],
+              if (recipe['difficulty'] != null) ...[
+                Icon(Icons.speed,
+                    size: getIconScale(4, context), color: kAccent),
+                SizedBox(width: getPercentageWidth(1, context)),
+                Text(
+                  '${recipe['difficulty']} difficulty',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+
+          // Ingredients
           if (recipe['ingredients'] != null) ...[
             Text(
               'Ingredients:',
@@ -1515,6 +1558,28 @@ class _DineInScreenState extends State<DineInScreen> {
             ...((recipe['ingredients'] as Map<String, dynamic>).entries.map(
                   (entry) => Text(
                     '• ${entry.key}: ${entry.value}',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
+                  ),
+                )),
+            SizedBox(height: getPercentageHeight(1, context)),
+          ],
+
+          // Instructions
+          if (recipe['instructions'] != null &&
+              (recipe['instructions'] as List).isNotEmpty) ...[
+            Text(
+              'Instructions:',
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: kAccent,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(0.3, context)),
+            ...((recipe['instructions'] as List<dynamic>).asMap().entries.map(
+                  (entry) => Text(
+                    '${entry.key + 1}. ${entry.value}',
                     style: textTheme.bodySmall?.copyWith(
                       color: isDarkMode ? kWhite : kBlack,
                     ),
