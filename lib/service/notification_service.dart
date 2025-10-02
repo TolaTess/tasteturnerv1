@@ -14,7 +14,7 @@ import 'package:flutter/material.dart' show debugPrint;
 class NotificationService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
   String? _userTimeZone;
-  final bool _isInitialized = false;
+  bool _isInitialized = false;
   static const String _unreadNotificationKey = 'has_shown_unread_notification';
 
   bool get isInitialized => _isInitialized;
@@ -117,6 +117,8 @@ class NotificationService {
         // The notification handler service will process it when the app is ready
       },
     );
+
+    _isInitialized = true;
   }
 
   // Get user's timezone

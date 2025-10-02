@@ -1,4 +1,5 @@
-import 'package:get/get.dart';  
+import 'dart:async';
+import 'package:get/get.dart';
 import 'package:flutter/material.dart' show debugPrint;
 
 import '../constants.dart';
@@ -82,8 +83,16 @@ class FirebaseService extends GetxController {
 
   Future<void> fetchGeneralData() async {
     try {
+      // Add timeout to prevent hanging
       final docSnapshot =
-          await firestore.collection('general').doc('data').get();
+          await firestore.collection('general').doc('data').get().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('Firestore fetchGeneralData timed out after 5 seconds');
+          throw TimeoutException(
+              'Firestore operation timed out', const Duration(seconds: 5));
+        },
+      );
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,6 @@ import 'service/helper_controller.dart';
 import 'service/battle_service.dart';
 import 'service/user_service.dart';
 import 'data_models/message_screen_data.dart';
-import 'service/macro_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +74,7 @@ void main() async {
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => FriendController());
-  Get.put(MacroManager(), permanent: true);
+  // MacroManager is already registered in its own file
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
   Get.put(HybridNotificationService(), permanent: true);
@@ -82,11 +82,7 @@ void main() async {
   Get.put(ChallengeService(), permanent: true);
   print('ChallengeService registered successfully');
 
-  // Any other non-UI async setup
-  await FirebaseService.instance.fetchGeneralData();
-  await MealManager.instance.fetchMealsByCategory("All");
-
-  // Register NotificationService with GetX
+  // Register NotificationService with GetX (but don't initialize yet)
   final notificationService = NotificationService();
   Get.put(notificationService, permanent: true);
 
@@ -117,20 +113,41 @@ void main() async {
     }
   }
 
-  // Initialize notifications service only
-  try {
-    await notificationService.initNotification(
-      onNotificationTapped: (String? payload) {
-        if (payload != null) {
-          _handleNotificationTap(payload);
-        }
-      },
-    );
-    debugPrint('Notifications service initialized successfully');
-  } catch (e) {
-    debugPrint('Error initializing notifications: $e');
-    // Continue without notifications if they fail
-  }
+  // Initialize notifications in background after app starts
+  Future.microtask(() async {
+    try {
+      // Add timeout to prevent hanging
+      await notificationService.initNotification(
+        onNotificationTapped: (String? payload) {
+          if (payload != null) {
+            _handleNotificationTap(payload);
+          }
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('Notification initialization timed out');
+          throw TimeoutException('Notification initialization timed out',
+              const Duration(seconds: 10));
+        },
+      );
+      debugPrint('Notifications service initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing notifications: $e');
+      // Continue without notifications if they fail
+    }
+  });
+
+  // Initialize Firebase data in background
+  Future.microtask(() async {
+    try {
+      await FirebaseService.instance.fetchGeneralData();
+      await MealManager.instance.fetchMealsByCategory("All");
+    } catch (e) {
+      debugPrint('Error initializing Firebase data: $e');
+    }
+  });
+
   await MobileAds.instance.initialize();
 
   runApp(

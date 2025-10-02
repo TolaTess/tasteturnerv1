@@ -59,10 +59,14 @@ class _DineInScreenState extends State<DineInScreen> {
   void initState() {
     super.initState();
     _loadSavedMeal();
-    _loadChallengeData();
     _loadFridgeData();
-    _checkChallengeNotification();
     loadExcludedIngredients();
+
+    // Load challenge data in background to not block UI
+    Future.microtask(() async {
+      await _loadChallengeData();
+      await _checkChallengeNotification();
+    });
   }
 
   @override
