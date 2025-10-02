@@ -472,7 +472,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Any items in your fridge?',
+                      'Any ingredients in your fridge?',
                       style: textTheme.bodyMedium
                           ?.copyWith(color: isDarkMode ? kWhite : kBlack),
                     ),
@@ -487,7 +487,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                         Get.to(() => DineInScreen());
                       },
                       child: Text(
-                        'View Dine-In to use them',
+                        'View Dine-In for recipe ideas!',
                         textAlign: TextAlign.center,
                         style: textTheme.displaySmall
                             ?.copyWith(color: kAccent, fontSize: getTextScale(6, context)),

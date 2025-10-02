@@ -193,7 +193,7 @@ class HybridNotificationService extends GetxService {
         body:
             'How did your day go? Review your progress and plan for tomorrow.',
         hour: 21, // 9 PM
-        minute: 0,
+        minute: 15,
         payload: {'type': 'evening_review'},
       );
 

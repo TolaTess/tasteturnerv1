@@ -86,7 +86,13 @@ class FirebaseService extends GetxController {
           await firestore.collection('general').doc('data').get();
 
       if (docSnapshot.exists) {
-        generalData.value = docSnapshot.data() ?? {};
+        final data = docSnapshot.data();
+        if (data != null) {
+          // Convert Map<Object?, Object?> to Map<String, dynamic>
+          generalData.value = Map<String, dynamic>.from(data);
+        } else {
+          generalData.value = {};
+        }
       } else {
         debugPrint('General data document does not exist');
         generalData.value = {};
