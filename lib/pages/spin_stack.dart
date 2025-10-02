@@ -13,6 +13,7 @@ import '../data_models/meal_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../screens/shopping_list.dart';
+import '../tabs_screen/dine-in.screen.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/spinning_math.dart';
 
@@ -467,10 +468,33 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
               } else if (snapshot.hasError) {
                 return Text('Error: ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Text(
-                  'No ingredients selected',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: isDarkMode ? kWhite : kBlack),
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Any items in your fridge?',
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kBlack),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Icon(
+                      Icons.dashboard,
+                      size: getIconScale(4, context),
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Get.to(() => DineInScreen());
+                      },
+                      child: Text(
+                        'View Dine-In to use them',
+                        textAlign: TextAlign.center,
+                        style: textTheme.displaySmall
+                            ?.copyWith(color: kAccent, fontSize: getTextScale(6, context)),
+                      ),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                  ],
                 );
               } else {
                 final displayedItems = snapshot.data!;

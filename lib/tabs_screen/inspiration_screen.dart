@@ -24,6 +24,22 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey _addUploadButtonKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'all';
+  bool showChallengePosts = false;
+
+    loadExcludedIngredients() async {
+    await firebaseService.fetchGeneralData();
+    final excludedIngredients =
+        firebaseService.generalData['excludeIngredients'].toString().split(',');
+    if (excludedIngredients.contains('true')) {
+      setState(() {
+        showChallengePosts = true;
+      });
+    } else {
+      setState(() {
+        showChallengePosts = false;
+      });
+    }
+  }
 
   Future<void> _refreshPosts() async {
     // Clear cache and refresh
@@ -64,6 +80,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
+      loadExcludedIngredients();
     });
   }
 
@@ -200,6 +217,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
           child: Column(
             children: [
               // Challenge posts horizontal list
+              if (showChallengePosts)
               ChallengePostsHorizontalList(),
 
               // Main content grid

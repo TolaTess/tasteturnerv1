@@ -2622,6 +2622,542 @@ function createFallbackResponse(operation, error) {
 }
 
 // ============================================================================
+// CLOUD FUNCTIONS NOTIFICATION SYSTEM
+// ============================================================================
+
+/**
+ * Scheduled function to send notifications every 5 minutes
+ * Checks for users who should receive notifications at the current time
+ */
+exports.sendScheduledNotifications = functions.pubsub
+  .schedule('every 5 minutes')
+  .timeZone('UTC')
+  .onRun(async (context) => {
+    try {
+      console.log('--- Running scheduled notification check ---');
+      
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      console.log(`Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')} UTC`);
+      
+      // Check for meal plan reminders (21:00 UTC = 9 PM)
+      if (currentHour === 21 && currentMinute < 5) {
+        console.log('Checking for meal plan reminders...');
+        await sendMealPlanReminders();
+      }
+      
+      // Check for water reminders (11:00 UTC = 11 AM)
+      if (currentHour === 11 && currentMinute < 5) {
+        console.log('Checking for water reminders...');
+        await sendWaterReminders();
+      }
+      
+      // Check for evening reviews (21:00 UTC = 9 PM)
+      if (currentHour === 21 && currentMinute < 5) {
+        console.log('Checking for evening reviews...');
+        await sendEveningReviews();
+      }
+      
+      console.log('--- Scheduled notification check completed ---');
+      return null;
+      
+    } catch (error) {
+      console.error('Error in scheduled notification check:', error);
+      return null;
+    }
+  });
+
+/**
+ * Send meal plan reminder notifications to users who haven't planned meals for tomorrow
+ */
+async function sendMealPlanReminders() {
+  try {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+    
+    console.log(`Checking meal plans for tomorrow: ${tomorrowStr}`);
+    
+    // Get users who have meal plan reminders enabled
+    const usersSnapshot = await firestore
+      .collection('users')
+      .where('notificationPreferences.mealPlanReminder.enabled', '==', true)
+      .get();
+    
+    console.log(`Found ${usersSnapshot.size} users with meal plan reminders enabled`);
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      
+      try {
+        // Check if user has meal plan for tomorrow
+        const mealPlanDoc = await firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('date')
+          .doc(tomorrowStr)
+          .get();
+        
+        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals && 
+                           Object.keys(mealPlanDoc.data().meals).length > 0;
+        
+        if (!hasMealPlan) {
+          // Get today's summary data for context
+          const today = new Date();
+          const todayStr = format(today, 'yyyy-MM-dd');
+          let todaySummary = {};
+          
+          try {
+            const summaryDoc = await firestore
+              .collection('users')
+              .doc(userId)
+              .collection('daily_summary')
+              .doc(todayStr)
+              .get();
+            
+            if (summaryDoc.exists) {
+              todaySummary = summaryDoc.data();
+            }
+          } catch (e) {
+            console.log(`Error fetching today's summary for user ${userId}:`, e);
+          }
+          
+          // Send meal plan reminder notification
+          await sendNotification(userId, {
+            title: 'Meal Plan Reminder 🍽️',
+            body: 'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
+            data: {
+              type: 'meal_plan_reminder',
+              date: tomorrowStr,
+              todaySummary: JSON.stringify(todaySummary),
+              hasMealPlan: 'false',
+              action: 'navigate_to_meal_planning'
+            }
+          });
+          
+          console.log(`Sent meal plan reminder to user ${userId}`);
+        } else {
+          console.log(`User ${userId} already has meal plan for tomorrow`);
+        }
+        
+      } catch (userError) {
+        console.error(`Error processing user ${userId} for meal plan reminder:`, userError);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error in sendMealPlanReminders:', error);
+  }
+}
+
+/**
+ * Send water reminder notifications to users
+ */
+async function sendWaterReminders() {
+  try {
+    console.log('Sending water reminders...');
+    
+    // Get users who have water reminders enabled
+    const usersSnapshot = await firestore
+      .collection('users')
+      .where('notificationPreferences.waterReminder.enabled', '==', true)
+      .get();
+    
+    console.log(`Found ${usersSnapshot.size} users with water reminders enabled`);
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      
+      try {
+        // Send water reminder notification
+        await sendNotification(userId, {
+          title: 'Water Reminder 💧',
+          body: 'Stay hydrated! Don\'t forget to track your water intake.',
+          data: {
+            type: 'water_reminder',
+            action: 'navigate_to_water_tracking'
+          }
+        });
+        
+        console.log(`Sent water reminder to user ${userId}`);
+        
+      } catch (userError) {
+        console.error(`Error sending water reminder to user ${userId}:`, userError);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error in sendWaterReminders:', error);
+  }
+}
+
+/**
+ * Send evening review notifications to users who have meal plans
+ */
+async function sendEveningReviews() {
+  try {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+    
+    console.log(`Checking evening reviews for tomorrow: ${tomorrowStr}`);
+    
+    // Get users who have evening review notifications enabled
+    const usersSnapshot = await firestore
+      .collection('users')
+      .where('notificationPreferences.eveningReview.enabled', '==', true)
+      .get();
+    
+    console.log(`Found ${usersSnapshot.size} users with evening review enabled`);
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      
+      try {
+        // Check if user has meal plan for tomorrow
+        const mealPlanDoc = await firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('date')
+          .doc(tomorrowStr)
+          .get();
+        
+        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals && 
+                           Object.keys(mealPlanDoc.data().meals).length > 0;
+        
+        if (hasMealPlan) {
+          // Get today's summary data for context
+          const today = new Date();
+          const todayStr = format(today, 'yyyy-MM-dd');
+          let todaySummary = {};
+          
+          try {
+            const summaryDoc = await firestore
+              .collection('users')
+              .doc(userId)
+              .collection('daily_summary')
+              .doc(todayStr)
+              .get();
+            
+            if (summaryDoc.exists) {
+              todaySummary = summaryDoc.data();
+            }
+          } catch (e) {
+            console.log(`Error fetching today's summary for user ${userId}:`, e);
+          }
+          
+          // Send evening review notification
+          await sendNotification(userId, {
+            title: 'Evening Review 🌙',
+            body: 'Review your goals and plan for tomorrow!',
+            data: {
+              type: 'evening_review',
+              date: tomorrowStr,
+              todaySummary: JSON.stringify(todaySummary),
+              hasMealPlan: 'true',
+              action: 'navigate_to_evening_review'
+            }
+          });
+          
+          console.log(`Sent evening review to user ${userId}`);
+        } else {
+          console.log(`User ${userId} doesn't have meal plan for tomorrow, skipping evening review`);
+        }
+        
+      } catch (userError) {
+        console.error(`Error processing user ${userId} for evening review:`, userError);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error in sendEveningReviews:', error);
+  }
+}
+
+/**
+ * Send notification to a specific user via FCM
+ */
+async function sendNotification(userId, notification) {
+  try {
+    const userDoc = await firestore.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    if (!userData || !userData.fcmToken) {
+      console.log(`No FCM token for user ${userId}`);
+      return;
+    }
+    
+    // Check if notification was already sent today
+    const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const notificationType = notification.data.type;
+    
+    const existingNotification = await firestore
+      .collection('notifications')
+      .where('userId', '==', userId)
+      .where('type', '==', notificationType)
+      .where('date', '==', todayStr)
+      .limit(1)
+      .get();
+    
+    if (!existingNotification.empty) {
+      console.log(`Notification ${notificationType} already sent to user ${userId} today`);
+      return;
+    }
+    
+    const message = {
+      token: userData.fcmToken,
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+      data: {
+        ...notification.data,
+        userId: userId,
+        timestamp: Date.now().toString()
+      },
+      android: {
+        notification: {
+          icon: 'ic_notification',
+          color: '#FF6B35',
+          sound: 'default',
+          priority: 'high',
+          channelId: 'tasteturner_notifications',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+            'content-available': 1,
+            'mutable-content': 1
+          }
+        }
+      }
+    };
+    
+    const response = await admin.messaging().send(message);
+    console.log(`Notification sent to user ${userId}: ${response}`);
+    
+    // Store notification in database for history and deduplication
+    await firestore.collection('notifications').add({
+      userId: userId,
+      type: notificationType,
+      title: notification.title,
+      body: notification.body,
+      data: notification.data,
+      date: todayStr,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'sent',
+      fcmMessageId: response
+    });
+    
+  } catch (error) {
+    console.error(`Error sending notification to user ${userId}:`, error);
+    
+    // Store failed notification for debugging
+    await firestore.collection('notifications').add({
+      userId: userId,
+      type: notification.data.type,
+      title: notification.title,
+      body: notification.body,
+      data: notification.data,
+      date: format(new Date(), 'yyyy-MM-dd'),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'failed',
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Cloud Function to update user's FCM token
+ */
+exports.updateFCMToken = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+    
+    const { fcmToken, platform } = data;
+    const userId = context.auth.uid;
+    
+    if (!fcmToken) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'FCM token is required'
+      );
+    }
+    
+    // Update user's FCM token
+    await firestore.collection('users').doc(userId).update({
+      fcmToken: fcmToken,
+      fcmTokenPlatform: platform || 'unknown',
+      fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Updated FCM token for user ${userId}`);
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error updating FCM token:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      'An error occurred while updating FCM token'
+    );
+  }
+});
+
+/**
+ * Cloud Function to update user's notification preferences
+ */
+exports.updateNotificationPreferences = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+    
+    const { preferences } = data;
+    const userId = context.auth.uid;
+    
+    if (!preferences) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Notification preferences are required'
+      );
+    }
+    
+    // Update user's notification preferences
+    await firestore.collection('users').doc(userId).update({
+      notificationPreferences: preferences,
+      notificationPreferencesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Updated notification preferences for user ${userId}`);
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      'An error occurred while updating notification preferences'
+    );
+  }
+});
+
+/**
+ * Cloud Function to send a test notification
+ */
+exports.sendTestNotification = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+    
+    const userId = context.auth.uid;
+    
+    // Send a test notification
+    await sendNotification(userId, {
+      title: 'Test Notification 🧪',
+      body: 'This is a test notification from Cloud Functions!',
+      data: {
+        type: 'test_notification',
+        action: 'navigate_to_home',
+        timestamp: Date.now().toString()
+      }
+    });
+    
+    return { success: true, message: 'Test notification sent successfully' };
+    
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      'internal',
+      'An error occurred while sending test notification'
+    );
+  }
+});
+
+/**
+ * Cloud Function to get user's notification history
+ */
+exports.getNotificationHistory = functions.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+    
+    const userId = context.auth.uid;
+    const { limit = 20, lastNotificationId = null } = data;
+    
+    let query = firestore
+      .collection('notifications')
+      .where('userId', '==', userId)
+      .orderBy('sentAt', 'desc')
+      .limit(limit);
+    
+    if (lastNotificationId) {
+      const lastDoc = await firestore.collection('notifications').doc(lastNotificationId).get();
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc);
+      }
+    }
+    
+    const snapshot = await query.get();
+    const notifications = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      sentAt: doc.data().sentAt?.toDate?.()?.toISOString() || doc.data().sentAt
+    }));
+    
+    return {
+      success: true,
+      notifications: notifications,
+      hasMore: snapshot.docs.length === limit,
+      lastNotificationId: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
+    };
+    
+  } catch (error) {
+    console.error('Error getting notification history:', error);
+    return {
+      success: false,
+      error: error.message,
+      notifications: []
+    };
+  }
+});
+
+// ============================================================================
 // APP STORE SERVER NOTIFICATIONS
 // ============================================================================
 

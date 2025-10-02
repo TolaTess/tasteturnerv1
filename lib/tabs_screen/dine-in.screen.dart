@@ -31,6 +31,7 @@ class _DineInScreenState extends State<DineInScreen> {
   // Fridge feature variables
   List<String> fridgeIngredients = [];
   final TextEditingController _fridgeController = TextEditingController();
+  final FocusNode _fridgeFocusNode = FocusNode();
   bool isAnalyzingFridge = false;
   File? _fridgeImage;
   List<Map<String, dynamic>> _fridgeRecipes = [];
@@ -51,6 +52,7 @@ class _DineInScreenState extends State<DineInScreen> {
   bool isLoadingChallenge = false;
   String? challengeDate;
   String? savedChallengeDate; // Store the user's saved challenge date
+  bool isChallengeEnabled = false;
   List<String> excludedIngredients = [];
 
   @override
@@ -66,6 +68,7 @@ class _DineInScreenState extends State<DineInScreen> {
   @override
   void dispose() {
     _fridgeController.dispose();
+    _fridgeFocusNode.dispose();
     super.dispose();
   }
 
@@ -191,11 +194,13 @@ class _DineInScreenState extends State<DineInScreen> {
       if (challengeDetails != null && challengeDetails is String) {
         // Parse challenge details: "07-08-2025,carrot-v,shrimp-p,pork-p,aubergine-v"
         final parts = challengeDetails.split(',');
-        if (parts.length >= 5) {
+        if (parts.length >= 6) {
           challengeDate = parts[0];
+          isChallengeEnabled = parts[5] == 'true';
+          debugPrint('Challenge enabled: $isChallengeEnabled');
 
           // Get ingredient names (skip the date)
-          final ingredientNames = parts.skip(1).toList();
+          final ingredientNames = parts.skip(1).take(4).toList();
 
           // Fetch all ingredients to find the challenge ingredients
           if (_macroManager.ingredient.isEmpty) {
@@ -669,7 +674,7 @@ class _DineInScreenState extends State<DineInScreen> {
     });
 
     await _saveFridgeData();
-    await _generateFridgeRecipes();
+    // await _generateFridgeRecipes();
   }
 
   Future<void> _generateFridgeRecipes() async {
@@ -1287,6 +1292,10 @@ class _DineInScreenState extends State<DineInScreen> {
               // Text input for manual entry
               TextField(
                 controller: _fridgeController,
+                focusNode: _fridgeFocusNode,
+                onSubmitted: (value) {
+                  _fridgeFocusNode.unfocus();
+                },
                 decoration: InputDecoration(
                   hintText:
                       'Enter ingredients separated by commas (e.g., chicken, rice, broccoli)',
@@ -1336,7 +1345,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     child: AppButton(
                       text: 'Add Ingredients',
                       onPressed: () => _addManualIngredient(),
-                      type: AppButtonType.primary,
+                      type: AppButtonType.follow,
                       color: kAccent,
                     ),
                   ),
@@ -1660,195 +1669,626 @@ class _DineInScreenState extends State<DineInScreen> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(getPercentageWidth(2, context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: getPercentageHeight(2, context)),
-                  // Header text
-                  Center(
-                    child: Text(
-                      isChallengeMode
-                          ? 'Weekly Challenge Ingredients'
-                          : 'What\'s in Your Fridge?',
-                      textAlign: TextAlign.center,
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: getPercentageWidth(5, context),
-                        color: kAccent,
+          : GestureDetector(
+              onTap: () {
+                _fridgeFocusNode.unfocus();
+              },
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    // Header text
+                    Center(
+                      child: Text(
+                        isChallengeMode
+                            ? 'Weekly Challenge Ingredients'
+                            : 'What\'s in Your Fridge?',
+                        textAlign: TextAlign.center,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: getPercentageWidth(5, context),
+                          color: kAccent,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  Center(
-                    child: Text(
-                      isChallengeMode
-                          ? 'Create something amazing with your selected challenge ingredients!'
-                          : 'Add ingredients from your fridge and get personalized recipes!',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kLightGrey : kDarkGrey,
-                        fontSize: getPercentageWidth(3.5, context),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Center(
+                      child: Text(
+                        isChallengeMode
+                            ? 'Create something amazing with your selected challenge ingredients!'
+                            : 'Add ingredients from your fridge and get personalized recipes!',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                          fontSize: getPercentageWidth(3.5, context),
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: getPercentageHeight(1.5, context)),
+                    SizedBox(height: getPercentageHeight(1.5, context)),
 
-                  // Weekly Ingredients Battle Widget
-                  const WeeklyIngredientBattle(),
+                    // Weekly Ingredients Battle Widget
+                    const WeeklyIngredientBattle(),
 
-                  SizedBox(height: getPercentageHeight(2, context)),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
-                  // Fridge or Challenge ingredients
-                  if (isChallengeMode &&
-                      selectedChallengeIngredients.length >= 2) ...[
-                    // Challenge ingredients display
-                    Column(
-                      children: [
-                        Text(
-                          'Your Challenge Ingredients',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: kAccent,
-                            fontSize: getPercentageWidth(4, context),
+                    // Fridge or Challenge ingredients
+                    if (isChallengeMode &&
+                        selectedChallengeIngredients.length >= 2) ...[
+                      // Challenge ingredients display
+                      Column(
+                        children: [
+                          Text(
+                            'Your Challenge Ingredients',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: kAccent,
+                              fontSize: getPercentageWidth(4, context),
+                            ),
                           ),
-                        ),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        Row(
-                          children: [
-                            // First challenge ingredient
-                            if (selectedChallengeIngredients.isNotEmpty)
-                              Expanded(
-                                child: _buildIngredientCard(
-                                  selectedChallengeIngredients[0],
-                                  'Challenge',
-                                  isDarkMode,
-                                  textTheme,
-                                  kAccent,
-                                ),
-                              ),
-                            if (selectedChallengeIngredients.length > 1) ...[
-                              SizedBox(width: getPercentageWidth(4, context)),
-                              // Plus icon
-                              Container(
-                                padding: EdgeInsets.all(
-                                    getPercentageWidth(3, context)),
-                                decoration: BoxDecoration(
-                                  color: kAccent.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.add,
-                                  size: getIconScale(8, context),
-                                  color: kAccent,
-                                ),
-                              ),
-                              SizedBox(width: getPercentageWidth(4, context)),
-                              // Second challenge ingredient
-                              Expanded(
-                                child: _buildIngredientCard(
-                                  selectedChallengeIngredients[1],
-                                  'Challenge',
-                                  isDarkMode,
-                                  textTheme,
-                                  kAccent,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        SizedBox(height: getPercentageHeight(2, context)),
-                        // Challenge AI generation and switch mode buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () async {
-                                  if (!canUseAI()) {
-                                    showPremiumRequiredDialog(
-                                        context, isDarkMode);
-                                    return;
-                                  }
-
-                                  try {
-                                    // Convert to simple format for AI
-                                    final simpleIngredients =
-                                        selectedChallengeIngredients
-                                            .map((ingredient) =>
-                                                ingredient['name'] ?? '')
-                                            .toList();
-
-                                    final meal = await gemini.geminiService
-                                        .generateMealsFromIngredients(
-                                            simpleIngredients, context, true);
-                                    setState(() {
-                                      selectedMeal = meal;
-                                    });
-                                    // Save the meal to storage
-                                    _saveMealToStorage();
-                                  } catch (e) {
-                                    // Handle error
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content:
-                                            Text('Failed to generate meal: $e'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          getPercentageWidth(2, context),
-                                      vertical:
-                                          getPercentageHeight(1, context)),
-                                  decoration: BoxDecoration(
-                                    color: kAccentLight.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          Row(
+                            children: [
+                              // First challenge ingredient
+                              if (selectedChallengeIngredients.isNotEmpty)
+                                Expanded(
+                                  child: _buildIngredientCard(
+                                    selectedChallengeIngredients[0],
+                                    'Challenge',
+                                    isDarkMode,
+                                    textTheme,
+                                    kAccent,
                                   ),
-                                  child: Text(
-                                    'Use Tasty AI',
-                                    textAlign: TextAlign.center,
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: kAccentLight,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: getPercentageWidth(4, context),
+                                ),
+                              if (selectedChallengeIngredients.length > 1) ...[
+                                SizedBox(width: getPercentageWidth(4, context)),
+                                // Plus icon
+                                Container(
+                                  padding: EdgeInsets.all(
+                                      getPercentageWidth(3, context)),
+                                  decoration: BoxDecoration(
+                                    color: kAccent.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.add,
+                                    size: getIconScale(8, context),
+                                    color: kAccent,
+                                  ),
+                                ),
+                                SizedBox(width: getPercentageWidth(4, context)),
+                                // Second challenge ingredient
+                                Expanded(
+                                  child: _buildIngredientCard(
+                                    selectedChallengeIngredients[1],
+                                    'Challenge',
+                                    isDarkMode,
+                                    textTheme,
+                                    kAccent,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          SizedBox(height: getPercentageHeight(2, context)),
+                          // Challenge AI generation and switch mode buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    if (!canUseAI()) {
+                                      showPremiumRequiredDialog(
+                                          context, isDarkMode);
+                                      return;
+                                    }
+
+                                    try {
+                                      // Convert to simple format for AI
+                                      final simpleIngredients =
+                                          selectedChallengeIngredients
+                                              .map((ingredient) =>
+                                                  ingredient['name'] ?? '')
+                                              .toList();
+
+                                      final meal = await gemini.geminiService
+                                          .generateMealsFromIngredients(
+                                              simpleIngredients, context, true);
+                                      setState(() {
+                                        selectedMeal = meal;
+                                      });
+                                      // Save the meal to storage
+                                      _saveMealToStorage();
+                                    } catch (e) {
+                                      // Handle error
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Failed to generate meal: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal:
+                                            getPercentageWidth(2, context),
+                                        vertical:
+                                            getPercentageHeight(1, context)),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          kAccentLight.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Use Tasty AI',
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: kAccentLight,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize:
+                                            getPercentageWidth(4, context),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                            SizedBox(width: getPercentageWidth(2, context)),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _switchToRandomMode,
-                                icon: Icon(Icons.swap_horiz, color: kAccent),
-                                label: Text(
-                                  isChallengeMode
-                                      ? 'Switch to Fridge'
-                                      : 'Switch to Challenge',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: kAccent,
-                                    fontWeight: FontWeight.w500,
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _switchToRandomMode,
+                                  icon: Icon(Icons.swap_horiz, color: kAccent),
+                                  label: Text(
+                                    isChallengeMode
+                                        ? 'Switch to Fridge'
+                                        : 'Switch to Challenge',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: kAccent),
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: getPercentageHeight(1.5, context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: kAccent),
+                                    padding: EdgeInsets.symmetric(
+                                      vertical:
+                                          getPercentageHeight(1.5, context),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // Display challenge meal if available
+                      if (selectedMeal != null && isChallengeMode) ...[
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(4, context)),
+                          decoration: BoxDecoration(
+                            color: kAccent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: kAccent.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.auto_awesome, color: kAccent),
+                                  SizedBox(
+                                      width: getPercentageWidth(2, context)),
+                                  Expanded(
+                                    child: Text(
+                                      'Challenge Recipe',
+                                      style: textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.close, color: kAccent),
+                                    onPressed: () {
+                                      setState(() {
+                                        selectedMeal = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: getPercentageHeight(1, context)),
+
+                              // Meal title
+                              Text(
+                                selectedMeal!['title'] ?? 'Untitled Recipe',
+                                style: textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                              SizedBox(height: getPercentageHeight(1, context)),
+
+                              // Description
+                              if (selectedMeal!['description'] != null) ...[
+                                Text(
+                                  selectedMeal!['description'],
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                  ),
+                                ),
+                                SizedBox(
+                                    height: getPercentageHeight(1, context)),
+                              ],
+
+                              // Cooking info
+                              Row(
+                                children: [
+                                  if (selectedMeal!['cookingTime'] != null) ...[
+                                    Icon(Icons.timer,
+                                        size: getIconScale(4, context),
+                                        color: kAccent),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Text(
+                                      selectedMeal!['cookingTime'],
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: isDarkMode ? kWhite : kBlack,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(4, context)),
+                                  ],
+                                  if (selectedMeal!['cookingMethod'] !=
+                                      null) ...[
+                                    Icon(Icons.restaurant_menu,
+                                        size: getIconScale(4, context),
+                                        color: kAccent),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Text(
+                                      selectedMeal!['cookingMethod'],
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: isDarkMode ? kWhite : kBlack,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              SizedBox(height: getPercentageHeight(2, context)),
+
+                              // Ingredients
+                              Text(
+                                'Ingredients:',
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: kAccent,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              if (selectedMeal!['ingredients'] != null) ...[
+                                ...((selectedMeal!['ingredients']
+                                        as Map<String, dynamic>)
+                                    .entries
+                                    .map(
+                                      (entry) => Padding(
+                                        padding: EdgeInsets.only(
+                                            bottom: getPercentageHeight(
+                                                0.3, context)),
+                                        child: Text(
+                                          '• ${entry.key}: ${entry.value}',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: isDarkMode ? kWhite : kBlack,
+                                          ),
+                                        ),
+                                      ),
+                                    )),
+                              ],
+                              SizedBox(height: getPercentageHeight(2, context)),
+
+                              // Instructions
+                              Text(
+                                'Instructions:',
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: kAccent,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              if (selectedMeal!['instructions'] != null) ...[
+                                ...((selectedMeal!['instructions']
+                                        as List<dynamic>)
+                                    .asMap()
+                                    .entries
+                                    .map(
+                                      (entry) => Padding(
+                                        padding: EdgeInsets.only(
+                                            bottom: getPercentageHeight(
+                                                0.5, context)),
+                                        child: Text(
+                                          '${entry.key + 1}. ${entry.value}',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: isDarkMode ? kWhite : kBlack,
+                                          ),
+                                        ),
+                                      ),
+                                    )),
+                              ],
+
+                              SizedBox(height: getPercentageHeight(2, context)),
+
+                              // Action button
+                              SizedBox(
+                                width: double.infinity,
+                                child: AppButton(
+                                  text: 'Upload Challenge Creation!',
+                                  onPressed: () => _navigateToUploadBattle(
+                                      isChallenge: true),
+                                  type: AppButtonType.primary,
+                                  color: kAccent,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
+                    ] else ...[
+                      // Fridge interface
+                      _buildFridgeInterface(isDarkMode, textTheme),
+                    ],
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    // Dine in Challenge section - only show if not in challenge mode AND no challenge ingredients selected
+                    if (!isChallengeMode &&
+                        isChallengeEnabled &&
+                        selectedChallengeIngredients.isEmpty) ...[
+                      GestureDetector(
+                        onTap: isLoadingChallenge
+                            ? null
+                            : () {
+                                // For testing: if no challenge ingredients loaded, create mock ones
+                                if (challengeIngredients.isEmpty) {
+                                  setState(() {
+                                    challengeIngredients = [
+                                      {
+                                        'name': 'Carrot',
+                                        'type': 'vegetable',
+                                        'image': 'assets/images/vegetable.jpg'
+                                      },
+                                      {
+                                        'name': 'Shrimp',
+                                        'type': 'protein',
+                                        'image': 'assets/images/fish.jpg'
+                                      },
+                                      {
+                                        'name': 'Pork',
+                                        'type': 'protein',
+                                        'image': 'assets/images/meat.jpg'
+                                      },
+                                      {
+                                        'name': 'Aubergine',
+                                        'type': 'vegetable',
+                                        'image': 'assets/images/vegetable.jpg'
+                                      },
+                                    ];
+                                  });
+                                }
+                                if (_isChallengeDateInPast() &&
+                                    isChallengeEnabled) {
+                                  showTastySnackbar('Dine-In Challenge',
+                                      'New challenge coming soon!', context,
+                                      backgroundColor: kAccent);
+                                } else {
+                                  _showChallengeSelectionDialog();
+                                }
+                              },
+                        child: Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: kAccentLight.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kAccent.withValues(alpha: 0.3),
+                                blurRadius: 5,
+                                offset: Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: kAccentLight,
+                                size: getIconScale(5, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      isLoadingChallenge
+                                          ? 'Loading challenge...'
+                                          : isChallengeMode
+                                              ? _isChallengeEnded()
+                                                  ? 'Weekly Challenge Ended!'
+                                                  : 'Weekly Challenge Active!'
+                                              : _isChallengeDateInPast()
+                                                  ? 'New Challenge Coming Soon!'
+                                                  : 'Join this week\'s Dine-In Challenge!',
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodyLarge?.copyWith(
+                                        color: isDarkMode ? kDarkGrey : kWhite,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize:
+                                            getPercentageWidth(4, context),
+                                      ),
+                                    ),
+                                    if (isChallengeMode &&
+                                        isChallengeEnabled &&
+                                        _isChallengeEnded()) ...[
+                                      SizedBox(
+                                          height: getPercentageHeight(
+                                              0.5, context)),
+                                      Text(
+                                        _isOldChallenge() && isChallengeEnabled
+                                            ? 'Old challenge from: ${savedChallengeDate ?? 'Unknown'}'
+                                            : 'Challenge ended: ${challengeDate ?? 'Unknown'}',
+                                        textAlign: TextAlign.center,
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: kDarkGrey,
+                                          fontSize:
+                                              getPercentageWidth(3, context),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (isLoadingChallenge && isChallengeEnabled)
+                                SizedBox(
+                                  width: getIconScale(5, context),
+                                  height: getIconScale(5, context),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: kAccentLight,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  isChallengeMode && isChallengeEnabled
+                                      ? (_isChallengeEnded()
+                                          ? Icons.schedule
+                                          : Icons.check_circle)
+                                      : _isChallengeDateInPast()
+                                          ? Icons.schedule
+                                          : Icons.lightbulb_outline,
+                                  color: isChallengeMode && isChallengeEnabled
+                                      ? (_isChallengeEnded()
+                                          ? Colors.orange
+                                          : kAccent)
+                                      : _isChallengeDateInPast()
+                                          ? Colors.orange
+                                          : kAccentLight,
+                                  size: getIconScale(5, context),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
-                    // Display challenge meal if available
-                    if (selectedMeal != null && isChallengeMode) ...[
+                    // Show "Switch to Weekly Challenge" button when in fridge mode but has challenge ingredients
+                    if (!isChallengeMode &&
+                        selectedChallengeIngredients.isNotEmpty &&
+                        isChallengeEnabled) ...[
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      GestureDetector(
+                        onTap: () => _switchToRandomMode(),
+                        child: Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: kAccent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: kAccent.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.emoji_events,
+                                color: kAccent,
+                                size: getIconScale(5, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'You have enrolled in this week\'s challenge!',
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodyLarge?.copyWith(
+                                        color: isDarkMode ? kWhite : kBlack,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize:
+                                            getPercentageWidth(4, context),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(0.5, context)),
+                                    Text(
+                                      'Tap to switch to Weekly Challenge mode',
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color:
+                                            isDarkMode ? kLightGrey : kDarkGrey,
+                                        fontSize:
+                                            getPercentageWidth(3, context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: kAccent,
+                                size: getIconScale(4, context),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    SizedBox(height: getPercentageHeight(2.5, context)),
+
+                    // Action buttons
+                    if (isChallengeMode &&
+                        isChallengeEnabled &&
+                        selectedChallengeIngredients.length >= 2) ...[
+                      // Challenge mode - show upload button directly
+                      if (selectedMeal == null) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppButton(
+                            text: 'Upload Challenge Creation',
+                            onPressed: () =>
+                                _navigateToUploadBattle(isChallenge: true),
+                            type: AppButtonType.primary,
+                            color: kAccent,
+                          ),
+                        ),
+                      ],
+                    ] else if (!isChallengeMode && isChallengeEnabled) ...[
+                      // Fridge mode - show upload button if recipes are generated
+                      if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppButton(
+                            text: 'Upload Your Creation',
+                            onPressed: () => _navigateToUploadBattle(),
+                            type: AppButtonType.primary,
+                            color: kAccent,
+                          ),
+                        ),
+                      ],
+                    ] else
+                      ...[],
+
+                    // Display selected meal if available
+                    if (selectedMeal != null &&
+                        !isChallengeMode &&
+                        isChallengeEnabled) ...[
                       SizedBox(height: getPercentageHeight(2, context)),
                       Container(
                         padding: EdgeInsets.all(getPercentageWidth(4, context)),
@@ -1867,7 +2307,7 @@ class _DineInScreenState extends State<DineInScreen> {
                                 SizedBox(width: getPercentageWidth(2, context)),
                                 Expanded(
                                   child: Text(
-                                    'Challenge Recipe',
+                                    'AI Generated Recipe',
                                     style: textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       color: kAccent,
@@ -1880,6 +2320,7 @@ class _DineInScreenState extends State<DineInScreen> {
                                     setState(() {
                                       selectedMeal = null;
                                     });
+                                    // Note: Keep meal in storage so it can be restored
                                   },
                                 ),
                               ],
@@ -2006,9 +2447,8 @@ class _DineInScreenState extends State<DineInScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: AppButton(
-                                text: 'Upload Challenge Creation!',
-                                onPressed: () =>
-                                    _navigateToUploadBattle(isChallenge: true),
+                                text: 'Upload Creation!',
+                                onPressed: () => _navigateToUploadBattle(),
                                 type: AppButtonType.primary,
                                 color: kAccent,
                               ),
@@ -2017,409 +2457,9 @@ class _DineInScreenState extends State<DineInScreen> {
                         ),
                       ),
                     ],
-                  ] else ...[
-                    // Fridge interface
-                    _buildFridgeInterface(isDarkMode, textTheme),
+                    SizedBox(height: getPercentageHeight(10, context)),
                   ],
-                  SizedBox(height: getPercentageHeight(2, context)),
-                  // Dine in Challenge section - only show if not in challenge mode AND no challenge ingredients selected
-                  if (!isChallengeMode &&
-                      selectedChallengeIngredients.isEmpty) ...[
-                    GestureDetector(
-                      onTap: isLoadingChallenge
-                          ? null
-                          : () {
-                              // For testing: if no challenge ingredients loaded, create mock ones
-                              if (challengeIngredients.isEmpty) {
-                                setState(() {
-                                  challengeIngredients = [
-                                    {
-                                      'name': 'Carrot',
-                                      'type': 'vegetable',
-                                      'image': 'assets/images/vegetable.jpg'
-                                    },
-                                    {
-                                      'name': 'Shrimp',
-                                      'type': 'protein',
-                                      'image': 'assets/images/fish.jpg'
-                                    },
-                                    {
-                                      'name': 'Pork',
-                                      'type': 'protein',
-                                      'image': 'assets/images/meat.jpg'
-                                    },
-                                    {
-                                      'name': 'Aubergine',
-                                      'type': 'vegetable',
-                                      'image': 'assets/images/vegetable.jpg'
-                                    },
-                                  ];
-                                });
-                              }
-                              if (_isChallengeDateInPast()) {
-                                showTastySnackbar('Dine-In Challenge',
-                                    'New challenge coming soon!', context,
-                                    backgroundColor: kAccent);
-                              } else {
-                                _showChallengeSelectionDialog();
-                              }
-                            },
-                      child: Container(
-                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                        decoration: BoxDecoration(
-                          color: kAccentLight.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kAccent.withValues(alpha: 0.3),
-                              blurRadius: 5,
-                              offset: Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline,
-                              color: kAccentLight,
-                              size: getIconScale(5, context),
-                            ),
-                            SizedBox(width: getPercentageWidth(2, context)),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    isLoadingChallenge
-                                        ? 'Loading challenge...'
-                                        : isChallengeMode
-                                            ? _isChallengeEnded()
-                                                ? 'Weekly Challenge Ended!'
-                                                : 'Weekly Challenge Active!'
-                                            : _isChallengeDateInPast()
-                                                ? 'New Challenge Coming Soon!'
-                                                : 'Join this week\'s Dine-In Challenge!',
-                                    textAlign: TextAlign.center,
-                                    style: textTheme.bodyLarge?.copyWith(
-                                      color: isDarkMode ? kDarkGrey : kWhite,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: getPercentageWidth(4, context),
-                                    ),
-                                  ),
-                                  if (isChallengeMode &&
-                                      _isChallengeEnded()) ...[
-                                    SizedBox(
-                                        height:
-                                            getPercentageHeight(0.5, context)),
-                                    Text(
-                                      _isOldChallenge()
-                                          ? 'Old challenge from: ${savedChallengeDate ?? 'Unknown'}'
-                                          : 'Challenge ended: ${challengeDate ?? 'Unknown'}',
-                                      textAlign: TextAlign.center,
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: kDarkGrey,
-                                        fontSize:
-                                            getPercentageWidth(3, context),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (isLoadingChallenge)
-                              SizedBox(
-                                width: getIconScale(5, context),
-                                height: getIconScale(5, context),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: kAccentLight,
-                                ),
-                              )
-                            else
-                              Icon(
-                                isChallengeMode
-                                    ? (_isChallengeEnded()
-                                        ? Icons.schedule
-                                        : Icons.check_circle)
-                                    : _isChallengeDateInPast()
-                                        ? Icons.schedule
-                                        : Icons.lightbulb_outline,
-                                color: isChallengeMode
-                                    ? (_isChallengeEnded()
-                                        ? Colors.orange
-                                        : kAccent)
-                                    : _isChallengeDateInPast()
-                                        ? Colors.orange
-                                        : kAccentLight,
-                                size: getIconScale(5, context),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // Show "Switch to Weekly Challenge" button when in fridge mode but has challenge ingredients
-                  if (!isChallengeMode &&
-                      selectedChallengeIngredients.isNotEmpty) ...[
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    GestureDetector(
-                      onTap: () => _switchToRandomMode(),
-                      child: Container(
-                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                        decoration: BoxDecoration(
-                          color: kAccent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: kAccent.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.emoji_events,
-                              color: kAccent,
-                              size: getIconScale(5, context),
-                            ),
-                            SizedBox(width: getPercentageWidth(2, context)),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'You have enrolled in this week\'s challenge!',
-                                    textAlign: TextAlign.center,
-                                    style: textTheme.bodyLarge?.copyWith(
-                                      color: isDarkMode ? kWhite : kBlack,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: getPercentageWidth(4, context),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height:
-                                          getPercentageHeight(0.5, context)),
-                                  Text(
-                                    'Tap to switch to Weekly Challenge mode',
-                                    textAlign: TextAlign.center,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color:
-                                          isDarkMode ? kLightGrey : kDarkGrey,
-                                      fontSize: getPercentageWidth(3, context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: kAccent,
-                              size: getIconScale(4, context),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  SizedBox(height: getPercentageHeight(2.5, context)),
-
-                  // Action buttons
-                  if (isChallengeMode &&
-                      selectedChallengeIngredients.length >= 2) ...[
-                    // Challenge mode - show upload button directly
-                    if (selectedMeal == null) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: AppButton(
-                          text: 'Upload Challenge Creation',
-                          onPressed: () =>
-                              _navigateToUploadBattle(isChallenge: true),
-                          type: AppButtonType.primary,
-                          color: kAccent,
-                        ),
-                      ),
-                    ],
-                  ] else if (!isChallengeMode) ...[
-                    // Fridge mode - show upload button if recipes are generated
-                    if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: AppButton(
-                          text: 'Upload Your Creation',
-                          onPressed: () => _navigateToUploadBattle(),
-                          type: AppButtonType.primary,
-                          color: kAccent,
-                        ),
-                      ),
-                    ],
-                  ] else
-                    ...[],
-
-                  // Display selected meal if available
-                  if (selectedMeal != null && !isChallengeMode) ...[
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    Container(
-                      padding: EdgeInsets.all(getPercentageWidth(4, context)),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: kAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.auto_awesome, color: kAccent),
-                              SizedBox(width: getPercentageWidth(2, context)),
-                              Expanded(
-                                child: Text(
-                                  'AI Generated Recipe',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: kAccent,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.close, color: kAccent),
-                                onPressed: () {
-                                  setState(() {
-                                    selectedMeal = null;
-                                  });
-                                  // Note: Keep meal in storage so it can be restored
-                                },
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-
-                          // Meal title
-                          Text(
-                            selectedMeal!['title'] ?? 'Untitled Recipe',
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode ? kWhite : kBlack,
-                            ),
-                          ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-
-                          // Description
-                          if (selectedMeal!['description'] != null) ...[
-                            Text(
-                              selectedMeal!['description'],
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: isDarkMode ? kLightGrey : kDarkGrey,
-                              ),
-                            ),
-                            SizedBox(height: getPercentageHeight(1, context)),
-                          ],
-
-                          // Cooking info
-                          Row(
-                            children: [
-                              if (selectedMeal!['cookingTime'] != null) ...[
-                                Icon(Icons.timer,
-                                    size: getIconScale(4, context),
-                                    color: kAccent),
-                                SizedBox(width: getPercentageWidth(1, context)),
-                                Text(
-                                  selectedMeal!['cookingTime'],
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: isDarkMode ? kWhite : kBlack,
-                                  ),
-                                ),
-                                SizedBox(width: getPercentageWidth(4, context)),
-                              ],
-                              if (selectedMeal!['cookingMethod'] != null) ...[
-                                Icon(Icons.restaurant_menu,
-                                    size: getIconScale(4, context),
-                                    color: kAccent),
-                                SizedBox(width: getPercentageWidth(1, context)),
-                                Text(
-                                  selectedMeal!['cookingMethod'],
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: isDarkMode ? kWhite : kBlack,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          SizedBox(height: getPercentageHeight(2, context)),
-
-                          // Ingredients
-                          Text(
-                            'Ingredients:',
-                            style: textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: kAccent,
-                            ),
-                          ),
-                          SizedBox(height: getPercentageHeight(0.5, context)),
-                          if (selectedMeal!['ingredients'] != null) ...[
-                            ...((selectedMeal!['ingredients']
-                                    as Map<String, dynamic>)
-                                .entries
-                                .map(
-                                  (entry) => Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom:
-                                            getPercentageHeight(0.3, context)),
-                                    child: Text(
-                                      '• ${entry.key}: ${entry.value}',
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: isDarkMode ? kWhite : kBlack,
-                                      ),
-                                    ),
-                                  ),
-                                )),
-                          ],
-                          SizedBox(height: getPercentageHeight(2, context)),
-
-                          // Instructions
-                          Text(
-                            'Instructions:',
-                            style: textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: kAccent,
-                            ),
-                          ),
-                          SizedBox(height: getPercentageHeight(0.5, context)),
-                          if (selectedMeal!['instructions'] != null) ...[
-                            ...((selectedMeal!['instructions'] as List<dynamic>)
-                                .asMap()
-                                .entries
-                                .map(
-                                  (entry) => Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom:
-                                            getPercentageHeight(0.5, context)),
-                                    child: Text(
-                                      '${entry.key + 1}. ${entry.value}',
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: isDarkMode ? kWhite : kBlack,
-                                      ),
-                                    ),
-                                  ),
-                                )),
-                          ],
-
-                          SizedBox(height: getPercentageHeight(2, context)),
-
-                          // Action button
-                          SizedBox(
-                            width: double.infinity,
-                            child: AppButton(
-                              text: 'Upload Creation!',
-                              onPressed: () => _navigateToUploadBattle(),
-                              type: AppButtonType.primary,
-                              color: kAccent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  SizedBox(height: getPercentageHeight(10, context)),
-                ],
+                ),
               ),
             ),
     );

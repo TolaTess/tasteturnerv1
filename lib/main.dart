@@ -26,6 +26,7 @@ import 'service/meal_manager.dart';
 import 'service/meal_plan_controller.dart';
 import 'service/notification_service.dart';
 import 'service/notification_handler_service.dart';
+import 'service/hybrid_notification_service.dart';
 import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
 import 'service/post_service.dart';
@@ -76,6 +77,7 @@ void main() async {
   Get.put(MacroManager(), permanent: true);
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
+  Get.put(HybridNotificationService(), permanent: true);
   print('Registering ChallengeService...');
   Get.put(ChallengeService(), permanent: true);
   print('ChallengeService registered successfully');

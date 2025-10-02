@@ -837,7 +837,7 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
       (index) => Center(
         child: Text(
           textAlign: TextAlign.center,
-          labels != null ? labels[index] : index.toString(),
+          capitalizeFirstLetter(labels != null ? labels[index] : index.toString()),
           style: textTheme.bodyMedium?.copyWith(
             color: isColorChange ? kWhite : kDarkGrey,
           ),

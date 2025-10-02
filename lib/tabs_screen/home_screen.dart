@@ -15,6 +15,7 @@ import '../pages/profile_edit_screen.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
+import '../screens/test_notifications_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
 import '../widgets/bottom_nav.dart';
@@ -29,6 +30,7 @@ import 'dine-in.screen.dart';
 import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 import '../service/notification_service.dart';
+import '../service/hybrid_notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool familyMode = userService.currentUser.value?.familyMode ?? false;
   late final ProgramService _programService;
   NotificationService? notificationService;
+  HybridNotificationService? hybridNotificationService;
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
@@ -94,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Initialize NotificationService after the widget is built
       try {
         notificationService = Get.find<NotificationService>();
+        hybridNotificationService = Get.find<HybridNotificationService>();
       } catch (e) {
         debugPrint('Error initializing NotificationService: $e');
         return;
@@ -105,8 +109,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Then show the meal tutorial
       _showAddMealTutorial();
 
-      // Schedule meal reminder notification
-      _scheduleMealReminderNotification();
+      // Setup Cloud Functions notifications (replaces local scheduling)
+      _setupHybridNotifications();
     });
   }
 
@@ -388,111 +392,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await macroManager.fetchIngredients();
   }
 
-  Future<void> _scheduleMealReminderNotification() async {
-    // Check if notification service is ready
-    if (notificationService == null) {
+  /// Setup hybrid notifications (FCM for Android, Local for iOS)
+  Future<void> _setupHybridNotifications() async {
+    if (hybridNotificationService == null) {
+      debugPrint('Hybrid Notification Service not available');
       return;
     }
 
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
-    final today = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(today);
-
-    QuerySnapshot snapshot = await firestore
-        .collection('mealPlans')
-        .doc(userService.userId)
-        .collection('date')
-        .where('date', isEqualTo: tomorrowStr)
-        .get();
-
-    var tomorrowHasMealPlan = false;
-    if (snapshot.docs.isNotEmpty) {
-      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
-      final mealsList = data?['meals'] as List<dynamic>? ?? [];
-      if (mealsList.isNotEmpty) {
-        tomorrowHasMealPlan = true;
-      }
-    }
-
-    // Get today's summary data for action items
-    Map<String, dynamic> todaySummary = {};
     try {
-      final summaryDoc = await firestore
-          .collection('users')
-          .doc(userService.userId)
-          .collection('daily_summary')
-          .doc(todayStr)
-          .get();
+      // Set up notification preferences for the current platform
+      await _setupUserNotificationPreferences();
 
-      if (summaryDoc.exists) {
-        todaySummary = summaryDoc.data()!;
-      }
+      debugPrint(
+          'Hybrid notifications setup completed for ${hybridNotificationService!.platform}');
     } catch (e) {
-      debugPrint('Error loading today\'s summary: $e');
+      debugPrint('Error setting up hybrid notifications: $e');
     }
-
-    // Check if the notification time (13:35) has already passed today
-    final now = DateTime.now();
-    final notificationTime = DateTime(now.year, now.month, now.day, 13, 35);
-    final isNotificationTimeInPast = now.isAfter(notificationTime);
-    // If notification time is in the past, schedule for tomorrow; otherwise, schedule for today
-    final targetDate = isNotificationTimeInPast ? tomorrow : now;
-    final targetDateStr = DateFormat('yyyy-MM-dd').format(targetDate);
-
-    if (tomorrowHasMealPlan == false) {
-      // Schedule meal plan reminder
-      await notificationService?.scheduleDailyReminder(
-        id: 1,
-        title: 'Meal Plan Reminder',
-        body:
-            'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
-        hour: 21,
-        minute: 00,
-        payload: {
-          'type': 'meal_plan_reminder',
-          'date': targetDateStr,
-          'todaySummary': todaySummary,
-          'hasMealPlan': false,
-        },
-      );
-    } else {
-      // Schedule evening review
-      await notificationService?.scheduleDailyReminder(
-        id: 2,
-        title: 'Evening Review 🌙',
-        body: 'Review your goals and plan for tomorrow!',
-        hour: 21,
-        minute: 00,
-        payload: {
-          'type': 'evening_review',
-          'date': targetDateStr,
-          'todaySummary': todaySummary,
-          'hasMealPlan': true,
-        },
-      );
-    }
-
-    // Schedule water reminder notification
-    _scheduleWaterReminder();
   }
 
-  // Schedule water reminder notification
-  Future<void> _scheduleWaterReminder() async {
-    if (notificationService == null) return;
+  /// Setup user notification preferences for hybrid system
+  Future<void> _setupUserNotificationPreferences() async {
+    if (hybridNotificationService == null) return;
 
     try {
-      // Schedule daily water reminder at 11 AM
-      await notificationService!.scheduleDailyReminder(
-        id: 5002,
-        title: "Water Reminder 💧",
-        body: "Stay hydrated! Don't forget to track your water intake.",
-        hour: 11,
-        minute: 0,
-      );
-      debugPrint('Daily water reminder scheduled for 11:00 AM');
+      // Set up default notification preferences if not already set
+      final preferences = {
+        'mealPlanReminder': {
+          'enabled': true,
+          'time': {'hour': 21, 'minute': 0},
+          'timezone': 'UTC'
+        },
+        'waterReminder': {
+          'enabled': true,
+          'time': {'hour': 11, 'minute': 0},
+          'timezone': 'UTC'
+        },
+        'eveningReview': {
+          'enabled': true,
+          'time': {'hour': 21, 'minute': 0},
+          'timezone': 'UTC'
+        }
+      };
+
+      await hybridNotificationService!
+          .updateNotificationPreferences(preferences);
+      debugPrint(
+          'User notification preferences updated for ${hybridNotificationService!.platform}');
     } catch (e) {
-      debugPrint('Error scheduling water reminder: $e');
+      debugPrint('Error setting up user notification preferences: $e');
     }
   }
 

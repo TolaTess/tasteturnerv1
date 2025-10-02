@@ -67,12 +67,19 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     // Set default for meal category
     final categoryDatasMeal = helperController.headers;
     if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
-      // Add meal times to start of the list
-      categoryDatasMeal.insertAll(0, [
-        {'id': '1', 'name': 'breakfast'},
-        {'id': '2', 'name': 'lunch'},
-        {'id': '3', 'name': 'dinner'},
-      ]);
+      // Check if meal times are already added to avoid duplicates
+      final hasMealTimes = categoryDatasMeal.any((item) =>
+          item['id'] == '1' || item['id'] == '2' || item['id'] == '3');
+
+      if (!hasMealTimes) {
+        // Add meal times to start of the list
+        categoryDatasMeal.insertAll(0, [
+          {'id': '1', 'name': 'breakfast'},
+          {'id': '2', 'name': 'lunch'},
+          {'id': '3', 'name': 'dinner'},
+        ]);
+      }
+
       selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
 
       // Safely extract the name
@@ -316,7 +323,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           child: IntrinsicHeight(
             child: Column(
               children: [
-                SizedBox(height: getPercentageHeight(2, context)),
+                SizedBox(height: getPercentageHeight(1.5, context)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

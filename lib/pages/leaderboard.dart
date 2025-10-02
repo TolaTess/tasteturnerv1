@@ -21,7 +21,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Map<String, dynamic>? currentUserRank;
   bool isLoading = true;
   StreamSubscription? _subscription;
-  bool isDineInMode = false; // Toggle between regular and dine-in leaderboard
+  bool isDineInMode = false; 
+  bool showChallengePosts = false;
+
+    loadExcludedIngredients() async {
+    await firebaseService.fetchGeneralData();
+    final excludedIngredients =
+        firebaseService.generalData['excludeIngredients'].toString().split(',');
+    if (excludedIngredients.contains('true')) {
+      setState(() {
+        showChallengePosts = true;
+      });
+    } else {
+      setState(() {
+        showChallengePosts = false;
+      });
+    }
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -30,6 +46,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   void initState() {
     super.initState();
     _setupDataListeners();
+    loadExcludedIngredients();
   }
 
   void _setupDataListeners() {
@@ -248,7 +265,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     try {
       setState(() => isLoading = true);
 
-      if (isDineInMode) {
+      if (isDineInMode && showChallengePosts) {
         // Refresh dine-in leaderboard data
         final snapshot = await firestore
             .collection('posts')
@@ -351,7 +368,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         color: kWhite.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Row(
+                      child: showChallengePosts ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
@@ -402,7 +419,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                             ),
                           ),
                         ],
-                      ),
+                      ) : const SizedBox.shrink(),
                     ),
                   ],
                 ),
