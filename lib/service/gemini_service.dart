@@ -2778,7 +2778,8 @@ USER CONTEXT:
             "temperature": 0.7,
             "topK": 40,
             "topP": 0.95,
-            "maxOutputTokens": maxTokens,
+            "maxOutputTokens":
+                maxTokens, // Buddy chat - respects user's preference
           },
         },
         operation: 'get response',
@@ -3638,7 +3639,8 @@ $dynamicInstructions
               "temperature": 0.7,
               "topK": 40,
               "topP": 0.95,
-              "maxOutputTokens": 1024,
+              "maxOutputTokens":
+                  2048, // Meal titles/ingredients - needs room for multiple meals
             },
           },
         );
@@ -4405,7 +4407,8 @@ Important guidelines:
             "temperature": 0.2,
             "topK": 20,
             "topP": 0.8,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens":
+                6144, // Fridge analysis - complex with multiple ingredients + meal suggestions
           },
         },
         operation: 'analyze fridge image',
@@ -4507,7 +4510,8 @@ Important guidelines:
       final String base64Image = base64Encode(imageBytes);
 
       // Build minimal context for image analysis (not the full AI context to save tokens)
-      String contextualPrompt = 'Analyze this food and provide nutritional info.';
+      String contextualPrompt =
+          'Analyze this food and provide nutritional info.';
 
       if (mealType != null) {
         contextualPrompt += ' Type: $mealType.';
@@ -4587,7 +4591,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
               "temperature": 0.1,
               "topK": 20,
               "topP": 0.8,
-              "maxOutputTokens": 3072, // Balanced for speed and completeness
+              "maxOutputTokens":
+                  8192, // Food analysis - accounts for Gemini 2.5 extended thinking (~2000 tokens) + full response
             },
           },
           operation: 'analyze food image',
@@ -4609,11 +4614,12 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
               throw Exception(
                   'Content blocked by safety filters. Try a different image or angle.');
             }
-            
+
             if (finishReason == 'MAX_TOKENS') {
               debugPrint('⚠️ Response hit token limit - prompt was too long');
               debugPrint('Full response: $response');
-              throw Exception('Analysis incomplete. The prompt was too long. This has been fixed - please try again.');
+              throw Exception(
+                  'Analysis incomplete. The prompt was too long. This has been fixed - please try again.');
             }
           }
 
@@ -4670,7 +4676,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                 ]
               }
             ],
-            "max_tokens": 3072, // Balanced for completeness
+            "max_tokens":
+                8192, // Food analysis (OpenRouter) - matches Gemini limit for consistency
             "temperature": 0.1,
           },
           operation: 'analyze food image with OpenRouter',
