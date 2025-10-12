@@ -85,7 +85,9 @@ class Meal {
       mediaPaths: List<String>.from(json['mediaPaths'] ?? []),
       serveQty: json['serveQty'] is int
           ? json['serveQty'] as int
-          : int.tryParse(removeAllTextJustNumbers(json['serveQty']?.toString() ?? '0')) ?? 1,
+          : int.tryParse(removeAllTextJustNumbers(
+                  json['serveQty']?.toString() ?? '0')) ??
+              1,
       calories: json['calories'] is int
           ? json['calories'] as int
           : int.tryParse(json['calories']?.toString() ?? '0') ?? 0,
@@ -106,9 +108,12 @@ class Meal {
           ? Map<String, String>.from((json['nutrition'] as Map)
               .map((key, value) => MapEntry(key.toString(), value.toString())))
           : {},
-      instructions:
-          json['steps'] != null ? List<String>.from(json['steps'] as List) : json['instructions'] != null ? List<String>.from(json['instructions'] as List) : [],
-          
+      instructions: json['steps'] != null && (json['steps'] as List).isNotEmpty
+          ? List<String>.from(json['steps'] as List)
+          : json['instructions'] != null &&
+                  (json['instructions'] as List).isNotEmpty
+              ? List<String>.from(json['instructions'] as List)
+              : [],
       categories: json['categories'] != null
           ? List<String>.from(json['categories'] as List)
           : [],

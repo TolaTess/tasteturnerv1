@@ -132,31 +132,31 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         'foodItems': [
           {
             'name': 'Unknown Food',
-            'estimatedWeight': '100g',
+            'estimatedWeight': '0',
             'confidence': 'low',
             'nutritionalInfo': {
-              'calories': 200,
-              'protein': 10,
-              'carbs': 20,
-              'fat': 8,
-              'fiber': 2,
-              'sugar': 5,
-              'sodium': 200
+              'calories': 0,
+              'protein': 0,
+              'carbs': 0  ,
+              'fat': 0,
+              'fiber': 0,
+              'sugar': 0,
+              'sodium': 0
             }
           }
         ],
         'totalNutrition': {
-          'calories': 200,
-          'protein': 10,
-          'carbs': 20,
-          'fat': 8,
-          'fiber': 2,
-          'sugar': 5,
-          'sodium': 200
+          'calories': 0,  
+          'protein': 0,
+          'carbs': 0,
+          'fat': 0,
+          'fiber': 0,
+          'sugar': 0,
+          'sodium': 0
         },
-        'healthScore': 5,
-        'estimatedPortionSize': 'medium',
-        'ingredients': {'unknown ingredient': '1 portion'},
+        'healthScore': 0,
+        'estimatedPortionSize': '0',
+        'ingredients': {'unknown ingredient': '0'},
         'confidence': 'low',
         'notes':
             'Analysis data was malformed and has been reset to safe defaults.'

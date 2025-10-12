@@ -23,6 +23,74 @@ admin.initializeApp();
 const genAI = new GoogleGenerativeAI(functions.config().gemini.key);
 const firestore = getFirestore();
 
+// Helper function to get the best available Gemini model
+// Tries models in order of preference, falls back to any available model
+async function _getBestGeminiModel() {
+  try {
+    // Preferred models in order (newest/best first)
+    const preferredModels = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash-exp',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.5-pro',
+      'gemini-2.0-pro',
+      'gemini-pro',
+    ];
+
+    // Try to list available models
+    const modelsResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models?key=${functions.config().gemini.key}`
+    );
+    
+    if (modelsResponse.ok) {
+      const data = await modelsResponse.json();
+      const availableModels = data.models || [];
+      
+      console.log(`Found ${availableModels.length} Gemini models`);
+      
+      // Try preferred models first
+      for (const preferredModel of preferredModels) {
+        const found = availableModels.find(m => 
+          m.name.endsWith(preferredModel) && 
+          m.supportedGenerationMethods?.includes('generateContent')
+        );
+        if (found) {
+          const modelName = found.name.split('/').pop();
+          console.log(`✅ Using Gemini model: ${modelName}`);
+          return modelName;
+        }
+      }
+      
+      // If no preferred model found, use any available model (excluding embedding models)
+      for (const model of availableModels) {
+        if (!model.name.includes('embedding') && 
+            model.supportedGenerationMethods?.includes('generateContent')) {
+          const modelName = model.name.split('/').pop();
+          console.log(`✅ Using fallback Gemini model: ${modelName}`);
+          return modelName;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to fetch Gemini models list:', error.message);
+  }
+  
+  // Ultimate fallback
+  console.log('⚠️ Could not determine best model, using gemini-2.0-flash as fallback');
+  return 'gemini-2.0-flash';
+}
+
+// Cache the model name to avoid repeated API calls
+let cachedModelName = null;
+async function _getGeminiModel() {
+  if (!cachedModelName) {
+    cachedModelName = await _getBestGeminiModel();
+  }
+  return genAI.getGenerativeModel({ model: cachedModelName });
+}
+
 // Helper to get week number
 function _getWeek(date) {
   const d = new Date(
@@ -626,7 +694,7 @@ function _normalizeIngredientName(ingredientName) {
  */
 async function _generateAndSaveIngredient(ingredientName) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = await _getGeminiModel();
     const prompt = `
       Generate a detailed JSON object for the ingredient "${ingredientName}".
       The JSON object must match this structure:
@@ -1857,6 +1925,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
         "fat": number
       },
       "cookingTime": "X minutes",
+      "cookingMethod": "grilled/roasted/sauteed/etc.",
       "difficulty": "easy/medium/hard",
       "serveQty": number,
       "categories": ["category1", "category2"],
@@ -1865,8 +1934,8 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
       "description": "A detailed description of the meal (2-3 sentences)"
     }`;
     
-    const result = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
-      .generateContent(prompt);
+    const model = await _getGeminiModel();
+    const result = await model.generateContent(prompt);
     
     const response = result.response.text();
     
@@ -1889,6 +1958,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
         nutritionalInfo: mealDetails.nutritionalInfo,
         cookingTime: mealDetails.cookingTime || '30 minutes',
         difficulty: mealDetails.difficulty || 'medium',
+        cookingMethod: mealDetails.cookingMethod || 'grilled/roasted/sauteed/etc.',
         serveQty: mealDetails.serveQty || 1,
         type: mealDetails.type || 'protein',
         categories: mealDetails.categories || [mealType],

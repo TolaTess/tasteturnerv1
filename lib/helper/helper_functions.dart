@@ -361,7 +361,6 @@ bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {
   }
 }
 
-
 Future<void> saveMealPlanToFirestore(String userId, String date,
     List<String> mealIds, Map<String, dynamic>? mealPlan, String selectedDiet,
     {String? familyMemberName}) async {
@@ -967,10 +966,12 @@ Future<void> handleCameraAction({
         ),
       );
     } catch (e) {
+      debugPrint('Food analysis error (catch 1): $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
       Navigator.pop(context); // Close analysis loading dialog
       showTastySnackbar(
         'Error',
-        'Analysis failed: Please try again later',
+        'Analysis failed: ${e.toString()}',
         context,
         backgroundColor: kRed,
       );
@@ -980,10 +981,12 @@ Future<void> handleCameraAction({
 
     onSuccess?.call();
   } catch (e) {
+    debugPrint('Food analysis error (catch 2): $e');
+    debugPrint('Stack trace: ${StackTrace.current}');
     Navigator.pop(context); // Close loading dialog
     showTastySnackbar(
       'Error',
-      'Analysis failed: Please try again later',
+      'Analysis failed: ${e.toString()}',
       context,
       backgroundColor: kRed,
     );

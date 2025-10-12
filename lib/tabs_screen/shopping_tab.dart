@@ -119,7 +119,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
           '54321 Load: Received data: ${savedListData != null ? 'Yes' : 'No'}');
 
       if (savedListData != null) {
-        debugPrint('54321 Load: Full data structure: $savedListData');
         debugPrint('54321 Load: Keys: ${savedListData.keys.toList()}');
         debugPrint('54321 Load: Tips: ${savedListData['tips']}');
         debugPrint('54321 Load: Meal Ideas: ${savedListData['mealIdeas']}');

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -91,11 +92,16 @@ class GeminiService {
     'gpt-4o-mini': 'openai/gpt-4o-mini',
     'claude-3-5-sonnet': 'anthropic/claude-3-5-sonnet',
     'claude-3-haiku': 'anthropic/claude-3-haiku',
-    'gemini-1.5-flash': 'google/gemini-1-5-flash',
-    'gemini-1.5-pro': 'google/gemini-1-5-pro',
+    'gemini-2.5-flash': 'google/gemini-2.5-flash',
+    'gemini-2.0-flash': 'google/gemini-2.0-flash',
+    'gemini-1.5-flash': 'google/gemini-1.5-flash',
+    'gemini-2.5-pro': 'google/gemini-2.5-pro',
+    'gemini-2.0-pro': 'google/gemini-2.0-pro',
+    'gemini-1.5-pro': 'google/gemini-1.5-pro',
   };
 
-  String _preferredOpenRouterModel = 'gpt-4o-mini'; // Default fallback model
+  String _preferredOpenRouterModel =
+      'gemini-2.0-flash'; // Default fallback model (updated to 2.0)
 
   // Get current family mode dynamically
   bool get familyMode => userService.currentUser.value?.familyMode ?? false;
@@ -252,6 +258,9 @@ class GeminiService {
 
     // Check if Gemini is healthy
     if (!_isGeminiHealthy) {
+      debugPrint(
+          'Gemini health check failed. Consecutive errors: $_consecutiveGeminiErrors');
+      debugPrint('Last error time: $_lastGeminiError');
       throw Exception(
           'Gemini API temporarily unavailable. Please try again later.');
     }
@@ -270,14 +279,26 @@ class GeminiService {
         _consecutiveGeminiErrors = 0;
         _isGeminiHealthy = true;
 
+        // Check if response body is empty
+        if (response.body.isEmpty) {
+          throw Exception('Empty response from Gemini API');
+        }
+
         final decoded = jsonDecode(response.body);
         return decoded;
       } else {
         // Handle specific error codes
-        final errorResponse = jsonDecode(response.body);
+        String errorMessage = 'Unknown error';
+        try {
+          if (response.body.isNotEmpty) {
+            final errorResponse = jsonDecode(response.body);
+            errorMessage =
+                errorResponse['error']?['message'] ?? 'Unknown error';
+          }
+        } catch (e) {
+          errorMessage = 'Failed to parse error response: ${e.toString()}';
+        }
         final errorCode = response.statusCode;
-        final errorMessage =
-            errorResponse['error']?['message'] ?? 'Unknown error';
 
         // Handle specific error types
         switch (errorCode) {
@@ -557,8 +578,11 @@ class GeminiService {
 
   /// Get the OpenRouter model name
   String _getOpenRouterModelName() {
-    return _openRouterModels[_preferredOpenRouterModel] ??
-        _openRouterModels['gpt-4o-mini']!;
+    final modelName = _openRouterModels[_preferredOpenRouterModel] ??
+        _openRouterModels['gemini-1.5-flash']!;
+    debugPrint(
+        'OpenRouter model selected: $modelName (preferred: $_preferredOpenRouterModel)');
+    return modelName;
   }
 
   /// Handle Gemini API errors and update health status
@@ -601,6 +625,17 @@ class GeminiService {
     }
   }
 
+  /// Force reset provider health status (for debugging/testing)
+  void forceResetProviderHealth() {
+    _isGeminiHealthy = true;
+    _consecutiveGeminiErrors = 0;
+    _lastGeminiError = null;
+    _isOpenRouterHealthy = true;
+    _consecutiveOpenRouterErrors = 0;
+    _lastOpenRouterError = null;
+    debugPrint('Force reset all provider health status');
+  }
+
   /// Get provider status information
   Map<String, dynamic> getProviderStatus() {
     return {
@@ -633,6 +668,27 @@ class GeminiService {
   void resetToGemini() {
     _currentProvider = AIProvider.gemini;
     debugPrint('Reset to Gemini provider');
+  }
+
+  /// Force refresh the model configuration
+  void refreshModelConfiguration() {
+    debugPrint('Refreshing model configuration...');
+    debugPrint('Current preferred model: $_preferredOpenRouterModel');
+
+    // Force update to newer Gemini model if using old ones
+    if (_preferredOpenRouterModel == 'gpt-4o-mini' ||
+        _preferredOpenRouterModel == 'gemini-1.5-flash') {
+      _preferredOpenRouterModel = 'gemini-2.0-flash';
+      debugPrint('Updated preferred model to: $_preferredOpenRouterModel');
+    }
+
+    // Force reset provider health to allow retries
+    forceResetProviderHealth();
+
+    debugPrint('Available models: $_openRouterModels');
+    debugPrint('Gemini healthy: $_isGeminiHealthy');
+    debugPrint('OpenRouter healthy: $_isOpenRouterHealthy');
+    _activeModel = null; // Force re-initialization
   }
 
   /// Get available OpenRouter models
@@ -2309,29 +2365,62 @@ class GeminiService {
 
   // Initialize and find a working model
   Future<bool> initializeModel() async {
-    // Reset provider health status
-    _resetProviderHealth();
+    debugPrint('=== Initializing AI model ===');
+
+    // Ensure we're using gemini-2.0-flash as preferred model (or newer if available)
+    if (_preferredOpenRouterModel == 'gemini-1.5-flash' ||
+        _preferredOpenRouterModel == 'gpt-4o-mini') {
+      _preferredOpenRouterModel = 'gemini-2.0-flash';
+      debugPrint(
+          'Updated preferred OpenRouter model to: $_preferredOpenRouterModel');
+    }
+
+    // Force reset provider health status on initialization
+    // This ensures we always try both providers even if they were marked unhealthy before
+    forceResetProviderHealth();
+    debugPrint(
+        'Provider health reset - Gemini: $_isGeminiHealthy, OpenRouter: $_isOpenRouterHealthy');
 
     // Try Gemini first
     final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
+    debugPrint(
+        'Gemini API key present: ${geminiApiKey != null && geminiApiKey.isNotEmpty}');
+
     if (geminiApiKey != null && geminiApiKey.isNotEmpty) {
       try {
+        debugPrint('Fetching Gemini models list...');
         final response = await http.get(
           Uri.parse('$_geminiBaseUrl/models?key=$geminiApiKey'),
           headers: {'Content-Type': 'application/json'},
         );
 
+        debugPrint('Gemini models response status: ${response.statusCode}');
+
         if (response.statusCode == 200) {
           final decoded = jsonDecode(response.body);
           final models = decoded['models'] as List;
+          debugPrint('Found ${models.length} Gemini models');
+
+          // Log all available model names for debugging
+          debugPrint('Available Gemini models:');
+          for (var model in models) {
+            debugPrint('  - ${model['name']}');
+          }
 
           // Look for available text models in order of preference
           final preferredModels = [
+            'gemini-2.5-flash',
+            'gemini-2.0-flash-exp',
+            'gemini-2.0-flash',
             'gemini-1.5-flash',
             'gemini-1.5-pro',
+            'gemini-2.5-pro',
+            'gemini-2.0-pro',
             'gemini-pro-vision',
+            'gemini-pro',
           ];
 
+          // Try preferred models first
           for (final modelName in preferredModels) {
             try {
               final model = models.firstWhere(
@@ -2341,36 +2430,82 @@ class GeminiService {
               // Store the full model path
               _activeModel = model['name'].toString();
               _currentProvider = AIProvider.gemini;
+              debugPrint('✅ Gemini initialized with model: $_activeModel');
               return true;
             } catch (e) {
+              debugPrint('Model $modelName not found, trying next...');
               continue;
             }
           }
+
+          // CRITICAL: If no preferred model found, use ANY available Gemini model
+          // This ensures we ALWAYS use Gemini direct API over OpenRouter fallback
+          // Only skip embedding models as they can't do text/image generation
+          debugPrint(
+              '⚠️ No preferred models found, looking for any usable Gemini model...');
+          for (var model in models) {
+            final modelName = model['name'].toString();
+            // Skip embedding models and use any other Gemini model
+            if (!modelName.contains('embedding') &&
+                !modelName.contains('text-embedding')) {
+              _activeModel = modelName;
+              _currentProvider = AIProvider.gemini;
+              debugPrint('✅ Using fallback Gemini model: $_activeModel');
+              debugPrint(
+                  '   This ensures we use Gemini direct API instead of OpenRouter');
+              return true;
+            }
+          }
+
+          debugPrint(
+              '❌ No usable Gemini models found (all are embedding models)');
+        } else {
+          debugPrint(
+              '❌ Gemini API returned error: ${response.statusCode} - ${response.body}');
         }
       } catch (e) {
-        debugPrint('Gemini initialization failed: $e');
+        debugPrint('❌ Gemini initialization error: $e');
         _isGeminiHealthy = false;
       }
+    } else {
+      debugPrint('⚠️ Gemini API key not configured');
     }
 
     // If Gemini fails, try OpenRouter
+    debugPrint(
+        'Gemini initialization failed or not available, trying OpenRouter...');
+
     if (_useOpenRouterFallback) {
       final openRouterApiKey = dotenv.env['OPENROUTER_API_KEY'];
+      debugPrint(
+          'OpenRouter API key present: ${openRouterApiKey != null && openRouterApiKey.isNotEmpty}');
+
       if (openRouterApiKey != null && openRouterApiKey.isNotEmpty) {
         try {
+          debugPrint('Testing OpenRouter connection...');
           final isOpenRouterAvailable = await _testOpenRouterConnection();
+          debugPrint('OpenRouter available: $isOpenRouterAvailable');
+
           if (isOpenRouterAvailable) {
             _currentProvider = AIProvider.openrouter;
             _activeModel = _getOpenRouterModelName();
+            debugPrint('✅ OpenRouter initialized with model: $_activeModel');
             return true;
+          } else {
+            debugPrint('❌ OpenRouter connection test failed');
           }
         } catch (e) {
-          debugPrint('OpenRouter initialization failed: $e');
+          debugPrint('❌ OpenRouter initialization error: $e');
           _isOpenRouterHealthy = false;
         }
+      } else {
+        debugPrint('⚠️ OpenRouter API key not configured');
       }
+    } else {
+      debugPrint('⚠️ OpenRouter fallback is disabled');
     }
 
+    debugPrint('❌ Both Gemini and OpenRouter initialization failed');
     return false;
   }
 
@@ -2378,10 +2513,12 @@ class GeminiService {
   Future<bool> _testOpenRouterConnection() async {
     final apiKey = dotenv.env['OPENROUTER_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
+      debugPrint('OpenRouter API key is missing');
       return false;
     }
 
     try {
+      debugPrint('Fetching OpenRouter models list...');
       final response = await http.get(
         Uri.parse('$_openRouterBaseUrl/models'),
         headers: {
@@ -2391,26 +2528,38 @@ class GeminiService {
         },
       );
 
+      debugPrint('OpenRouter models response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final models = decoded['data'] as List<dynamic>? ?? [];
+        debugPrint('Found ${models.length} OpenRouter models');
 
         // Check if our preferred model is available
         final preferredModelId = _openRouterModels[_preferredOpenRouterModel];
+        debugPrint(
+            'Looking for preferred model: $_preferredOpenRouterModel ($preferredModelId)');
+
         if (preferredModelId != null) {
           final isAvailable = models.any((model) =>
               model['id'] == preferredModelId ||
               model['id'] == _preferredOpenRouterModel);
+          debugPrint('Preferred model available: $isAvailable');
           return isAvailable;
         }
 
         // If preferred model not found, check if any model is available
-        return models.isNotEmpty;
+        final anyAvailable = models.isNotEmpty;
+        debugPrint('Any OpenRouter model available: $anyAvailable');
+        return anyAvailable;
+      } else {
+        debugPrint(
+            'OpenRouter API error: ${response.statusCode} - ${response.body}');
       }
 
       return false;
     } catch (e) {
-      debugPrint('OpenRouter connection test failed: $e');
+      debugPrint('OpenRouter connection test exception: $e');
       return false;
     }
   }
@@ -4304,12 +4453,22 @@ Important guidelines:
     String? dietaryRestrictions,
     String? additionalContext,
   }) async {
+    debugPrint('=== Starting analyzeFoodImageWithContext ===');
+    debugPrint('Active model: $_activeModel');
+    debugPrint('Current provider: ${_currentProvider.name}');
+    debugPrint('Gemini healthy: $_isGeminiHealthy');
+    debugPrint('OpenRouter healthy: $_isOpenRouterHealthy');
+
     // Initialize model if not already done
     if (_activeModel == null) {
+      debugPrint('No active model, initializing...');
       final initialized = await initializeModel();
       if (!initialized) {
-        throw Exception('No suitable AI model available');
+        debugPrint('Model initialization failed!');
+        throw Exception(
+            'No suitable AI model available - check API keys and provider health');
       }
+      debugPrint('Model initialized successfully: $_activeModel');
     }
 
     // Ensure we start with Gemini for image analysis (retry logic will handle fallback if needed)
@@ -4319,39 +4478,49 @@ Important guidelines:
     }
 
     try {
-      // Read and encode the image
-      final Uint8List imageBytes = await imageFile.readAsBytes();
+      debugPrint('Reading image file...');
+
+      // Compress image before sending to API for faster upload
+      Uint8List imageBytes = await imageFile.readAsBytes();
+      debugPrint(
+          'Original image size: ${imageBytes.length} bytes (${(imageBytes.length / 1024).toStringAsFixed(2)} KB)');
+
+      // If image is large, compress it to speed up analysis
+      if (imageBytes.length > 500 * 1024) {
+        // > 500KB
+        debugPrint('Compressing large image for faster API call...');
+        final img.Image? image = img.decodeImage(imageBytes);
+
+        if (image != null) {
+          // Resize to max 1024px on longest side
+          final img.Image resized = image.width > image.height
+              ? img.copyResize(image, width: 1024)
+              : img.copyResize(image, height: 1024);
+
+          // Compress with quality 85
+          imageBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
+          debugPrint(
+              'Compressed image size: ${imageBytes.length} bytes (${(imageBytes.length / 1024).toStringAsFixed(2)} KB)');
+        }
+      }
+
       final String base64Image = base64Encode(imageBytes);
 
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-
-      String contextualPrompt =
-          'Analyze this food image and provide detailed nutritional information.';
+      // Build minimal context for image analysis (not the full AI context to save tokens)
+      String contextualPrompt = 'Analyze this food and provide nutritional info.';
 
       if (mealType != null) {
-        contextualPrompt += ' This is a $mealType meal.';
+        contextualPrompt += ' Type: $mealType.';
       }
 
       if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
-        contextualPrompt +=
-            ' Consider dietary restrictions: $dietaryRestrictions.';
-      }
-
-      if (additionalContext != null && additionalContext.isNotEmpty) {
-        contextualPrompt += ' Additional context: $additionalContext.';
+        contextualPrompt += ' Diet: $dietaryRestrictions.';
       }
 
       final prompt = '''
-$aiContext
-
 $contextualPrompt
 
-Identify all visible food items, estimate portion sizes, and calculate nutritional values. Also provide suggestions for meal improvement if applicable.
-
-CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
-
-IMPORTANT: You have 4096 tokens available. Prioritize completing the JSON structure over detailed descriptions. If you need to truncate, ensure the JSON is complete and valid.
+Return ONLY this JSON structure (no markdown, no explanations):
 
 {
   "foodItems": [
@@ -4379,43 +4548,20 @@ IMPORTANT: You have 4096 tokens available. Prioritize completing the JSON struct
     "sugar": 0,
     "sodium": 0
   },
-  "mealType": "breakfast|lunch|dinner|snack",
-  "estimatedPortionSize": "small|medium|large",
   "ingredients": {
         "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
         "ingredient2": "amount with unit"
     },
-  "cookingMethod": "raw|grilled|fried|baked|boiled|steamed|other",
   "confidence": "high|medium|low",
   "suggestions": {
     "improvements": ["suggestion1", "suggestion2", ...],
     "alternatives": ["alternative1", "alternative2", ...],
     "additions": ["addition1", "addition2", ...]
   },
-  "instructions": ["instruction1", "instruction2", ...],
-  "dietaryFlags": {
-    "vegetarian": boolean,
-    "vegan": boolean,
-    "glutenFree": boolean,
-    "dairyFree": boolean,
-    "keto": boolean,
-    "lowCarb": boolean
-  },
-  "notes": "any additional observations about the food",
   "healthScore": 5
 }
 
-Important guidelines:
-- Return valid, complete JSON only. Do not include markdown (e.g., ```json), code blocks, or any text outside the JSON object.
-- Ensure no trailing commas, incomplete objects, or unexpected characters.
-- Be as accurate as possible with portion size estimation.
-- Include confidence levels for your analysis.
-- Provide realistic nutritional values based on standard food databases.
-- All nutritional values must be numbers (not strings).
-- Health score must be a number between 1 and 10 reflecting overall nutritional quality (1=poor, 10=excellent).
-- PRIORITY: Complete the JSON structure even if you need to use shorter descriptions.
-- If approaching token limit, complete the JSON structure first, then add details.
-''';
+Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
 
       // For image analysis, we need to handle both Gemini and OpenRouter differently
       // since OpenRouter has different image handling capabilities
@@ -4441,7 +4587,7 @@ Important guidelines:
               "temperature": 0.1,
               "topK": 20,
               "topP": 0.8,
-              "maxOutputTokens": 4096,
+              "maxOutputTokens": 3072, // Balanced for speed and completeness
             },
           },
           operation: 'analyze food image',
@@ -4451,6 +4597,25 @@ Important guidelines:
             response['candidates'] is List &&
             response['candidates'].isNotEmpty) {
           final candidate = response['candidates'][0];
+
+          // Check for safety/blocked content
+          if (candidate.containsKey('finishReason')) {
+            final finishReason = candidate['finishReason'];
+            debugPrint('API finish reason: $finishReason');
+
+            if (finishReason == 'SAFETY' || finishReason == 'RECITATION') {
+              debugPrint('⚠️ Content blocked by safety filters');
+              debugPrint('Full response: $response');
+              throw Exception(
+                  'Content blocked by safety filters. Try a different image or angle.');
+            }
+            
+            if (finishReason == 'MAX_TOKENS') {
+              debugPrint('⚠️ Response hit token limit - prompt was too long');
+              debugPrint('Full response: $response');
+              throw Exception('Analysis incomplete. The prompt was too long. This has been fixed - please try again.');
+            }
+          }
 
           if (candidate.containsKey('content') && candidate['content'] is Map) {
             final content = candidate['content'];
@@ -4470,15 +4635,21 @@ Important guidelines:
                   throw Exception('Failed to parse food analysis JSON: $e');
                 }
               } else {
+                debugPrint('❌ No text in part. Part content: $part');
                 throw Exception('No text content in API response');
               }
             } else {
-              throw Exception('No content parts in API response');
+              debugPrint('❌ No parts in content. Content: $content');
+              debugPrint('Full candidate: $candidate');
+              throw Exception(
+                  'No content parts in API response. Possible safety block or empty response.');
             }
           } else {
+            debugPrint('❌ No content in candidate. Candidate: $candidate');
             throw Exception('No content in API response');
           }
         } else {
+          debugPrint('❌ No candidates. Response: $response');
           throw Exception('No candidates in API response');
         }
       } else {
@@ -4499,7 +4670,7 @@ Important guidelines:
                 ]
               }
             ],
-            "max_tokens": 4096,
+            "max_tokens": 3072, // Balanced for completeness
             "temperature": 0.1,
           },
           operation: 'analyze food image with OpenRouter',
@@ -4532,6 +4703,9 @@ Important guidelines:
         }
       }
     } catch (e) {
+      debugPrint('=== Food image analysis error ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
       throw Exception('Failed to analyze food image: $e');
     }
   }
@@ -5431,13 +5605,25 @@ Generate completely new and different meal ideas using the same ingredients.
           'carbs': (totalNutrition['carbs'] as num?)?.toString() ?? '0',
           'fat': (totalNutrition['fat'] as num?)?.toString() ?? '0',
         },
-        instructions: analysisResult['instructions'],
+        instructions: [],
         categories: ['ai-analyzed', mealType.toLowerCase()],
         category: 'ai-analyzed',
         suggestions: analysisResult['suggestions'],
       );
 
-      await docRef.set(meal.toJson());
+      // Create the meal JSON and add processing metadata
+      final mealData = meal.toJson();
+      mealData['status'] = 'pending';
+      mealData['createdAt'] = FieldValue.serverTimestamp();
+      mealData['type'] = mealType;
+      mealData['source'] = 'ai_generated';
+      mealData['version'] = 'basic';
+      mealData['processingAttempts'] = 0;
+      mealData['lastProcessingAttempt'] = null;
+      mealData['processingPriority'] = DateTime.now().millisecondsSinceEpoch;
+      mealData['needsProcessing'] = true;
+
+      await docRef.set(mealData);
       return finalMealId;
     } catch (e) {
       debugPrint('Error creating meal from analysis: $e');

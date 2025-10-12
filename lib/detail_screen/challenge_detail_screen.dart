@@ -1006,7 +1006,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                     serveQty: 1,
                                     calories: 0,
                                   ),
-                                  screen: 'share_recipe',
+                                  screen: 'view_meal',
                                 ),
                               ),
                             );

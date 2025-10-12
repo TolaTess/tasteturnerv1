@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../data_models/meal_model.dart';
@@ -27,16 +29,69 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Meal? _meal;
   bool _loading = false;
+  StreamSubscription<DocumentSnapshot>? _mealSubscription;
 
   @override
   void initState() {
     super.initState();
+
     if (widget.screen == 'share_recipe') {
       _getMeal();
     } else {
-      _meal = widget.mealData;
+      if (widget.mealData.instructions.isEmpty) {
+        // If instructions are empty, start listening for real-time updates
+        _listenToMeal();
+      } else {
+        _meal = widget.mealData;
+      }
     }
     friendController.updateUserData(widget.mealData.userId);
+  }
+
+  @override
+  void dispose() {
+    _mealSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Listen for real-time updates to the meal document
+  void _listenToMeal() {
+    setState(() => _loading = true);
+
+    _mealSubscription = firestore
+        .collection('meals')
+        .doc(widget.mealData.mealId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) {
+        return;
+      }
+
+      if (snapshot.exists && snapshot.data() != null) {
+        try {
+          final data = snapshot.data()!;
+
+          final meal = Meal.fromJson(snapshot.id, data);
+
+          if (meal.instructions.isNotEmpty) {}
+
+          setState(() {
+            _meal = meal;
+            _loading = false;
+          });
+
+          // If instructions are now populated, we can stop listening
+          if (meal.instructions.isNotEmpty) {
+            _mealSubscription?.cancel();
+          } else {}
+        } catch (e, stackTrace) {
+          debugPrint('Stack trace: $stackTrace');
+          setState(() => _loading = false);
+        }
+      } else {}
+    }, onError: (error) {
+      setState(() => _loading = false);
+    });
   }
 
   Future<void> _getMeal() async {
@@ -153,8 +208,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ] else ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding:
-                        EdgeInsets.only(bottom: getPercentageHeight(15, context)),
+                    padding: EdgeInsets.only(
+                        bottom: getPercentageHeight(15, context)),
                     child: noItemTastyWidget(
                       'Meal is processing...',
                       'Please check back later',

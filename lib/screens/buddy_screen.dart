@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,7 @@ import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
+import '../service/gemini_service.dart' as gemini;
 import '../themes/theme_provider.dart';
 import 'chat_screen.dart';
 import '../widgets/icon_widget.dart';
@@ -331,6 +333,120 @@ class _TastyScreenState extends State<TastyScreen> {
                       ),
                   ],
                 ),
+                // Debug test button for OpenRouter configuration
+                if (kDebugMode)
+                  Container(
+                    margin: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(4, context),
+                      vertical: getPercentageHeight(1, context),
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                      ),
+                      onPressed: () async {
+                        try {
+                          // Import the OpenRouter test
+                          final geminiService = gemini.GeminiService.instance;
+
+                          // Force refresh model configuration
+                          geminiService.refreshModelConfiguration();
+
+                          // Re-initialize model
+                          await geminiService.initializeModel();
+
+                          // Test the current configuration
+                          final status = geminiService.getProviderStatus();
+
+                          // Show current status
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text(
+                                  'AI Provider Status (After Refresh)'),
+                              content: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        'Current Provider: ${status['currentProvider']}'),
+                                    Text(
+                                        'Preferred Model: ${status['preferredOpenRouterModel']}'),
+                                    Text(
+                                        'Gemini Healthy: ${status['geminiHealthy']}'),
+                                    Text(
+                                        'OpenRouter Healthy: ${status['openRouterHealthy']}'),
+                                    Text(
+                                        'Consecutive Gemini Errors: ${status['consecutiveGeminiErrors']}'),
+                                    Text(
+                                        'Consecutive OpenRouter Errors: ${status['consecutiveOpenRouterErrors']}'),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                        'Configuration refreshed! Try your image analysis now.'),
+                                  ],
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          // Test OpenRouter with a simple request
+                          geminiService
+                              .switchToProvider(gemini.AIProvider.openrouter);
+                          final result = await geminiService.generateMealPlan(
+                            'Generate 1 simple breakfast meal',
+                            'Quick and healthy option',
+                          );
+
+                          // Show result
+                          if (mounted) {
+                            Navigator.pop(context);
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('OpenRouter Test Result'),
+                                content: Text(
+                                    'Success! Generated meal using ${result['source'] ?? 'OpenRouter'}'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            Navigator.pop(context);
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Test Failed'),
+                                content: Text('Error: $e'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Test OpenRouter Gemini'),
+                    ),
+                  ),
                 Expanded(
                   child: Obx(() {
                     final messages = chatController.messages;
