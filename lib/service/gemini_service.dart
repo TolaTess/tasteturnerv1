@@ -22,7 +22,7 @@ import '../helper/utils.dart';
 import '../widgets/loading_screen.dart';
 
 /// Enum to track which AI provider is being used
-enum AIProvider { gemini, openrouter }
+enum AIProvider { gemini, openai, openrouter }
 
 /// Class to hold meal similarity scoring results
 class MealSimilarityScore {
@@ -85,6 +85,16 @@ class GeminiService {
   // Provider tracking
   AIProvider _currentProvider = AIProvider.gemini;
   bool _useOpenRouterFallback = true; // Enable/disable OpenRouter fallback
+
+  // OpenAI configuration
+  final String _openAIBaseUrl = 'https://api.openai.com/v1';
+  static bool _isOpenAIHealthy = true;
+  static DateTime? _lastOpenAIError;
+  static int _consecutiveOpenAIErrors = 0;
+  String _preferredOpenAIModel = 'gpt-4.1';
+  DateTime? _lastOpenAIModelCheck;
+  String? _cachedOpenAIModel;
+  static const Duration _openAIModelCacheTtl = Duration(minutes: 30);
 
   // OpenRouter configuration
   static const Map<String, String> _openRouterModels = {
@@ -193,26 +203,41 @@ class GeminiService {
         );
       }
 
-      // If Gemini has been retried and still fails, then try OpenRouter fallback
+      // If Gemini has been retried and still fails, then try OpenAI fallback first, then OpenRouter
       if (useFallback &&
-          _useOpenRouterFallback &&
           _currentProvider == AIProvider.gemini &&
           retryCount >= _maxRetries) {
-        debugPrint(
-            'Gemini failed after ${_maxRetries} retries, switching to OpenRouter: $e');
-        _currentProvider = AIProvider.openrouter;
-        final result = await _makeApiCallToCurrentProvider(
-          endpoint: endpoint,
-          body: body,
-          operation: operation,
-          retryCount: 0, // Reset retry count for new provider
-        );
-
-        // Reset back to Gemini for next request after successful OpenRouter fallback
-        _currentProvider = AIProvider.gemini;
-        debugPrint('Reset back to Gemini provider for next request');
-
-        return result;
+        // Try OpenAI
+        try {
+          debugPrint(
+              'Gemini failed after ${_maxRetries} retries, switching to OpenAI: $e');
+          _currentProvider = AIProvider.openai;
+          final openaiResult = await _makeApiCallToCurrentProvider(
+            endpoint: endpoint,
+            body: body,
+            operation: operation,
+            retryCount: 0,
+          );
+          _currentProvider = AIProvider.gemini; // reset after success
+          debugPrint('Reset back to Gemini provider for next request');
+          return openaiResult;
+        } catch (openaiErr) {
+          debugPrint('OpenAI fallback failed: $openaiErr');
+          // Try OpenRouter if allowed
+          if (_useOpenRouterFallback) {
+            debugPrint('Switching to OpenRouter fallback...');
+            _currentProvider = AIProvider.openrouter;
+            final orResult = await _makeApiCallToCurrentProvider(
+              endpoint: endpoint,
+              body: body,
+              operation: operation,
+              retryCount: 0,
+            );
+            _currentProvider = AIProvider.gemini; // reset
+            debugPrint('Reset back to Gemini provider for next request');
+            return orResult;
+          }
+        }
       }
 
       // If we're already using OpenRouter or fallback is disabled, throw the error
@@ -229,6 +254,13 @@ class GeminiService {
   }) async {
     if (_currentProvider == AIProvider.gemini) {
       return await _makeGeminiApiCall(
+        endpoint: endpoint,
+        body: body,
+        operation: operation,
+        retryCount: retryCount,
+      );
+    } else if (_currentProvider == AIProvider.openai) {
+      return await _makeOpenAIApiCall(
         endpoint: endpoint,
         body: body,
         operation: operation,
@@ -266,6 +298,16 @@ class GeminiService {
     }
 
     try {
+      // Debug: log endpoint and minimal request info
+      try {
+        final preview = jsonEncode(body).toString();
+        final previewShort =
+            preview.length > 600 ? preview.substring(0, 600) + '…' : preview;
+        debugPrint('[Gemini] POST to $endpoint (retry=$retryCount)');
+        debugPrint(
+            '[Gemini] Request body preview (${preview.length} chars): $previewShort');
+      } catch (_) {}
+
       final response = await http
           .post(
             Uri.parse('$_geminiBaseUrl/$endpoint?key=$apiKey'),
@@ -283,6 +325,16 @@ class GeminiService {
         if (response.body.isEmpty) {
           throw Exception('Empty response from Gemini API');
         }
+
+        // Debug: log response size and preview
+        try {
+          final bodyLen = response.body.length;
+          final bodyPreview = bodyLen > 1200
+              ? response.body.substring(0, 1200) + '…'
+              : response.body;
+          debugPrint('[Gemini] Response 200 OK, ${bodyLen} chars');
+          debugPrint('[Gemini] Response preview: $bodyPreview');
+        } catch (_) {}
 
         final decoded = jsonDecode(response.body);
         return decoded;
@@ -778,20 +830,256 @@ class GeminiService {
     try {
       debugPrint('Attempting OpenAI fallback...');
 
-      // TODO: Implement OpenAI API call here
-      // For now, return empty results to trigger user retry
+      final apiKey = dotenv.env['OPENAI_API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('OpenAI API key not configured');
+      }
 
-      return {
-        'mealTitles': [],
-        'mealPlan': [],
-        'distribution': {},
-        'source': 'openai_fallback',
-        'message': 'OpenAI fallback not yet implemented. Please try again.'
+      // Build an OpenAI chat completion with a single user message containing the Gemini-style prompt
+      final model = await _getBestAvailableOpenAIModel();
+      final openaiBody = {
+        "model": model,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": _buildUnifiedPrompt(prompt, contextInformation)
+              }
+            ]
+          }
+        ],
+        "max_tokens": 8192,
+        "temperature": 0.7
       };
+
+      final response = await http
+          .post(
+            Uri.parse('$_openAIBaseUrl/chat/completions'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $apiKey',
+            },
+            body: jsonEncode(openaiBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 200) {
+        throw Exception(
+            'OpenAI API error: ${response.statusCode} - ${response.body}');
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final choices = decoded['choices'] as List<dynamic>? ?? [];
+      if (choices.isEmpty) {
+        throw Exception('No choices in OpenAI response');
+      }
+      final message = choices.first['message'] as Map<String, dynamic>?;
+      final content = message?['content'];
+      if (content is String && content.isNotEmpty) {
+        final result = await _processAIResponse(content, 'meal_generation');
+        // Return in the same structure used by generateMealTitlesAndIngredients caller
+        final mealPlan = result['mealPlan'] as List<dynamic>? ?? [];
+        final mealTitles = mealPlan.map((m) => m['title'] as String).toList();
+        return {
+          'mealTitles': mealTitles,
+          'mealPlan': mealPlan,
+          'distribution': result['distribution'] ?? {},
+          'source': 'openai_fallback'
+        };
+      }
+
+      throw Exception('No content in OpenAI response');
     } catch (e) {
       debugPrint('OpenAI fallback error: $e');
       rethrow;
     }
+  }
+
+  /// Make a provider-level OpenAI API call (used by unified retry flow)
+  Future<Map<String, dynamic>> _makeOpenAIApiCall({
+    required String endpoint,
+    required Map<String, dynamic> body,
+    required String operation,
+    int retryCount = 0,
+  }) async {
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('OpenAI API key not configured');
+    }
+
+    // Convert Gemini-style request to OpenAI chat format
+    final openaiBody = _convertToOpenAIFormat(body);
+    openaiBody['model'] = await _getBestAvailableOpenAIModel();
+    final url = '$_openAIBaseUrl/chat/completions';
+    debugPrint('Making OpenAI API call to: $url');
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $apiKey',
+            },
+            body: jsonEncode(openaiBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        _consecutiveOpenAIErrors = 0;
+        _isOpenAIHealthy = true;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return _convertFromOpenAIFormat(decoded);
+      }
+
+      // Retry on 5xx
+      if (response.statusCode >= 500 && retryCount < _maxRetries) {
+        await Future.delayed(_retryDelay * (retryCount + 1));
+        return _makeOpenAIApiCall(
+          endpoint: endpoint,
+          body: body,
+          operation: operation,
+          retryCount: retryCount + 1,
+        );
+      }
+
+      _handleOpenAIError(
+          'Service error: ${response.statusCode} - ${response.body}');
+      throw Exception('OpenAI service error');
+    } catch (e) {
+      _handleOpenAIError('Connection error: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _convertToOpenAIFormat(Map<String, dynamic> geminiBody) {
+    // Extract text from Gemini format
+    String text = '';
+    try {
+      final contents = geminiBody['contents'] as List<dynamic>?;
+      if (contents != null && contents.isNotEmpty) {
+        final parts = contents.first['parts'] as List<dynamic>?;
+        if (parts != null && parts.isNotEmpty && parts.first['text'] != null) {
+          text = parts.first['text'] as String;
+        }
+      }
+    } catch (_) {}
+
+    final maxTokens =
+        (geminiBody['generationConfig']?['maxOutputTokens'] as int?) ?? 8192;
+    final temperature =
+        (geminiBody['generationConfig']?['temperature'] as num?)?.toDouble() ??
+            0.7;
+
+    return {
+      'model': 'gpt-4.1', // will be overridden by dynamic selector
+      'messages': [
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': text}
+          ]
+        }
+      ],
+      'max_tokens': maxTokens,
+      'temperature': temperature,
+    };
+  }
+
+  Map<String, dynamic> _convertFromOpenAIFormat(
+      Map<String, dynamic> openaiResponse) {
+    final choices = openaiResponse['choices'] as List<dynamic>? ?? [];
+    if (choices.isEmpty) throw Exception('No response from OpenAI');
+    final message = choices.first['message'] as Map<String, dynamic>?;
+    final content = message?['content'];
+    if (content is String && content.isNotEmpty) {
+      // Return as Gemini-style response
+      return {
+        'candidates': [
+          {
+            'content': {
+              'parts': [
+                {'text': content}
+              ]
+            }
+          }
+        ]
+      };
+    }
+    throw Exception('Invalid OpenAI response');
+  }
+
+  void _handleOpenAIError(String message) {
+    _consecutiveOpenAIErrors++;
+    _lastOpenAIError = DateTime.now();
+    if (_consecutiveOpenAIErrors >= _maxConsecutiveErrors) {
+      _isOpenAIHealthy = false;
+    }
+    debugPrint('OpenAI error: $message');
+  }
+
+  String _buildUnifiedPrompt(String prompt, String contextInformation) {
+    // Compose a single prompt similar to the Gemini content used elsewhere
+    return '''$prompt
+
+$contextInformation''';
+  }
+
+  /// Determine best available OpenAI model and cache the selection
+  Future<String> _getBestAvailableOpenAIModel() async {
+    // Use cached model if recent
+    if (_cachedOpenAIModel != null &&
+        _lastOpenAIModelCheck != null &&
+        DateTime.now().difference(_lastOpenAIModelCheck!) <
+            _openAIModelCacheTtl) {
+      return _cachedOpenAIModel!;
+    }
+
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      return _preferredOpenAIModel; // fallback to preferred if no key
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('$_openAIBaseUrl/models'),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      final priority = <String>[
+        'gpt-4.1',
+        'gpt-4.1-mini',
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4-turbo',
+        'gpt-4'
+      ];
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded['data'] as List<dynamic>? ?? [];
+        final ids = data
+            .map((m) => (m as Map<String, dynamic>)['id']?.toString() ?? '')
+            .toSet();
+        for (final m in priority) {
+          if (ids.contains(m)) {
+            _cachedOpenAIModel = m;
+            _lastOpenAIModelCheck = DateTime.now();
+            debugPrint('Selected OpenAI model: $m');
+            return m;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to preferred
+    _cachedOpenAIModel = _preferredOpenAIModel;
+    _lastOpenAIModelCheck = DateTime.now();
+    return _preferredOpenAIModel;
   }
 
   /// Parse calories value ensuring it's a valid number
@@ -1057,7 +1345,7 @@ class GeminiService {
     // Validate ingredients array
     if (data['ingredients'] is List) {
       final ingredients = (data['ingredients'] as List).map((item) {
-        if (item is Map<String, dynamic>) {
+        if (item is Map) {
           return {
             'name': (item['name'] as String?) ?? 'Unknown ingredient',
             'category': (item['category'] as String?) ?? 'other',
@@ -1082,17 +1370,13 @@ class GeminiService {
     // Validate suggested meals array
     if (data['suggestedMeals'] is List) {
       final meals = (data['suggestedMeals'] as List).map((item) {
-        if (item is Map<String, dynamic>) {
+        if (item is Map) {
           return {
             'title': (item['title'] as String?) ?? 'Untitled Meal',
             'description': (item['description'] as String?) ?? 'No description',
             'cookingTime': (item['cookingTime'] as String?) ?? 'Unknown',
             'difficulty': (item['difficulty'] as String?) ?? 'medium',
-            'ingredients': (item['ingredients'] as Map<String, dynamic>?) ?? {},
-            'instructions': (item['instructions'] as List<dynamic>?) ?? [],
-            'nutritionalInfo':
-                _validateNutritionalInfo(item['nutritionalInfo']),
-            'dietaryFlags': _validateDietaryFlags(item['dietaryFlags']),
+            'ingredients': (item['ingredients'] as Map?) ?? {},
           };
         }
         return {
@@ -1101,9 +1385,6 @@ class GeminiService {
           'cookingTime': 'Unknown',
           'difficulty': 'medium',
           'ingredients': {},
-          'instructions': [],
-          'nutritionalInfo': _createDefaultNutritionalInfo(),
-          'dietaryFlags': _createDefaultDietaryFlags(),
         };
       }).toList();
       result['suggestedMeals'] = meals;
@@ -2573,11 +2854,9 @@ class GeminiService {
         'encourageProgram': true,
         'familyMode': false,
         'dietPreference': 'none',
-        'programMessage':
-            'Consider enrolling in a personalized program to get tailored meal plans and nutrition guidance.',
       };
-    }
-
+    } // 'programMessage':
+    //     'Consider enrolling in a personalized program to get tailored meal plans and nutrition guidance.',
     // Check cache validity (refresh every 30 minutes or if user changed)
     final now = DateTime.now();
     if (_cachedUserContext != null &&
@@ -2669,48 +2948,16 @@ class GeminiService {
     }
   }
 
-  /// Build comprehensive context string for AI prompts
+  /// Build streamlined context string for AI prompts (reduced token usage)
   Future<String> _buildAIContext() async {
     final userContext = await _getUserContext();
 
-    String context = '''
-USER CONTEXT:
-- Family Mode: ${userContext['familyMode'] ? 'Yes (generate family-friendly portions and options)' : 'No (individual portions)'}
-- Diet Preference: ${userContext['dietPreference']}
-''';
+    String context = 'Diet: ${userContext['dietPreference']}';
 
     if (userContext['hasProgram'] == true) {
       final program = userContext['currentProgram'] as Map<String, dynamic>;
-      final progress = userContext['programProgress'] as Map<String, dynamic>;
-
-      context += '''
-- Current Program: ${program['name']}
-- Program Goal: ${program['goal']}
-- Program Duration: ${program['duration']}
-- Current Week: ${progress['currentWeek']}
-- Program Diet Type: ${program['dietType']}
-''';
-
-      if (program['requirements'] != null &&
-          (program['requirements'] as List).isNotEmpty) {
-        context +=
-            '- Program Requirements: ${(program['requirements'] as List).join(', ')}\n';
-      }
-
-      if (program['recommendations'] != null &&
-          (program['recommendations'] as List).isNotEmpty) {
-        context +=
-            '- Program Recommendations: ${(program['recommendations'] as List).join(', ')}\n';
-      }
-
-      context +=
-          '\nIMPORTANT: All meal suggestions should align with the user\'s current program goals and requirements. ';
-    } else {
-      context +=
-          '\nNOTE: User is not enrolled in a program. Gently encourage program enrollment for personalized guidance. ';
+      context += ', Program: ${program['name']} (${program['dietType']})';
     }
-
-    context += userContext['programMessage'] as String;
 
     return context;
   }
@@ -3602,23 +3849,58 @@ USER CONTEXT:
     final String dynamicInstructions = _generateDynamicInstructions(
         targetMealCount, distribution, isIngredientBased);
 
-    // Try Gemini with retry logic
-    const maxRetries = 3;
-    String lastResponseText = ''; // Store last response for partial extraction
+    // New explicit attempt order:
+    // 1) Gemini (9000 tokens)
+    // 2) OpenAI
+    // 3) Gemini (9000 tokens)
+    // 4) OpenAI
+    String lastResponseText = '';
 
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    Future<Map<String, dynamic>> parseGeminiStyleResponse(
+        Map<String, dynamic> response) async {
+      if (response['candidates'] == null || response['candidates'].isEmpty) {
+        throw Exception('No response from AI model');
+      }
+      final candidate = response['candidates'][0];
+      final content = candidate['content'];
+      if (content == null ||
+          content['parts'] == null ||
+          content['parts'].isEmpty) {
+        throw Exception('Invalid response structure from AI model');
+      }
+      final text = content['parts'][0]['text'];
+      if (text == null || text.isEmpty) {
+        throw Exception('Empty response from AI model');
+      }
+      lastResponseText = text;
+      debugPrint('[AI] Raw text length: ${text.length}');
       try {
-        debugPrint('Attempting Gemini API call (attempt $attempt/$maxRetries)');
+        final snippet = text.length > 800 ? text.substring(0, 800) + '…' : text;
+        debugPrint('[AI] Raw text preview: $snippet');
+      } catch (_) {}
+      Map<String, dynamic> jsonResponse;
+      try {
+        jsonResponse = _extractJsonObject(text);
+      } catch (parseError) {
+        throw Exception('Invalid JSON response from AI: $parseError');
+      }
+      final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
+      final mealTitles =
+          mealPlan.map((meal) => meal['title'] as String).toList();
+      return {
+        'mealTitles': mealTitles,
+        'mealPlan': mealPlan,
+        'distribution': jsonResponse['distribution'] as Map<String, dynamic>? ??
+            {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
+      };
+    }
 
-        final response = await _makeApiCallWithRetry(
-          endpoint: '${_activeModel}:generateContent',
-          operation: 'generate meal titles and ingredients',
-          body: {
-            "contents": [
-              {
-                "parts": [
-                  {
-                    "text": '''
+    Map<String, dynamic> buildGeminiBody() => {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": '''
 You are a professional nutritionist and meal planner.
 
 $aiContext
@@ -3631,152 +3913,75 @@ $userContext
 
 $dynamicInstructions
 '''
-                  }
-                ]
-              }
-            ],
-            "generationConfig": {
-              "temperature": 0.7,
-              "topK": 40,
-              "topP": 0.95,
-              "maxOutputTokens":
-                  2048, // Meal titles/ingredients - needs room for multiple meals
-            },
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 8192, // Increased for complex meal planning
           },
-        );
-
-        if (response['candidates'] == null || response['candidates'].isEmpty) {
-          throw Exception('No response from AI model');
-        }
-
-        final content = response['candidates'][0]['content'];
-        if (content == null ||
-            content['parts'] == null ||
-            content['parts'].isEmpty) {
-          throw Exception('Invalid response structure from AI model');
-        }
-
-        final text = content['parts'][0]['text'];
-        if (text == null || text.isEmpty) {
-          throw Exception('Empty response from AI model');
-        }
-
-        // Store the text for potential partial data extraction
-        lastResponseText = text;
-
-        // Parse the JSON response - handle both raw JSON and markdown-wrapped JSON
-        String jsonText = text.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-          jsonText = jsonText.substring(7); // Remove ```json
-        }
-        if (jsonText.startsWith('```')) {
-          jsonText = jsonText.substring(3); // Remove ```
-        }
-        if (jsonText.endsWith('```')) {
-          jsonText = jsonText.substring(0, jsonText.length - 3); // Remove ```
-        }
-
-        jsonText = jsonText.trim();
-
-        // Use existing JSON cleaning methods from GeminiService
-        Map<String, dynamic> jsonResponse;
-        try {
-          jsonResponse = _extractJsonObject(text);
-        } catch (parseError) {
-          debugPrint(
-              'JSON parsing failed after using existing cleaning methods: $parseError');
-          debugPrint(
-              'Original text: ${text.substring(0, text.length > 200 ? 200 : text.length)}...');
-          throw Exception('Invalid JSON response from AI: $parseError');
-        }
-
-        // Debug logging to see the AI response structure
-        debugPrint('AI Response keys: ${jsonResponse.keys.toList()}');
-        debugPrint('AI Response: $jsonResponse');
-
-        final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
-
-        // Debug logging to see meal plan structure
-        if (mealPlan.isNotEmpty) {
-          debugPrint('First meal keys: ${mealPlan[0].keys.toList()}');
-          debugPrint('First meal: ${mealPlan[0]}');
-        }
-
-        final mealTitles =
-            mealPlan.map((meal) => meal['title'] as String).toList();
-
-        // Return both meal titles and the full meal plan data
-        return {
-          'mealTitles': mealTitles,
-          'mealPlan': mealPlan,
-          'distribution':
-              jsonResponse['distribution'] as Map<String, dynamic>? ??
-                  {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
         };
-      } catch (e) {
-        debugPrint('Gemini attempt $attempt failed: $e');
 
-        // If this is the last attempt, try OpenAI as fallback
-        if (attempt == maxRetries) {
-          try {
-            debugPrint('All Gemini attempts failed. Trying OpenAI fallback...');
-            final openaiResult =
-                await _tryOpenAIFallback(prompt, contextInformation);
-            if (openaiResult['mealPlan'] != null &&
-                openaiResult['mealPlan'].isNotEmpty) {
-              debugPrint('OpenAI fallback successful');
-              return openaiResult;
-            }
-          } catch (openaiError) {
-            debugPrint('OpenAI fallback also failed: $openaiError');
-          }
-
-          // If both Gemini and OpenAI fail, try to extract partial data from the last failed response
-          debugPrint(
-              'All AI attempts failed. Trying to extract partial data from last response...');
-          try {
-            final partialData =
-                _extractPartialDataFromMalformedJson(lastResponseText);
-            if (partialData.isNotEmpty && partialData['mealPlan'] != null) {
-              final mealPlan = partialData['mealPlan'] as List<dynamic>;
-              final mealTitles =
-                  mealPlan.map((meal) => meal['title'] as String).toList();
-
-              debugPrint(
-                  'Successfully extracted partial data: ${mealTitles.length} meals');
-              return {
-                'mealTitles': mealTitles,
-                'mealPlan': mealPlan,
-                'distribution': partialData['distribution'] ??
-                    {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2},
-                'source': 'partial_extraction',
-                'message':
-                    'Extracted partial meal data from malformed AI response. Some details may be incomplete.'
-              };
-            }
-          } catch (extractError) {
-            debugPrint('Partial data extraction also failed: $extractError');
-          }
-
-          // If all else fails, return empty results
-          return {
-            'mealTitles': [],
-            'mealPlan': [],
-            'distribution': {},
-            'source': 'failed',
-            'message': 'AI service temporarily unavailable. Please try again.'
-          };
-        }
-
-        // Wait before retrying (exponential backoff)
-        final delay = Duration(seconds: math.pow(2, attempt - 1).toInt());
-        await Future.delayed(delay);
-      }
+    // Attempt 1: Gemini
+    try {
+      debugPrint('Attempt 1: Gemini (8192 tokens)');
+      final resp = await _makeGeminiApiCall(
+        endpoint: '${_activeModel}:generateContent',
+        body: buildGeminiBody(),
+        operation: 'generate meal titles and ingredients',
+        retryCount: 0,
+      );
+      return await parseGeminiStyleResponse(resp);
+    } catch (e) {
+      debugPrint('Attempt 1 (Gemini) failed: $e');
     }
 
-    // This should never be reached, but just in case
+    // Attempt 2: OpenAI
+    try {
+      debugPrint('Attempt 2: OpenAI');
+      final resp = await _makeOpenAIApiCall(
+        endpoint: 'chat/completions',
+        body: buildGeminiBody(),
+        operation: 'generate meal titles and ingredients (OpenAI)',
+        retryCount: 0,
+      );
+      return await parseGeminiStyleResponse(resp);
+    } catch (e) {
+      debugPrint('Attempt 2 (OpenAI) failed: $e');
+    }
+
+    // Attempt 3: Gemini
+    try {
+      debugPrint('Attempt 3: Gemini (3000 tokens)');
+      final resp = await _makeGeminiApiCall(
+        endpoint: '${_activeModel}:generateContent',
+        body: buildGeminiBody(),
+        operation: 'generate meal titles and ingredients (2nd)',
+        retryCount: 0,
+      );
+      return await parseGeminiStyleResponse(resp);
+    } catch (e) {
+      debugPrint('Attempt 3 (Gemini) failed: $e');
+    }
+
+    // Attempt 4: OpenAI
+    try {
+      debugPrint('Attempt 4: OpenAI');
+      final resp = await _makeOpenAIApiCall(
+        endpoint: 'chat/completions',
+        body: buildGeminiBody(),
+        operation: 'generate meal titles and ingredients (OpenAI 2nd)',
+        retryCount: 0,
+      );
+      return await parseGeminiStyleResponse(resp);
+    } catch (e) {
+      debugPrint('Attempt 4 (OpenAI) failed: $e');
+    }
+
+    // All attempts failed; do not try further
     return {
       'mealTitles': [],
       'mealPlan': [],
@@ -3835,76 +4040,17 @@ $dynamicInstructions
     return intersection.length / union.length;
   }
 
-  /// Generate dynamic instructions based on meal count and request type
+  /// Generate streamlined instructions (reduced token usage)
   String _generateDynamicInstructions(
       int mealCount, Map<String, int> distribution, bool isIngredientBased) {
-    final distributionText = distribution.entries
-        .where((entry) => entry.value > 0)
-        .map((entry) =>
-            "  * ${entry.value} ${entry.key} meal${entry.value > 1 ? 's' : ''} (mealType: \"${entry.key}\")")
-        .join('\n');
-
-    if (isIngredientBased) {
-      return '''
-Based on the user's request and context, generate meals using the specified ingredients with titles, meal types, and basic ingredients that would be appropriate and varied. 
-
-IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use code blocks (\`\`\`json), do NOT add any text before or after the JSON. Do NOT include newlines, carriage returns, or control characters within JSON strings. Start directly with { and end with }.
+    return '''
+Generate $mealCount meals. Return JSON only:
 {
   "mealPlan": [
     {
-      "title": "Creative meal name using specified ingredients",
-      "mealType": "lunch|dinner",
-      "type": "protein|grain|vegetable|fruit",
-      "ingredients": {"ingredient1": "amount with unit", "ingredient2": "amount with unit"},
-      "calories": number,
-      "nutritionalInfo": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number
-      }
-    }
-  ],
-  "distribution": {
-    "breakfast": ${distribution['breakfast']},
-    "lunch": ${distribution['lunch']},
-    "dinner": ${distribution['dinner']},
-    "snack": ${distribution['snack']}
-  }
-}
-
-CRITICAL REQUIREMENTS:
-- You MUST generate EXACTLY $mealCount meals total (no more, no less)
-- You MUST follow this exact distribution:
-$distributionText
-- Each meal MUST have a valid nutritionalInfo map with valid calorie, protein, carbs, and fat values
-- Each meal MUST have a valid mealType field set to one of: "breakfast", "lunch", "dinner", "snack"
-- Each meal MUST have a valid type field set to one of: "protein", "grain", "vegetable", "fruit"
-- Each meal MUST have a ingredients map with 3-5 key ingredients and values with units
-- PRIORITIZE using the specified ingredients in the user request
-- Make titles descriptive and highlight the main ingredients used
-- Ensure variety in cooking methods even with limited ingredients
-- Make titles appetizing and clear about what the meal contains
-''';
-    } else {
-      return '''
-Based on the user's request and context, generate a comprehensive meal plan with titles, meal types, and basic ingredients that would be appropriate and varied. 
-
-IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use code blocks (\`\`\`json), do NOT add any text before or after the JSON. Do NOT include newlines, carriage returns, or control characters within JSON strings. Start directly with { and end with }.
-{
-  "mealPlan": [
-    {
-      "title": "Creative meal name based on user request",
+      "title": "meal name",
       "mealType": "breakfast|lunch|dinner|snack",
-      "type": "protein|grain|vegetable|fruit",
-      "ingredients": {"ingredient1": "amount with unit", "ingredient2": "amount with unit"},
-      "calories": number,
-      "nutritionalInfo": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number
-      }
+      "type": "protein|grain|vegetable|fruit"
     }
   ],
   "distribution": {
@@ -3914,24 +4060,7 @@ IMPORTANT: Return ONLY a raw JSON object. Do NOT wrap in markdown, do NOT use co
     "snack": ${distribution['snack']}
   }
 }
-
-CRITICAL REQUIREMENTS:
-- You MUST generate EXACTLY $mealCount meals total (no more, no less)
-- You MUST follow this exact distribution:
-$distributionText
-- Each meal MUST have a valid nutritionalInfo map with valid calorie, protein, carbs, and fat values
-- Each meal MUST have a valid mealType field set to one of: "breakfast", "lunch", "dinner", "snack"
-- Each meal MUST have a valid type field set to one of: "protein", "grain", "vegetable", "fruit"
-- Each meal MUST have a ingredients map with 3-5 key ingredients and values with units
-- Focus on common, accessible ingredients that users can easily find
-- Make titles descriptive but concise
-- Ensure variety in ingredients and cooking methods
-- Consider dietary preferences and restrictions
-- For ingredient-based requests, use the specified ingredients
-- For category-based requests, ensure meals fit the categories
-- Make titles appetizing and clear about what the meal contains
 ''';
-    }
   }
 
   /// Generate meals using the new intelligent approach: titles first, then check existing,
@@ -3942,7 +4071,8 @@ $distributionText
       // Step 1: Generate meal titles, types, and basic ingredients
       final mealData =
           await generateMealTitlesAndIngredients(prompt, contextInformation);
-      final mealTitles = mealData['mealTitles'] as List<String>;
+      final mealTitles = List<String>.from(
+          (mealData['mealTitles'] as List?) ?? const <String>[]);
       debugPrint('Generated meal titles: ${mealTitles}');
       final mealPlan = mealData['mealPlan'] as List<dynamic>;
 
@@ -4014,7 +4144,6 @@ $distributionText
       for (final meal in mealPlan) {
         final title = meal['title'] as String;
         final mealType = meal['mealType'] as String;
-        final calories = _parseCalories(meal['calories']);
         final type = meal['type'] as String;
 
         if (existingMeals.containsKey(title)) {
@@ -4041,13 +4170,13 @@ $distributionText
               'id': mealId,
               'title': title,
               'categories': [type],
-              'ingredients': meal['ingredients'] ?? {},
-              'calories': calories,
+              'ingredients': {},
+              'calories': 0,
               'nutritionalInfo': {},
               'instructions': [],
               'mealType': mealType,
               'source': 'ai_generated',
-              'status': 'pending', // Firebase Functions will process this
+              'status': 'pending',
             });
           }
         }
@@ -4063,15 +4192,15 @@ $distributionText
         if (meal['source'] == 'existing_database') {
           // Use actual data for existing meals
           totalCalories += _parseCalories(meal['calories']);
-          totalProtein += 20; // Estimate
-          totalCarbs += 25; // Estimate
-          totalFat += 10; // Estimate
+          totalProtein += 0; // Estimate
+          totalCarbs += 0; // Estimate
+          totalFat += 0; // Estimate
         } else {
           // Estimate for new meals (will be updated when Firebase Functions processing completes)
-          totalCalories += 300; // Average meal estimate
-          totalProtein += 25; // Average protein estimate
-          totalCarbs += 30; // Average carbs estimate
-          totalFat += 12; // Average fat estimate
+          totalCalories += 0; // Average meal estimate
+          totalProtein += 0; // Average protein estimate
+          totalCarbs += 0; // Average carbs estimate
+          totalFat += 0; // Average fat estimate
         }
       }
 
@@ -4233,10 +4362,9 @@ $distributionText
         // Add required fields for compatibility
         mealMap['id'] = ''; // Will be set when saved to database
         mealMap['source'] = 'ai_generated';
-        mealMap['cookingTime'] = mealMap['cookingTime'] ?? '30 minutes';
-        mealMap['cookingMethod'] = mealMap['cookingMethod'] ?? 'other';
-        mealMap['instructions'] =
-            mealMap['instructions'] ?? ['Prepare according to your preference'];
+        mealMap['cookingTime'] = mealMap['cookingTime'] ?? '';
+        mealMap['cookingMethod'] = mealMap['cookingMethod'] ?? '';
+        mealMap['instructions'] = mealMap['instructions'] ?? [''];
         mealMap['diet'] = mealMap['diet'] ?? 'balanced';
         mealMap['categories'] = mealMap['categories'] ?? [];
         mealMap['serveQty'] = mealMap['serveQty'] ?? 1;
@@ -4249,7 +4377,7 @@ $distributionText
         'source': 'ai_generated',
         'count': formattedMeals.length,
         'message': 'AI-generated meal plan using improved method',
-        'nutritionalSummary': _calculateNutritionalSummary(formattedMeals),
+        'nutritionalSummary': 0,
         'tips': [
           'Adjust portions according to your dietary needs',
           'Prep ingredients in advance for easier cooking'
@@ -4262,20 +4390,64 @@ $distributionText
     }
   }
 
+  /// Safe integer parsing helper that handles both int and String values
+  int? _safeParseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    if (value is double) return value.toInt();
+    return null;
+  }
+
   /// Calculate nutritional summary from a list of meals
-  Map<String, dynamic> _calculateNutritionalSummary(List<dynamic> meals) {
+  Map<String, dynamic> calculateNutritionalSummary(List<dynamic> meals) {
     int totalCalories = 0;
     int totalProtein = 0;
     int totalCarbs = 0;
     int totalFat = 0;
 
-    for (final meal in meals) {
-      final nutritionalInfo =
-          meal['nutritionalInfo'] as Map<String, dynamic>? ?? {};
-      totalCalories += (nutritionalInfo['calories'] as num?)?.toInt() ?? 0;
-      totalProtein += (nutritionalInfo['protein'] as num?)?.toInt() ?? 0;
-      totalCarbs += (nutritionalInfo['carbs'] as num?)?.toInt() ?? 0;
-      totalFat += (nutritionalInfo['fat'] as num?)?.toInt() ?? 0;
+    if (meals.isNotEmpty && meals.first is Map) {
+      final Map<String, dynamic> firstMeal = meals.first;
+      if (firstMeal.containsKey('groupedMeals')) {
+        final Map<String, List<dynamic>> groupedMeals =
+            firstMeal['groupedMeals'];
+
+        for (final mealType in groupedMeals.keys) {
+          final mealsList = groupedMeals[mealType] ?? [];
+          for (final meal in mealsList) {
+            // Access the meal property safely
+            dynamic mealData;
+            try {
+              mealData = meal.meal;
+            } catch (e) {
+              debugPrint('Error accessing meal.meal: $e');
+              continue;
+            }
+
+            if (mealData == null) {
+              debugPrint('Meal data is null, skipping');
+              continue;
+            }
+
+            // Access nutritional info safely
+            Map<String, dynamic> nutritionalInfo = {};
+            try {
+              nutritionalInfo = mealData.nutritionalInfo ?? {};
+            } catch (e) {
+              debugPrint('Error accessing nutritionalInfo: $e');
+              continue;
+            }
+
+            // Safe type conversion - handle both int and String values
+            totalCalories += _safeParseInt(nutritionalInfo['calories']) ?? 0;
+            totalProtein += _safeParseInt(nutritionalInfo['protein']) ?? 0;
+            totalCarbs += _safeParseInt(nutritionalInfo['carbs']) ?? 0;
+            totalFat += _safeParseInt(nutritionalInfo['fat']) ?? 0;
+          }
+        }
+      }
     }
 
     return {
@@ -4326,7 +4498,7 @@ $aiContext
 
 $contextualPrompt
 
-Identify all visible raw ingredients in this fridge that can be used for cooking. Focus on fresh produce, proteins, dairy, grains, and other cooking ingredients. Ignore processed foods, condiments, or items that are not suitable for main meal preparation.
+Identify all visible raw ingredients in this fridge that can be used for cooking.
 
 CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
 
@@ -4343,47 +4515,18 @@ CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code block
   "suggestedMeals": [
     {
       "title": "meal name",
-      "description": "brief description of the meal",
       "cookingTime": "estimated cooking time",
       "difficulty": "easy|medium|hard",
-      "ingredients": {
-        "ingredient1": "amount needed",
-        "ingredient2": "amount needed"
-      },
-      "instructions": [
-        "step 1",
-        "step 2",
-        "step 3"
-      ],
-      "nutritionalInfo": {
-        "calories": 0,
-        "protein": 0,
-        "carbs": 0,
-        "fat": 0
-      },
-      "dietaryFlags": {
-        "vegetarian": false,
-        "vegan": false,
-        "glutenFree": false,
-        "dairyFree": false,
-        "keto": false,
-        "lowCarb": false
-      }
+      "calories": 0,
     }
-  ],
-  "totalIngredients": 0,
-  "confidence": "high|medium|low",
-  "notes": "any additional observations about the ingredients or suggestions"
+  ]
 }
 
 Important guidelines:
 - Return valid, complete JSON only. Do not include markdown or code blocks.
 - Focus on ingredients that can be used for cooking main meals.
-- Provide 2-3 diverse meal suggestions using the identified ingredients.
-- Include realistic cooking times and difficulty levels.
+- Provide 2 diverse (1 medium and 1 hard) meal suggestions using the identified ingredients.
 - All nutritional values must be numbers (not strings).
-- Be specific about ingredient quantities and cooking instructions.
-- Consider what combinations would work well together.
 ''';
 
       // Use Gemini's image analysis
@@ -4799,8 +4942,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
           final mealMap = Map<String, dynamic>.from(meal);
           mealMap['id'] = ''; // Will be set when saved to database
           mealMap['source'] = 'ai_generated';
-          mealMap['cookingTime'] = mealMap['cookingTime'] ?? '30 minutes';
-          mealMap['cookingMethod'] = mealMap['cookingMethod'] ?? 'other';
+          mealMap['cookingTime'] = mealMap['cookingTime'] ?? '';
+          mealMap['cookingMethod'] = mealMap['cookingMethod'] ?? '';
           mealMap['instructions'] = mealMap['instructions'] ??
               ['Prepare according to your preference'];
           mealMap['diet'] = mealMap['diet'] ?? 'balanced';
@@ -6064,10 +6207,10 @@ Generate completely new and different meal ideas using the same ingredients.
         final basicMealData = {
           'title': meal['title'],
           'mealType': meal['mealType'],
-          'calories': _parseCalories(meal['calories']),
+          'calories': 0,
           'categories': [cuisine],
           'nutritionalInfo': {},
-          'ingredients': meal['ingredients'] ?? {},
+          'ingredients': {},
           'status': 'pending', // Firebase Functions will process this
           'createdAt': FieldValue.serverTimestamp(),
           'type': meal['type'],

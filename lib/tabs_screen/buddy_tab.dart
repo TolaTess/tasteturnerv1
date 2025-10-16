@@ -781,6 +781,8 @@ class _BuddyTabState extends State<BuddyTab> {
                     }
 
                     final meals = mealsSnapshot.data ?? [];
+                    final nutritionalSummary = geminiService.calculateNutritionalSummary(meals);
+
                     if (meals.isEmpty) {
                       return _buildDefaultView(context, true);
                     }
@@ -934,6 +936,8 @@ class _BuddyTabState extends State<BuddyTab> {
 
                           // ------------------------------------Premium / Ads-------------------------------------
                           SizedBox(height: getPercentageHeight(2, context)),
+                          if (nutritionalSummary['totalCalories'] != 0)
+                          ...[
                           Container(
                             margin: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(4, context)),
@@ -949,7 +953,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                 Column(
                                   children: [
                                     Text(
-                                      '${selectedGeneration['nutritionalSummary']['totalCalories']}',
+                                      '${nutritionalSummary['totalCalories']}',
                                       style: textTheme.bodyLarge?.copyWith(),
                                     ),
                                     Text(
@@ -963,7 +967,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                 Column(
                                   children: [
                                     Text(
-                                      '${selectedGeneration['nutritionalSummary']['totalProtein']}g',
+                                      '${nutritionalSummary['totalProtein']}g',
                                       style: textTheme.bodyLarge?.copyWith(),
                                     ),
                                     Text(
@@ -977,7 +981,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                 Column(
                                   children: [
                                     Text(
-                                      '${selectedGeneration['nutritionalSummary']['totalCarbs']}g',
+                                      '${nutritionalSummary['totalCarbs']}g',
                                       style: textTheme.bodyLarge?.copyWith(),
                                     ),
                                     Text(
@@ -991,7 +995,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                 Column(
                                   children: [
                                     Text(
-                                      '${selectedGeneration['nutritionalSummary']['totalFat']}g',
+                                      '${nutritionalSummary['totalFat']}g',
                                       style: textTheme.bodyLarge?.copyWith(),
                                     ),
                                     Text(
@@ -1005,6 +1009,7 @@ class _BuddyTabState extends State<BuddyTab> {
                               ],
                             ),
                           ),
+                          ],
                           SizedBox(height: getPercentageHeight(2, context)),
                           ValueListenableBuilder<Set<String>>(
                             valueListenable: selectedMealTypesNotifier,

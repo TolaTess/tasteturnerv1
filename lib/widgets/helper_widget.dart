@@ -588,27 +588,27 @@ class _ChallengePostsHorizontalListState
                 ],
               ),
               SizedBox(height: getPercentageHeight(1, context)),
-              GestureDetector(
-                onTap: () {
-                  Get.to(() => const DineInLeaderboardScreen());
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context),
-                    vertical: getPercentageHeight(1, context),
-                  ),
-                  decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'View Dine In leaderboard to see who\'s winning!',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: kAccent,
-                    ),
-                  ),
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () {
+              //     Get.to(() => const DineInLeaderboardScreen());
+              //   },
+              //   child: Container(
+              //     padding: EdgeInsets.symmetric(
+              //       horizontal: getPercentageWidth(2, context),
+              //       vertical: getPercentageHeight(1, context),
+              //     ),
+              //     decoration: BoxDecoration(
+              //       color: kAccent.withValues(alpha: 0.1),
+              //       borderRadius: BorderRadius.circular(8),
+              //     ),
+              //     child: Text(
+              //       'View Dine In leaderboard to see who\'s winning!',
+              //       style: textTheme.bodySmall?.copyWith(
+              //         color: kAccent,
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),

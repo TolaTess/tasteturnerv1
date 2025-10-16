@@ -1550,6 +1550,13 @@ function getOrdinalSuffix(position) {
 exports.getChallengeResults = functions.https.onCall(async (data, context) => {
   try {
     console.log('--- Getting challenge results ---');
+    
+    // Set a timeout for the entire function
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Function timeout')), 5000); // 5 second timeout
+    });
+    
+    const functionPromise = (async () => {
 
     // Get current challenge details
     const generalDoc = await firestore.collection('general').doc('general').get();
@@ -1568,13 +1575,14 @@ exports.getChallengeResults = functions.https.onCall(async (data, context) => {
     const weekStart = format(monday, 'yyyy-MM-dd');
     const weekEnd = format(sunday, 'yyyy-MM-dd');
 
-    // Get current week's challenge posts
+    // Get current week's challenge posts with limit to reduce execution time
     const challengePostsQuery = admin.firestore()
       .collection('posts')
       .where('isBattle', '==', true)
       .where('createdAt', '>=', weekStart)
       .where('createdAt', '<=', weekEnd + 'T23:59:59.999Z')
-      .orderBy('createdAt', 'desc');
+      .orderBy('createdAt', 'desc')
+      .limit(100); // Limit to 100 posts to reduce execution time
 
     const snapshot = await challengePostsQuery.get();
     
@@ -1606,9 +1614,13 @@ exports.getChallengeResults = functions.https.onCall(async (data, context) => {
       .sort((a, b) => b.totalLikes - a.totalLikes)
       .slice(0, 10); // Top 10
 
-    // Get user details for leaderboard
-    const leaderboardWithDetails = await Promise.all(
-      currentLeaderboard.map(async (userData, index) => {
+    // Get user details for leaderboard in batches to reduce execution time
+    const leaderboardWithDetails = [];
+    const batchSize = 10; // Process users in batches
+    
+    for (let i = 0; i < currentLeaderboard.length; i += batchSize) {
+      const batch = currentLeaderboard.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (userData, batchIndex) => {
         const userDoc = await firestore.collection('users').doc(userData.userId).get();
         const userDetails = userDoc.data() || {};
         
@@ -1618,10 +1630,13 @@ exports.getChallengeResults = functions.https.onCall(async (data, context) => {
           profileImage: userDetails.profileImage || '',
           totalLikes: userData.totalLikes,
           postCount: userData.postCount,
-          rank: index + 1,
+          rank: i + batchIndex + 1,
         };
-      })
-    );
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      leaderboardWithDetails.push(...batchResults);
+    }
 
     // Parse challenge ingredients with type information
     let parsedIngredients = [];
@@ -1646,19 +1661,23 @@ exports.getChallengeResults = functions.https.onCall(async (data, context) => {
       }
     }
 
-    return {
-      success: true,
-      currentChallenge: {
-        details: challengeDetails,
-        ingredients: parsedIngredients,
-        ingredientNames: ingredientNames,
-        endDate: challengeDetails ? challengeDetails.split(',')[0] : '',
-        weekStart: weekStart,
-        weekEnd: weekEnd,
-      },
-      currentLeaderboard: leaderboardWithDetails,
-      lastResults: lastChallengeResults,
-    };
+      return {
+        success: true,
+        currentChallenge: {
+          details: challengeDetails,
+          ingredients: parsedIngredients,
+          ingredientNames: ingredientNames,
+          endDate: challengeDetails ? challengeDetails.split(',')[0] : '',
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+        },
+        currentLeaderboard: leaderboardWithDetails,
+        lastResults: lastChallengeResults,
+      };
+    })();
+    
+    // Race between function execution and timeout
+    return await Promise.race([functionPromise, timeoutPromise]);
 
   } catch (error) {
     console.error('Error getting challenge results:', error);

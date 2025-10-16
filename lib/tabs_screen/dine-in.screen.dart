@@ -16,6 +16,8 @@ import '../service/gemini_service.dart' as gemini;
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
+import '../data_models/meal_model.dart';
+import '../detail_screen/recipe_detail.dart';
 
 class DineInScreen extends StatefulWidget {
   const DineInScreen({super.key});
@@ -576,8 +578,28 @@ class _DineInScreenState extends State<DineInScreen> {
 
   Future<void> _pickFridgeImage() async {
     try {
+      // Show media selection dialog to choose camera or gallery
+      final selectedOption = await showMediaSelectionDialog(
+        isCamera: true,
+        context: context,
+        isVideo: false,
+      );
+
+      if (selectedOption == null) {
+        return; // User cancelled the dialog
+      }
+
+      ImageSource source;
+      if (selectedOption == 'photo') {
+        source = ImageSource.camera;
+      } else if (selectedOption == 'gallery') {
+        source = ImageSource.gallery;
+      } else {
+        return; // Invalid selection
+      }
+
       final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 80,
         maxWidth: 1024,
         maxHeight: 1024,
@@ -622,16 +644,49 @@ class _DineInScreenState extends State<DineInScreen> {
         imageFile: _fridgeImage!,
       );
 
+      debugPrint('=== Fridge Analysis Result ===');
+      debugPrint('Analysis result: $analysisResult');
+
+      // Check if there's an error in the result
+      if (analysisResult.containsKey('error') &&
+          analysisResult['error'] == true) {
+        debugPrint('Analysis failed with error: ${analysisResult['message']}');
+        showTastySnackbar(
+          'Analysis Failed',
+          'Failed to analyze image: ${analysisResult['message']}',
+          context,
+          backgroundColor: kRed,
+        );
+        setState(() {
+          isAnalyzingFridge = false;
+        });
+        return;
+      }
+
       if (analysisResult['ingredients'] != null) {
         final ingredients = analysisResult['ingredients'] as List<dynamic>;
+        debugPrint('Raw ingredients: $ingredients');
+
         final ingredientNames = ingredients
-            .map((item) => item['name'] as String)
+            .map((item) {
+              // Safe extraction of name with null checking
+              if (item is Map<String, dynamic>) {
+                return item['name'] as String? ?? '';
+              } else if (item is Map) {
+                return (item['name'] as String?) ?? '';
+              }
+              return '';
+            })
             .where((name) => name.isNotEmpty)
             .toList();
+
+        debugPrint('Extracted ingredient names: $ingredientNames');
 
         setState(() {
           fridgeIngredients = ingredientNames;
         });
+
+        debugPrint('Updated fridgeIngredients: $fridgeIngredients');
 
         await _saveFridgeData();
 
@@ -639,14 +694,50 @@ class _DineInScreenState extends State<DineInScreen> {
         if (analysisResult['suggestedMeals'] != null) {
           final suggestedMeals =
               analysisResult['suggestedMeals'] as List<dynamic>;
+          debugPrint('Suggested meals: $suggestedMeals');
+
           setState(() {
             _fridgeRecipes = List<Map<String, dynamic>>.from(suggestedMeals);
             _showFridgeRecipes = true;
           });
+
+          debugPrint('Updated _fridgeRecipes: $_fridgeRecipes');
+          debugPrint('_showFridgeRecipes: $_showFridgeRecipes');
+
+          if (_fridgeRecipes.isNotEmpty) {
+            for (var recipe in _fridgeRecipes) {
+              _saveRecipeToDatabase(recipe);
+            }
+          }
+
+          // Show success message
+          showTastySnackbar(
+            'Analysis Complete!',
+            'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions',
+            context,
+            backgroundColor: kAccent,
+          );
         } else {
+          debugPrint('No suggested meals found, generating recipes...');
           // Fallback to generating recipes from ingredients
           await _generateFridgeRecipes();
+
+          // Show success message for ingredients only
+          showTastySnackbar(
+            'Analysis Complete!',
+            'Found ${ingredientNames.length} ingredients',
+            context,
+            backgroundColor: kAccent,
+          );
         }
+      } else {
+        debugPrint('No ingredients found in analysis result');
+        showTastySnackbar(
+          'Analysis Complete',
+          'No ingredients detected in the image',
+          context,
+          backgroundColor: Colors.orange,
+        );
       }
     } catch (e) {
       showTastySnackbar(
@@ -764,6 +855,115 @@ class _DineInScreenState extends State<DineInScreen> {
       _showFridgeRecipes = false;
     });
     _saveFridgeData();
+  }
+
+  // Save a recipe from fridge analysis to the database using saveBasicMealsToFirestore
+  Future<void> _saveRecipeToDatabase(Map<String, dynamic> recipeData) async {
+    try {
+      // Convert recipe data to the format expected by saveBasicMealsToFirestore
+      final basicMealData = {
+        'title': recipeData['title'] ?? 'Untitled Recipe',
+        'mealType': 'fridge-generated',
+        'type': 'fridge-recipe',
+        'description': recipeData['description'] ?? '',
+        'cookingTime': recipeData['cookingTime'] ?? '',
+        'cookingMethod': '',
+        'ingredients': _convertIngredientsToMap(recipeData['ingredients']),
+        'instructions': [],
+        'calories': _safeParseInt(recipeData['calories']) ?? 0,
+      };
+
+      // Use saveBasicMealsToFirestore to save the recipe
+      final saveResult = await gemini.geminiService.saveBasicMealsToFirestore(
+        [basicMealData],
+        'fridge-generated',
+      );
+
+      debugPrint('Recipe saved with result: $saveResult');
+
+      showTastySnackbar(
+        'Recipe Saved!',
+        'Recipe has been saved and will be processed by the cloud',
+        context,
+        backgroundColor: kAccent,
+      );
+    } catch (e) {
+      debugPrint('Error saving recipe: $e');
+      showTastySnackbar(
+        'Save Failed',
+        'Failed to save recipe: $e',
+        context,
+        backgroundColor: kRed,
+      );
+    }
+  }
+
+  // Convert ingredients map to proper format
+  Map<String, String> _convertIngredientsToMap(dynamic ingredients) {
+    if (ingredients is Map) {
+      return ingredients.map((key, value) => MapEntry(
+            key.toString(),
+            value.toString(),
+          ));
+    }
+    return {};
+  }
+
+  // Convert instructions list to proper format
+  List<String> _convertInstructionsToList(dynamic instructions) {
+    if (instructions is List) {
+      return instructions.map((instruction) => instruction.toString()).toList();
+    }
+    return [];
+  }
+
+  // Safe integer parsing helper
+  int? _safeParseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    if (value is double) return value.toInt();
+    return null;
+  }
+
+  // Navigate to recipe detail page
+  void _navigateToRecipeDetail(Map<String, dynamic> recipeData) {
+    try {
+      // Convert recipe data to Meal object for navigation
+      final meal = Meal(
+        userId: userService.userId ?? '',
+        title: recipeData['title'] ?? 'Untitled Recipe',
+        description: recipeData['description'] ?? '',
+        createdAt: DateTime.now(),
+        mediaPaths: [],
+        serveQty: 1,
+        calories: _safeParseInt(recipeData['calories']) ?? 0,
+        ingredients: _convertIngredientsToMap(recipeData['ingredients']),
+        instructions: _convertInstructionsToList(recipeData['instructions']),
+        categories: ['fridge-generated'],
+        cookingTime: recipeData['cookingTime'] ?? '',
+        cookingMethod: recipeData['cookingMethod'] ?? '',
+        type: 'fridge-recipe',
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecipeDetailScreen(
+            mealData: meal,
+            screen: 'fridge-recipe',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error navigating to recipe detail: $e');
+      showTastySnackbar(
+        'Navigation Failed',
+        'Failed to open recipe details',
+        context,
+        backgroundColor: kRed,
+      );
+    }
   }
 
   // Show challenge ingredient selection dialog
@@ -1250,18 +1450,55 @@ class _DineInScreenState extends State<DineInScreen> {
         // Fridge image or placeholder
         if (_fridgeImage != null) ...[
           Container(
-            height: getPercentageHeight(20, context),
+            height: getPercentageHeight(15, context),
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: kAccent.withValues(alpha: 0.3)),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(
-                _fridgeImage!,
-                fit: BoxFit.cover,
-              ),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _fridgeImage!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    colorBlendMode: BlendMode.srcOver,
+                    color: null, // Ensure no color tinting
+                  ),
+                ),
+                // Loading overlay
+                if (isAnalyzingFridge)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.black.withValues(alpha: 0.5),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              color: kAccent,
+                              strokeWidth: 3,
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              'Analyzing ingredients...',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: kWhite,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(height: getPercentageHeight(1, context)),
@@ -1333,24 +1570,32 @@ class _DineInScreenState extends State<DineInScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _pickFridgeImage(),
-                      icon: Icon(Icons.camera_alt, color: kAccent),
+                      onPressed:
+                          isAnalyzingFridge ? null : () => _pickFridgeImage(),
+                      icon: Icon(Icons.camera_alt,
+                          color: isAnalyzingFridge ? kLightGrey : kAccent),
                       label: Text(
-                        'Take Photo',
-                        style: textTheme.bodyMedium?.copyWith(color: kAccent),
+                        isAnalyzingFridge ? 'Analyzing...' : 'Add Photo',
+                        style: textTheme.bodyMedium?.copyWith(
+                            color: isAnalyzingFridge ? kLightGrey : kAccent),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: kAccent),
+                        side: BorderSide(
+                            color: isAnalyzingFridge ? kLightGrey : kAccent),
                       ),
                     ),
                   ),
                   SizedBox(width: getPercentageWidth(2, context)),
                   Expanded(
                     child: AppButton(
-                      text: 'Add Ingredients',
-                      onPressed: () => _addManualIngredient(),
+                      text: isAnalyzingFridge
+                          ? 'Analyzing...'
+                          : 'Add Ingredients',
+                      onPressed: isAnalyzingFridge
+                          ? () {}
+                          : () => _addManualIngredient(),
                       type: AppButtonType.follow,
-                      color: kAccent,
+                      color: isAnalyzingFridge ? kLightGrey : kAccent,
                     ),
                   ),
                 ],
@@ -1489,17 +1734,17 @@ class _DineInScreenState extends State<DineInScreen> {
 
   Widget _buildRecipeCard(
       Map<String, dynamic> recipe, bool isDarkMode, TextTheme textTheme) {
-    return Container(
-      margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
-      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-      decoration: BoxDecoration(
-        color: kAccent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kAccent.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return GestureDetector(
+      onTap: () => _navigateToRecipeDetail(recipe),
+      child: Container(
+        margin: EdgeInsets.only(bottom: getPercentageHeight(1, context)),
+        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+        decoration: BoxDecoration(
+          color: kAccent.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kAccent.withValues(alpha: 0.3)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(
             children: [
               Icon(Icons.restaurant, color: kAccent),
@@ -1513,14 +1758,24 @@ class _DineInScreenState extends State<DineInScreen> {
                   ),
                 ),
               ),
+              // Save button
+              // IconButton(
+              //   onPressed: () => _saveRecipeToDatabase(recipe),
+              //   icon: Icon(
+              //     Icons.bookmark_add,
+              //     color: kAccent,
+              //     size: getIconScale(5, context),
+              //   ),
+              //   tooltip: 'Save Recipe',
+              // ),
             ],
           ),
           SizedBox(height: getPercentageHeight(1, context)),
 
           // Description
-          if (recipe['description'] != null) ...[
+          if (recipe['calories'] != null) ...[
             Text(
-              recipe['description'],
+              '${recipe['calories']} calories',
               style: textTheme.bodySmall?.copyWith(
                 color: isDarkMode ? kLightGrey : kDarkGrey,
               ),
@@ -1556,50 +1811,7 @@ class _DineInScreenState extends State<DineInScreen> {
               ],
             ],
           ),
-          SizedBox(height: getPercentageHeight(1, context)),
-
-          // Ingredients
-          if (recipe['ingredients'] != null) ...[
-            Text(
-              'Ingredients:',
-              style: textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: kAccent,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(0.3, context)),
-            ...((recipe['ingredients'] as Map<String, dynamic>).entries.map(
-                  (entry) => Text(
-                    '• ${entry.key}: ${entry.value}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
-                  ),
-                )),
-            SizedBox(height: getPercentageHeight(1, context)),
-          ],
-
-          // Instructions
-          if (recipe['instructions'] != null &&
-              (recipe['instructions'] as List).isNotEmpty) ...[
-            Text(
-              'Instructions:',
-              style: textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: kAccent,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(0.3, context)),
-            ...((recipe['instructions'] as List<dynamic>).asMap().entries.map(
-                  (entry) => Text(
-                    '${entry.key + 1}. ${entry.value}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: isDarkMode ? kWhite : kBlack,
-                    ),
-                  ),
-                )),
-          ],
-        ],
+        ]),
       ),
     );
   }
@@ -2417,13 +2629,14 @@ class _DineInScreenState extends State<DineInScreen> {
                             SizedBox(height: getPercentageHeight(2, context)),
 
                             // Instructions
-                            Text(
-                              'Instructions:',
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: kAccent,
+                            if (selectedMeal!['instructions'] != null)
+                              Text(
+                                'Instructions:',
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: kAccent,
+                                ),
                               ),
-                            ),
                             SizedBox(height: getPercentageHeight(0.5, context)),
                             if (selectedMeal!['instructions'] != null) ...[
                               ...((selectedMeal!['instructions']

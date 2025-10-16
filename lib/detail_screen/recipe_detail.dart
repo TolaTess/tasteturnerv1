@@ -190,11 +190,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
 
               // Ingredients title
+              if (_meal!.ingredients.isNotEmpty)
               IngredientsTittle(
                 meal: _meal!,
               ),
 
               // Ingredients details
+              if (_meal!.ingredients.isNotEmpty)
               IngredientsDetail(
                 meal: _meal!,
               ),

@@ -15,7 +15,6 @@ import '../pages/profile_edit_screen.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/message_screen.dart';
-import '../screens/test_notifications_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
 import '../widgets/bottom_nav.dart';

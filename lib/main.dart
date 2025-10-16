@@ -78,9 +78,9 @@ void main() async {
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
   Get.put(HybridNotificationService(), permanent: true);
-  print('Registering ChallengeService...');
-  Get.put(ChallengeService(), permanent: true);
-  print('ChallengeService registered successfully');
+  // print('Registering ChallengeService...');
+  // // Get.put(ChallengeService(), permanent: true);
+  // print('ChallengeService registered successfully');
 
   // Register NotificationService with GetX (but don't initialize yet)
   final notificationService = NotificationService();

@@ -54,8 +54,28 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     super.initState();
     goal = userService.currentUser.value?.settings['fitnessGoal'] ??
         'Healthy Eating';
-    cuisineTypes = helperController.headers;
-    dietTypes = helperController.category;
+
+    // Initialize from helperController (reactive lists)
+    cuisineTypes = List<Map<String, dynamic>>.from(helperController.headers);
+    dietTypes = List<Map<String, dynamic>>.from(helperController.category);
+
+    // Listen to changes in reactive lists
+    ever(helperController.headers, (value) {
+      if (mounted) {
+        setState(() {
+          cuisineTypes = List<Map<String, dynamic>>.from(value);
+        });
+      }
+    });
+
+    ever(helperController.category, (value) {
+      if (mounted) {
+        setState(() {
+          dietTypes = List<Map<String, dynamic>>.from(value);
+        });
+      }
+    });
+
     if (!widget.isOnboarding) {
       _checkExistingPreferences();
     }
@@ -181,6 +201,26 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   }
 
   void _showMealPlanOptionsDialog() {
+    // Ensure cuisineTypes is not empty
+    if (cuisineTypes.isEmpty) {
+      debugPrint('Error: cuisineTypes is empty');
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: const Text(
+              'Cuisine types are not loaded. Please restart the app.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -218,11 +258,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                         ),
                       ),
                       SizedBox(height: getPercentageHeight(2, context)),
-                      buildPicker(
-                          context,
-                          cuisineTypes.length,
-                          cuisineTypes.indexOf(cuisineTypes.firstWhere(
-                              (cuisine) => cuisine['name'] == selectedCuisine)),
+                      buildPicker(context, cuisineTypes.length, () {
+                        // Find the index of the selected cuisine
+                        final index = cuisineTypes.indexWhere(
+                            (cuisine) => cuisine['name'] == selectedCuisine);
+                        // Return the index if found, otherwise return 0 (first item)
+                        return index >= 0 ? index : 0;
+                      }(),
                           (index) => setState(() =>
                               selectedCuisine = cuisineTypes[index]['name']),
                           getThemeProvider(context).isDarkMode,
@@ -619,24 +661,29 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final data = doc.data() as Map<String, dynamic>;
       final preferences = data['preferences'] as Map<String, dynamic>;
 
-      if (preferences != null) {
-        setState(() {
-          if (mainDiet != '') {
-            selectedDiet = mainDiet;
-          } else {
-            selectedDiet = preferences['diet'] as String? ?? '';
-          }
-          // Convert List<dynamic> to Set<String>
-          final allergiesList =
-              preferences['allergies'] as List<dynamic>? ?? [];
-          selectedAllergies = allergiesList.map((e) => e.toString()).toSet();
-          selectedCuisine = preferences['cuisineType'] as String? ?? '';
-          proteinDishes = preferences['proteinDishes'] as int? ?? 2;
-          grainDishes = preferences['grainDishes'] as int? ?? 2;
-          vegDishes = preferences['vegDishes'] as int? ?? 3;
-        });
-        return true; // Return true if preferences exist
-      }
+      setState(() {
+        if (mainDiet != '') {
+          selectedDiet = mainDiet;
+        } else {
+          selectedDiet = preferences['diet'] as String? ?? '';
+        }
+        // Convert List<dynamic> to Set<String>
+        final allergiesList = preferences['allergies'] as List<dynamic>? ?? [];
+        selectedAllergies = allergiesList.map((e) => e.toString()).toSet();
+
+        // Validate cuisine type exists in cuisineTypes list
+        final savedCuisine =
+            preferences['cuisineType'] as String? ?? 'Balanced';
+        selectedCuisine =
+            cuisineTypes.any((cuisine) => cuisine['name'] == savedCuisine)
+                ? savedCuisine
+                : 'Balanced'; // Default to 'Balanced' if not found
+
+        proteinDishes = preferences['proteinDishes'] as int? ?? 2;
+        grainDishes = preferences['grainDishes'] as int? ?? 2;
+        vegDishes = preferences['vegDishes'] as int? ?? 3;
+      });
+      return true; // Return true if preferences exist
     }
     return false; // Return false if no preferences found
   }

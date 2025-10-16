@@ -217,8 +217,8 @@ class _InspirationScreenState extends State<InspirationScreen> {
           child: Column(
             children: [
               // Challenge posts horizontal list
-              if (showChallengePosts)
-              ChallengePostsHorizontalList(),
+              // if (showChallengePosts)
+              // ChallengePostsHorizontalList(),
 
               // Main content grid
               SearchContentGrid(

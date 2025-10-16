@@ -395,7 +395,7 @@ class CloudNotificationService extends GetxService {
         'lastNotificationId': lastNotificationId,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
       if (data['success'] == true) {
         return List<Map<String, dynamic>>.from(data['notifications'] ?? []);
       }

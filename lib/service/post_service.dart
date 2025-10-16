@@ -42,7 +42,7 @@ class PostService extends GetxService {
         'includeBattlePosts': includeBattlePosts,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] == true) {
         final posts = (data['posts'] as List)
@@ -92,7 +92,7 @@ class PostService extends GetxService {
         'timeRange': timeRange,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] == true) {
         return (data['posts'] as List)
@@ -121,7 +121,7 @@ class PostService extends GetxService {
         'includeUserData': includeUserData,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] == true) {
         return (data['posts'] as List)
@@ -173,7 +173,7 @@ class PostService extends GetxService {
         'includeUserData': includeUserData,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] == true) {
         final posts = (data['posts'] as List)
@@ -232,7 +232,7 @@ class PostService extends GetxService {
         'limit': limit,
       });
 
-      final data = result.data as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(result.data as Map);
 
       if (data['success'] == true) {
         return (data['posts'] as List)
