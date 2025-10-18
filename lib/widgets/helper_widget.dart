@@ -220,7 +220,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
     return SimpleLoadingOverlay(
       isLoading: isLoading && searchContentDatas.isEmpty,
       message: 'Loading posts...',
-      progressPercentage: 85,
+      progressPercentage: 95,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
