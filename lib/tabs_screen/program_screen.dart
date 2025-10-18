@@ -231,7 +231,7 @@ class _ProgramScreenState extends State<ProgramScreen>
     final prompt =
         'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
     final response =
-        await geminiService.getResponse(prompt, 256, role: buddyAiRole);
+        await geminiService.getResponse(prompt, 1024, role: buddyAiRole);
     setState(() {
       aiCoachResponse = response;
       isLoading = false;
@@ -728,8 +728,9 @@ class _ProgramScreenState extends State<ProgramScreen>
                         color: accent.withValues(alpha: 0.08),
                       ),
                       child: Text(
-                        aiCoachResponse,
-                        style: textTheme.bodyLarge?.copyWith(
+                        aiCoachResponse.contains('Error') ? 'Sorry, I snoozed for a bit. Please try again.' : aiCoachResponse,
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium?.copyWith(
                           color: isDarkMode ? kWhite : kDarkGrey,
                         ),
                       ),
