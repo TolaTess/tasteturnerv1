@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_dine_in_button',
-          message: 'Tap here to view your dine-in challenge!',
+          message: 'Tap here to analyze what is in your fridge!',
           targetKey: _addDineInButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
