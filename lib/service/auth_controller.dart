@@ -229,9 +229,10 @@ class AuthController extends GetxController {
         );
       }
     } catch (e) {
+      debugPrint("Error creating account: $e");
       showTastySnackbar(
         'Please try again.',
-        'Error Creating Account: $e',
+        'Error Creating Account: Please check your email and password and try again.',
         context,
         backgroundColor: Colors.red,
       );
@@ -336,9 +337,10 @@ class AuthController extends GetxController {
         );
       }
     } catch (e) {
+      debugPrint("Error logging in: $e");
       showTastySnackbar(
         'Please try again.',
-        'Error Logging in: $e',
+        'Error Logging in: Please check your email and password and try again.',
         context,
         backgroundColor: Colors.red,
       );
@@ -406,9 +408,10 @@ class AuthController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
+      debugPrint("Error resetting password: $e");
       Get.snackbar(
         'Please try again.',
-        'Error Resetting Password: $e',
+        'Error Resetting Password: Please check your email and try again.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
       );
@@ -446,7 +449,7 @@ class AuthController extends GetxController {
       debugPrint("Error updating premium status: $e");
       showTastySnackbar(
         'Please try again.',
-        'Failed to update premium status: $e',
+        'Failed to update premium status: Please try again.',
         context,
         backgroundColor: Colors.red,
       );
