@@ -1,14 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/helper_functions.dart';
+import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../pages/upload_battle.dart';
 import '../service/macro_manager.dart';
@@ -16,7 +20,6 @@ import '../service/gemini_service.dart' as gemini;
 import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
-import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 
 class DineInScreen extends StatefulWidget {
@@ -62,12 +65,25 @@ class _DineInScreenState extends State<DineInScreen> {
     super.initState();
     _loadSavedMeal();
     _loadFridgeData();
+    _loadFridgeRecipesFromSharedPreferences(); // Load persisted fridge recipes
     loadExcludedIngredients();
+    debugPrint('Excluded ingredients: ${excludedIngredients.length}');
 
     // Load challenge data in background to not block UI
-    Future.microtask(() async {
-      await _loadChallengeData();
-      await _checkChallengeNotification();
+    // Using Future.wait to parallelize async operations
+    Future.microtask(() {
+      debugPrint('Fetching general data');
+      Future.wait([
+        firebaseService.fetchGeneralData().then((_) {
+          excludedIngredients = firebaseService
+              .generalData['excludeIngredients']
+              .toString()
+              .split(',');
+          debugPrint('Excluded ingredients: ${excludedIngredients.length}');
+        }),
+        _loadChallengeData(),
+        _checkChallengeNotification()
+      ]);
     });
   }
 
@@ -79,9 +95,7 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   loadExcludedIngredients() async {
-    await firebaseService.fetchGeneralData();
-    excludedIngredients =
-        firebaseService.generalData['excludeIngredients'].toString().split(',');
+    excludedIngredients = excludeIngredients.toList();
   }
 
   // Local storage keys
@@ -191,9 +205,6 @@ class _DineInScreenState extends State<DineInScreen> {
     });
 
     try {
-      // Fetch general data from Firebase
-      await firebaseService.fetchGeneralData();
-
       // Get challenge details from general data
       final challengeDetails = firebaseService.generalData['challenge_details'];
 
@@ -598,26 +609,125 @@ class _DineInScreenState extends State<DineInScreen> {
         return; // Invalid selection
       }
 
-      final XFile? image = await _imagePicker.pickImage(
+      // Show loading indicator for camera operations
+      if (source == ImageSource.camera) {
+        showTastySnackbar(
+          'Opening Camera',
+          'Please wait while the camera initializes...',
+          context,
+          backgroundColor: kAccent,
+        );
+      }
+
+      debugPrint('Starting image picker with source: $source');
+
+      // Add timeout to prevent hanging
+      final XFile? image = await _imagePicker
+          .pickImage(
         source: source,
-        imageQuality: 80,
+        imageQuality: 90, // Higher quality to preserve color accuracy
         maxWidth: 1024,
         maxHeight: 1024,
+        preferredCameraDevice:
+            CameraDevice.rear, // Use rear camera for better quality
+      )
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('Image picker timed out');
+          throw TimeoutException(
+              'Camera operation timed out', const Duration(seconds: 30));
+        },
       );
 
+      debugPrint('Image picker completed, result: ${image?.path}');
+
       if (image != null) {
+        // Process the image to fix any color issues (like green tint)
+        final processedImage = await _processImage(File(image.path));
         setState(() {
-          _fridgeImage = File(image.path);
+          _fridgeImage = processedImage;
         });
         await _analyzeFridgeImage();
+      } else {
+        debugPrint('No image selected');
       }
     } catch (e) {
+      debugPrint('Error in _pickFridgeImage: $e');
+
+      String errorMessage = 'Failed to pick image';
+      if (e is TimeoutException) {
+        errorMessage = 'Camera operation timed out. Please try again.';
+      } else if (e.toString().contains('permission')) {
+        errorMessage =
+            'Camera permission denied. Please enable camera access in settings.';
+      } else if (e.toString().contains('camera')) {
+        errorMessage =
+            'Camera not available. Please try using gallery instead.';
+      }
+
       showTastySnackbar(
         'Error',
-        'Failed to pick image: $e',
+        errorMessage,
         context,
         backgroundColor: kRed,
       );
+    }
+  }
+
+  /// Process image to fix color issues like green tint from camera
+  Future<File> _processImage(File imageFile) async {
+    try {
+      debugPrint('Processing image to fix color issues...');
+
+      // Read the image file
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+
+      // Decode the image
+      img.Image? image = img.decodeImage(imageBytes);
+      if (image == null) {
+        debugPrint('Failed to decode image, returning original');
+        return imageFile;
+      }
+
+      // Apply color corrections to fix green tint
+      // First, try to correct color balance specifically for green tint
+      image = img.adjustColor(
+        image,
+        // red: 1.1, // Increase red channel slightly
+        // green: 0.95, // Reduce green channel to counter green tint
+        // blue: 1.05, // Increase blue channel slightly
+        saturation: 1.1, // Slightly increase saturation
+        contrast: 1.05, // Slightly increase contrast
+        brightness: 1.02, // Slightly increase brightness
+      );
+
+      // Apply gamma correction to improve color balance
+      image = img.gamma(image, gamma: 1.1);
+
+      // Additional color correction for severe green tint
+      // image = img.colorMatrix(image, [
+      //   1.1, -0.1, -0.1, 0, 0, // Red channel: increase red, reduce green/blue
+      //   -0.1, 0.9, -0.1, 0, 0, // Green channel: reduce green, reduce red/blue
+      //   -0.1, -0.1, 1.1, 0, 0, // Blue channel: increase blue, reduce red/green
+      //   0, 0, 0, 1, 0, // Alpha channel: no change
+      // ]);
+
+      // Convert back to bytes
+      final processedBytes = img.encodeJpg(image, quality: 85);
+
+      // Create a new file with processed image
+      final tempDir = Directory.systemTemp;
+      final processedFile = File(
+          '${tempDir.path}/processed_fridge_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await processedFile.writeAsBytes(processedBytes);
+
+      debugPrint('Image processed successfully: ${processedFile.path}');
+      return processedFile;
+    } catch (e) {
+      debugPrint('Error processing image: $e');
+      // Return original file if processing fails
+      return imageFile;
     }
   }
 
@@ -697,12 +807,36 @@ class _DineInScreenState extends State<DineInScreen> {
           debugPrint('Suggested meals: $suggestedMeals');
 
           setState(() {
-            _fridgeRecipes = List<Map<String, dynamic>>.from(suggestedMeals);
+            // Convert each meal properly to preserve all fields
+            _fridgeRecipes = suggestedMeals.map((meal) {
+              if (meal is Map<String, dynamic>) {
+                debugPrint('Processing meal: $meal');
+                return {
+                  'title': meal['title'] ?? 'Untitled Recipe',
+                  'description': meal['description'] ?? 'No description',
+                  'cookingTime': meal['cookingTime'] ?? 'Unknown',
+                  'difficulty': meal['difficulty'] ?? 'medium',
+                  'calories': meal['calories'] ?? 0,
+                  'ingredients': meal['ingredients'] ?? {},
+                };
+              }
+              return {
+                'title': 'Untitled Recipe',
+                'description': 'No description',
+                'cookingTime': 'Unknown',
+                'difficulty': 'medium',
+                'calories': 0,
+                'ingredients': {},
+              };
+            }).toList();
             _showFridgeRecipes = true;
           });
 
           debugPrint('Updated _fridgeRecipes: $_fridgeRecipes');
           debugPrint('_showFridgeRecipes: $_showFridgeRecipes');
+
+          // Save recipes to SharedPreferences for persistence
+          await _saveFridgeRecipesToSharedPreferences();
 
           if (_fridgeRecipes.isNotEmpty) {
             for (var recipe in _fridgeRecipes) {
@@ -820,11 +954,50 @@ class _DineInScreenState extends State<DineInScreen> {
         true, // isDineIn
       );
 
+      // Check if meal generation failed
+      if (recipes['source'] == 'failed' || recipes['error'] == true) {
+        showMealGenerationErrorDialog(
+          context,
+          recipes['message'] ?? 'Failed to generate meals. Please try again.',
+          onRetry: () async {
+            try {
+              final retryRecipes =
+                  await gemini.geminiService.generateMealsFromIngredients(
+                mockIngredients,
+                context,
+                true,
+              );
+              if (retryRecipes['source'] != 'failed' &&
+                  retryRecipes['error'] != true &&
+                  retryRecipes['meals'] != null) {
+                setState(() {
+                  _fridgeRecipes =
+                      List<Map<String, dynamic>>.from(retryRecipes['meals']);
+                  _showFridgeRecipes = true;
+                });
+                await _saveFridgeRecipesToSharedPreferences();
+              }
+            } catch (e) {
+              showTastySnackbar(
+                'Generation Failed',
+                'Failed to generate meals: $e',
+                context,
+                backgroundColor: kRed,
+              );
+            }
+          },
+        );
+        return;
+      }
+
       if (recipes['meals'] != null) {
         setState(() {
           _fridgeRecipes = List<Map<String, dynamic>>.from(recipes['meals']);
           _showFridgeRecipes = true;
         });
+
+        // Save recipes to SharedPreferences for persistence
+        await _saveFridgeRecipesToSharedPreferences();
       }
     } catch (e) {
       showTastySnackbar(
@@ -855,11 +1028,16 @@ class _DineInScreenState extends State<DineInScreen> {
       _showFridgeRecipes = false;
     });
     _saveFridgeData();
+    _clearFridgeRecipesFromSharedPreferences(); // Also clear from SharedPreferences
   }
 
   // Save a recipe from fridge analysis to the database using saveBasicMealsToFirestore
   Future<void> _saveRecipeToDatabase(Map<String, dynamic> recipeData) async {
     try {
+      debugPrint('Saving recipe with data: $recipeData');
+      debugPrint('Cooking time: ${recipeData['cookingTime']}');
+      debugPrint('Calories: ${recipeData['calories']}');
+
       // Convert recipe data to the format expected by saveBasicMealsToFirestore
       final basicMealData = {
         'title': recipeData['title'] ?? 'Untitled Recipe',
@@ -873,6 +1051,8 @@ class _DineInScreenState extends State<DineInScreen> {
         'calories': _safeParseInt(recipeData['calories']) ?? 0,
       };
 
+      debugPrint('Basic meal data: $basicMealData');
+
       // Use saveBasicMealsToFirestore to save the recipe
       final saveResult = await gemini.geminiService.saveBasicMealsToFirestore(
         [basicMealData],
@@ -880,6 +1060,27 @@ class _DineInScreenState extends State<DineInScreen> {
       );
 
       debugPrint('Recipe saved with result: $saveResult');
+
+      // Update the recipe in _fridgeRecipes with the actual mealId from Firestore
+      if (saveResult != null && saveResult['mealIds'] != null) {
+        final mealIds = saveResult['mealIds'] as Map<String, dynamic>;
+        final recipeTitle = recipeData['title'] ?? 'Untitled Recipe';
+        final mealId = mealIds[recipeTitle];
+
+        if (mealId != null) {
+          // Find and update the recipe in _fridgeRecipes with the mealId
+          final recipeIndex = _fridgeRecipes
+              .indexWhere((recipe) => recipe['title'] == recipeTitle);
+          if (recipeIndex != -1) {
+            _fridgeRecipes[recipeIndex]['mealId'] = mealId;
+            debugPrint(
+                'Updated recipe with mealId: $mealId for title: $recipeTitle');
+
+            // Save the updated recipe to SharedPreferences for persistence
+            await _saveFridgeRecipesToSharedPreferences();
+          }
+        }
+      }
 
       showTastySnackbar(
         'Recipe Saved!',
@@ -909,48 +1110,31 @@ class _DineInScreenState extends State<DineInScreen> {
     return {};
   }
 
-  // Convert instructions list to proper format
-  List<String> _convertInstructionsToList(dynamic instructions) {
-    if (instructions is List) {
-      return instructions.map((instruction) => instruction.toString()).toList();
-    }
-    return [];
-  }
 
   // Safe integer parsing helper
   int? _safeParseInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
-    if (value is String) return int.tryParse(value);
+    if (value is String) {
+      // Remove any non-numeric characters except decimal point and minus sign
+      final cleanString = value.replaceAll(RegExp(r'[^\d.-]'), '');
+      return int.tryParse(cleanString);
+    }
     if (value is double) return value.toInt();
+    if (value is num) return value.toInt();
     return null;
   }
 
   // Navigate to recipe detail page
   void _navigateToRecipeDetail(Map<String, dynamic> recipeData) {
+    debugPrint(
+        'Navigating to recipe detail with mealId: ${recipeData['mealId']}');
     try {
-      // Convert recipe data to Meal object for navigation
-      final meal = Meal(
-        userId: userService.userId ?? '',
-        title: recipeData['title'] ?? 'Untitled Recipe',
-        description: recipeData['description'] ?? '',
-        createdAt: DateTime.now(),
-        mediaPaths: [],
-        serveQty: 1,
-        calories: _safeParseInt(recipeData['calories']) ?? 0,
-        ingredients: _convertIngredientsToMap(recipeData['ingredients']),
-        instructions: _convertInstructionsToList(recipeData['instructions']),
-        categories: ['fridge-generated'],
-        cookingTime: recipeData['cookingTime'] ?? '',
-        cookingMethod: recipeData['cookingMethod'] ?? '',
-        type: 'fridge-recipe',
-      );
-
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => RecipeDetailScreen(
-            mealData: meal,
+            mealId: recipeData['mealId'],
             screen: 'fridge-recipe',
           ),
         ),
@@ -963,6 +1147,65 @@ class _DineInScreenState extends State<DineInScreen> {
         context,
         backgroundColor: kRed,
       );
+    }
+  }
+
+  // Save fridge recipes to SharedPreferences for persistence
+  Future<void> _saveFridgeRecipesToSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recipesJson =
+          _fridgeRecipes.map((recipe) => jsonEncode(recipe)).toList();
+      await prefs.setStringList('fridge_recipes', recipesJson);
+      debugPrint(
+          'Saved ${_fridgeRecipes.length} fridge recipes to SharedPreferences');
+    } catch (e) {
+      debugPrint('Error saving fridge recipes to SharedPreferences: $e');
+    }
+  }
+
+  // Load fridge recipes from SharedPreferences
+  Future<void> _loadFridgeRecipesFromSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recipesJson = prefs.getStringList('fridge_recipes') ?? [];
+
+      if (recipesJson.isNotEmpty) {
+        final loadedRecipes = recipesJson
+            .map((recipeJson) {
+              try {
+                return Map<String, dynamic>.from(jsonDecode(recipeJson));
+              } catch (e) {
+                debugPrint('Error parsing recipe from SharedPreferences: $e');
+                return null;
+              }
+            })
+            .where((recipe) => recipe != null)
+            .cast<Map<String, dynamic>>()
+            .toList();
+
+        if (loadedRecipes.isNotEmpty) {
+          setState(() {
+            _fridgeRecipes = loadedRecipes;
+            _showFridgeRecipes = true;
+          });
+          debugPrint(
+              'Loaded ${loadedRecipes.length} fridge recipes from SharedPreferences');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading fridge recipes from SharedPreferences: $e');
+    }
+  }
+
+  // Clear fridge recipes from SharedPreferences
+  Future<void> _clearFridgeRecipesFromSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('fridge_recipes');
+      debugPrint('Cleared fridge recipes from SharedPreferences');
+    } catch (e) {
+      debugPrint('Error clearing fridge recipes from SharedPreferences: $e');
     }
   }
 
@@ -1717,12 +1960,29 @@ class _DineInScreenState extends State<DineInScreen> {
         // Display generated recipes
         if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
           SizedBox(height: getPercentageHeight(2, context)),
-          Text(
-            'Recipes Using Your Ingredients',
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: kAccent,
-            ),
+          Row(
+            children: [
+              Text(
+                'Recipes Using Your Ingredients',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: kAccent,
+                ),
+              ),
+              SizedBox(width: 8),
+              Icon(
+                Icons.save,
+                size: 16,
+                color: kAccentLight,
+              ),
+              Text(
+                'Saved',
+                style: textTheme.bodySmall?.copyWith(
+                  color: kAccentLight,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
           SizedBox(height: getPercentageHeight(1, context)),
           ...(_fridgeRecipes.map(
@@ -2011,6 +2271,45 @@ class _DineInScreenState extends State<DineInScreen> {
                                       final meal = await gemini.geminiService
                                           .generateMealsFromIngredients(
                                               simpleIngredients, context, true);
+
+                                      // Check if meal generation failed
+                                      if (meal['source'] == 'failed' ||
+                                          meal['error'] == true) {
+                                        showMealGenerationErrorDialog(
+                                          context,
+                                          meal['message'] ??
+                                              'Failed to generate meals. Please try again.',
+                                          onRetry: () async {
+                                            try {
+                                              final retryMeal = await gemini
+                                                  .geminiService
+                                                  .generateMealsFromIngredients(
+                                                      simpleIngredients,
+                                                      context,
+                                                      true);
+                                              if (retryMeal['source'] !=
+                                                      'failed' &&
+                                                  retryMeal['error'] != true) {
+                                                setState(() {
+                                                  selectedMeal = retryMeal;
+                                                });
+                                                _saveMealToStorage();
+                                              }
+                                            } catch (e) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Failed to generate meal: $e'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        );
+                                        return;
+                                      }
+
                                       setState(() {
                                         selectedMeal = meal;
                                       });

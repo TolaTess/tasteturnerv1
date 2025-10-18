@@ -824,80 +824,7 @@ class GeminiService {
     };
   }
 
-  /// Try OpenAI as fallback when Gemini fails
-  Future<Map<String, dynamic>> _tryOpenAIFallback(
-      String prompt, String contextInformation) async {
-    try {
-      debugPrint('Attempting OpenAI fallback...');
-
-      final apiKey = dotenv.env['OPENAI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('OpenAI API key not configured');
-      }
-
-      // Build an OpenAI chat completion with a single user message containing the Gemini-style prompt
-      final model = await _getBestAvailableOpenAIModel();
-      final openaiBody = {
-        "model": model,
-        "messages": [
-          {
-            "role": "user",
-            "content": [
-              {
-                "type": "text",
-                "text": _buildUnifiedPrompt(prompt, contextInformation)
-              }
-            ]
-          }
-        ],
-        "max_tokens": 8192,
-        "temperature": 0.7
-      };
-
-      final response = await http
-          .post(
-            Uri.parse('$_openAIBaseUrl/chat/completions'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $apiKey',
-            },
-            body: jsonEncode(openaiBody),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode != 200) {
-        throw Exception(
-            'OpenAI API error: ${response.statusCode} - ${response.body}');
-      }
-
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      final choices = decoded['choices'] as List<dynamic>? ?? [];
-      if (choices.isEmpty) {
-        throw Exception('No choices in OpenAI response');
-      }
-      final message = choices.first['message'] as Map<String, dynamic>?;
-      final content = message?['content'];
-      if (content is String && content.isNotEmpty) {
-        final result = await _processAIResponse(content, 'meal_generation');
-        // Return in the same structure used by generateMealTitlesAndIngredients caller
-        final mealPlan = result['mealPlan'] as List<dynamic>? ?? [];
-        final mealTitles = mealPlan.map((m) => m['title'] as String).toList();
-        return {
-          'mealTitles': mealTitles,
-          'mealPlan': mealPlan,
-          'distribution': result['distribution'] ?? {},
-          'source': 'openai_fallback'
-        };
-      }
-
-      throw Exception('No content in OpenAI response');
-    } catch (e) {
-      debugPrint('OpenAI fallback error: $e');
-      rethrow;
-    }
-  }
-
-  /// Make a provider-level OpenAI API call (used by unified retry flow)
+    /// Make a provider-level OpenAI API call (used by unified retry flow)
   Future<Map<String, dynamic>> _makeOpenAIApiCall({
     required String endpoint,
     required Map<String, dynamic> body,
@@ -968,7 +895,7 @@ class GeminiService {
     } catch (_) {}
 
     final maxTokens =
-        (geminiBody['generationConfig']?['maxOutputTokens'] as int?) ?? 8192;
+        (geminiBody['generationConfig']?['maxOutputTokens'] as int?) ?? 4000;
     final temperature =
         (geminiBody['generationConfig']?['temperature'] as num?)?.toDouble() ??
             0.7;
@@ -1308,14 +1235,38 @@ $contextInformation''';
   /// Robust JSON validation and extraction for fridge analysis
   Map<String, dynamic> _validateAndExtractFridgeAnalysis(String rawResponse) {
     try {
+      debugPrint('=== FRIDGE ANALYSIS PARSING ===');
+      debugPrint('Raw AI response: $rawResponse');
+
+      // Try direct JSON parsing first (bypass all the complex processing)
+      try {
+        final directData = jsonDecode(rawResponse) as Map<String, dynamic>;
+        debugPrint('Direct JSON parsing successful: $directData');
+
+        // Validate and normalize the data
+        final result = _validateAndNormalizeFridgeAnalysisData(directData);
+        debugPrint('Direct parsing result: $result');
+        return result;
+      } catch (directError) {
+        debugPrint('Direct parsing failed: $directError');
+      }
+
       // First attempt: extract JSON from markdown code blocks if present
       final cleanedResponse = _extractJsonFromMarkdown(rawResponse);
+      debugPrint('Cleaned response: $cleanedResponse');
+
       final completedResponse = _completeTruncatedJson(cleanedResponse);
+      debugPrint('Completed response: $completedResponse');
+
       final sanitized = _sanitizeJsonString(completedResponse);
+      debugPrint('Sanitized response: $sanitized');
+
       final data = jsonDecode(sanitized) as Map<String, dynamic>;
+      debugPrint('Parsed JSON data: $data');
 
       // Validate and normalize the data
       final result = _validateAndNormalizeFridgeAnalysisData(data);
+      debugPrint('Final normalized result: $result');
       return result;
     } catch (e) {
       // Second attempt: use existing partial extraction method
@@ -1346,20 +1297,15 @@ $contextInformation''';
     if (data['ingredients'] is List) {
       final ingredients = (data['ingredients'] as List).map((item) {
         if (item is Map) {
+          debugPrint('Ingredient: ${item}');
           return {
             'name': (item['name'] as String?) ?? 'Unknown ingredient',
             'category': (item['category'] as String?) ?? 'other',
-            'quantity': (item['quantity'] as String?) ?? 'Unknown quantity',
-            'freshness': (item['freshness'] as String?) ?? 'good',
-            'confidence': (item['confidence'] as String?) ?? 'medium',
           };
         }
         return {
           'name': 'Unknown ingredient',
           'category': 'other',
-          'quantity': 'Unknown quantity',
-          'freshness': 'good',
-          'confidence': 'medium',
         };
       }).toList();
       result['ingredients'] = ingredients;
@@ -1371,23 +1317,31 @@ $contextInformation''';
     if (data['suggestedMeals'] is List) {
       final meals = (data['suggestedMeals'] as List).map((item) {
         if (item is Map) {
-          return {
+          debugPrint('Raw suggested meal from AI: ${item}');
+          debugPrint(
+              'Raw cookingTime: ${item['cookingTime']} (type: ${item['cookingTime'].runtimeType})');
+          debugPrint(
+              'Raw calories: ${item['calories']} (type: ${item['calories'].runtimeType})');
+
+          final processedMeal = {
             'title': (item['title'] as String?) ?? 'Untitled Meal',
-            'description': (item['description'] as String?) ?? 'No description',
-            'cookingTime': (item['cookingTime'] as String?) ?? 'Unknown',
+            'cookingTime': (item['cookingTime'] as String?) ?? '20 minutes',
             'difficulty': (item['difficulty'] as String?) ?? 'medium',
-            'ingredients': (item['ingredients'] as Map?) ?? {},
+            'calories': (item['calories'] as num?) ?? 0,
           };
+
+          debugPrint('Processed suggested meal: ${processedMeal}');
+          return processedMeal;
         }
         return {
           'title': 'Untitled Meal',
-          'description': 'No description',
-          'cookingTime': 'Unknown',
+          'cookingTime': '20 minutes',
           'difficulty': 'medium',
-          'ingredients': {},
+          'calories': 0,
         };
       }).toList();
       result['suggestedMeals'] = meals;
+      debugPrint('Final suggested meals array: ${result['suggestedMeals']}');
     } else {
       result['suggestedMeals'] = [];
     }
@@ -1395,41 +1349,8 @@ $contextInformation''';
     // Validate other fields
     result['totalIngredients'] = (data['totalIngredients'] as num?)?.toInt() ??
         result['ingredients'].length;
-    result['confidence'] = (data['confidence'] as String?) ?? 'medium';
-    result['notes'] = (data['notes'] as String?) ?? 'No additional notes';
 
     return result;
-  }
-
-  /// Validate nutritional info for fridge analysis
-  Map<String, dynamic> _validateNutritionalInfo(dynamic nutritionalInfo) {
-    if (nutritionalInfo is Map<String, dynamic>) {
-      return {
-        'calories': (nutritionalInfo['calories'] as num?)?.toInt() ?? 0,
-        'protein': (nutritionalInfo['protein'] as num?)?.toInt() ?? 0,
-        'carbs': (nutritionalInfo['carbs'] as num?)?.toInt() ?? 0,
-        'fat': (nutritionalInfo['fat'] as num?)?.toInt() ?? 0,
-        'fiber': (nutritionalInfo['fiber'] as num?)?.toInt() ?? 0,
-        'sugar': (nutritionalInfo['sugar'] as num?)?.toInt() ?? 0,
-        'sodium': (nutritionalInfo['sodium'] as num?)?.toInt() ?? 0,
-      };
-    }
-    return _createDefaultNutritionalInfo();
-  }
-
-  /// Validate dietary flags for fridge analysis
-  Map<String, dynamic> _validateDietaryFlags(dynamic dietaryFlags) {
-    if (dietaryFlags is Map<String, dynamic>) {
-      return {
-        'vegetarian': dietaryFlags['vegetarian'] == true,
-        'vegan': dietaryFlags['vegan'] == true,
-        'glutenFree': dietaryFlags['glutenFree'] == true,
-        'dairyFree': dietaryFlags['dairyFree'] == true,
-        'keto': dietaryFlags['keto'] == true,
-        'lowCarb': dietaryFlags['lowCarb'] == true,
-      };
-    }
-    return _createDefaultDietaryFlags();
   }
 
   /// Create default nutritional info
@@ -1459,6 +1380,8 @@ $contextInformation''';
 
   /// Extract fridge analysis data from raw text using regex patterns
   Map<String, dynamic> _extractFridgeAnalysisFromRawText(String rawResponse) {
+    debugPrint('=== USING FALLBACK EXTRACTION METHOD ===');
+    debugPrint('Raw response for fallback: $rawResponse');
     final result = <String, dynamic>{};
 
     // Extract ingredients using regex
@@ -1473,15 +1396,12 @@ $contextInformation''';
         ingredients.add({
           'name': name,
           'category': 'other',
-          'quantity': 'Unknown quantity',
-          'freshness': 'good',
-          'confidence': 'medium',
         });
       }
     }
     result['ingredients'] = ingredients;
 
-    // Extract suggested meals
+    // Extract suggested meals with all fields
     final mealPattern = RegExp(r'"title"\s*:\s*"([^"]+)"', multiLine: true);
     final meals = <Map<String, dynamic>>[];
 
@@ -1489,15 +1409,39 @@ $contextInformation''';
     for (final match in mealMatches) {
       final title = match.group(1);
       if (title != null && title.isNotEmpty) {
+        // Extract cookingTime for this meal
+        String cookingTime = 'Unknown';
+        final cookingTimePattern =
+            RegExp(r'"cookingTime"\s*:\s*"([^"]+)"', multiLine: true);
+        final cookingTimeMatch = cookingTimePattern.firstMatch(rawResponse);
+        if (cookingTimeMatch != null) {
+          cookingTime = cookingTimeMatch.group(1) ?? 'Unknown';
+        }
+
+        // Extract calories for this meal
+        int calories = 0;
+        final caloriesPattern =
+            RegExp(r'"calories"\s*:\s*(\d+)', multiLine: true);
+        final caloriesMatch = caloriesPattern.firstMatch(rawResponse);
+        if (caloriesMatch != null) {
+          calories = int.tryParse(caloriesMatch.group(1) ?? '0') ?? 0;
+        }
+
+        // Extract difficulty for this meal
+        String difficulty = 'medium';
+        final difficultyPattern =
+            RegExp(r'"difficulty"\s*:\s*"([^"]+)"', multiLine: true);
+        final difficultyMatch = difficultyPattern.firstMatch(rawResponse);
+        if (difficultyMatch != null) {
+          difficulty = difficultyMatch.group(1) ?? 'medium';
+        }
+
         meals.add({
           'title': title,
           'description': 'No description',
-          'cookingTime': 'Unknown',
-          'difficulty': 'medium',
-          'ingredients': {},
-          'instructions': [],
-          'nutritionalInfo': _createDefaultNutritionalInfo(),
-          'dietaryFlags': _createDefaultDietaryFlags(),
+          'cookingTime': cookingTime,
+          'difficulty': difficulty,
+          'calories': calories,
         });
       }
     }
@@ -1507,6 +1451,7 @@ $contextInformation''';
     result['confidence'] = 'medium';
     result['notes'] = 'Extracted from partial response';
 
+    debugPrint('Fallback extraction result: $result');
     return result;
   }
 
@@ -1752,31 +1697,16 @@ $contextInformation''';
           _calculateTotalNutritionFromItems(normalizedFoodItems);
       normalizedData['totalNutrition'] = totalNutrition;
     } else {
-      // Create fallback food items if none exist
-      normalizedData['foodItems'] = [
-        {
-          'name': 'Unknown Food',
-          'estimatedWeight': '100g',
-          'confidence': 'low',
-          'nutritionalInfo': {
-            'calories': 200,
-            'protein': 10,
-            'carbs': 20,
-            'fat': 8,
-            'fiber': 2,
-            'sugar': 5,
-            'sodium': 200,
-          }
-        }
-      ];
+      // Return empty data if no food items exist
+      normalizedData['foodItems'] = [];
       normalizedData['totalNutrition'] = {
-        'calories': 200,
-        'protein': 10,
-        'carbs': 20,
-        'fat': 8,
-        'fiber': 2,
-        'sugar': 5,
-        'sodium': 200,
+        'calories': 0,
+        'protein': 0,
+        'carbs': 0,
+        'fat': 0,
+        'fiber': 0,
+        'sugar': 0,
+        'sodium': 0,
       };
     }
 
@@ -2424,41 +2354,23 @@ $contextInformation''';
     switch (operation) {
       case 'tasty_analysis':
         return {
-          'foodItems': [
-            {
-              'name': 'Unknown Food',
-              'estimatedWeight': '100g',
-              'confidence': 'low',
-              'nutritionalInfo': {
-                'calories': 200,
-                'protein': 10,
-                'carbs': 20,
-                'fat': 8,
-                'fiber': 2,
-                'sugar': 5,
-                'sodium': 200
-              }
-            }
-          ],
+          'foodItems': [],
           'totalNutrition': {
-            'calories': 200,
-            'protein': 10,
-            'carbs': 20,
-            'fat': 8,
-            'fiber': 2,
-            'sugar': 5,
-            'sodium': 200
+            'calories': 0,
+            'protein': 0,
+            'carbs': 0,
+            'fat': 0,
+            'fiber': 0,
+            'sugar': 0,
+            'sodium': 0
           },
           'mealType': 'unknown',
-          'estimatedPortionSize': 'medium',
-          'ingredients': {'unknown ingredient': '1 portion'},
+          'estimatedPortionSize': 'unknown',
+          'ingredients': {},
           'cookingMethod': 'unknown',
           'confidence': 'low',
-          'healthScore': 7,
-          'instructions': [
-            'Analysis failed: $error',
-            'Please verify nutritional information manually.'
-          ],
+          'healthScore': 0,
+          'instructions': [],
           'dietaryFlags': {
             'vegetarian': false,
             'vegan': false,
@@ -2468,167 +2380,74 @@ $contextInformation''';
             'lowCarb': false,
           },
           'suggestions': {
-            'improvements': ['Manual verification recommended'],
-            'alternatives': ['Consult nutrition database'],
-            'additions': ['Consider professional dietary advice'],
+            'improvements': [],
+            'alternatives': [],
+            'additions': [],
           },
-          'notes':
-              'Analysis failed: $error. Please verify nutritional information manually.'
+          'notes': 'AI analysis failed. Please try again.',
+          'source': 'fallback',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       case 'meal_generation':
         return {
-          'meals': [
-            {
-              'title': 'Simple Meal',
-              'type': 'protein',
-              'description': 'A basic meal when AI analysis failed',
-              'cookingTime': '15 minutes',
-              'cookingMethod': 'cooking',
-              'ingredients': {'main ingredient': '1 portion'},
-              'instructions': [
-                'Analysis failed: $error',
-                'Please create meal manually'
-              ],
-              'nutritionalInfo': {
-                'calories': 300,
-                'protein': 15,
-                'carbs': 30,
-                'fat': 10
-              },
-              'categories': ['error-fallback'],
-              'serveQty': 1
-            }
-          ],
+          'meals': [],
           'nutritionalSummary': {
-            'totalCalories': 300,
-            'totalProtein': 15,
-            'totalCarbs': 30,
-            'totalFat': 10
+            'totalCalories': 0,
+            'totalProtein': 0,
+            'totalCarbs': 0,
+            'totalFat': 0
           },
-          'tips': ['AI analysis failed, please verify all information manually']
+          'tips': [],
+          'source': 'fallback',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       case 'meal_plan':
         return {
-          'meals': [
-            {
-              'title': 'Simple Breakfast',
-              'type': 'protein',
-              'mealType': 'breakfast',
-              'ingredients': {'eggs': '2', 'bread': '1 slice'},
-              'instructions': [
-                'Analysis failed: $error',
-                'Please create meal manually'
-              ],
-              'diet': 'general',
-              'nutritionalInfo': {
-                'calories': 250,
-                'protein': 15,
-                'carbs': 20,
-                'fat': 12
-              },
-              'categories': ['error-fallback'],
-              'serveQty': 1
-            },
-            {
-              'title': 'Simple Lunch',
-              'type': 'protein',
-              'mealType': 'lunch',
-              'ingredients': {'chicken': '100g', 'rice': '1/2 cup'},
-              'instructions': [
-                'Analysis failed: $error',
-                'Please create meal manually'
-              ],
-              'diet': 'general',
-              'nutritionalInfo': {
-                'calories': 350,
-                'protein': 25,
-                'carbs': 30,
-                'fat': 15
-              },
-              'categories': ['error-fallback'],
-              'serveQty': 1
-            },
-            {
-              'title': 'Simple Dinner',
-              'type': 'protein',
-              'mealType': 'dinner',
-              'ingredients': {'fish': '150g', 'vegetables': '1 cup'},
-              'instructions': [
-                'Analysis failed: $error',
-                'Please create meal manually'
-              ],
-              'diet': 'general',
-              'nutritionalInfo': {
-                'calories': 300,
-                'protein': 30,
-                'carbs': 15,
-                'fat': 18
-              },
-              'categories': ['error-fallback'],
-              'serveQty': 1
-            }
-          ],
+          'meals': [],
           'nutritionalSummary': {
-            'totalCalories': 900,
-            'totalProtein': 70,
-            'totalCarbs': 65,
-            'totalFat': 45
+            'totalCalories': 0,
+            'totalProtein': 0,
+            'totalCarbs': 0,
+            'totalFat': 0
           },
-          'tips': ['AI analysis failed, please verify all information manually']
+          'tips': [],
+          'source': 'fallback',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       case 'program_generation':
         return {
-          'duration': '4 weeks',
-          'weeklyPlans': [
-            {
-              'week': 1,
-              'goals': ['Basic health improvement'],
-              'mealPlan': {
-                'breakfast': ['Simple breakfast option'],
-                'lunch': ['Simple lunch option'],
-                'dinner': ['Simple dinner option'],
-                'snacks': ['Healthy snack']
-              },
-              'nutritionGuidelines': {
-                'calories': '1800-2200',
-                'protein': '80-120g',
-                'carbs': '200-250g',
-                'fats': '60-80g'
-              },
-              'tips': [
-                'Analysis failed: $error',
-                'Please create program manually'
-              ]
-            }
-          ],
-          'requirements': ['Manual verification needed'],
-          'recommendations': ['Please verify all information manually']
+          'duration': '0 weeks',
+          'weeklyPlans': [],
+          'requirements': [],
+          'recommendations': [],
+          'source': 'fallback',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       case 'food_comparison':
         return {
           'image1Analysis': {
-            'foodItems': ['Unknown Food 1'],
+            'foodItems': [],
             'totalNutrition': {
-              'calories': 200,
-              'protein': 10,
-              'carbs': 20,
-              'fat': 8
+              'calories': 0,
+              'protein': 0,
+              'carbs': 0,
+              'fat': 0
             },
-            'healthScore': 5
+            'healthScore': 0
           },
           'image2Analysis': {
-            'foodItems': ['Unknown Food 2'],
+            'foodItems': [],
             'totalNutrition': {
-              'calories': 200,
-              'protein': 10,
-              'carbs': 20,
-              'fat': 8
+              'calories': 0,
+              'protein': 0,
+              'carbs': 0,
+              'fat': 0
             },
-            'healthScore': 5
+            'healthScore': 0
           },
           'comparison': {
-            'winner': 'tie',
-            'reasons': ['Analysis failed: $error'],
+            'winner': 'none',
+            'reasons': [],
             'nutritionalDifferences': {
               'calories': 'Unable to determine',
               'protein': 'Unable to determine',
@@ -2636,11 +2455,18 @@ $contextInformation''';
               'fat': 'Unable to determine'
             }
           },
-          'recommendations': ['Manual verification needed'],
-          'summary': 'Comparison failed, please verify manually'
+          'recommendations': [],
+          'summary': 'AI analysis failed. Please try again.',
+          'source': 'fallback',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       default:
-        return {'error': true, 'message': 'Operation failed: $error'};
+        return {
+          'error': true,
+          'message': 'AI analysis failed: $error',
+          'operation': operation,
+          'source': 'fallback'
+        };
     }
   }
 
@@ -2880,7 +2706,6 @@ $contextInformation''';
             userService.currentUser.value?.settings['dietPreference'] ??
                 'balanced',
         'hasProgram': false,
-        'encourageProgram': true,
         'maxCalories':
             userService.currentUser.value?.settings['foodGoal'] ?? 2000,
       };
@@ -2900,24 +2725,15 @@ $contextInformation''';
 
             context.addAll({
               'hasProgram': true,
-              'encourageProgram': false,
               'currentProgram': {
                 'name': programData['name'] ?? 'Current Program',
                 'goal': programData['goal'] ?? 'Health improvement',
-                'description': programData['description'] ?? '',
-                'duration': programData['duration'] ?? '4 weeks',
                 'dietType':
                     programData['dietType'] ?? context['dietPreference'],
-                'weeklyPlans': programData['weeklyPlans'] ?? [],
-                'requirements': programData['requirements'] ?? [],
-                'recommendations': programData['recommendations'] ?? [],
               },
               'programProgress': {
                 'currentWeek': userProgramData['currentWeek'] ?? 1,
-                'completedDays': userProgramData['completedDays'] ?? 0,
               },
-              'programMessage':
-                  'Continue following your ${programData['name']} program with goal: ${programData['goal']}. Consider these recommendations in all meal suggestions.',
             });
           }
         }
@@ -3826,81 +3642,84 @@ $contextInformation''';
     Map<String, int>? customDistribution,
     bool isIngredientBased = false,
   }) async {
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
+    try {
+      // Initialize model if not already done
+      if (_activeModel == null) {
+        final initialized = await initializeModel();
+        if (!initialized) {
+          throw Exception('No suitable AI model available');
+        }
       }
-    }
 
-    // Get comprehensive user context
-    final aiContext = await _buildAIContext();
-    final userContext = await _getUserContext();
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+      final userContext = await _getUserContext();
 
-    // Determine meal count and distribution based on request type
-    final int targetMealCount = mealCount ?? (isIngredientBased ? 2 : 10);
-    final Map<String, int> distribution = customDistribution ??
-        (isIngredientBased
-            ? {"breakfast": 0, "lunch": 1, "dinner": 1, "snack": 0}
-            : {"breakfast": 2, "lunch": 3, "dinner": 3, "snack": 2});
+      // Determine meal count and distribution based on request type
+      final int targetMealCount = mealCount ?? (isIngredientBased ? 2 : 10);
+      final Map<String, int> distribution = customDistribution ??
+          (isIngredientBased
+              ? {"breakfast": 0, "lunch": 1, "dinner": 1, "snack": 0}
+              : {"breakfast": 2, "lunch": 3, "dinner": 3, "snack": 2});
 
-    // Generate dynamic instructions based on request type
-    final String dynamicInstructions = _generateDynamicInstructions(
-        targetMealCount, distribution, isIngredientBased);
+      // Generate dynamic instructions based on request type
+      final String dynamicInstructions = _generateDynamicInstructions(
+          targetMealCount, distribution, isIngredientBased);
 
-    // New explicit attempt order:
-    // 1) Gemini (9000 tokens)
-    // 2) OpenAI
-    // 3) Gemini (9000 tokens)
-    // 4) OpenAI
-    String lastResponseText = '';
+      // New explicit attempt order:
+      // 1) Gemini (9000 tokens)
+      // 2) OpenAI
+      // 3) Gemini (9000 tokens)
+      // 4) OpenAI
+      String lastResponseText = '';
 
-    Future<Map<String, dynamic>> parseGeminiStyleResponse(
-        Map<String, dynamic> response) async {
-      if (response['candidates'] == null || response['candidates'].isEmpty) {
-        throw Exception('No response from AI model');
+      Future<Map<String, dynamic>> parseGeminiStyleResponse(
+          Map<String, dynamic> response) async {
+        if (response['candidates'] == null || response['candidates'].isEmpty) {
+          throw Exception('No response from AI model');
+        }
+        final candidate = response['candidates'][0];
+        final content = candidate['content'];
+        if (content == null ||
+            content['parts'] == null ||
+            content['parts'].isEmpty) {
+          throw Exception('Invalid response structure from AI model');
+        }
+        final text = content['parts'][0]['text'];
+        if (text == null || text.isEmpty) {
+          throw Exception('Empty response from AI model');
+        }
+        lastResponseText = text;
+        debugPrint('[AI] Raw text length: ${text.length}');
+        try {
+          final snippet =
+              text.length > 800 ? text.substring(0, 800) + '…' : text;
+          debugPrint('[AI] Raw text preview: $snippet');
+        } catch (_) {}
+        Map<String, dynamic> jsonResponse;
+        try {
+          jsonResponse = _extractJsonObject(text);
+        } catch (parseError) {
+          throw Exception('Invalid JSON response from AI: $parseError');
+        }
+        final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
+        final mealTitles =
+            mealPlan.map((meal) => meal['title'] as String).toList();
+        return {
+          'mealTitles': mealTitles,
+          'mealPlan': mealPlan,
+          'distribution':
+              jsonResponse['distribution'] as Map<String, dynamic>? ??
+                  {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
+        };
       }
-      final candidate = response['candidates'][0];
-      final content = candidate['content'];
-      if (content == null ||
-          content['parts'] == null ||
-          content['parts'].isEmpty) {
-        throw Exception('Invalid response structure from AI model');
-      }
-      final text = content['parts'][0]['text'];
-      if (text == null || text.isEmpty) {
-        throw Exception('Empty response from AI model');
-      }
-      lastResponseText = text;
-      debugPrint('[AI] Raw text length: ${text.length}');
-      try {
-        final snippet = text.length > 800 ? text.substring(0, 800) + '…' : text;
-        debugPrint('[AI] Raw text preview: $snippet');
-      } catch (_) {}
-      Map<String, dynamic> jsonResponse;
-      try {
-        jsonResponse = _extractJsonObject(text);
-      } catch (parseError) {
-        throw Exception('Invalid JSON response from AI: $parseError');
-      }
-      final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
-      final mealTitles =
-          mealPlan.map((meal) => meal['title'] as String).toList();
-      return {
-        'mealTitles': mealTitles,
-        'mealPlan': mealPlan,
-        'distribution': jsonResponse['distribution'] as Map<String, dynamic>? ??
-            {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
-      };
-    }
 
-    Map<String, dynamic> buildGeminiBody() => {
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text": '''
+      Map<String, dynamic> buildGeminiBody() => {
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text": '''
 You are a professional nutritionist and meal planner.
 
 $aiContext
@@ -3913,82 +3732,92 @@ $userContext
 
 $dynamicInstructions
 '''
-                }
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 8192, // Increased for complex meal planning
-          },
-        };
+                  }
+                ]
+              }
+            ],
+            "generationConfig": {
+              "temperature": 0.7,
+              "topK": 40,
+              "topP": 0.95,
+              "maxOutputTokens": 6000, // Increased for complex meal planning
+            },
+          };
 
-    // Attempt 1: Gemini
-    try {
-      debugPrint('Attempt 1: Gemini (8192 tokens)');
-      final resp = await _makeGeminiApiCall(
-        endpoint: '${_activeModel}:generateContent',
-        body: buildGeminiBody(),
-        operation: 'generate meal titles and ingredients',
-        retryCount: 0,
-      );
-      return await parseGeminiStyleResponse(resp);
+      // Attempt 1: Gemini
+      try {
+        debugPrint('Attempt 1: Gemini (8192 tokens)');
+        final resp = await _makeGeminiApiCall(
+          endpoint: '${_activeModel}:generateContent',
+          body: buildGeminiBody(),
+          operation: 'generate meal titles and ingredients',
+          retryCount: 0,
+        );
+        return await parseGeminiStyleResponse(resp);
+      } catch (e) {
+        debugPrint('Attempt 1 (Gemini) failed: $e');
+      }
+
+      // Attempt 2: OpenAI
+      try {
+        debugPrint('Attempt 2: OpenAI');
+        final resp = await _makeOpenAIApiCall(
+          endpoint: 'chat/completions',
+          body: buildGeminiBody(),
+          operation: 'generate meal titles and ingredients (OpenAI)',
+          retryCount: 0,
+        );
+        return await parseGeminiStyleResponse(resp);
+      } catch (e) {
+        debugPrint('Attempt 2 (OpenAI) failed: $e');
+      }
+
+      // Attempt 3: Gemini
+      try {
+        debugPrint('Attempt 3: Gemini (3000 tokens)');
+        final resp = await _makeGeminiApiCall(
+          endpoint: '${_activeModel}:generateContent',
+          body: buildGeminiBody(),
+          operation: 'generate meal titles and ingredients (2nd)',
+          retryCount: 0,
+        );
+        return await parseGeminiStyleResponse(resp);
+      } catch (e) {
+        debugPrint('Attempt 3 (Gemini) failed: $e');
+      }
+
+      // Attempt 4: OpenAI
+      try {
+        debugPrint('Attempt 4: OpenAI');
+        final resp = await _makeOpenAIApiCall(
+          endpoint: 'chat/completions',
+          body: buildGeminiBody(),
+          operation: 'generate meal titles and ingredients (OpenAI 2nd)',
+          retryCount: 0,
+        );
+        return await parseGeminiStyleResponse(resp);
+      } catch (e) {
+        debugPrint('Attempt 4 (OpenAI) failed: $e');
+      }
+
+      // All attempts failed; do not try further
+      return {
+        'mealTitles': [],
+        'mealPlan': [],
+        'distribution': {},
+        'source': 'failed',
+        'message': 'AI service temporarily unavailable. Please try again.'
+      };
     } catch (e) {
-      debugPrint('Attempt 1 (Gemini) failed: $e');
+      debugPrint('generateMealTitlesAndIngredients failed with error: $e');
+      return {
+        'mealTitles': [],
+        'mealPlan': [],
+        'distribution': {},
+        'source': 'failed',
+        'message': 'AI service temporarily unavailable. Please try again.'
+      };
     }
-
-    // Attempt 2: OpenAI
-    try {
-      debugPrint('Attempt 2: OpenAI');
-      final resp = await _makeOpenAIApiCall(
-        endpoint: 'chat/completions',
-        body: buildGeminiBody(),
-        operation: 'generate meal titles and ingredients (OpenAI)',
-        retryCount: 0,
-      );
-      return await parseGeminiStyleResponse(resp);
-    } catch (e) {
-      debugPrint('Attempt 2 (OpenAI) failed: $e');
-    }
-
-    // Attempt 3: Gemini
-    try {
-      debugPrint('Attempt 3: Gemini (3000 tokens)');
-      final resp = await _makeGeminiApiCall(
-        endpoint: '${_activeModel}:generateContent',
-        body: buildGeminiBody(),
-        operation: 'generate meal titles and ingredients (2nd)',
-        retryCount: 0,
-      );
-      return await parseGeminiStyleResponse(resp);
-    } catch (e) {
-      debugPrint('Attempt 3 (Gemini) failed: $e');
-    }
-
-    // Attempt 4: OpenAI
-    try {
-      debugPrint('Attempt 4: OpenAI');
-      final resp = await _makeOpenAIApiCall(
-        endpoint: 'chat/completions',
-        body: buildGeminiBody(),
-        operation: 'generate meal titles and ingredients (OpenAI 2nd)',
-        retryCount: 0,
-      );
-      return await parseGeminiStyleResponse(resp);
-    } catch (e) {
-      debugPrint('Attempt 4 (OpenAI) failed: $e');
-    }
-
-    // All attempts failed; do not try further
-    return {
-      'mealTitles': [],
-      'mealPlan': [],
-      'distribution': {},
-      'source': 'failed',
-      'message': 'AI service temporarily unavailable. Please try again.'
-    };
   }
 
   /// Check which meal titles already exist in the database (fuzzy matching)
@@ -4507,15 +4336,12 @@ CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code block
     {
       "name": "ingredient name",
       "category": "vegetable|protein|dairy|grain|fruit|herb|spice|other",
-      "quantity": "estimated amount (e.g., '2 pieces', '1 bunch', '500g')",
-      "freshness": "fresh|good|fair|use_soon",
-      "confidence": "high|medium|low"
     }
   ],
   "suggestedMeals": [
     {
       "title": "meal name",
-      "cookingTime": "estimated cooking time",
+      "cookingTime": "30 minutes",
       "difficulty": "easy|medium|hard",
       "calories": 0,
     }
@@ -4527,6 +4353,7 @@ Important guidelines:
 - Focus on ingredients that can be used for cooking main meals.
 - Provide 2 diverse (1 medium and 1 hard) meal suggestions using the identified ingredients.
 - All nutritional values must be numbers (not strings).
+- Category must be one of the following: vegetable|protein|dairy|grain|fruit|herb|spice|other
 ''';
 
       // Use Gemini's image analysis
@@ -4589,6 +4416,16 @@ Important guidelines:
         throw Exception('No candidates in Gemini response');
       }
     } catch (e) {
+      debugPrint('analyzeFridgeImage failed with error: $e');
+      // Show snackbar to user
+      Get.snackbar(
+        'Image Analysis Failed',
+        'Please try again later',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: Duration(seconds: 3),
+      );
       throw Exception('Failed to analyze fridge image: $e');
     }
   }
@@ -4735,7 +4572,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
               "topK": 20,
               "topP": 0.8,
               "maxOutputTokens":
-                  8192, // Food analysis - accounts for Gemini 2.5 extended thinking (~2000 tokens) + full response
+                  6000, // Food analysis - increased for complex analysis
             },
           },
           operation: 'analyze food image',
@@ -4761,8 +4598,26 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
             if (finishReason == 'MAX_TOKENS') {
               debugPrint('⚠️ Response hit token limit - prompt was too long');
               debugPrint('Full response: $response');
-              throw Exception(
-                  'Analysis incomplete. The prompt was too long. This has been fixed - please try again.');
+              // Retry with increased token limit (6000)
+              return await _makeApiCallWithRetry(
+                endpoint: '${_activeModel}:generateContent',
+                body: {
+                  "contents": [
+                    {
+                      "parts": [
+                        {"text": prompt}
+                      ]
+                    }
+                  ],
+                  "generationConfig": {
+                    "temperature": 0.1,
+                    "topK": 20,
+                    "topP": 0.8,
+                    "maxOutputTokens": 6000, // Increased token limit
+                  },
+                },
+                operation: 'analyze food image (retry with 6000 tokens)',
+              );
             }
           }
 
@@ -4820,7 +4675,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
               }
             ],
             "max_tokens":
-                8192, // Food analysis (OpenRouter) - matches Gemini limit for consistency
+                6000, // Food analysis (OpenRouter) - increased for complex analysis
             "temperature": 0.1,
           },
           operation: 'analyze food image with OpenRouter',
@@ -4856,6 +4711,15 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
       debugPrint('=== Food image analysis error ===');
       debugPrint('Error: $e');
       debugPrint('Stack trace: ${StackTrace.current}');
+      // Show snackbar to user
+      Get.snackbar(
+        'Food Analysis Failed',
+        'Please try again later',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: Duration(seconds: 3),
+      );
       throw Exception('Failed to analyze food image: $e');
     }
   }
@@ -6207,7 +6071,7 @@ Generate completely new and different meal ideas using the same ingredients.
         final basicMealData = {
           'title': meal['title'],
           'mealType': meal['mealType'],
-          'calories': 0,
+          'calories': meal['calories'],
           'categories': [cuisine],
           'nutritionalInfo': {},
           'ingredients': {},

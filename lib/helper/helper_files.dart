@@ -270,3 +270,33 @@ List<MacroData> updateIngredientListByType(
       ? newIngredientList.take(20).toList()
       : newIngredientList.toList();
 }
+
+/// Global error dialog for meal generation failures
+void showMealGenerationErrorDialog(BuildContext context, String message,
+    {VoidCallback? onRetry}) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Meal Generation Failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('OK'),
+          ),
+          if (onRetry != null)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onRetry();
+              },
+              child: Text('Try Again'),
+            ),
+        ],
+      );
+    },
+  );
+}

@@ -17,9 +17,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen(
-      {super.key, required this.mealData, this.screen = 'recipe'});
+      {super.key, this.mealData, this.mealId, this.screen = 'recipe'});
 
-  final Meal mealData;
+  final Meal? mealData;
+  final String? mealId;
   final String screen;
 
   @override
@@ -37,15 +38,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (widget.screen == 'share_recipe') {
       _getMeal();
-    } else {
-      if (widget.mealData.instructions.isEmpty) {
-        // If instructions are empty, start listening for real-time updates
-        _listenToMeal();
-      } else {
+    } else if (widget.screen == 'fridge-recipe') {
+      // For fridge recipes, we need to fetch from Firestore using mealId
+      if (widget.mealId != null && widget.mealId!.isNotEmpty) {
+        _getMealById(widget.mealId!);
+      } else if (widget.mealData != null) {
+        // Fallback to passed meal data if no mealId
         _meal = widget.mealData;
       }
+    } else {
+      // For regular recipes
+      if (widget.mealData != null) {
+        if (widget.mealData!.instructions.isEmpty &&
+            widget.mealData!.mealId.isNotEmpty) {
+          // If instructions are empty and we have a valid mealId, start listening for real-time updates
+          _listenToMeal();
+        } else {
+          _meal = widget.mealData;
+        }
+      }
     }
-    friendController.updateUserData(widget.mealData.userId);
+
+    // Update user data if we have meal data
+    if (widget.mealData != null) {
+      friendController.updateUserData(widget.mealData!.userId);
+    }
   }
 
   @override
@@ -58,9 +75,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _listenToMeal() {
     setState(() => _loading = true);
 
+    // Check if mealId is valid before attempting to listen
+    if (widget.mealData?.mealId.isEmpty ?? true) {
+      debugPrint(
+          'Warning: mealId is empty, cannot listen to Firestore document');
+      setState(() => _loading = false);
+      return;
+    }
+
     _mealSubscription = firestore
         .collection('meals')
-        .doc(widget.mealData.mealId)
+        .doc(widget.mealData!.mealId)
         .snapshots()
         .listen((snapshot) {
       if (!mounted) {
@@ -96,12 +121,46 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Future<void> _getMeal() async {
     setState(() => _loading = true);
-    final meal = await mealManager.getMealbyMealID(widget.mealData.mealId);
+
+    // Check if mealId is valid before attempting to fetch
+    if (widget.mealData?.mealId.isEmpty ?? true) {
+      debugPrint('Warning: mealId is empty, cannot fetch meal from Firestore');
+      setState(() {
+        _meal = widget.mealData; // Use the passed meal data instead
+        _loading = false;
+      });
+      return;
+    }
+
+    final meal = await mealManager.getMealbyMealID(widget.mealData!.mealId);
     if (!mounted) return;
     setState(() {
       _meal = meal;
       _loading = false;
     });
+  }
+
+  Future<void> _getMealById(String mealId) async {
+    setState(() => _loading = true);
+
+    try {
+      final meal = await mealManager.getMealbyMealID(mealId);
+      if (!mounted) return;
+      setState(() {
+        _meal = meal;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching meal by ID: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        // Show error or fallback to passed meal data
+        if (widget.mealData != null) {
+          _meal = widget.mealData;
+        }
+      });
+    }
   }
 
   @override
@@ -191,15 +250,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
               // Ingredients title
               if (_meal!.ingredients.isNotEmpty)
-              IngredientsTittle(
-                meal: _meal!,
-              ),
+                IngredientsTittle(
+                  meal: _meal!,
+                ),
 
               // Ingredients details
               if (_meal!.ingredients.isNotEmpty)
-              IngredientsDetail(
-                meal: _meal!,
-              ),
+                IngredientsDetail(
+                  meal: _meal!,
+                ),
 
               // Directions title
               if (_meal!.instructions.isNotEmpty &&

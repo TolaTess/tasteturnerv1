@@ -489,8 +489,8 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                       child: Text(
                         'View Dine-In for recipe ideas!',
                         textAlign: TextAlign.center,
-                        style: textTheme.displaySmall
-                            ?.copyWith(color: kAccent, fontSize: getTextScale(6, context)),
+                        style: textTheme.displaySmall?.copyWith(
+                            color: kAccent, fontSize: getTextScale(6, context)),
                       ),
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
@@ -601,7 +601,7 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                       color: isDarkMode ? kWhite : kBlack, fontSize: 25),
                 ),
               FloatingActionButton.extended(
-                onPressed: () {
+                onPressed: () async {
                   if (widget.isMealSpin) {
                     // Convert the items to the appropriate type before passing to ShoppingListScreen
                     Get.to(
@@ -614,8 +614,60 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                     if (displayedItems.isNotEmpty &&
                         widget.acceptedItems.length > 1) {
                       if (canUseAI()) {
-                        geminiService.generateMealsFromIngredients(
-                            displayedItems, context, false);
+                        try {
+                          final result =
+                              await geminiService.generateMealsFromIngredients(
+                                  displayedItems, context, false);
+
+                          // Check if meal generation failed
+                          if (result['source'] == 'failed' ||
+                              result['error'] == true) {
+                            showMealGenerationErrorDialog(
+                              context,
+                              result['message'] ??
+                                  'Failed to generate meals. Please try again.',
+                              onRetry: () async {
+                                try {
+                                  final retryResult = await geminiService
+                                      .generateMealsFromIngredients(
+                                          displayedItems, context, false);
+                                  if (retryResult['source'] != 'failed' &&
+                                      retryResult['error'] != true) {
+                                    // Handle successful retry
+                                    showTastySnackbar(
+                                      'Success!',
+                                      'Meals generated successfully',
+                                      context,
+                                      backgroundColor: kAccent,
+                                    );
+                                  }
+                                } catch (e) {
+                                  showTastySnackbar(
+                                    'Generation Failed',
+                                    'Failed to generate meals: $e',
+                                    context,
+                                    backgroundColor: kRed,
+                                  );
+                                }
+                              },
+                            );
+                          } else {
+                            // Handle successful generation
+                            showTastySnackbar(
+                              'Success!',
+                              'Meals generated successfully',
+                              context,
+                              backgroundColor: kAccent,
+                            );
+                          }
+                        } catch (e) {
+                          showTastySnackbar(
+                            'Generation Failed',
+                            'Failed to generate meals: $e',
+                            context,
+                            backgroundColor: kRed,
+                          );
+                        }
                       } else {
                         showPremiumRequiredDialog(context, isDarkMode);
                       }

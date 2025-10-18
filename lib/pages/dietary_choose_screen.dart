@@ -528,10 +528,15 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       debugPrint('mealPlan: $mealPlan');
 
       // Check if meal generation failed
-      if (mealPlan['error'] == true || mealPlan['source'] == 'failed') {
+      if (mealPlan['error'] == true ||
+          mealPlan['source'] == 'failed' ||
+          mealPlan['source'] == 'fallback') {
         Navigator.of(context).pop(); // Close loading dialog
-        _showMealGenerationErrorDialog(mealPlan['message'] ??
-            'Failed to generate meals. Please try again.');
+        showMealGenerationErrorDialog(
+            context,
+            mealPlan['message'] ??
+                'Failed to generate meals. Please try again.',
+            onRetry: () => _generateMealPlan(selectedCuisine));
         return;
       }
 
@@ -587,34 +592,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) => noItemTastyWidget(
           'Generating Meal Plan, Please Wait...', '', context, false, ''),
-    );
-  }
-
-  // Helper method to show meal generation error dialog
-  void _showMealGenerationErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Meal Generation Failed'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _generateMealPlan(selectedCuisine); // Retry
-              },
-              child: Text('Try Again'),
-            ),
-          ],
-        );
-      },
     );
   }
 
