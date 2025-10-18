@@ -3206,10 +3206,10 @@ $contextInformation''';
 
         if (i < caloriesMatches.length) {
           meal['calories'] =
-              int.tryParse(caloriesMatches.elementAt(i).group(1) ?? '300') ??
-                  300;
+              int.tryParse(caloriesMatches.elementAt(i).group(1) ?? '0') ??
+                  0;
         } else {
-          meal['calories'] = 300; // Default calories
+          meal['calories'] = 0; // Default calories
         }
 
         // Extract ingredients for this meal if available
@@ -3227,9 +3227,9 @@ $contextInformation''';
         // Add nutritional info
         meal['nutritionalInfo'] = {
           'calories': meal['calories'],
-          'protein': 20,
-          'carbs': 25,
-          'fat': 10,
+          'protein': 0,
+          'carbs': 0,
+          'fat': 0,
         };
 
         mealPlan.add(meal);
@@ -4933,7 +4933,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                   source == 'existing_database'
                       ? 'Select from Existing Meals'
                       : source == 'ai_generated'
-                          ? 'Select an Tasty AI Meal'
+                          ? 'Select a Tasty AI Meal'
                           : 'Select a Meal',
                   style: textTheme.displaySmall?.copyWith(
                       fontSize: getPercentageWidth(7, context),
@@ -4948,9 +4948,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                     itemBuilder: (context, index) {
                       final meal = getCurrentMealsToShow()[index];
                       final title = meal['title'] ?? 'Untitled';
-
-                      final categories =
-                          (meal['categories'] as List<dynamic>?) ?? [];
+                      print('meal: $meal');
+                      print('mealType: ${meal['mealType']}');
 
                       return Card(
                         color: colors[index % colors.length],
@@ -4963,9 +4962,9 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                               color: isDarkMode ? kWhite : kDarkGrey,
                             ),
                           ),
-                          subtitle: categories.isNotEmpty
+                          subtitle: meal['mealType'] != null
                               ? Text(
-                                  'Categories: ${categories.join(', ')}',
+                                  'Great as your ${meal['mealType']}!',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey,
                                   ),

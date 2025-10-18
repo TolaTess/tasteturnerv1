@@ -70,7 +70,7 @@ class _DineInScreenState extends State<DineInScreen> {
     debugPrint('Excluded ingredients: ${excludedIngredients.length}');
 
     // Load excluded ingredients lazily after UI is built
-    _loadExcludedIngredientsLazily();
+    // _loadExcludedIngredientsLazily();
     _checkChallengeNotification();
     _loadChallengeData();
   }
@@ -86,39 +86,39 @@ class _DineInScreenState extends State<DineInScreen> {
     excludedIngredients = excludeIngredients.toList();
   }
 
-  /// Load excluded ingredients lazily after UI is built
-  void _loadExcludedIngredientsLazily() {
-    // Use addPostFrameCallback to ensure this runs after the first frame is rendered
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        debugPrint('Loading excluded ingredients from Firebase...');
+  // /// Load excluded ingredients lazily after UI is built
+  // void _loadExcludedIngredientsLazily() {
+  //   // Use addPostFrameCallback to ensure this runs after the first frame is rendered
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     try {
+  //       debugPrint('Loading excluded ingredients from Firebase...');
 
-        // Only fetch if we don't already have the data
-        if (firebaseService.generalData.isEmpty) {
-          await firebaseService.fetchGeneralData();
-        }
+  //       // Only fetch if we don't already have the data
+  //       if (firebaseService.generalData.isEmpty) {
+  //         await firebaseService.fetchGeneralData();
+  //       }
 
-        if (mounted && firebaseService.generalData.isNotEmpty) {
-          setState(() {
-            excludedIngredients = firebaseService
-                .generalData['excludeIngredients']
-                .toString()
-                .split(',');
-          });
-          debugPrint(
-              'Excluded ingredients loaded: ${excludedIngredients.length}');
-        }
-      } catch (e) {
-        debugPrint('Error loading excluded ingredients: $e');
-        // Fallback to local data if Firebase fails
-        if (mounted) {
-          setState(() {
-            excludedIngredients = excludeIngredients.toList();
-          });
-        }
-      }
-    });
-  }
+  //       if (mounted && firebaseService.generalData.isNotEmpty) {
+  //         setState(() {
+  //           excludedIngredients = firebaseService
+  //               .generalData['excludeIngredients']
+  //               .toString()
+  //               .split(',');
+  //         });
+  //         debugPrint(
+  //             'Excluded ingredients loaded: ${excludedIngredients.length}');
+  //       }
+  //     } catch (e) {
+  //       debugPrint('Error loading excluded ingredients: $e');
+  //       // Fallback to local data if Firebase fails
+  //       if (mounted) {
+  //         setState(() {
+  //           excludedIngredients = excludeIngredients.toList();
+  //         });
+  //       }
+  //     }
+  //   });
+  // }
 
   // Local storage keys
   static const String _selectedMealKey = 'dine_in_selected_meal';
@@ -222,6 +222,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
   // Load challenge data from Firebase and local storage
   Future<void> _loadChallengeData() async {
+    debugPrint('Loading challenge data');
+
     setState(() {
       isLoadingChallenge = true;
     });
@@ -347,7 +349,7 @@ class _DineInScreenState extends State<DineInScreen> {
       }
     } catch (e) {
       debugPrint('Error loading saved challenge data: $e');
-    }
+    } 
   }
 
   // Save challenge data to local storage
@@ -458,6 +460,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
   // Check if challenge notification should be sent
   Future<void> _checkChallengeNotification() async {
+    debugPrint('Checking challenge notification');
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -661,7 +664,6 @@ class _DineInScreenState extends State<DineInScreen> {
               'Camera operation timed out', const Duration(seconds: 30));
         },
       );
-
       debugPrint('Image picker completed, result: ${image?.path}');
 
       if (image != null) {
@@ -753,7 +755,7 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
-  Future<void> _analyzeFridgeImage() async {
+  Future<void> _analyzeFridgeImage() async {  
     if (_fridgeImage == null) return;
 
     setState(() {
@@ -928,7 +930,7 @@ class _DineInScreenState extends State<DineInScreen> {
     // await _generateFridgeRecipes();
   }
 
-  Future<void> _generateFridgeRecipes() async {
+  Future<void> _generateFridgeRecipes() async { 
     if (fridgeIngredients.length < 3) {
       showTastySnackbar(
         'Not Enough Ingredients',
@@ -1084,7 +1086,7 @@ class _DineInScreenState extends State<DineInScreen> {
       debugPrint('Recipe saved with result: $saveResult');
 
       // Update the recipe in _fridgeRecipes with the actual mealId from Firestore
-      if (saveResult != null && saveResult['mealIds'] != null) {
+      if (saveResult['mealIds'] != null) {
         final mealIds = saveResult['mealIds'] as Map<String, dynamic>;
         final recipeTitle = recipeData['title'] ?? 'Untitled Recipe';
         final mealId = mealIds[recipeTitle];
@@ -1122,7 +1124,7 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   // Convert ingredients map to proper format
-  Map<String, String> _convertIngredientsToMap(dynamic ingredients) {
+    Map<String, String> _convertIngredientsToMap(dynamic ingredients) {
     if (ingredients is Map) {
       return ingredients.map((key, value) => MapEntry(
             key.toString(),
@@ -2098,11 +2100,11 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {  
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
+    final result = Scaffold(
       appBar: AppBar(
         centerTitle: true,
         toolbarHeight: getPercentageHeight(10, context),
@@ -3000,6 +3002,7 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             ),
     );
+    return result;
   }
 
   Widget _buildIngredientCard(

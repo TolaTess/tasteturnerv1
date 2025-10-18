@@ -412,20 +412,32 @@ class MealManager extends GetxController {
         final searchIngredients =
             ingredients.map((i) => i.toLowerCase()).toSet();
 
-        // Count matching ingredients
+        // Count matching ingredients with more precise matching
         int matchCount = 0;
+        final List<String> matchedIngredients = [];
+
         for (final searchIngredient in searchIngredients) {
           for (final mealIngredient in mealIngredients) {
-            if (mealIngredient.contains(searchIngredient) ||
-                searchIngredient.contains(mealIngredient)) {
+            // More precise matching logic
+            if (mealIngredient == searchIngredient ||
+                mealIngredient.startsWith(searchIngredient + ' ') ||
+                mealIngredient.endsWith(' ' + searchIngredient) ||
+                mealIngredient.contains(' ' + searchIngredient + ' ') ||
+                // Handle plural forms (basic)
+                (searchIngredient.endsWith('s') &&
+                    mealIngredient ==
+                        searchIngredient.substring(
+                            0, searchIngredient.length - 1)) ||
+                (!searchIngredient.endsWith('s') &&
+                    mealIngredient == searchIngredient + 's')) {
               matchCount++;
               break;
             }
           }
         }
 
-        // Only include meals with at least 2 matching ingredients
-        if (matchCount >= 2) {
+        // Only include meals with at least N-1 matching ingredients (where N is total ingredients)
+        if (matchCount >= ingredients.length - 1) {
           mealsWithMatchCount.add(MapEntry(meal, matchCount));
         }
       }

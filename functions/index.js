@@ -1949,7 +1949,6 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
       "serveQty": number,
       "categories": ["category1", "category2"],
       "cuisine": "Italian, Mexican, etc.",
-      "type": "protein|grain|vegetable",
       "description": "A detailed description of the meal (2-3 sentences)"
     }`;
     
@@ -1979,7 +1978,6 @@ async function generateFullMealDetails(title, basicIngredients, mealType) {
         difficulty: mealDetails.difficulty || 'medium',
         cookingMethod: mealDetails.cookingMethod || 'grilled/roasted/sauteed/etc.',
         serveQty: mealDetails.serveQty || 1,
-        type: mealDetails.type || 'protein',
         categories: mealDetails.categories || [mealType],
         cuisine: mealDetails.cuisine || 'general',
         description: mealDetails.description || '',

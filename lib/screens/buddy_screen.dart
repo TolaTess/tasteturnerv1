@@ -1063,7 +1063,7 @@ Give 3-4 practical tips. Be encouraging!
         // Add a fallback AI message so the user can type again
         setState(() {
           messages.add(ChatScreenData(
-            messageContent: "Sorry, I couldn't respond. Please try again.",
+            messageContent: "Sorry, I snoozed for a bit. Please try sending your message again.",
             senderId: 'buddy',
             timestamp: Timestamp.now(),
             imageUrls: [],
@@ -1072,7 +1072,7 @@ Give 3-4 practical tips. Be encouraging!
         });
         _onNewMessage();
         await _saveMessageToFirestore(
-            "Sorry, I couldn't respond. Please try again.", 'buddy');
+            "Sorry, I snoozed for a bit. Please try sending your message again.", 'buddy');
       }
     }
   }

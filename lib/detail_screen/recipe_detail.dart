@@ -273,7 +273,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         bottom: getPercentageHeight(15, context)),
                     child: noItemTastyWidget(
                       'Meal is processing...',
-                      'Please check back later',
+                      'Please check back in 1 minute',
                       context,
                       false,
                       '',

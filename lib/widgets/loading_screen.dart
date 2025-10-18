@@ -12,8 +12,8 @@ class LoadingScreen extends StatefulWidget {
 
   const LoadingScreen({
     super.key,
-    this.progressPercentage = 75,
-    this.loadingText = "Loading",
+    this.progressPercentage = 95,
+    this.loadingText = "Loading...",
     this.showBackButton = true,
     this.onBackPressed,
     this.isOverlay = false,
