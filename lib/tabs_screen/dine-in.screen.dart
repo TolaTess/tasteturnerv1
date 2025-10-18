@@ -69,22 +69,10 @@ class _DineInScreenState extends State<DineInScreen> {
     loadExcludedIngredients();
     debugPrint('Excluded ingredients: ${excludedIngredients.length}');
 
-    // Load challenge data in background to not block UI
-    // Using Future.wait to parallelize async operations
-    Future.microtask(() {
-      debugPrint('Fetching general data');
-      Future.wait([
-        firebaseService.fetchGeneralData().then((_) {
-          excludedIngredients = firebaseService
-              .generalData['excludeIngredients']
-              .toString()
-              .split(',');
-          debugPrint('Excluded ingredients: ${excludedIngredients.length}');
-        }),
-        _loadChallengeData(),
-        _checkChallengeNotification()
-      ]);
-    });
+    // Load excluded ingredients lazily after UI is built
+    _loadExcludedIngredientsLazily();
+    _checkChallengeNotification();
+    _loadChallengeData();
   }
 
   @override
@@ -96,6 +84,40 @@ class _DineInScreenState extends State<DineInScreen> {
 
   loadExcludedIngredients() async {
     excludedIngredients = excludeIngredients.toList();
+  }
+
+  /// Load excluded ingredients lazily after UI is built
+  void _loadExcludedIngredientsLazily() {
+    // Use addPostFrameCallback to ensure this runs after the first frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        debugPrint('Loading excluded ingredients from Firebase...');
+
+        // Only fetch if we don't already have the data
+        if (firebaseService.generalData.isEmpty) {
+          await firebaseService.fetchGeneralData();
+        }
+
+        if (mounted && firebaseService.generalData.isNotEmpty) {
+          setState(() {
+            excludedIngredients = firebaseService
+                .generalData['excludeIngredients']
+                .toString()
+                .split(',');
+          });
+          debugPrint(
+              'Excluded ingredients loaded: ${excludedIngredients.length}');
+        }
+      } catch (e) {
+        debugPrint('Error loading excluded ingredients: $e');
+        // Fallback to local data if Firebase fails
+        if (mounted) {
+          setState(() {
+            excludedIngredients = excludeIngredients.toList();
+          });
+        }
+      }
+    });
   }
 
   // Local storage keys
@@ -1109,7 +1131,6 @@ class _DineInScreenState extends State<DineInScreen> {
     }
     return {};
   }
-
 
   // Safe integer parsing helper
   int? _safeParseInt(dynamic value) {
