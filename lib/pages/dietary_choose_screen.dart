@@ -518,7 +518,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
     try {
       // Show loading indicator
-      _showLoadingDialog();
+      showLoadingDialog(context, loadingText: loadingTextGenerateMeals);
 
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
@@ -531,7 +531,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       if (mealPlan['error'] == true ||
           mealPlan['source'] == 'failed' ||
           mealPlan['source'] == 'fallback') {
-        Navigator.of(context).pop(); // Close loading dialog
+        hideLoadingDialog(context); // Close loading dialog
         showMealGenerationErrorDialog(
             context,
             mealPlan['message'] ??
@@ -574,7 +574,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
       // Hide loading and navigate back
       if (mounted) {
-        Navigator.of(context).pop(); // Hide loading
+        hideLoadingDialog(context); // Hide loading
         Get.to(
             () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
       }
@@ -585,15 +585,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     }
   }
 
-// Helper method to show loading dialog
-  void _showLoadingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => noItemTastyWidget(
-          'Generating Meal Plan, Please Wait...', '', context, false, ''),
-    );
-  }
 
   void _updatePreferences() {
     if (widget.isOnboarding && widget.onPreferencesSelected != null) {

@@ -327,30 +327,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
       if (postId == 'analyze_and_upload' && !_isVideo) {
         // Show loading dialog for analysis
         if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              backgroundColor:
-                  getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(color: kAccent),
-                  SizedBox(height: getPercentageHeight(2, context)),
-                  Text(
-                    'Analyzing food image with AI...',
-                    style: TextStyle(
-                      color: getThemeProvider(context).isDarkMode
-                          ? kWhite
-                          : kBlack,
-                      fontSize: getTextScale(3.5, context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          showLoadingDialog(context);
         }
 
         // Analyze the image with AI first
@@ -360,7 +337,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
         );
 
         if (mounted) {
-          Navigator.pop(context); // Close loading dialog
+          hideLoadingDialog(context); // Close loading dialog
         }
 
         // Navigate to food analysis results screen for NEW analyze & upload flow

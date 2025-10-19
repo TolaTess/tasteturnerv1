@@ -728,7 +728,7 @@ class _ProgramScreenState extends State<ProgramScreen>
                         color: accent.withValues(alpha: 0.08),
                       ),
                       child: Text(
-                        aiCoachResponse.contains('Error') ? 'Sorry, I snoozed for a bit. Please try again.' : aiCoachResponse,
+                        aiCoachResponse.contains('Error') ? 'Sorry, I snoozed for a moment. Please try again.' : aiCoachResponse,
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
                           color: isDarkMode ? kWhite : kDarkGrey,

@@ -435,7 +435,7 @@ Future<void> handleDetailedFoodAnalysis(
     await ChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
-          "Sorry, I can't find the food analysis. Please upload the image again! 📸",
+          "Sorry, I snoozed for a moment. Please upload the image again! 📸",
       senderId: 'buddy',
     );
     return;

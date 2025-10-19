@@ -365,12 +365,8 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   }
 
                   // Show loading dialog while AI is generating meals
-                  showDialog(
-                    context: context,
-                    builder: (context) => const LoadingScreen(
-                      loadingText: 'Generating Meals, Please Wait...',
-                    ),
-                  );
+                  showLoadingDialog(context,
+                      loadingText: loadingTextGenerateMeals);
 
                   // Create appropriate prompt based on whether it's category or ingredient
                   String prompt;
@@ -385,7 +381,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                     // Validate categories before proceeding
                     if (categories.isEmpty) {
                       if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
+                        hideLoadingDialog(context); // Close loading dialog
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -418,7 +414,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                     // Validate ingredients before proceeding
                     if (ingredients.isEmpty) {
                       if (context.mounted) {
-                        Navigator.of(context).pop(); // Close loading dialog
+                        hideLoadingDialog(context); // Close loading dialog
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -436,7 +432,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                   } else {
                     // Fallback for unexpected data type
                     if (context.mounted) {
-                      Navigator.of(context).pop(); // Close loading dialog
+                      hideLoadingDialog(context); // Close loading dialog
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content:
@@ -493,7 +489,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
 
                   // Close the loading dialog
                   if (context.mounted) {
-                    Navigator.of(context).pop();
+                    hideLoadingDialog(context);
                   }
 
                   // Validate meal plan data before proceeding

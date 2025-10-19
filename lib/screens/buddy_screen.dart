@@ -10,7 +10,6 @@ import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
-import '../service/gemini_service.dart' as gemini;
 import '../themes/theme_provider.dart';
 import 'chat_screen.dart';
 import '../widgets/icon_widget.dart';
@@ -1063,7 +1062,7 @@ Give 3-4 practical tips. Be encouraging!
         // Add a fallback AI message so the user can type again
         setState(() {
           messages.add(ChatScreenData(
-            messageContent: "Sorry, I snoozed for a bit. Please try sending your message again.",
+            messageContent: "Sorry, I snoozed for a moment. Please try sending your message again.",
             senderId: 'buddy',
             timestamp: Timestamp.now(),
             imageUrls: [],
@@ -1072,7 +1071,7 @@ Give 3-4 practical tips. Be encouraging!
         });
         _onNewMessage();
         await _saveMessageToFirestore(
-            "Sorry, I snoozed for a bit. Please try sending your message again.", 'buddy');
+            "Sorry, I snoozed for a moment. Please try sending your message again.", 'buddy');
       }
     }
   }

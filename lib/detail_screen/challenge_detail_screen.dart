@@ -348,28 +348,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   // AI analysis flow
   Future<void> _analyzeWithAI(bool isDarkMode) async {
     try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: kAccent),
-              SizedBox(height: getPercentageHeight(2, context)),
-              Text(
-                'Analyzing food image with AI...',
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                  fontSize: getTextScale(3.5, context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+     
+     showLoadingDialog(context);
 
       // Get the first image from the post
       final mediaPaths =
@@ -395,7 +375,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         mealType: getMealTimeOfDay(), // Default meal type
       );
 
-      Navigator.pop(context); // Close loading dialog
+      hideLoadingDialog(context); // Close loading dialog
 
       // Navigate to food analysis results screen
       final result = await Navigator.push(
@@ -417,7 +397,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         _loadMeal(); // Refresh meal data to update hasMeal state
       }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
+      hideLoadingDialog(context); // Close loading dialog
       _showErrorDialog('AI analysis failed: $e');
     }
   }

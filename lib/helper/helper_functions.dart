@@ -891,7 +891,7 @@ Future<void> handleCameraAction({
     }
 
     if (pickedImages.isEmpty) {
-      Navigator.pop(context); // Close loading dialog
+      hideLoadingDialog(context); // Close loading dialog
       return;
     }
 
@@ -899,46 +899,22 @@ Future<void> handleCameraAction({
     XFile? croppedImage =
         await cropImage(pickedImages.first, context, isDarkMode);
     if (croppedImage == null) {
-      Navigator.pop(context); // Close loading dialog
-      Navigator.pop(context); // Navigate back to previous page
+      hideLoadingDialog(context); // Close loading dialog
       return;
     }
 
-    Navigator.pop(context); // Close loading dialog
+    hideLoadingDialog(context); // Close loading dialog
 
     // Ask user about posting before starting analysis
     bool isPosting = await showPostDialog(context);
 
     // Show loading dialog for analysis
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          content: Row(
-            children: [
-              const CircularProgressIndicator(color: kAccent),
-              SizedBox(width: getPercentageWidth(2, context)),
-              Text(
-                "Analyzing your meal...",
-                style: TextStyle(
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    showLoadingDialog(context);
 
     try {
       // Check premium access for AI analysis
       if (!canUseAI()) {
-        Navigator.pop(context); // Close analysis loading dialog
+        hideLoadingDialog(context); // Close analysis loading dialog
         showPremiumRequiredDialog(context, isDarkMode);
         onError?.call();
         return;
@@ -950,7 +926,7 @@ Future<void> handleCameraAction({
         mealType: mealType,
       );
 
-      Navigator.pop(context); // Close analysis loading dialog
+      hideLoadingDialog(context);
 
       // Navigate to results screen for review and editing
       Navigator.push(
@@ -968,7 +944,7 @@ Future<void> handleCameraAction({
     } catch (e) {
       debugPrint('Food analysis error (catch 1): $e');
       debugPrint('Stack trace: ${StackTrace.current}');
-      Navigator.pop(context); // Close analysis loading dialog
+      hideLoadingDialog(context); // Close analysis loading dialog
       showTastySnackbar(
         'Error',
         'Analysis failed: ${e.toString()}',
@@ -983,7 +959,7 @@ Future<void> handleCameraAction({
   } catch (e) {
     debugPrint('Food analysis error (catch 2): $e');
     debugPrint('Stack trace: ${StackTrace.current}');
-    Navigator.pop(context); // Close loading dialog
+    hideLoadingDialog(context); // Close loading dialog
     showTastySnackbar(
       'Error',
       'Analysis failed: ${e.toString()}',
@@ -1687,4 +1663,93 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
       );
     },
   );
+}
+
+/// Shows a loading dialog with rotating messages
+/// Returns the dialog context for manual dismissal
+BuildContext showLoadingDialog(BuildContext context,
+    {List<String> loadingText = const []}) { 
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+
+  // Use the default rotating messages from constants
+  List<String> loadingMessages = loadingText.isEmpty ? loadingTextImageAnalysis : loadingText;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return _RotatingLoadingDialog(
+        messages: loadingMessages,
+        isDarkMode: isDarkMode,
+      );
+    },
+  );
+
+  return context;
+}
+
+/// Hides the loading dialog
+void hideLoadingDialog(BuildContext context) {
+  Navigator.of(context).pop();
+}
+
+/// A widget that shows a loading dialog with rotating messages
+class _RotatingLoadingDialog extends StatefulWidget {
+  final List<String> messages;
+  final bool isDarkMode;
+
+  const _RotatingLoadingDialog({
+    required this.messages,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<_RotatingLoadingDialog> createState() => _RotatingLoadingDialogState();
+}
+
+class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
+  late Timer _timer;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = (_currentIndex + 1) % widget.messages.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return AlertDialog(
+      backgroundColor: widget.isDarkMode ? kDarkGrey : kWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      content: Row(
+        children: [
+          const CircularProgressIndicator(color: kAccent),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Text(
+            widget.messages[_currentIndex],
+            style: textTheme.displaySmall?.copyWith(
+              color: widget.isDarkMode ? kWhite : kBlack,
+              fontSize: getTextScale(4.5, context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

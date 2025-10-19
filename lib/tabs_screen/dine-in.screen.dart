@@ -71,8 +71,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
     // Load excluded ingredients lazily after UI is built
     // _loadExcludedIngredientsLazily();
-    _checkChallengeNotification();
-    _loadChallengeData();
+    // _checkChallengeNotification();
+    // _loadChallengeData();
   }
 
   @override
@@ -638,7 +638,7 @@ class _DineInScreenState extends State<DineInScreen> {
       if (source == ImageSource.camera) {
         showTastySnackbar(
           'Opening Camera',
-          'Please wait while the camera initializes...',
+          'Please wait while the camera opens...',
           context,
           backgroundColor: kAccent,
         );

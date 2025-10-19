@@ -824,7 +824,7 @@ class GeminiService {
     };
   }
 
-    /// Make a provider-level OpenAI API call (used by unified retry flow)
+  /// Make a provider-level OpenAI API call (used by unified retry flow)
   Future<Map<String, dynamic>> _makeOpenAIApiCall({
     required String endpoint,
     required Map<String, dynamic> body,
@@ -3206,8 +3206,7 @@ $contextInformation''';
 
         if (i < caloriesMatches.length) {
           meal['calories'] =
-              int.tryParse(caloriesMatches.elementAt(i).group(1) ?? '0') ??
-                  0;
+              int.tryParse(caloriesMatches.elementAt(i).group(1) ?? '0') ?? 0;
         } else {
           meal['calories'] = 0; // Default calories
         }
@@ -4729,12 +4728,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
       BuildContext parentContext,
       bool isDineIn) async {
     try {
-      showDialog(
-        context: parentContext,
-        builder: (context) => const LoadingScreen(
-          loadingText: 'Searching for existing meals...',
-        ),
-      );
+      showLoadingDialog(parentContext, loadingText: loadingTextSearchMeals);
 
       // Extract ingredient names
       final ingredientNames =
@@ -4750,7 +4744,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
       );
 
       // Hide loading dialog
-      Navigator.of(parentContext).pop();
+      hideLoadingDialog(parentContext);
 
       List<Map<String, dynamic>> mealsToShow = [];
       String source = '';
@@ -4776,12 +4770,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
         source = 'existing_database';
       } else {
         // Found 0-1 existing meals - generate new ones with AI
-        showDialog(
-          context: parentContext,
-          builder: (context) => const LoadingScreen(
-            loadingText: 'Generating new meals with AI...',
-          ),
-        );
+        showLoadingDialog(parentContext, loadingText: loadingTextGenerateMeals);
 
         // Generate meals directly using generateMealTitlesAndIngredients
         // (no need to check existing meals again since we already did that)
@@ -4842,7 +4831,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
         }
 
         // Hide loading dialog
-        Navigator.of(parentContext).pop();
+        hideLoadingDialog(parentContext);
 
         if (mealsWithIds.isEmpty) throw Exception('No meals generated');
 
