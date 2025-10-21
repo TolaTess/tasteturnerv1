@@ -1217,6 +1217,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   'description': 'See your eating patterns over time',
                   'color': kAccent,
                 },
+                 {
+                  'icon': Icons.calendar_month,
+                  'title': 'Plan Ahead',
+                  'description': 'View Today or Next day action items',
+                  'color': kAccent,
+                },
                 {
                   'icon': Icons.analytics,
                   'title': 'Analyze Meals',

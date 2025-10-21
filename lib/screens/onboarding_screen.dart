@@ -21,7 +21,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final String userId;
-  const OnboardingScreen({super.key, required this.userId});
+  final String? displayName;
+  const OnboardingScreen({super.key, required this.userId, this.displayName});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -64,6 +65,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    if (widget.displayName != null && widget.displayName!.isNotEmpty) {
+      nameController.text = widget.displayName!;
+      debugPrint("Display Onboarding Name: ${widget.displayName}");
+      _validateInputs(); // Validate to enable Next button
+    }
     _bounceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -97,7 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return profaneWords.any(text.toLowerCase().contains);
   }
 
-  /// Verify date format (dd-mm only)
+  /// Verify date format (dd-mm-yyyy)
   void _verifyAge() {
     final dobText = dobController.text.trim();
     if (dobText.isEmpty) {
@@ -109,25 +115,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
 
     try {
-      // Parse the date (dd-mm format)
+      // Parse the date (dd-mm-yyyy format)
       final parts = dobText.split('-');
-      if (parts.length != 2) {
+      if (parts.length != 3) {
         setState(() {
           isOver13 = false;
-          ageVerificationError = 'Please enter date in dd-mm format';
+          ageVerificationError = 'Please enter date in dd-mm-yyyy format';
         });
         return;
       }
 
       final day = int.tryParse(parts[0]);
       final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
 
       if (day == null ||
           month == null ||
+          year == null ||
           day < 1 ||
           day > 31 ||
           month < 1 ||
-          month > 12) {
+          month > 12 ||
+          year < 1900 ||
+          year > DateTime.now().year) {
         setState(() {
           isOver13 = false;
           ageVerificationError = 'Please enter a valid date';
@@ -135,12 +145,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return;
       }
 
-      // Check if the date is valid (basic validation)
+      // Check if the date is valid and if user is over 13
       try {
-        DateTime(2024, month, day); // Use a leap year to test validity
+        final dob = DateTime(year, month, day);
+        final age = DateTime.now().difference(dob).inDays ~/ 365;
+
         setState(() {
-          isOver13 = true; // If date format is valid, assume user is over 13
-          ageVerificationError = null;
+          isOver13 = age >= 13;
+          ageVerificationError = age >= 13 ? null : 'You must be 13 or older';
         });
       } catch (e) {
         setState(() {
@@ -462,7 +474,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(4),
             DateInputFormatter(),
           ],
           onChanged: (_) {
@@ -673,7 +684,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
                 Text(
-                  'By using TasteTurner, you agree to:',
+                  'TasteTurner requires age verification:',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: kWhite,
@@ -683,8 +694,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
                 Text(
-                  '• You are at least 13 years old\n'
-                  '• Date of birth should be entered in dd-mm format (e.g., 15-01)',
+                  '• You must be at least 13 years old to use this app\n'
+                  '• By accepting, you confirm you meet the minimum age requirement\n'
+                  '• Date of birth is optional but helps with age verification',
                   style: TextStyle(
                     color: kWhite.withValues(alpha: 0.6),
                     fontSize: getTextScale(3, context),
@@ -840,10 +852,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           decoration: BoxDecoration(
             color: kDarkGrey,
             borderRadius: BorderRadius.circular(10),
-             border: Border.all(
-                color: selectedGoals.isNotEmpty ? kAccentLight : Colors.grey,
-                width: 2,
-              ),
+            border: Border.all(
+              color: selectedGoals.isNotEmpty ? kAccentLight : Colors.grey,
+              width: 2,
+            ),
           ),
           child: Column(
             children: healthGoalsNoFamily.map((goal) {
@@ -1248,7 +1260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 }
 
-/// Custom input formatter for date input (dd-mm)
+/// Custom input formatter for date input (dd-mm-yyyy)
 class DateInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -1260,14 +1272,14 @@ class DateInputFormatter extends TextInputFormatter {
     // Remove all non-digits
     final digitsOnly = text.replaceAll(RegExp(r'[^\d]'), '');
 
-    // Limit to 4 digits (ddmm)
+    // Limit to 8 digits (ddmmyyyy)
     final limitedDigits =
-        digitsOnly.length > 4 ? digitsOnly.substring(0, 4) : digitsOnly;
+        digitsOnly.length > 8 ? digitsOnly.substring(0, 8) : digitsOnly;
 
-    // Format with dash
+    // Format with dashes
     String formatted = '';
     for (int i = 0; i < limitedDigits.length; i++) {
-      if (i == 2) {
+      if (i == 2 || i == 4) {
         formatted += '-';
       }
       formatted += limitedDigits[i];

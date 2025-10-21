@@ -548,12 +548,12 @@ class _ProgramScreenState extends State<ProgramScreen>
                       'Monitor your progress with visual charts and milestones',
                   'color': kAccent,
                 },
-                {
-                  'icon': Icons.people,
-                  'title': 'Community Support',
-                  'description': 'Join others on similar health journeys',
-                  'color': kAccent,
-                },
+                // {
+                //   'icon': Icons.people,
+                //   'title': 'Community Support',
+                //   'description': 'Join others on similar health journeys',
+                //   'color': kAccent,
+                // },
                 {
                   'icon': Icons.schedule,
                   'title': 'Flexible Duration',

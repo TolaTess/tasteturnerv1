@@ -53,7 +53,22 @@ class AuthController extends GetxController {
       if (!userDoc.exists) {
         // New user - needs onboarding
         await _setLoggedIn(true);
-        Get.offAll(() => OnboardingScreen(userId: user.uid));
+
+        // Extract display name from provider data if user.displayName is null
+        String? displayName = user.displayName;
+        if (displayName == null || displayName.isEmpty) {
+          for (final providerData in user.providerData) {
+            if (providerData.displayName != null &&
+                providerData.displayName!.isNotEmpty) {
+              displayName = providerData.displayName;
+              debugPrint("Display Name from provider data: $displayName");
+              break;
+            }
+          }
+        }
+
+        Get.offAll(
+            () => OnboardingScreen(userId: user.uid, displayName: displayName));
       } else {
         // Existing user - load data and proceed to main app
         try {
@@ -64,8 +79,10 @@ class AuthController extends GetxController {
           await BadgeService.instance.assignUserNumberToExistingUser(user.uid);
 
           await _setLoggedIn(true);
-          if (user.uid == 'j3DFJrAIKDNkDbI3foP8tL4O3Rp1') {
-            Get.offAll(() => OnboardingScreen(userId: user.uid));
+            // Extract display name from provider data if user.displayName is null
+          if (user.uid == tastyId3) {
+            Get.offAll(() => OnboardingScreen(
+                userId: user.uid, displayName: user.displayName));
           } else {
             Get.offAll(() => const BottomNavSec());
           }
@@ -220,7 +237,7 @@ class AuthController extends GetxController {
 
         String userId = cred.user!.uid;
         await _setLoggedIn(true);
-        Get.offAll(() => OnboardingScreen(userId: userId));
+        Get.offAll(() => OnboardingScreen(userId: userId, displayName: null));
       } else {
         showTastySnackbar(
           'Please try again.',
@@ -259,7 +276,42 @@ class AuthController extends GetxController {
       );
 
       // Sign in to Firebase with Google credentials
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+
+      // Extract display name from Google UserCredential
+      String? extractedDisplayName;
+
+      // First try to get display name from additionalUserInfo.profile
+      final profile = userCredential.additionalUserInfo?.profile;
+      if (profile != null) {
+        // Try 'name' field first (full name)
+        if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
+          extractedDisplayName = profile['name'].toString();
+          debugPrint("Extracted Display Name 1: $extractedDisplayName");
+        }
+        // Fallback to combining given_name and family_name
+        else if (profile['given_name'] != null ||
+            profile['family_name'] != null) {
+          final givenName = profile['given_name']?.toString() ?? '';
+          final familyName = profile['family_name']?.toString() ?? '';
+          extractedDisplayName = '$givenName $familyName'.trim();
+          debugPrint("Extracted Display Name 2: $extractedDisplayName");
+        }
+      }
+
+      // Fallback to googleUser.displayName if profile extraction failed
+      if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
+        extractedDisplayName = googleUser.displayName;
+        debugPrint("Extracted Display Name 3: $extractedDisplayName");
+      }
+
+      // Always update display name for both new and existing users
+      if (extractedDisplayName != null && extractedDisplayName.isNotEmpty) {
+        debugPrint("Extracted Display Name 4: $extractedDisplayName");
+        await userCredential.user?.updateDisplayName(extractedDisplayName);
+      }
 
       // The auth state listener will handle the rest via _handleAuthState
       // No need to manually navigate or set up user data here
@@ -295,13 +347,38 @@ class AuthController extends GetxController {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(oauthCredential);
 
-      // If this is a new user, update their profile with the name from Apple
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        final displayName =
+      // Extract display name from UserCredential provider data
+      String? extractedDisplayName;
+
+      // First try to get display name from Apple provider data
+      for (final providerData in userCredential.user?.providerData ?? []) {
+        if (providerData.providerId == 'apple.com' &&
+            providerData.displayName != null) {
+          extractedDisplayName = providerData.displayName;
+          debugPrint("Extracted Display Name Apple 1: $extractedDisplayName");
+          break;
+        }
+        // Also check Google provider data (for linked accounts)
+        if (providerData.providerId == 'google.com' &&
+            providerData.displayName != null) {
+          extractedDisplayName = providerData.displayName;
+          debugPrint("Extracted Display Name Apple 3: $extractedDisplayName");
+          break;
+        }
+      }
+
+      // Fallback to Apple credential names if no display name found
+      if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
+        extractedDisplayName =
             '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'
                 .trim();
-        if (displayName.isNotEmpty) {
-          await userCredential.user?.updateDisplayName(displayName);
+        debugPrint("Extracted Display Name Apple 2: $extractedDisplayName");
+      }
+
+      // If this is a new user, update their profile with the extracted name
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        if (extractedDisplayName.isNotEmpty) {
+          await userCredential.user?.updateDisplayName(extractedDisplayName);
         }
       }
 

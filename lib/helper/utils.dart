@@ -15,6 +15,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/helper/helper_functions.dart';
 import 'package:flutter/material.dart' show debugPrint;
+import 'package:tasteturner/screens/buddy_screen.dart';
+import 'package:tasteturner/tabs_screen/recipe_screen.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1136,8 +1138,8 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BottomNavSec(
-                  selectedIndex: 2,
+                builder: (context) => const TastyScreen(
+                  screen: 'buddy',
                 ),
               ),
             );
@@ -1145,9 +1147,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BottomNavSec(
-                  selectedIndex: 1,
-                  foodScreenTabIndex: 1,
+                builder: (context) => const RecipeScreen(
                 ),
               ),
             );

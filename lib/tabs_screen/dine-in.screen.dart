@@ -2137,12 +2137,12 @@ class _DineInScreenState extends State<DineInScreen> {
                       'Get personalized recipes using your ingredients',
                   'color': kBlue,
                 },
-                {
-                  'icon': Icons.emoji_events,
-                  'title': 'Weekly Challenge',
-                  'description': 'Join challenges to win points and rewards',
-                  'color': kBlue,
-                },
+                // {
+                //   'icon': Icons.emoji_events,
+                //   'title': 'Weekly Challenge',
+                //   'description': 'Join challenges to win points and rewards',
+                //   'color': kBlue,
+                // },
               ],
               iconColor: kBlue,
               tooltip: 'Dine In Information',

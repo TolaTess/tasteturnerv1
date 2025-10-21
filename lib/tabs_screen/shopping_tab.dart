@@ -387,6 +387,12 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   'description': 'Manually add items to your shopping list',
                   'color': kAccentLight,
                 },
+                 {
+                  'icon': Icons.add_shopping_cart,
+                  'title': 'Shopping Day',
+                  'description': 'Set your shopping day and get reminders',
+                  'color': kAccentLight,
+                },
                 {
                   'icon': Icons.check_circle,
                   'title': 'Track Purchases',

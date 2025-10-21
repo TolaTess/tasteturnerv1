@@ -665,6 +665,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               getPercentageHeight(5, context))
                                     ],
                                   ),
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
+                                  if (startWeight == 0 || goalWeight == 0) ...[
+                                    Text(
+                                      'Please update your weight details in settings.',
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  ] else if (startWeight > 0 &&
+                                      goalWeight > 0 &&
+                                      startWeight == goalWeight &&
+                                      currentWeight == goalWeight) ...[
+                                    Text(
+                                      'You have reached your goal weight.',
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  ] else if (startWeight > goalWeight &&
+                                      currentWeight > goalWeight) ...[
+                                    Text(
+                                      'You are ${currentWeight - goalWeight} kg away from your goal weight.',
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      'You are ${goalWeight - currentWeight} kg away from your goal weight.',
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: kAccent,
+                                      ),
+                                    ),
+                                  ],
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.5, context)),
                                 ],
                               ),
                             ),

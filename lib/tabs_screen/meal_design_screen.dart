@@ -395,7 +395,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     'icon': Icons.shopping_cart,
                     'title': 'Shopping List',
                     'description':
-                        'Generate shopping lists from your meal plans',
+                        'Add meals to your calender to automatically generate shopping lists',
                     'color': kAccentLight,
                   },
                 ],

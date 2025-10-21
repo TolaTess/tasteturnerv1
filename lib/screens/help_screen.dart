@@ -47,17 +47,17 @@ class HelpScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildFAQItem(
                 'How do I use Image Analysis?',
-                'To use image analysis, click on analyse my meal on the home screen and add a photo of your meal. Select if you want to upload meal as a post or upload meal to your daily meal tracker.',
+                'To use image analysis, click on analyse my meal on the "Home" screen and add a photo of your meal. Select if you want to upload meal as a post and submit.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
                 'How do I join a Program?',
-                'Navigate to the "Programs" tab to see available programs. Tap on any program to view details and join. You can track your progress and earn points.',
+                'Navigate to the "Programs" screen to see available programs. Tap on any program to view details and join. You can track your progress and earn points.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
-                'What is the Dine In Challenge?',
-                'The Dine In Challenge is our weekly challenge that encourages you to explore different restaurants and get creative with your meal. Join the challenge and earn points for a chance to feature on our dine in leaderboard!',
+                'What is the Dine In?',
+                'The "Dine In" screen allows you to cook with what you have in your fridge and be creative and spontaneous.',
                 textTheme),
             SizedBox(height: getPercentageHeight(2, context)),
             InkWell(
@@ -65,7 +65,7 @@ class HelpScreen extends StatelessWidget {
                launchUrl(Uri.parse('https://tasteturner.com/faq'));
               },
               child: Center(
-                child: Text('FAQ', style: textTheme.titleMedium?.copyWith(
+                child: Text('see more FAQs', style: textTheme.titleMedium?.copyWith(
                   color: kAccent,
                   fontWeight: FontWeight.bold,
                 ),),
@@ -191,7 +191,7 @@ class HelpScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: getPercentageHeight(2, context)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
