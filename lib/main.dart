@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -19,7 +18,6 @@ import 'screens/splash_screen.dart';
 import 'service/auth_controller.dart';
 import 'service/badge_service.dart';
 import 'service/calendar_sharing_service.dart';
-import 'service/challenge_service.dart';
 import 'service/chat_controller.dart';
 import 'service/firebase_data.dart';
 import 'service/friend_controller.dart';
@@ -50,34 +48,36 @@ void main() async {
       'enableHandwriting': false,
     });
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
+    debugPrint('TextInput configuration error: $e');
+    // Don't show UI error at startup - silent logging only
   }
 
   await dotenv.load(fileName: 'assets/env/.env');
   await Firebase.initializeApp();
-  AudioPlayer();
+  // AudioPlayer() - Removed, will be lazy loaded when needed
 
   // Register controllers/services
   Get.put(AuthController());
   Get.put(HelperController());
   Get.put(FirebaseService());
-  Get.put(BattleService());
-  Get.put(CalendarSharingService());
-  Get.put(BadgeService());
+  Get.lazyPut(() => BattleService()); // Lazy load - only needed for battles
+  Get.lazyPut(() =>
+      CalendarSharingService()); // Lazy load - only needed for calendar sharing
+  Get.lazyPut(
+      () => BadgeService()); // Lazy load - only needed for badges/profile
   Get.lazyPut(() => MealManager());
   Get.lazyPut(() => MealPlanController());
   Get.lazyPut(() => PostController());
   Get.lazyPut(() => PostService());
-  Get.put(NutritionController());
+  Get.lazyPut(() =>
+      NutritionController()); // Lazy load - only needed for nutrition tracking
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => FriendController());
   // MacroManager is already registered in its own file
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
-  Get.put(HybridNotificationService(), permanent: true);
+  Get.lazyPut(() => HybridNotificationService()); // Lazy load - can be deferred
   // print('Registering ChallengeService...');
   // // Get.put(ChallengeService(), permanent: true);
   // print('ChallengeService registered successfully');
@@ -115,40 +115,58 @@ void main() async {
 
   // Initialize notifications in background after app starts
   Future.microtask(() async {
-    try {
-      // Add timeout to prevent hanging
-      await notificationService.initNotification(
-        onNotificationTapped: (String? payload) {
-          if (payload != null) {
-            _handleNotificationTap(payload);
-          }
-        },
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('Notification initialization timed out');
-          throw TimeoutException('Notification initialization timed out',
-              const Duration(seconds: 10));
-        },
-      );
-      debugPrint('Notifications service initialized successfully');
-    } catch (e) {
-      debugPrint('Error initializing notifications: $e');
-      // Continue without notifications if they fail
+    int retries = 0;
+    while (retries < 3) {
+      try {
+        // Add timeout to prevent hanging
+        await notificationService.initNotification(
+          onNotificationTapped: (String? payload) {
+            if (payload != null) {
+              _handleNotificationTap(payload);
+            }
+          },
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            debugPrint('Notification initialization timed out');
+            throw TimeoutException('Notification initialization timed out',
+                const Duration(seconds: 10));
+          },
+        );
+        debugPrint('Notifications service initialized successfully');
+        break;
+      } catch (e) {
+        retries++;
+        debugPrint('Notification init attempt $retries failed: $e');
+        if (retries >= 3) {
+          debugPrint('Notification initialization failed after 3 attempts');
+        } else {
+          await Future.delayed(Duration(seconds: retries));
+        }
+      }
     }
   });
 
   // Initialize Firebase data in background
   Future.microtask(() async {
     try {
+      // Stage 1: Essential data only
       await FirebaseService.instance.fetchGeneralData();
-      await MealManager.instance.fetchMealsByCategory("All");
+
     } catch (e) {
       debugPrint('Error initializing Firebase data: $e');
     }
   });
 
-  await MobileAds.instance.initialize();
+  // Initialize MobileAds in background to avoid blocking startup
+  Future.microtask(() async {
+    try {
+      await MobileAds.instance.initialize();
+      debugPrint('Ads initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing ads: $e');
+    }
+  });
 
   runApp(
     MultiProvider(

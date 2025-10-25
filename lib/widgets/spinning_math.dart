@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/helper/utils.dart';
+import 'package:tasteturner/service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,7 +47,7 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
   late List<double> labelLimits;
   late List<double> labelValues;
   late Random _random;
-  late AudioPlayer _audioPlayer;
+  // AudioPlayer now handled by AudioService
 
   @override
   void initState() {
@@ -56,15 +56,15 @@ class _WidgetSpinningWheelState extends State<WidgetSpinningWheel> {
     _generateLabelValues();
     _generateLabelLimits();
     previousLabel = _getCurrentLabel();
-    _audioPlayer = AudioPlayer();
-    _audioPlayer.onPlayerComplete.listen((_) {
+    // AudioPlayer initialization handled by AudioService
+    AudioService.player.onPlayerComplete.listen((_) {
       widget.stopSound();
     });
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    // AudioPlayer disposal handled by AudioService
     super.dispose();
   }
 
@@ -311,7 +311,9 @@ class _PieChartPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = isDarkMode ? kWhite.withValues(alpha: 0.1) : kBlack.withValues(alpha: 0.1)
+      ..color = isDarkMode
+          ? kWhite.withValues(alpha: 0.1)
+          : kBlack.withValues(alpha: 0.1)
       ..strokeWidth = 2.0;
     double sweepAngle = 0;
 
@@ -348,8 +350,9 @@ class _PieChartPainter extends CustomPainter {
 
       // Draw icon background circle
       final iconBgPaint = Paint()
-        ..color =
-            isDarkMode ? kDarkGrey.withValues(alpha: 0.1) : kWhite.withValues(alpha: 0.1)
+        ..color = isDarkMode
+            ? kDarkGrey.withValues(alpha: 0.1)
+            : kWhite.withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
 
       canvas.drawCircle(
@@ -407,8 +410,9 @@ class _PieChartPainter extends CustomPainter {
 
     // Draw center circle
     final centerCirclePaint = Paint()
-      ..color =
-            isDarkMode ? kDarkGrey.withValues(alpha: 0.8) : kWhite.withValues(alpha: 0.8)
+      ..color = isDarkMode
+          ? kDarkGrey.withValues(alpha: 0.8)
+          : kWhite.withValues(alpha: 0.8)
       ..style = PaintingStyle.fill;
 
     final centerBorderPaint = Paint()
@@ -423,8 +427,8 @@ class _PieChartPainter extends CustomPainter {
     // Draw text in center
     final textSpan = TextSpan(
       text: isSpinning ? 'Tap' : 'Double\nTap',
-      style: textTheme.titleSmall?.copyWith(
-          color: kAccent, fontWeight: FontWeight.w800),
+      style: textTheme.titleSmall
+          ?.copyWith(color: kAccent, fontWeight: FontWeight.w800),
     );
     final textPainter = TextPainter(
       text: textSpan,
@@ -440,7 +444,5 @@ class _PieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PieChartPainter old) =>
-      old.startAngle != startAngle ||
-      old.labels != labels ||
-      old.data != data;
+      old.startAngle != startAngle || old.labels != labels || old.data != data;
 }

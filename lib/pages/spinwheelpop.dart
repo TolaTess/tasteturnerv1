@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +9,7 @@ import '../data_models/meal_model.dart';
 import '../helper/helper_files.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../service/audio_service.dart';
 import '../service/tasty_popup_service.dart';
 import '../tabs_screen/shopping_tab.dart';
 import '../widgets/category_selector.dart';
@@ -43,7 +43,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   final TextEditingController customController = TextEditingController();
   List<String> _ingredientList = [];
   List<String> _mealList = [];
-  late AudioPlayer _audioPlayer;
+  // AudioPlayer now handled by AudioService
   bool _isMuted = false;
   String selectedCategoryMeal = 'all';
   String selectedCategoryIdMeal = '';
@@ -61,7 +61,6 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
     _loadMuteState();
 
     // Set default for meal category
@@ -161,19 +160,19 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     if (_funMode) {
       customController.dispose();
     }
-    _audioPlayer.dispose();
+    // AudioPlayer disposal handled by AudioService
     super.dispose();
   }
 
   void _playSound() async {
     if (!_isMuted) {
-      await _audioPlayer
+      await AudioService.player
           .play(AssetSource('audio/spin.mp3')); // Use a spin-specific sound
     }
   }
 
   void _stopSound() async {
-    await _audioPlayer.stop();
+    await AudioService.player.stop();
   }
 
   void _toggleMute() {
