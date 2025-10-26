@@ -74,7 +74,17 @@ class _SafeTextFieldState extends State<SafeTextField> {
       readOnly: widget.readOnly,
       keyboardType: widget.keyboardType,
       focusNode: _focusNode,
-      onChanged: widget.onChanged,
+      onChanged: (value) {
+        // Capitalize first character
+        if (value.isNotEmpty && value[0] != value[0].toUpperCase()) {
+          final capitalizedValue = value[0].toUpperCase() + value.substring(1);
+          widget.controller?.text = capitalizedValue;
+          widget.controller?.selection = TextSelection.fromPosition(
+            TextPosition(offset: capitalizedValue.length),
+          );
+        }
+        widget.onChanged?.call(value);
+      },
       onSubmitted: widget.onSubmitted,
       onTap: widget.onTap,
       maxLines: widget.maxLines,
@@ -155,7 +165,19 @@ class SafeTextFormField extends FormField<String> {
               keyboardType: keyboardType,
               inputFormatters: inputFormatters,
               onChanged: (value) {
-                field.didChange(value);
+                // Capitalize first character
+                if (value.isNotEmpty && value[0] != value[0].toUpperCase()) {
+                  final capitalizedValue =
+                      value[0].toUpperCase() + value.substring(1);
+                  state._effectiveController.text = capitalizedValue;
+                  state._effectiveController.selection =
+                      TextSelection.fromPosition(
+                    TextPosition(offset: capitalizedValue.length),
+                  );
+                  field.didChange(capitalizedValue);
+                } else {
+                  field.didChange(value);
+                }
                 if (onChanged != null) {
                   onChanged(value);
                 }

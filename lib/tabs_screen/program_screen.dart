@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tasteturner/screens/buddy_screen.dart';
 import '../constants.dart';
-import '../data_models/macro_data.dart';
-import '../data_models/meal_model.dart';
-import '../detail_screen/ingredientdetails_screen.dart';
-import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/dietary_choose_screen.dart';
@@ -18,7 +14,8 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/program_detail_widget.dart';
 import '../widgets/info_icon_widget.dart';
-import 'recipe_screen.dart';
+import '../helper/onboarding_prompt_helper.dart';
+import '../widgets/onboarding_prompt.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -43,6 +40,7 @@ class _ProgramScreenState extends State<ProgramScreen>
   final GlobalKey _addTastyAIButtonKey = GlobalKey();
   final GlobalKey _addProgramButtonKey = GlobalKey();
   late final AnimationController _rotationController;
+  bool _showDietaryPrompt = false;
 
   @override
   void initState() {
@@ -59,6 +57,7 @@ class _ProgramScreenState extends State<ProgramScreen>
     _loadProgramTypes();
     // Load user's enrolled programs
     _programService.loadUserPrograms();
+    _checkDietaryPrompt();
     loadShowCaloriesPref().then((value) {
       setState(() {
         showCaloriesAndGoal = value;
@@ -67,6 +66,15 @@ class _ProgramScreenState extends State<ProgramScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
     });
+  }
+
+  Future<void> _checkDietaryPrompt() async {
+    final shouldShow = await OnboardingPromptHelper.shouldShowDietaryPrompt();
+    if (mounted) {
+      setState(() {
+        _showDietaryPrompt = shouldShow;
+      });
+    }
   }
 
   void _showAddMealTutorial() {
@@ -309,7 +317,6 @@ class _ProgramScreenState extends State<ProgramScreen>
                           'guidelines': [],
                           'tips': [],
                           'options': [],
-                          'duration': program.duration,
                         };
                         Get.to(() => ProgramDetailWidget(
                               program: programData,
@@ -580,37 +587,60 @@ class _ProgramScreenState extends State<ProgramScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
+              // Dietary prompt
+              if (_showDietaryPrompt)
+                OnboardingPrompt(
+                  title: "Better Meal Recommendations",
+                  message:
+                      "Tell us your dietary preferences and allergies so we can suggest meals that are perfect for you",
+                  actionText: "Set Preferences",
+                  onAction: () {
+                    setState(() {
+                      _showDietaryPrompt = false;
+                    });
+                    // Navigate to dietary choose screen
+                    Get.to(() => const ChooseDietScreen());
+                  },
+                  onDismiss: () {
+                    setState(() {
+                      _showDietaryPrompt = false;
+                    });
+                  },
+                  promptType: 'banner',
+                  storageKey: OnboardingPromptHelper.PROMPT_DIETARY_SHOWN,
+                ),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  if (showCaloriesAndGoal)...[
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Get.to(() => const NutritionSettingsPage(
-                                  isHealthExpand: true,
-                                ));
-                          },
-                          child: Text(
-                            'Your Diet: ',
-                            style: textTheme.displaySmall?.copyWith(
-                              color: kAccent,
-                              fontSize: getTextScale(5, context),
+                  if (showCaloriesAndGoal) ...[
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Get.to(() => const NutritionSettingsPage(
+                                    isHealthExpand: true,
+                                  ));
+                            },
+                            child: Text(
+                              'Your Diet: ',
+                              style: textTheme.displaySmall?.copyWith(
+                                color: kAccent,
+                                fontSize: getTextScale(5, context),
+                              ),
                             ),
                           ),
-                        ),
-                        Text(
-                          userDiet.isNotEmpty
-                              ? capitalizeFirstLetter(userDiet)
-                              : 'Not set',
-                          style: textTheme.titleLarge?.copyWith(
-                            fontSize: fontSize,
-                            fontWeight: FontWeight.w100,
+                          Text(
+                            userDiet.isNotEmpty
+                                ? capitalizeFirstLetter(userDiet)
+                                : 'Not set',
+                            style: textTheme.titleLarge?.copyWith(
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w100,
+                            ),
                           ),
-                        ),
                         ],
                       ),
                     ),
@@ -728,7 +758,9 @@ class _ProgramScreenState extends State<ProgramScreen>
                         color: accent.withValues(alpha: 0.08),
                       ),
                       child: Text(
-                        aiCoachResponse.contains('Error') ? 'Sorry, I snoozed for a moment. Please try again.' : aiCoachResponse,
+                        aiCoachResponse.contains('Error')
+                            ? 'Sorry, I snoozed for a moment. Please try again.'
+                            : aiCoachResponse,
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
                           color: isDarkMode ? kWhite : kDarkGrey,

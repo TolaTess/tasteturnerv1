@@ -9,9 +9,33 @@ import 'profile_edit_screen.dart';
 import '../themes/theme_provider.dart';
 import '../screens/help_screen.dart';
 import '../screens/premium_screen.dart';
+import '../helper/onboarding_prompt_helper.dart';
+import '../widgets/onboarding_prompt.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _showProfilePrompt = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkProfilePrompt();
+  }
+
+  Future<void> _checkProfilePrompt() async {
+    final shouldShow = await OnboardingPromptHelper.shouldShowProfilePrompt();
+    if (mounted) {
+      setState(() {
+        _showProfilePrompt = shouldShow;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +68,35 @@ class SettingsScreen extends StatelessWidget {
                       SizedBox(
                         height: getPercentageHeight(2, context),
                       ),
+
+                      // Profile completion prompt
+                      if (_showProfilePrompt)
+                        OnboardingPrompt(
+                          title: "Complete Your Profile",
+                          message:
+                              "Adding your date of birth and gender helps us provide more accurate nutrition recommendations",
+                          actionText: "Complete Now",
+                          onAction: () {
+                            setState(() {
+                              _showProfilePrompt = false;
+                            });
+                            // Navigate to profile edit screen
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileEditScreen(),
+                              ),
+                            );
+                          },
+                          onDismiss: () {
+                            setState(() {
+                              _showProfilePrompt = false;
+                            });
+                          },
+                          promptType: 'banner',
+                          storageKey:
+                              OnboardingPromptHelper.PROMPT_PROFILE_SHOWN,
+                        ),
 
                       //setting category list
                       ...List.generate(

@@ -15,11 +15,13 @@ class NutritionSettingsPage extends StatefulWidget {
   final bool isRoutineExpand;
   final bool isHealthExpand;
   final bool isFamilyModeExpand;
+  final bool isWeightExpand;
   const NutritionSettingsPage(
       {super.key,
       this.isRoutineExpand = false,
       this.isHealthExpand = false,
-      this.isFamilyModeExpand = false});
+      this.isFamilyModeExpand = false,
+      this.isWeightExpand = false});
 
   @override
   _NutritionSettingsPageState createState() => _NutritionSettingsPageState();
@@ -262,16 +264,16 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
             children: [
               SizedBox(height: getPercentageHeight(2, context)),
               // Nutrition Section
-              if (!widget.isRoutineExpand)
+              if (!widget.isRoutineExpand && !widget.isWeightExpand)
                 SizedBox(height: getPercentageHeight(2, context)),
               // Nutrition Goals Grid
-              if (!widget.isRoutineExpand)
+              if (!widget.isRoutineExpand && !widget.isWeightExpand)
                 ExpansionTile(
+                  initiallyExpanded: true,
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
-                  initiallyExpanded: true,
                   title: Text(
                     "Daily Nutrition Goals",
                     style: textTheme.titleMedium?.copyWith(
@@ -648,15 +650,16 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     ),
                   ],
                 ),
-              if (!widget.isRoutineExpand)
+              if (!widget.isRoutineExpand || widget.isWeightExpand)
                 SizedBox(height: getPercentageHeight(1, context)),
-              if (!widget.isRoutineExpand)
+              if (!widget.isRoutineExpand || widget.isWeightExpand)
                 ExpansionTile(
                   title: Text(
                     "Weight Management",
                     style: textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w500),
                   ),
+                  initiallyExpanded: widget.isWeightExpand,
                   collapsedIconColor: kAccent,
                   iconColor: kAccent,
                   textColor: kAccent,

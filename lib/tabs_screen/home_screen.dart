@@ -30,6 +30,9 @@ import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 import '../service/notification_service.dart';
 import '../service/hybrid_notification_service.dart';
+import '../helper/onboarding_prompt_helper.dart';
+import '../widgets/onboarding_prompt.dart';
+import '../pages/edit_goal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool showCaloriesAndGoal = true;
   bool _isConnected = true;
   Timer? _networkCheckTimer;
+  bool _showGoalsPrompt = false;
+  bool _tutorialCompleted = false;
 
   @override
   void initState() {
@@ -102,11 +107,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return;
       }
 
-      // Show family nutrition dialog first
-      _checkAndShowFamilyNutritionDialog();
-
       // Then show the meal tutorial
       _showAddMealTutorial();
+
+      // Check goals prompt after tutorial (60 seconds delay)
+      _checkGoalsPromptAfterTutorial();
 
       // Setup Cloud Functions notifications (replaces local scheduling)
       _setupHybridNotifications();
@@ -171,7 +176,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           message: 'Tap here to analyze your meal!',
           targetKey: _addAnalyseButtonKey,
           onComplete: () {
-            // Optional: Add any actions to perform after the tutorial is completed
+            // Mark tutorial as completed
+            setState(() {
+              _tutorialCompleted = true;
+            });
+            // Start family dialog timer after tutorial completion
+            _checkFamilyDialogAfterTutorial();
           },
         ),
       ],
@@ -481,6 +491,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  Future<void> _checkGoalsPrompt() async {
+    final shouldShow = await OnboardingPromptHelper.shouldShowGoalsPrompt();
+    if (mounted) {
+      setState(() {
+        _showGoalsPrompt = shouldShow;
+      });
+    }
+  }
+
+  Future<void> _checkGoalsPromptAfterTutorial() async {
+    // Wait 60 seconds after tutorial starts
+    await Future.delayed(const Duration(seconds: 60));
+    if (mounted) {
+      await _checkGoalsPrompt();
+    }
+  }
+
+  Future<void> _checkFamilyDialogAfterTutorial() async {
+    // Wait 30 seconds after tutorial completion
+    await Future.delayed(const Duration(seconds: 30));
+    if (mounted && _tutorialCompleted) {
+      await _checkAndShowFamilyNutritionDialog();
+    }
+  }
+
   // Check network connectivity
   Future<void> _checkNetworkConnectivity() async {
     try {
@@ -735,6 +770,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Goals prompt banner
+                  if (_showGoalsPrompt)
+                    OnboardingPrompt(
+                      title: "Personalize Your Nutrition Goals",
+                      message:
+                          "Set your health goals to get personalized calorie and macro recommendations tailored to you",
+                      actionText: "Set Goals",
+                      onAction: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NutritionSettingsPage(),
+                          ),
+                        );
+                      },
+                      onDismiss: () {
+                        setState(() {
+                          _showGoalsPrompt = false;
+                        });
+                      },
+                      promptType: 'banner',
+                      storageKey: OnboardingPromptHelper.PROMPT_GOALS_SHOWN,
+                    ),
+
                   SizedBox(
                       height: MediaQuery.of(context).size.width > 800
                           ? getPercentageHeight(1.5, context)

@@ -22,6 +22,8 @@ import '../service/badge_service.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'daily_summary_screen.dart';
+import '../helper/onboarding_prompt_helper.dart';
+import '../widgets/onboarding_prompt.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -45,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final GlobalKey _addBadgesButtonKey = GlobalKey();
   final GlobalKey _addWeightButtonKey = GlobalKey();
   late ScrollController _scrollController;
+  bool _showWeightPrompt = false;
 
   _scrollListener() {
     if (isShrink != lastStatus) {
@@ -75,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
+      _checkWeightPromptAfterTutorial();
     });
   }
 
@@ -109,6 +113,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _checkWeightPrompt() async {
+    final shouldShow = await OnboardingPromptHelper.shouldShowWeightPrompt();
+    if (mounted) {
+      setState(() {
+        _showWeightPrompt = shouldShow;
+      });
+    }
+  }
+
+  Future<void> _checkWeightPromptAfterTutorial() async {
+    // Wait 30 seconds after tutorial starts
+    await Future.delayed(const Duration(seconds: 60));
+    if (mounted) {
+      await _checkWeightPrompt();
+    }
   }
 
   @override
@@ -527,6 +548,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
+                  // Weight tracking prompt
+                  if (_showWeightPrompt)
+                    OnboardingPrompt(
+                      title: "Track Your Progress",
+                      message:
+                          "Add your weight information to track your journey and see your progress over time",
+                      actionText: "Add Weight",
+                      onAction: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NutritionSettingsPage(
+                                isWeightExpand: true),
+                          ),
+                        );
+                      },
+                      onDismiss: () {
+                        setState(() {
+                          _showWeightPrompt = false;
+                        });
+                      },
+                      promptType: 'card',
+                      storageKey: OnboardingPromptHelper.PROMPT_WEIGHT_SHOWN,
+                    ),
+
                   SizedBox(
                       height: getPercentageHeight(
                           1, context)), // Reduced since we have margin now
@@ -565,8 +611,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () =>
-                                    Get.to(() => const NutritionSettingsPage()),
+                                onTap: () => Get.to(() =>
+                                    const NutritionSettingsPage(
+                                        isWeightExpand: true)),
                                 child: Text(
                                   'update',
                                   style: textTheme.bodyMedium?.copyWith(
@@ -670,7 +717,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           getPercentageHeight(0.5, context)),
                                   if (startWeight == 0 || goalWeight == 0) ...[
                                     Text(
-                                      'Please update your weight details in settings.',
+                                      'Please update your weight goals.',
                                       style: textTheme.labelSmall?.copyWith(
                                         color: kAccent,
                                       ),

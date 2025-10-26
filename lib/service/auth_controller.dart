@@ -468,6 +468,10 @@ class AuthController extends GetxController {
       await prefs.setBool('ingredient_battle_new_week', true);
       await prefs.setBool('routine_notification_shown_$today', true);
       await prefs.setBool('routine_badge_$yesterday', false);
+      await prefs.setBool('prompt_goals_shown', false);
+      await prefs.setBool('prompt_dietary_shown', false);
+      await prefs.setBool('prompt_weight_shown', false);
+      await prefs.setBool('prompt_profile_shown', false);
       // _userDataSubscription is cancelled by the _handleAuthState listener
       await FirebaseAuth.instance.signOut();
     } catch (e) {

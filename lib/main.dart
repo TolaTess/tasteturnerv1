@@ -152,7 +152,6 @@ void main() async {
     try {
       // Stage 1: Essential data only
       await FirebaseService.instance.fetchGeneralData();
-
     } catch (e) {
       debugPrint('Error initializing Firebase data: $e');
     }

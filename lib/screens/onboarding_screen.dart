@@ -5,16 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tasteturner/helper/helper_files.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
-import '../pages/dietary_choose_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../service/badge_service.dart';
-import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -36,29 +32,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   // User inputs
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
-  final TextEditingController weightController = TextEditingController();
-  final TextEditingController targetWeightController = TextEditingController();
-  final TextEditingController dobController = TextEditingController();
-  String selectedSex = '';
-  String selectedGender = ''; // Add gender selection
-  String selectedActivityLevel = '';
-  String selectedHeightUnit = 'cm';
-  String selectedWeightUnit = 'kg';
-  List<String> selectedGoals = [];
-  bool enableAITrial = false;
   bool _isNextEnabled = false;
-
-  // Add dietary preferences
-  String selectedDiet = '';
-  Set<String> selectedAllergies = {};
-  String selectedCuisineType = '';
-
-  // Age verification and terms
-  bool isOver13 = false;
-  bool hasAcceptedTerms = false;
-  String? ageVerificationError;
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -79,12 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void dispose() {
     _bounceController.dispose();
-    dobController.dispose();
     nameController.dispose();
-    ageController.dispose();
-    locationController.dispose();
-    weightController.dispose();
-    targetWeightController.dispose();
     super.dispose();
   }
 
@@ -103,98 +72,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return profaneWords.any(text.toLowerCase().contains);
   }
 
-  /// Verify date format (dd-mm-yyyy)
-  void _verifyAge() {
-    final dobText = dobController.text.trim();
-    if (dobText.isEmpty) {
-      setState(() {
-        isOver13 = false;
-        ageVerificationError = null;
-      });
-      return;
-    }
-
-    try {
-      // Parse the date (dd-mm-yyyy format)
-      final parts = dobText.split('-');
-      if (parts.length != 3) {
-        setState(() {
-          isOver13 = false;
-          ageVerificationError = 'Please enter date in dd-mm-yyyy format';
-        });
-        return;
-      }
-
-      final day = int.tryParse(parts[0]);
-      final month = int.tryParse(parts[1]);
-      final year = int.tryParse(parts[2]);
-
-      if (day == null ||
-          month == null ||
-          year == null ||
-          day < 1 ||
-          day > 31 ||
-          month < 1 ||
-          month > 12 ||
-          year < 1900 ||
-          year > DateTime.now().year) {
-        setState(() {
-          isOver13 = false;
-          ageVerificationError = 'Please enter a valid date';
-        });
-        return;
-      }
-
-      // Check if the date is valid and if user is over 13
-      try {
-        final dob = DateTime(year, month, day);
-        final age = DateTime.now().difference(dob).inDays ~/ 365;
-
-        setState(() {
-          isOver13 = age >= 13;
-          ageVerificationError = age >= 13 ? null : 'You must be 13 or older';
-        });
-      } catch (e) {
-        setState(() {
-          isOver13 = false;
-          ageVerificationError = 'Please enter a valid date';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        isOver13 = false;
-        ageVerificationError = 'Please enter a valid date';
-      });
-    }
-  }
-
   /// ✅ Check if all required fields are filled before enabling "Next"
   void _validateInputs() {
     setState(() {
       switch (_currentPage) {
         case 0:
           final name = nameController.text.trim();
-          final dobText = dobController.text.trim();
-          // Name is required, DOB is optional but if provided must be valid format, terms must be accepted
-          _isNextEnabled = name.isNotEmpty &&
-              !isProfane(name) &&
-              (dobText.isEmpty || (isOver13 && ageVerificationError == null)) &&
-              hasAcceptedTerms;
+          // Only name is required
+          _isNextEnabled = name.isNotEmpty && !isProfane(name);
           break;
         case 1:
-          _isNextEnabled = true; // Feature tour page - always enabled
-          break;
         case 2:
-          _isNextEnabled = selectedGoals.isNotEmpty;
-          break;
         case 3:
-          _isNextEnabled = true;
-          break;
-        case 4:
-          _isNextEnabled = true; // Settings page - always enabled
-          break;
-        case 5:
-          _isNextEnabled = true; // Feature tour page - always enabled
+          _isNextEnabled = true; // Visual slides - always enabled
           break;
         default:
           _isNextEnabled = false;
@@ -221,57 +111,46 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         userId: widget.userId,
         displayName: nameController.text.trim(),
         bio: getRandomBio(bios),
-        dob: dobController.text,
+        dob: '', // Empty - will trigger prompt
         profileImage: '',
         userType: 'user',
-        isPremium: enableAITrial,
+        isPremium: false, // Default to false, can be enabled later
         created_At: DateTime.now(),
         freeTrialDate: DateTime.now().add(const Duration(days: 30)),
         settings: <String, dynamic>{
           'waterIntake': '2000',
-          'foodGoal': calculateRecommendedCaloriesFromGoal(
-              selectedGoals.first, selectedGender),
-          'proteinGoal': calculateRecommendedMacrosGoals(
-              selectedGoals.first, selectedGender)['protein'],
-          'carbsGoal': calculateRecommendedMacrosGoals(
-              selectedGoals.first, selectedGender)['carbs'],
-          'fatGoal': calculateRecommendedMacrosGoals(
-              selectedGoals.first, selectedGender)['fat'],
-          'goalWeight': "${targetWeightController.text} $selectedWeightUnit",
-          'startingWeight': "${weightController.text} $selectedWeightUnit",
-          "currentWeight": "${weightController.text} $selectedWeightUnit",
-          'fitnessGoal':
-              selectedGoals.isNotEmpty ? selectedGoals.first : 'Healthy Eating',
+          'foodGoal': '2000', // Default - will trigger prompt
+          'proteinGoal': 150,
+          'carbsGoal': 200,
+          'fatGoal': 65,
+          'goalWeight': '', // Empty - will trigger prompt
+          'startingWeight': '', // Empty
+          'currentWeight': '', // Empty - will trigger prompt
+          'fitnessGoal': 'Healthy Eating', // Default - will trigger prompt
           'targetSteps': '10000',
-          'dietPreference': selectedDiet.isNotEmpty ? selectedDiet : 'Balanced',
-          'gender': selectedGender.isNotEmpty ? selectedGender : null,
+          'dietPreference': 'Balanced',
+          'gender': null, // Null - will trigger prompt
         },
         preferences: {
-          'diet': selectedDiet,
-          'allergies': selectedAllergies.toList(),
-          'cuisineType':
-              selectedCuisineType.isNotEmpty ? selectedCuisineType : 'Balanced',
+          'diet': 'None', // Default - will trigger prompt
+          'allergies': [], // Empty - will trigger prompt
+          'cuisineType': 'Balanced',
           'proteinDishes': 2,
           'grainDishes': 2,
           'vegDishes': 3,
           'lastUpdated': FieldValue.serverTimestamp(),
         },
-        // Date format verification and terms acceptance
+        // UMP consent handles terms acceptance
         ageVerification: {
-          'dateFormatValid': isOver13,
-          'dateOfBirth': dobController.text.trim().isNotEmpty
-              ? dobController.text.trim()
-              : null,
+          'dateFormatValid': true, // UMP consent covers this
+          'dateOfBirth': null,
           'verifiedAt': FieldValue.serverTimestamp(),
         },
         termsAcceptance: {
-          'hasAccepted': hasAcceptedTerms,
+          'hasAccepted': true, // UMP consent covers this
           'acceptedAt': FieldValue.serverTimestamp(),
-          'version': '1.0', // You can version your terms
+          'version': '1.0',
         },
-        // familyMembers:
-        //     familyMembers.map((f) => FamilyMember.fromMap(f)).toList(),
-        // familyMode: familyMembers.isNotEmpty,
       );
 
       try {
@@ -405,11 +284,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     },
                     children: [
                       _buildNamePage(),
-                      _buildGoalsPage(textTheme: Theme.of(context).textTheme),
-                      _buildPreferencePage(),
-                      _buildMeasurementsPage(),
-                      _buildSettingsPage(),
-                      _buildFeatureTourPage(),
+                      _buildMealPlanningSlide(),
+                      _buildTrackingSlide(),
+                      _buildCommunitySlide(),
                     ],
                   ),
                 ),
@@ -426,7 +303,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// Name Input Page
+  /// Welcome & Name Input Page
   Widget _buildNamePage() {
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
@@ -462,597 +339,338 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
-      child2: Container(
+      child2: const SizedBox.shrink(),
+      child3: Image.asset(
+        'assets/images/tasty/tasty.png',
+        height: getPercentageHeight(40, context),
+        width: getPercentageWidth(50, context),
+        fit: BoxFit.contain,
+      ),
+      description:
+          'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
+    );
+  }
+
+  /// Visual Feature Slide 1: Personalized Meal Plans & Custom Diets
+  Widget _buildMealPlanningSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : "there";
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Hi $userName!\nLet's Plan Your Perfect Meals",
+      description:
+          "Get delicious, personalized meal plans designed to fit your unique dietary needs and health goals, including programs like No Sugar or Intermittent Fasting",
+      child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: SafeTextFormField(
-          controller: dobController,
-          style:
-              TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            DateInputFormatter(),
+          gradient: LinearGradient(
+            colors: [
+              kAccent,
+              kAccentLight.withValues(alpha: 0.5)
+            ], // Teal gradient
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFF4A90E2).withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
           ],
-          onChanged: (_) {
-            _verifyAge();
-            _validateInputs();
-          },
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF3F3F3),
-            enabledBorder: outlineInputBorder(10),
-            focusedBorder: outlineInputBorder(10),
-            border: outlineInputBorder(10),
-            labelStyle: const TextStyle(color: Color(0xffefefef)),
-            hintStyle: TextStyle(
-                color: kLightGrey, fontSize: getTextScale(3.5, context)),
-            hintText: "Enter your date of birth (dd-mm-yyyy) (optional)",
-            floatingLabelBehavior: FloatingLabelBehavior.always,
-            contentPadding: EdgeInsets.only(
-              top: getPercentageHeight(1.5, context),
-              bottom: getPercentageHeight(1.5, context),
-              right: getPercentageWidth(2, context),
-              left: getPercentageWidth(2, context),
-            ),
-          ),
         ),
-      ),
-      child3: Column(
-        children: [
-          Text(
-            "Gender (Optional)",
-            style: TextStyle(
-              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              fontSize: getTextScale(3.5, context),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: getPercentageHeight(2, context)),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedGender = 'male';
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      vertical: getPercentageHeight(2, context),
-                      horizontal: getPercentageWidth(3, context),
-                    ),
-                    decoration: BoxDecoration(
-                      color: selectedGender == 'male'
-                          ? kAccentLight
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: selectedGender == 'male'
-                            ? kAccentLight
-                            : getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      'Male',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: selectedGender == 'male'
-                            ? kWhite
-                            : getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                        fontSize: getTextScale(3.5, context),
-                        fontWeight: selectedGender == 'male'
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: getPercentageWidth(3, context)),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedGender = 'female';
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      vertical: getPercentageHeight(2, context),
-                      horizontal: getPercentageWidth(3, context),
-                    ),
-                    decoration: BoxDecoration(
-                      color: selectedGender == 'female'
-                          ? kAccentLight
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: selectedGender == 'female'
-                            ? kAccentLight
-                            : getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      'Female',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: selectedGender == 'female'
-                            ? kWhite
-                            : getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                        fontSize: getTextScale(3.5, context),
-                        fontWeight: selectedGender == 'female'
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (selectedGender.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: getPercentageHeight(1, context)),
-              child: Text(
-                'Gender helps calculate more accurate calorie and macro recommendations',
-                style: TextStyle(
-                  color: kLightGrey,
-                  fontSize: getTextScale(2.8, context),
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+        child: Column(
+          children: [
+            // Calendar + Plate Icon (referencing the image)
 
-          // Age verification status
-          if (dobController.text.trim().isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(3, context)),
+            Text(
+              "Personalized Meal Plans",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
             SizedBox(height: getPercentageHeight(2, context)),
-            Container(
-              padding: EdgeInsets.all(getPercentageWidth(3, context)),
-              decoration: BoxDecoration(
-                color: isOver13
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isOver13 ? Colors.green : Colors.red,
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    isOver13 ? Icons.check_circle : Icons.error,
-                    color: isOver13 ? Colors.green : Colors.red,
-                    size: getPercentageWidth(4, context),
-                  ),
-                  SizedBox(width: getPercentageWidth(2, context)),
-                  Expanded(
-                    child: Text(
-                      isOver13
-                          ? 'Date format verified'
-                          : (ageVerificationError ??
-                              'Date format verification required'),
-                      style: TextStyle(
-                        color: isOver13 ? Colors.green : Colors.red,
-                        fontSize: getTextScale(3, context),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Terms and conditions
-          SizedBox(height: getPercentageHeight(3, context)),
-          Container(
-            padding: EdgeInsets.all(getPercentageWidth(4, context)),
-            decoration: BoxDecoration(
-              color: kDarkGrey,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: hasAcceptedTerms ? kAccentLight : Colors.grey,
-                width: 2,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Feature boxes in 2x2 grid
+            Column(
               children: [
-                Text(
-                  'Age Verification',
-                  style: TextStyle(
-                    color: kWhite,
-                    fontSize: getTextScale(4, context),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: getPercentageHeight(1, context)),
-                Text(
-                  'TasteTurner requires age verification:',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: kWhite,
-                    fontSize: getTextScale(3.5, context),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: getPercentageHeight(1, context)),
-                Text(
-                  '• You must be at least 13 years old to use this app\n'
-                  '• By accepting, you confirm you meet the minimum age requirement\n'
-                  '• Date of birth is optional but helps with age verification',
-                  style: TextStyle(
-                    color: kWhite.withValues(alpha: 0.6),
-                    fontSize: getTextScale(3, context),
-                    height: 1.4,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureBox(
+                      context,
+                      "Programs",
+                      kPurple.withValues(alpha: 0.5), // Green
+                      Icons.restaurant_menu,
+                    ),
+                    _buildFeatureBox(
+                      context,
+                      "Calender",
+                      kBlue.withValues(alpha: 0.5), // Blue
+                      Icons.calendar_month,
+                    ),
+                  ],
                 ),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Checkbox(
-                      value: hasAcceptedTerms,
-                      onChanged: (value) {
-                        setState(() {
-                          hasAcceptedTerms = value ?? false;
-                          _validateInputs();
-                        });
-                      },
-                      activeColor: kAccentLight,
-                      checkColor: kWhite,
+                    _buildFeatureBox(
+                      context,
+                      "No Waste Dine In",
+                      kAccentLight.withValues(alpha: 0.5), // Orange
+                      Icons.dining,
                     ),
-                    Expanded(
-                      child: Text(
-                        'I agree to the terms and conditions and confirm that all information provided is accurate',
-                        style: TextStyle(
-                          color: kWhite,
-                          fontSize: getTextScale(3.2, context),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    _buildFeatureBox(
+                      context,
+                      "Spin Wheel",
+                      kAccent.withValues(alpha: 0.5), // Purple
+                      Icons.casino,
                     ),
                   ],
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Visual Feature Slide 2: AI-Powered Nutrition & Instant Insights
+  Widget _buildTrackingSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : "there";
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Meet Your AI Nutrition Coach",
+      description:
+          "Snap a photo of your meal and let our Tasty AI Chat provide instant nutritional breakdowns, helping you make smarter food choices effortlessly",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              kPurple,
+              kPurple.withValues(alpha: 0.5)
+            ], // Orange gradient
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFFFF6B35).withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: getPercentageHeight(3, context)),
+            Text(
+              "Tasty AI Chat",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            // Feature boxes in 2x2 grid
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureBox(
+                      context,
+                      "Snap & Analyze",
+                      kPink.withValues(alpha: 0.5), // Pink
+                      Icons.camera_alt,
+                    ),
+                    _buildFeatureBox(
+                      context,
+                      "Instant Insights",
+                      kBlue.withValues(alpha: 0.5), // Cyan
+                      Icons.lightbulb,
+                    ),
+                  ],
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureBox(
+                      context,
+                      "AI Chat",
+                      kAccentLight.withValues(alpha: 0.5), // Deep Orange
+                      Icons.chat,
+                    ),
+                    _buildFeatureBox(
+                      context,
+                      "Nutrition Summary",
+                      kAccent.withValues(alpha: 0.5), // Deep Purple
+                      Icons.recommend,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Visual Feature Slide 3: Effortless Macro Tracking & Shopping Lists
+  Widget _buildCommunitySlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : "there";
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Ready $userName?\nLet's Track Your Journey!",
+      description:
+          "Easily track your macros and calories to stay on target. Plus, get auto-generated shopping lists to make healthy eating convenient and stress-free",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              kAccentLight,
+              kAccentLight.withValues(alpha: 0.5)
+            ], // Teal gradient
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFF4A90E2).withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: getPercentageHeight(3, context)),
+            Text(
+              "Effortless Tracking",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            // Feature boxes in 2x2 grid
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureBox(
+                      context,
+                      "Track Macros",
+                      kPurple.withValues(alpha: 0.5), // Green
+                      Icons.track_changes,
+                    ),
+                    _buildFeatureBox(
+                      context,
+                      "Weight Progress",
+                      kBlue.withValues(alpha: 0.5), // Blue
+                      Icons.monitor_weight,
+                    ),
+                  ],
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureBox(
+                      context,
+                      "Shopping Lists",
+                      kPink.withValues(alpha: 0.5), // Orange
+                      Icons.shopping_cart,
+                    ),
+                    _buildFeatureBox(
+                      context,
+                      "Visual Tracking",
+                      kAccent.withValues(alpha: 0.5), // Purple
+                      Icons.bar_chart,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Build square feature box with icon and title
+  Widget _buildFeatureBox(
+      BuildContext context, String text, Color color, IconData icon) {
+    return Container(
+      width: getPercentageWidth(20, context), // Even smaller width
+      height: getPercentageWidth(20, context), // Even smaller height
+      padding:
+          EdgeInsets.all(getPercentageWidth(2.5, context)), // Reduced padding
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      description:
-          'Let\'s personalize your experience with us by telling us a bit about you.',
-    );
-  }
-
-  Widget _buildPreferencePage() {
-    return ChooseDietScreen(
-      isOnboarding: true,
-      onPreferencesSelected: (diet, allergies, cuisineType) {
-        setState(() {
-          selectedDiet = diet;
-          selectedAllergies = allergies;
-          selectedCuisineType = cuisineType;
-        });
-      },
-    );
-  }
-
-  /// Feature Tour Page
-  Widget _buildFeatureTourPage() {
-    final features = [
-      {
-        'title': 'Build Your Meal Plan',
-        'description': 'Build healthy meal plans and track your nutrition',
-        'icon': Icons.restaurant_menu
-      },
-      {
-        'title': 'Spin the Wheel',
-        'description': 'Discover exciting new recipes and meal ideas',
-        'icon': Icons.refresh
-      },
-      {
-        'title': 'Family Mode',
-        'description':
-            'Manage your family\'s meals and build healthy habits together',
-        'icon': Icons.family_restroom
-      },
-      {
-        'title': 'Plan in Advance',
-        'description':
-            'Add your special days and share them with your friends and family',
-        'icon': Icons.calendar_month
-      },
-      {
-        'title': 'Chat with Tasty AI',
-        'description':
-            'Get personalized meal plans, shopping lists and recipe ideas from Tasty AI',
-        'icon': Icons.chat_bubble
-      }
-    ];
-
-    return _buildPage(
-      textTheme: Theme.of(context).textTheme,
-      title: "Key Features",
-      description: "Here's are some of the features you can use with $appName:",
-      child1: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          children: features
-              .map((feature) => Padding(
-                    padding: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(1, context)),
-                    child: ListTile(
-                      leading: Icon(
-                        feature['icon'] as IconData,
-                        color: kAccentLight,
-                        size: getPercentageWidth(6, context),
-                      ),
-                      title: Text(
-                        feature['title'] as String,
-                        style: TextStyle(
-                          color: kWhite,
-                          fontSize: getTextScale(3.5, context),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        feature['description'] as String,
-                        style: TextStyle(
-                          color: kWhite,
-                          fontSize: getTextScale(3, context),
-                        ),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        ),
-      ),
-      child2: const SizedBox.shrink(),
-      child3: const SizedBox.shrink(),
-    );
-  }
-
-  /// Goals Selection Page
-  Widget _buildGoalsPage({required TextTheme textTheme}) {
-    return _buildPage(
-      textTheme: textTheme,
-      title: "How can we help you?",
-      child1: Theme(
-        data: ThemeData(
-          radioTheme: RadioThemeData(
-            fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-              if (states.contains(WidgetState.selected)) {
-                return kAccentLight;
-              }
-              return kWhite;
-            }),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: getPercentageWidth(7, context), // Even smaller icon
           ),
-        ),
-        child: Container(
-          padding: EdgeInsets.all(getPercentageWidth(5, context)),
-          decoration: BoxDecoration(
-            color: kDarkGrey,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selectedGoals.isNotEmpty ? kAccentLight : Colors.grey,
-              width: 2,
+          SizedBox(
+              height: getPercentageHeight(0.8, context)), // Minimal spacing
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: getTextScale(2.5, context), // Even smaller font
+              fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          child: Column(
-            children: healthGoalsNoFamily.map((goal) {
-              return RadioListTile<String>(
-                title: Text(
-                  goal,
-                  style: textTheme.titleMedium?.copyWith(
-                      color:
-                          selectedGoals.contains(goal) ? kAccentLight : kWhite,
-                      fontSize: getTextScale(4, context)),
-                ),
-                value: goal,
-                groupValue:
-                    selectedGoals.isNotEmpty ? selectedGoals.first : null,
-                onChanged: (value) async {
-                  setState(() {
-                    selectedGoals = value != null ? [value] : [];
-                    _validateInputs();
-                  });
-                },
-                activeColor: kAccentLight,
-              );
-            }).toList(),
-          ),
-        ),
+        ],
       ),
-      description:
-          'When you select a goal, we will tailor our recommendations to your needs.',
-      child2: const SizedBox.shrink(),
-      child3: const SizedBox.shrink(),
-    );
-  }
-
-  /// Combined Measurements Page
-  Widget _buildMeasurementsPage() {
-    return _buildPage(
-      textTheme: Theme.of(context).textTheme,
-      title: "Your Measurements",
-      description:
-          "Enter your weight details to keep track of your progress (optional).",
-      child1: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Current Weight:",
-              style: TextStyle(
-                color: kWhite,
-                fontSize: getTextScale(4, context),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            _buildMeasurementInput(
-              weightController,
-              ["kg", "lb"],
-              selectedWeightUnit,
-              (value) {
-                setState(() {
-                  selectedWeightUnit = value;
-                  _validateInputs();
-                });
-              },
-              (value) {
-                _validateInputs();
-              },
-            ),
-          ],
-        ),
-      ),
-      child2: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Target Weight:",
-              style: TextStyle(
-                color: kWhite,
-                fontSize: getTextScale(4, context),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            _buildMeasurementInput(
-              targetWeightController,
-              ["kg", "lb"],
-              selectedWeightUnit,
-              (value) {
-                setState(() {
-                  selectedWeightUnit = value;
-                  _validateInputs();
-                });
-              },
-              (value) {
-                _validateInputs();
-              },
-            ),
-          ],
-        ),
-      ),
-      child3: const SizedBox.shrink(),
-    );
-  }
-
-  /// Combined Settings Page
-  Widget _buildSettingsPage() {
-    return _buildPage(
-      textTheme: Theme.of(context).textTheme,
-      title: "App Settings",
-      description: "Customize your app experience and enable features.",
-      child1: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          children: [
-            SwitchListTile(
-              title: Text(
-                "Enable Dark Mode",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(4, context),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              subtitle: Text(
-                "Switch between light and dark theme",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(3, context),
-                ),
-              ),
-              value:
-                  Provider.of<ThemeProvider>(context, listen: false).isDarkMode,
-              onChanged: (value) {
-                setState(() {
-                  Provider.of<ThemeProvider>(context, listen: false)
-                      .toggleTheme();
-                });
-              },
-              activeColor: kAccentLight,
-              inactiveTrackColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-              inactiveThumbColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-            ),
-            Divider(color: kWhite, height: getPercentageHeight(4, context)),
-            SwitchListTile(
-              title: Text(
-                "Enable AI Assistant",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(4, context),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              subtitle: Text(
-                "Go Premium for personalized AI guidance and premium features - 30 days free trial",
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(3, context),
-                ),
-              ),
-              value: enableAITrial,
-              onChanged: (value) async {
-                setState(() {
-                  enableAITrial = value;
-                });
-                if (value) {
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setString(
-                      'ai_trial_start_date', DateTime.now().toIso8601String());
-                }
-              },
-              activeColor: kAccentLight,
-              inactiveTrackColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-              inactiveThumbColor:
-                  getThemeProvider(context).isDarkMode ? kWhite : kLightGrey,
-            ),
-          ],
-        ),
-      ),
-      child2: const SizedBox.shrink(),
-      child3: const SizedBox.shrink(),
     );
   }
 
@@ -1077,6 +695,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             title.isNotEmpty
                 ? Text(
                     title,
+                    textAlign: TextAlign.center,
                     style: textTheme.displaySmall
                         ?.copyWith(fontWeight: FontWeight.w800, color: kAccent),
                   )
@@ -1085,11 +704,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             Text(
               description,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: getTextScale(3.5, context),
-                color:
-                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-              ),
+              style: textTheme.bodyLarge?.copyWith(
+                color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,),
             ),
             SizedBox(height: getPercentageHeight(5, context)),
             child1,
@@ -1103,91 +719,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildMeasurementInput(
-    TextEditingController controller,
-    List<String> units,
-    String selectedUnit,
-    Function(String) onUnitChange,
-    Function(String) onTextChanged,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          child: SafeTextField(
-            controller: controller,
-            style: TextStyle(
-              color: kDarkGrey,
-              fontSize: getTextScale(3.5, context),
-            ),
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: const Color(0xFFF3F3F3),
-              enabledBorder: outlineInputBorder(10),
-              focusedBorder: outlineInputBorder(10),
-              border: outlineInputBorder(10),
-              labelStyle: const TextStyle(color: Color(0xffefefef)),
-              hintStyle: TextStyle(
-                  color: kLightGrey, fontSize: getTextScale(3.5, context)),
-              hintText: "Enter your weight",
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              contentPadding: EdgeInsets.only(
-                top: getPercentageHeight(1.5, context),
-                bottom: getPercentageHeight(1.5, context),
-                right: getPercentageWidth(2, context),
-                left: getPercentageWidth(2, context),
-              ),
-            ),
-            onChanged: onTextChanged,
-          ),
-        ),
-        SizedBox(width: getPercentageWidth(2, context)),
-        Container(
-          decoration: BoxDecoration(
-            color: kWhite,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: kDarkGrey,
-              width: getPercentageWidth(0.5, context),
-            ),
-          ),
-          padding:
-              EdgeInsets.symmetric(horizontal: getPercentageWidth(3, context)),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedUnit,
-              items: units
-                  .map((u) => DropdownMenuItem(
-                        value: u,
-                        child: Text(
-                          u,
-                          style: TextStyle(
-                              color: kDarkGrey,
-                              fontSize: getTextScale(3.5, context)),
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  onUnitChange(value);
-                }
-              },
-              dropdownColor: kWhite,
-              icon: Icon(Icons.arrow_drop_down,
-                  color: kDarkGrey, size: getPercentageWidth(4, context)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   void _nextPage() {
     if (_isNextEnabled) {
       // Dismiss keyboard when navigating
       FocusScope.of(context).unfocus();
 
-      if (_currentPage < 5) {
+      if (_currentPage < 3) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
@@ -1214,7 +751,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 5 ? "Finish" : "Next",
+          _currentPage == 3 ? "Get Started" : "Next",
           textAlign: TextAlign.center,
           style: textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w500,
