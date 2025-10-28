@@ -6,6 +6,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notification_service.dart';
+import '../widgets/bottom_nav.dart';
+import '../screens/add_food_screen.dart';
 
 /// Hybrid notification service that uses:
 /// - FCM (Cloud Functions) for Android
@@ -157,8 +159,76 @@ class HybridNotificationService extends GetxService {
       // Handle foreground message if needed
     });
 
+    // Handle notification taps
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('Notification tapped: ${message.notification?.title}');
+      _handleNotificationTap(message);
+    });
+
+    // Handle notification tap when app is terminated
+    _messaging.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        debugPrint('App opened from terminated state via notification');
+        _handleNotificationTap(message);
+      }
+    });
+
     // Handle background messages
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
+
+  /// Handle notification tap (Android only)
+  void _handleNotificationTap(RemoteMessage message) {
+    if (!Platform.isAndroid) return;
+
+    final data = message.data;
+    final type = data['type'];
+
+    debugPrint('Handling notification tap: $type');
+
+    switch (type) {
+      case 'meal_plan_reminder':
+        _navigateToMealPlanning(data);
+        break;
+      case 'water_reminder':
+        _navigateToWaterTracking(data);
+        break;
+      case 'evening_review':
+        _navigateToEveningReview(data);
+        break;
+      default:
+        debugPrint('Unknown notification type: $type');
+    }
+  }
+
+  /// Navigate to meal planning screen
+  void _navigateToMealPlanning(Map<String, dynamic> data) {
+    try {
+      // Navigate to meal design screen (tab 4 in bottom nav)
+      Get.to(() => const BottomNavSec(selectedIndex: 4));
+    } catch (e) {
+      debugPrint('Error navigating to meal planning: $e');
+    }
+  }
+
+  /// Navigate to water tracking screen
+  void _navigateToWaterTracking(Map<String, dynamic> data) {
+    try {
+      // Navigate to home screen where water tracking is available
+      Get.to(() => AddFoodScreen(date: DateTime.now()));
+    } catch (e) {
+      debugPrint('Error navigating to water tracking: $e');
+    }
+  }
+
+  /// Navigate to evening review screen
+  void _navigateToEveningReview(Map<String, dynamic> data) {
+    try {
+      // Navigate to home screen where evening review is available
+      Get.to(() => AddFoodScreen(date: DateTime.now()));
+    } catch (e) {
+      debugPrint('Error navigating to evening review: $e');
+    }
   }
 
   /// Set up iOS notification preferences

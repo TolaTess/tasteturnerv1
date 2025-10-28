@@ -1271,11 +1271,11 @@ Future<bool> showPostDialog(BuildContext context) async {
             borderRadius: BorderRadius.circular(15),
           ),
           title: const Text(
-            'Also add to Post?',
+            'Also Add to Explore?',
             style: TextStyle(color: kAccent),
           ),
           content: const Text(
-            'Tap yes to add your meal to the post feed.',
+            'Sharing your meal with the community will help others learn and improve their nutrition.',
           ),
           actions: [
             TextButton(
@@ -1668,11 +1668,12 @@ Future<List<String>?> showIngredientInputDialog(BuildContext context,
 /// Shows a loading dialog with rotating messages
 /// Returns the dialog context for manual dismissal
 BuildContext showLoadingDialog(BuildContext context,
-    {List<String> loadingText = const []}) { 
+    {List<String> loadingText = const []}) {
   final isDarkMode = getThemeProvider(context).isDarkMode;
 
   // Use the default rotating messages from constants
-  List<String> loadingMessages = loadingText.isEmpty ? loadingTextImageAnalysis : loadingText;
+  List<String> loadingMessages =
+      loadingText.isEmpty ? loadingTextImageAnalysis : loadingText;
 
   showDialog(
     context: context,
@@ -1740,7 +1741,7 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
       content: Row(
         children: [
           const CircularProgressIndicator(color: kAccent),
-          SizedBox(width: getPercentageWidth(2, context)),
+          SizedBox(width: getPercentageWidth(3, context)),
           Text(
             widget.messages[_currentIndex],
             style: textTheme.displaySmall?.copyWith(

@@ -16,6 +16,7 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const { defineString } = require('firebase-functions/params');
 const { startOfWeek, endOfWeek, format, addDays } = require("date-fns");
 const crypto = require('crypto');
+const Jimp = require('jimp');
 
 admin.initializeApp();
 
@@ -2022,13 +2023,32 @@ async function processAIResponse(text, operation) {
     // Validate required fields based on operation
     validateResponseStructure(jsonData, operation);
     
-    return jsonData;
+    // Ensure all numeric values are properly converted to numbers
+    const normalizedData = normalizeNumericValues(jsonData, operation);
+    
+    console.log('=== FINAL RESPONSE DATA ===');
+    console.log('Operation:', operation);
+    console.log('Data type:', typeof normalizedData);
+    console.log('Data keys:', Object.keys(normalizedData));
+    console.log('Full response:', JSON.stringify(normalizedData, null, 2));
+    console.log('=== END RESPONSE DATA ===');
+    
+    return normalizedData;
   } catch (e) {
     // Try to extract partial JSON if possible
     try {
       const partialJson = extractPartialJson(text, operation);
       if (partialJson && Object.keys(partialJson).length > 0) {
-        return partialJson;
+        const normalizedPartial = normalizeNumericValues(partialJson, operation);
+        
+        console.log('=== PARTIAL EXTRACTION RESPONSE DATA ===');
+        console.log('Operation:', operation);
+        console.log('Data type:', typeof normalizedPartial);
+        console.log('Data keys:', Object.keys(normalizedPartial));
+        console.log('Full response:', JSON.stringify(normalizedPartial, null, 2));
+        console.log('=== END PARTIAL RESPONSE DATA ===');
+        
+        return normalizedPartial;
       }
     } catch (partialError) {
       console.log('Partial JSON recovery failed:', partialError);
@@ -2036,12 +2056,74 @@ async function processAIResponse(text, operation) {
 
          // Return a fallback structure based on operation type
      console.log(`Creating fallback response for ${operation} due to error:`, e.toString());
-     return createFallbackResponse(operation, e.toString());
+     const fallbackData = createFallbackResponse(operation, e.toString());
+     
+     console.log('=== FALLBACK RESPONSE DATA ===');
+     console.log('Operation:', operation);
+     console.log('Data type:', typeof fallbackData);
+     console.log('Data keys:', Object.keys(fallbackData));
+     console.log('Full response:', JSON.stringify(fallbackData, null, 2));
+     console.log('=== END FALLBACK RESPONSE DATA ===');
+     
+     return fallbackData;
   }
 }
 
 /**
- * Extract JSON object from AI response text
+ * Normalize numeric values in the response data
+ */
+function normalizeNumericValues(data, operation) {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  // Deep clone and ensure proper typing
+  const normalized = JSON.parse(JSON.stringify(data));
+
+  if (operation === 'tasty_analysis' || operation === 'food_analysis') {
+    // Normalize food analysis data
+    if (normalized.foodItems && Array.isArray(normalized.foodItems)) {
+      normalized.foodItems.forEach(item => {
+        if (item.nutritionalInfo && typeof item.nutritionalInfo === 'object') {
+          // Ensure nutritionalInfo is properly typed
+          const nutrition = {};
+          Object.keys(item.nutritionalInfo).forEach(key => {
+            const value = item.nutritionalInfo[key];
+            if (typeof value === 'string' && !isNaN(value)) {
+              nutrition[key] = parseFloat(value);
+            } else if (typeof value === 'number') {
+              nutrition[key] = value;
+            } else {
+              nutrition[key] = value;
+            }
+          });
+          item.nutritionalInfo = nutrition;
+        }
+      });
+    }
+
+    if (normalized.totalNutrition && typeof normalized.totalNutrition === 'object') {
+      // Ensure totalNutrition is properly typed
+      const totalNutrition = {};
+      Object.keys(normalized.totalNutrition).forEach(key => {
+        const value = normalized.totalNutrition[key];
+        if (typeof value === 'string' && !isNaN(value)) {
+          totalNutrition[key] = parseFloat(value);
+        } else if (typeof value === 'number') {
+          totalNutrition[key] = value;
+        } else {
+          totalNutrition[key] = value;
+        }
+      });
+      normalized.totalNutrition = totalNutrition;
+    }
+  }
+
+  return normalized;
+}
+
+/**
+ * Extract JSON object from AI response text (robust version matching client-side)
  */
 function extractJsonObject(text) {
   let jsonStr = text.trim();
@@ -2122,7 +2204,7 @@ function sanitizeJsonString(jsonStr) {
   jsonStr = jsonStr.replace(/"([^"]+)":\s*(\d+(?:\.\d+)?)\s*"(?=\s*[,}\]])/g, '"$1": $2');
 
   // Fix any remaining trailing quotes after numbers (catch-all)
-  jsonStr = jsonStr.replace(/":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, ': $1');
+  jsonStr = jsonStr.replace(/":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, ': $2');
 
   // Fix any other numeric fields with trailing quotes
   jsonStr = jsonStr.replace(/"([^"]+)":\s*(\d+(?:\.\d+)?)"(?=\s*[,}\]])/g, '"$1": $2');
@@ -2242,17 +2324,88 @@ function aggressiveJsonCleanup(jsonStr) {
 }
 
 /**
+ * Aggressive JSON cleanup for malformed responses
+ */
+function aggressiveJsonCleanup(jsonStr) {
+  // Remove all control characters and normalize whitespace
+  jsonStr = jsonStr.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ');
+
+  // Clean up multiple spaces
+  jsonStr = jsonStr.replace(/\s+/g, ' ');
+
+  // Fix broken string values that might have been split by newlines
+  jsonStr = jsonStr.replace(/"([^"]*?)\s*,\s*"([^"]*?)"/g, '"$1 $2"');
+
+  // Fix broken array items that might have been split
+  jsonStr = jsonStr.replace(/}\s*,\s*{/g, '},{');
+
+  // Ensure proper comma placement
+  jsonStr = jsonStr.replace(/,\s*}/g, '}');
+  jsonStr = jsonStr.replace(/,\s*]/g, ']');
+
+  return jsonStr.trim();
+}
+
+/**
  * Extract partial data from malformed JSON using regex patterns
  */
 function extractPartialDataFromMalformedJson(malformedJson) {
   const extractedData = {};
 
   try {
+    // Extract food items for food analysis
+    const foodItemMatches = malformedJson.match(/"name":\s*"([^"]+)"/g) || [];
+    const weightMatches = malformedJson.match(/"estimatedWeight":\s*"([^"]+)"/g) || [];
+    const confidenceMatches = malformedJson.match(/"confidence":\s*"([^"]+)"/g) || [];
+    
+    // Extract nutritional values more comprehensively
+    const caloriesMatches = malformedJson.match(/"calories":\s*"?(\d+)"?/g) || [];
+    const proteinMatches = malformedJson.match(/"protein":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+    const carbsMatches = malformedJson.match(/"carbs":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+    const fatMatches = malformedJson.match(/"fat":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+    const fiberMatches = malformedJson.match(/"fiber":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+    const sugarMatches = malformedJson.match(/"sugar":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+    const sodiumMatches = malformedJson.match(/"sodium":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
+
+    if (foodItemMatches.length > 0) {
+      const foodItems = [];
+      const maxItems = Math.min(foodItemMatches.length, 10); // Cap at 10 items
+
+      for (let i = 0; i < maxItems; i++) {
+        const foodItem = {
+          name: foodItemMatches[i].match(/"name":\s*"([^"]+)"/)[1] || `Food Item ${i + 1}`,
+          estimatedWeight: weightMatches[i] ? 
+            weightMatches[i].match(/"estimatedWeight":\s*"([^"]+)"/)[1] : '100g',
+          confidence: confidenceMatches[i] ? 
+            confidenceMatches[i].match(/"confidence":\s*"([^"]+)"/)[1] : 'medium',
+          nutritionalInfo: {
+            calories: caloriesMatches[i] ? 
+              parseInt(caloriesMatches[i].match(/"calories":\s*"?(\d+)"?/)[1]) : 100,
+            protein: proteinMatches[i] ? 
+              parseFloat(proteinMatches[i].match(/"protein":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
+            carbs: carbsMatches[i] ? 
+              parseFloat(carbsMatches[i].match(/"carbs":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
+            fat: fatMatches[i] ? 
+              parseFloat(fatMatches[i].match(/"fat":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
+            fiber: fiberMatches[i] ? 
+              parseFloat(fiberMatches[i].match(/"fiber":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
+            sugar: sugarMatches[i] ? 
+              parseFloat(sugarMatches[i].match(/"sugar":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
+            sodium: sodiumMatches[i] ? 
+              parseFloat(sodiumMatches[i].match(/"sodium":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0
+          }
+        };
+        foodItems.push(foodItem);
+      }
+
+      extractedData.foodItems = foodItems;
+    }
+
     // Extract meal plan array
     const mealPlanMatches = malformedJson.match(/"title":\s*"([^"]+)"/g) || [];
     const mealTypeMatches = malformedJson.match(/"mealType":\s*"([^"]+)"/g) || [];
     const typeMatches = malformedJson.match(/"type":\s*"([^"]+)"/g) || [];
-    const caloriesMatches = malformedJson.match(/"calories":\s*"?(\d+)"?/g) || [];
+    const mealCaloriesMatches = malformedJson.match(/"calories":\s*"?(\d+)"?/g) || [];
 
     // Extract ingredients using regex
     const ingredientsMatches = malformedJson.match(/"ingredients":\s*\{([^}]+)\}/g) || [];
@@ -2282,12 +2435,12 @@ function extractPartialDataFromMalformedJson(malformedJson) {
         meal.type = typeMatch ? typeMatch[1] : 'protein';
       }
 
-      if (i < caloriesMatches.length) {
-        const caloriesMatch = caloriesMatches[i].match(/"calories":\s*"?(\d+)"?/);
-        meal.calories = caloriesMatch ? parseInt(caloriesMatch[1]) || 300 : 300;
-      } else {
-        meal.calories = 300; // Default calories
-      }
+        if (i < mealCaloriesMatches.length) {
+          const caloriesMatch = mealCaloriesMatches[i].match(/"calories":\s*"?(\d+)"?/);
+          meal.calories = caloriesMatch ? parseInt(caloriesMatch[1]) || 300 : 300;
+        } else {
+          meal.calories = 300; // Default calories
+        }
 
       // Extract ingredients for this meal if available
       if (i < ingredientsMatches.length) {
@@ -2333,7 +2486,7 @@ function extractPartialDataFromMalformedJson(malformedJson) {
     }
 
     if (mealPlan.length > 0) {
-      extractedData.meals = mealPlan;
+      extractedData.mealPlan = mealPlan;
       if (Object.keys(distribution).length > 0) {
         extractedData.distribution = distribution;
       }
@@ -2341,10 +2494,49 @@ function extractPartialDataFromMalformedJson(malformedJson) {
       extractedData.notes = 'Data extracted from malformed JSON using regex patterns';
     }
 
+    // Extract ingredients for fridge analysis
+    const ingredientMatches = malformedJson.match(/"ingredient[^"]*":\s*"([^"]+)"/g) || [];
+    if (ingredientMatches.length > 0) {
+      const ingredients = {};
+      ingredientMatches.forEach((match, index) => {
+        const ingredientName = match.match(/"ingredient[^"]*":\s*"([^"]+)"/)[1];
+        ingredients[ingredientName] = '1 serving';
+      });
+      extractedData.ingredients = ingredients;
+    }
+
+    // Extract suggested meals for fridge analysis
+    const suggestedMealMatches = malformedJson.match(/"suggestedMeals":\s*\[([^\]]+)\]/g) || [];
+    if (suggestedMealMatches.length > 0) {
+      const suggestedMeals = [];
+      suggestedMealMatches.forEach((match) => {
+        const mealsText = match.match(/"suggestedMeals":\s*\[([^\]]+)\]/)[1];
+        const mealNames = mealsText.match(/"([^"]+)"/g) || [];
+        mealNames.forEach(mealName => {
+          suggestedMeals.push({
+            title: mealName.replace(/"/g, ''),
+            description: 'Suggested meal using available ingredients',
+            ingredients: extractedData.ingredients || {}
+          });
+        });
+      });
+      extractedData.suggestedMeals = suggestedMeals;
+    }
+
+    // If no usable data was extracted, mark as complete failure
+    if (Object.keys(extractedData).length === 0 || 
+        (!extractedData.foodItems && !extractedData.mealPlan && !extractedData.ingredients)) {
+      extractedData.source = true; // Mark as complete failure - no usable data
+      extractedData.error = 'No usable data could be extracted from malformed JSON';
+    }
+
     return extractedData;
   } catch (e) {
     console.log('Partial data extraction failed:', e);
-    return {};
+    return {
+      source: true, // Mark as complete failure - no usable data
+      error: 'Failed to extract any data from malformed JSON'
+    };
   }
 }
 
@@ -2632,7 +2824,17 @@ function isValidPartialResponse(data, operation) {
  * Extract partial JSON when full parsing fails
  */
 function extractPartialJson(text, operation) {
-  // This is a simplified version - in practice, you might want more sophisticated extraction
+  // Use the robust extraction method instead of simple JSON parsing
+  try {
+    const partialData = extractPartialDataFromMalformedJson(text);
+    if (partialData && Object.keys(partialData).length > 0) {
+      return partialData;
+    }
+  } catch (e) {
+    console.log('Robust partial extraction failed:', e);
+  }
+  
+  // Fallback to simple extraction
   try {
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
@@ -2642,7 +2844,7 @@ function extractPartialJson(text, operation) {
       return JSON.parse(extractedJson);
     }
   } catch (e) {
-    // Extraction failed
+    console.log('Simple partial extraction failed:', e);
   }
   
   return {};
@@ -3563,3 +3765,765 @@ async function handleSubscriptionRefunded(data, environment) {
     throw error;
   }
 }
+
+/**
+ * Check for existing meals by titles (server-side implementation)
+ * Returns a map of title -> meal data for existing meals
+ */
+async function checkExistingMealsByTitles(mealTitles) {
+  try {
+    const existingMeals = {};
+    
+    // Get all meals from Firestore
+    const mealsSnapshot = await firestore.collection('meals').get();
+    const allMeals = [];
+    
+    mealsSnapshot.forEach(doc => {
+      const mealData = doc.data();
+      allMeals.push({
+        mealId: doc.id,
+        title: mealData.title,
+        categories: mealData.categories || [],
+        ingredients: mealData.ingredients || {},
+        calories: mealData.calories || 0,
+        nutritionalInfo: mealData.nutritionalInfo || {},
+        instructions: mealData.instructions || [],
+      });
+    });
+    
+    console.log(`Checking ${mealTitles.length} titles against ${allMeals.length} existing meals`);
+    
+    // Check each title for similarity
+    for (const title of mealTitles) {
+      let bestMatch = null;
+      let bestScore = 0.0;
+      
+      for (const meal of allMeals) {
+        const score = calculateTitleSimilarity(title.toLowerCase(), meal.title.toLowerCase());
+        if (score > bestScore && score > 0.6) { // Threshold for similarity
+          bestScore = score;
+          bestMatch = meal;
+        }
+      }
+      
+      if (bestMatch) {
+        existingMeals[title] = bestMatch;
+        console.log(`Found existing meal: "${title}" -> "${bestMatch.title}" (score: ${bestScore.toFixed(2)})`);
+      }
+    }
+    
+    return existingMeals;
+  } catch (error) {
+    console.error('Error checking existing meals:', error);
+    return {};
+  }
+}
+
+/**
+ * Calculate similarity between two meal titles
+ * Simple implementation - can be enhanced with more sophisticated algorithms
+ */
+function calculateTitleSimilarity(title1, title2) {
+  // Simple word-based similarity
+  const words1 = title1.split(/\s+/);
+  const words2 = title2.split(/\s+/);
+  
+  let matches = 0;
+  for (const word1 of words1) {
+    for (const word2 of words2) {
+      if (word1 === word2) {
+        matches++;
+        break;
+      }
+    }
+  }
+  
+  // Calculate similarity score (0-1)
+  const maxWords = Math.max(words1.length, words2.length);
+  return maxWords > 0 ? matches / maxWords : 0;
+}
+
+/**
+ * Image processing utility for cloud functions
+ * Compresses and resizes images for faster AI analysis
+ */
+async function processImageForAI(imageBuffer) {
+  try {
+    console.log(`Original image size: ${imageBuffer.length} bytes (${(imageBuffer.length / 1024).toFixed(2)} KB)`);
+    
+    // If image is already small enough, return as-is
+    if (imageBuffer.length <= 500 * 1024) {
+      console.log('Image already optimized, skipping compression');
+      return imageBuffer;
+    }
+    
+    console.log('Compressing large image using Jimp...');
+    
+    // Use Jimp for image processing (pure JavaScript, no external dependencies)
+    const image = await Jimp.read(imageBuffer);
+    
+    // Resize to max 1024px on longest side
+    if (image.getWidth() > image.getHeight()) {
+      if (image.getWidth() > 1024) {
+        image.resize(1024, Jimp.AUTO);
+        console.log('Resized image width to 1024px');
+      }
+    } else {
+      if (image.getHeight() > 1024) {
+        image.resize(Jimp.AUTO, 1024);
+        console.log('Resized image height to 1024px');
+      }
+    }
+    
+    // Compress with quality 85
+    image.quality(85);
+    
+    // Convert to buffer
+    const processedBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+    
+    console.log(`Compressed image size: ${processedBuffer.length} bytes (${(processedBuffer.length / 1024).toFixed(2)} KB)`);
+    
+    return processedBuffer;
+  } catch (error) {
+    console.error('Error processing image with Jimp:', error);
+    // Return original buffer if processing fails
+    return imageBuffer;
+  }
+}
+
+/**
+ * Generate meals with AI using cloud function
+ * Handles meal plan generation with optimized performance
+ */
+exports.generateMealsWithAI = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== generateMealsWithAI Cloud Function Started ===');
+    
+    try {
+      // Validate input
+      const { prompt, context: userContext, cuisine, mealCount, distribution, isIngredientBased } = data;
+      
+      if (!prompt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Prompt is required');
+      }
+      
+      console.log(`Generating ${mealCount || 'default'} meals for cuisine: ${cuisine || 'general'}`);
+      
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+      
+      // Build comprehensive prompt with user context (matching original gemini_service structure)
+      const fullPrompt = `You are a professional nutritionist and meal planner.
+
+${userContext || ''}
+
+${prompt}
+
+${contextInformation || ''}
+
+Generate ${mealCount || (isIngredientBased ? 2 : 10)} meals. Return JSON only:
+{
+  "mealPlan": [
+    {
+      "title": "meal name",
+      "mealType": "breakfast|lunch|dinner|snack",
+      "type": "protein|grain|vegetable|fruit",
+    }
+  ],
+  "distribution": {
+    "breakfast": ${distribution?.breakfast || 2},
+    "lunch": ${distribution?.lunch || 3},
+    "dinner": ${distribution?.dinner || 3},
+    "snack": ${distribution?.snack || 2}
+  }
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown or code blocks.
+- All nutritional values must be numbers (not strings).
+- Focus on ${cuisine || 'general'} cuisine style.
+- mealType must be one of: breakfast|lunch|dinner|snack
+- type must be one of: protein|grain|vegetable|fruit`;
+
+      // Generate content with optimized settings
+      const result = await model.generateContent(fullPrompt);
+      const response = result.response.text();
+      
+      console.log(`Raw AI response length: ${response.length} characters`);
+      
+      // Process AI response with robust parsing
+      const mealData = await processAIResponse(response, 'meal_generation');
+      
+      // Validate response structure (expecting mealPlan, not meals)
+      if (!mealData.mealPlan || !Array.isArray(mealData.mealPlan)) {
+        throw new Error('Invalid meal data structure in AI response - expected mealPlan array');
+      }
+      
+      console.log(`Generated ${mealData.mealPlan.length} meals from AI`);
+      
+      // Extract meal titles for existing meal check
+      const mealTitles = mealData.mealPlan.map(meal => meal.title).filter(title => title);
+      console.log(`Checking for existing meals with titles: ${mealTitles.join(', ')}`);
+      
+      // Check for existing meals server-side
+      const existingMeals = await checkExistingMealsByTitles(mealTitles);
+      console.log(`Found ${Object.keys(existingMeals).length} existing meals`);
+      
+      // Identify missing meals that need to be generated
+      const missingMeals = [];
+      const existingMealTitles = Object.keys(existingMeals);
+      
+      for (const meal of mealData.mealPlan) {
+        const title = meal.title;
+        if (!existingMealTitles.includes(title)) {
+          missingMeals.push(meal);
+        }
+      }
+      
+      console.log(`Need to generate ${missingMeals.length} new meals`);
+      
+      // Save only missing meals individually to meals collection
+      const mealIds = [];
+      const batch = firestore.batch();
+      
+      for (const meal of missingMeals) {
+        const mealRef = firestore.collection('meals').doc();
+        const mealId = mealRef.id;
+        
+        // Create meal document with minimal data - Firebase Functions will fill out details
+        const basicMealData = {
+          title: meal.title || 'Untitled Meal',
+          mealType: meal.mealType || 'main',
+          calories: 0, // Will be filled by Firebase Functions
+          categories: [meal.cuisine || 'general'],
+          nutritionalInfo: {}, // Will be filled by Firebase Functions
+          ingredients: {}, // Will be filled by Firebase Functions
+          instructions: [], // Will be filled by Firebase Functions
+          status: 'pending', // Firebase Functions will process this
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          type: meal.type || 'main',
+          userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+          source: 'ai_generated',
+          version: 'basic',
+          processingAttempts: 0, // Track retry attempts
+          lastProcessingAttempt: null, // Timestamp of last attempt
+          processingPriority: Date.now(), // FIFO processing
+          needsProcessing: true, // Flag for Firebase Functions
+        };
+        
+        console.log(`Saving new meal with minimal data: ${meal.title} with ID: ${mealId}`);
+        console.log(`Minimal meal data (Firebase Functions will fill out details):`, JSON.stringify(basicMealData, null, 2));
+        batch.set(mealRef, basicMealData);
+        mealIds.push(mealId);
+      }
+      
+      // Commit all new meals in a single batch
+      if (missingMeals.length > 0) {
+        await batch.commit();
+        console.log(`Saved ${mealIds.length} new meals to Firestore with pending status`);
+      }
+      
+      // Prepare response with both existing and new meals
+      const allMeals = [];
+      
+      // Add existing meals
+      for (const [title, existingMeal] of Object.entries(existingMeals)) {
+        allMeals.push({
+          id: existingMeal.mealId,
+          title: existingMeal.title,
+          categories: existingMeal.categories,
+          ingredients: existingMeal.ingredients,
+          calories: existingMeal.calories,
+          nutritionalInfo: existingMeal.nutritionalInfo,
+          instructions: existingMeal.instructions,
+          mealType: mealData.mealPlan.find(m => m.title === title)?.mealType || 'main',
+          source: 'existing_database',
+          status: 'completed',
+        });
+      }
+      
+      // Add new meals with minimal data (Firebase Functions will fill out details)
+      for (let i = 0; i < missingMeals.length; i++) {
+        const meal = missingMeals[i];
+        const mealId = mealIds[i];
+        allMeals.push({
+          id: mealId,
+          title: meal.title,
+          categories: [meal.cuisine || 'general'],
+          ingredients: {}, // Will be filled by Firebase Functions
+          calories: 0, // Will be filled by Firebase Functions
+          nutritionalInfo: {}, // Will be filled by Firebase Functions
+          instructions: [], // Will be filled by Firebase Functions
+          mealType: meal.mealType || 'main',
+          source: 'ai_generated',
+          status: 'pending',
+        });
+      }
+      
+      // Save meal plan metadata for reference
+      const mealPlanRef = firestore.collection('meal_plans').doc();
+      const mealPlanData = {
+        mealIds: mealIds, // Only new meal IDs
+        existingMealIds: Object.values(existingMeals).map(meal => meal.mealId),
+        allMealIds: allMeals.map(meal => meal.id),
+        distribution: mealData.distribution || distribution,
+        source: 'cloud_function',
+        executionTime: Date.now() - startTime,
+        mealCount: allMeals.length,
+        newMealCount: missingMeals.length,
+        existingMealCount: Object.keys(existingMeals).length,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: context.auth?.uid || 'anonymous',
+      };
+      
+      await firestore.collection('meal_plans').doc(mealPlanRef.id).set(mealPlanData);
+      
+      console.log(`=== SAVED MEAL PLAN TO FIRESTORE ===`);
+      console.log(`Meal Plan ID: ${mealPlanRef.id}`);
+      console.log(`Total meals: ${allMeals.length} (${Object.keys(existingMeals).length} existing, ${missingMeals.length} new with minimal data)`);
+      console.log(`New Meal IDs (pending Firebase Functions processing): ${mealIds.join(', ')}`);
+      console.log(`Data saved successfully - Firebase Functions will fill out meal details`);
+      console.log(`=== END FIRESTORE SAVE ===`);
+
+      // Return comprehensive meal plan data
+      return {
+        success: true,
+        mealPlanId: mealPlanRef.id,
+        meals: allMeals,
+        mealIds: mealIds, // Only new meal IDs
+        existingMealIds: Object.values(existingMeals).map(meal => meal.mealId),
+        executionTime: Date.now() - startTime,
+        mealCount: allMeals.length,
+        newMealCount: missingMeals.length,
+        existingMealCount: Object.keys(existingMeals).length,
+      };
+      
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error(`=== generateMealsWithAI failed after ${executionTime}ms ===`, error);
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Failed to generate meals: ${error.message}`
+      );
+    }
+  });
+
+/**
+ * Analyze food image using cloud function
+ * Handles food image analysis with server-side image optimization
+ */
+exports.analyzeFoodImage = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== analyzeFoodImage Cloud Function Started ===');
+    
+    try {
+      // Validate input
+      const { base64Image, mealType, dietaryRestrictions } = data;
+      
+      if (!base64Image) {
+        throw new functions.https.HttpsError('invalid-argument', 'Base64 image is required');
+      }
+      
+      console.log(`Analyzing food image for meal type: ${mealType || 'general'}`);
+      
+      // Convert base64 to buffer and process image
+      const imageBuffer = Buffer.from(base64Image, 'base64');
+      const processedBuffer = await processImageForAI(imageBuffer);
+      const processedBase64 = processedBuffer.toString('base64');
+      
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+      
+      // Build contextual prompt
+      let contextualPrompt = 'Analyze this food and provide nutritional info.';
+      
+      if (mealType) {
+        contextualPrompt += ` Type: ${mealType}.`;
+      }
+      
+      if (dietaryRestrictions && dietaryRestrictions.length > 0) {
+        contextualPrompt += ` Diet: ${dietaryRestrictions.join(', ')}.`;
+      }
+      
+      const prompt = `${contextualPrompt}
+
+Return ONLY this JSON structure (no markdown, no explanations):
+
+{
+  "foodItems": [
+    {
+      "name": "food item name",
+      "estimatedWeight": "weight in grams",
+      "confidence": "high|medium|low",
+      "nutritionalInfo": {
+        "calories": 0,
+        "protein": 0,
+        "carbs": 0,
+        "fat": 0,
+        "fiber": 0,
+        "sugar": 0,
+        "sodium": 0
+      }
+    }
+  ],
+  "totalNutrition": {
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "sodium": 0
+  },
+  "ingredients": {
+    "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
+    "ingredient2": "amount with unit"
+  },
+  "confidence": "high|medium|low",
+  "suggestions": {
+    "improvements": ["Add more vegetables for fiber", "Reduce sodium content"],
+    "alternatives": ["Try grilled instead of fried", "Use olive oil instead of butter"],
+    "additions": ["Add herbs for flavor", "Include a side salad"]
+  }
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown or code blocks.
+- All nutritional values must be numbers (not strings).
+- Confidence must be one of: high|medium|low
+- Provide realistic nutritional estimates based on visible portions.
+- ALWAYS include suggestions with practical cooking improvements, alternatives, and additions.
+- Make suggestions specific and actionable based on the food items identified.`;
+
+      // Generate content with image
+      const result = await model.generateContent([
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: processedBase64
+          }
+        }
+      ]);
+      
+      const aiResponse = result.response.text();
+      console.log(`Raw AI response length: ${aiResponse.length} characters`);
+      console.log('=== RAW AI RESPONSE ===');
+      console.log(aiResponse);
+      console.log('=== END RAW AI RESPONSE ===');
+      
+      // Process AI response
+      const foodData = await processAIResponse(aiResponse, 'tasty_analysis');
+      
+      // Debug suggestions and provide fallback if missing
+      console.log('=== SUGGESTIONS DEBUG ===');
+      console.log('Raw suggestions:', foodData.suggestions);
+      console.log('Suggestions type:', typeof foodData.suggestions);
+      console.log('Suggestions keys:', foodData.suggestions ? Object.keys(foodData.suggestions) : 'null');
+      
+      // Provide fallback suggestions if AI didn't generate them
+      if (!foodData.suggestions || typeof foodData.suggestions !== 'object') {
+        console.log('AI did not provide suggestions, using fallback...');
+        foodData.suggestions = {
+          improvements: ["Add more vegetables for better nutrition", "Consider reducing portion size"],
+          alternatives: ["Try grilling instead of frying", "Use herbs instead of salt for flavor"],
+          additions: ["Add a side salad", "Include fresh herbs for garnish"]
+        };
+      }
+      
+      console.log('Final suggestions:', foodData.suggestions);
+      console.log('=== END SUGGESTIONS DEBUG ===');
+      
+      // Validate response structure (expecting comprehensive food analysis structure)
+      if (!foodData.foodItems || !Array.isArray(foodData.foodItems)) {
+        throw new Error('Invalid food data structure in AI response - expected foodItems array');
+      }
+      
+      const executionTime = Date.now() - startTime;
+      console.log(`=== analyzeFoodImage completed in ${executionTime}ms ===`);
+      
+      // Save food analysis data to Firestore
+      const analysisData = {
+        foodItems: foodData.foodItems,
+        totalNutrition: foodData.totalNutrition || {},
+        ingredients: foodData.ingredients || {},
+        confidence: foodData.confidence || 'medium',
+        suggestions: foodData.suggestions || {},
+        source: 'cloud_function',
+        executionTime: executionTime,
+        itemCount: foodData.foodItems.length,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: context.auth?.uid || 'anonymous',
+      };
+
+      // Save analysis to Firestore
+      const analysisRef = await firestore.collection('food_analyses').add(analysisData);
+      
+      // If there are suggested meals, save them individually to meals collection
+      const mealIds = [];
+      if (foodData.suggestedMeals && Array.isArray(foodData.suggestedMeals) && foodData.suggestedMeals.length > 0) {
+        const batch = firestore.batch();
+        
+        for (const suggestedMeal of foodData.suggestedMeals) {
+          const mealRef = firestore.collection('meals').doc();
+          const mealId = mealRef.id;
+          
+          // Create meal document with same structure as saveBasicMealsToFirestore
+          const basicMealData = {
+            title: suggestedMeal.title || 'Suggested Meal',
+            mealType: suggestedMeal.mealType || 'main',
+            calories: suggestedMeal.calories || 0,
+            categories: [],
+            nutritionalInfo: suggestedMeal.nutritionalInfo || {},
+            ingredients: suggestedMeal.ingredients || {},
+            instructions: suggestedMeal.instructions || [],
+            cookingTime: suggestedMeal.cookingTime || '30 minutes',
+            difficulty: suggestedMeal.difficulty || 'medium',
+            servings: suggestedMeal.servings || 1,
+            status: 'pending', // Firebase Functions will process this
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            type: suggestedMeal.type || 'main',
+            userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+            source: 'ai_generated',
+            version: 'basic',
+            processingAttempts: 0, // Track retry attempts
+            lastProcessingAttempt: null, // Timestamp of last attempt
+            processingPriority: Date.now(), // FIFO processing
+            needsProcessing: true, // Flag for Firebase Functions
+          };
+          
+          console.log(`Saving suggested meal: ${suggestedMeal.title} with ID: ${mealId}`);
+          console.log(`Suggested meal data:`, JSON.stringify(basicMealData, null, 2));
+          batch.set(mealRef, basicMealData);
+          mealIds.push(mealId);
+        }
+        
+        // Commit all suggested meals in a single batch
+        await batch.commit();
+        console.log(`Saved ${mealIds.length} suggested meals to Firestore with pending status`);
+      }
+      
+      console.log(`=== SAVED TO FIRESTORE ===`);
+      console.log(`Analysis ID: ${analysisRef.id}`);
+      console.log(`Suggested Meal IDs: ${mealIds.join(', ')}`);
+      console.log(`Data saved successfully`);
+      console.log(`=== END FIRESTORE SAVE ===`);
+
+      // Return analysis ID and suggested meal IDs
+      const response = {
+        success: true,
+        analysisId: analysisRef.id,
+        suggestedMealIds: mealIds,
+        executionTime: executionTime,
+        // Include complete analysis data for immediate display
+        foodItems: foodData.foodItems,
+        totalNutrition: foodData.totalNutrition || {},
+        ingredients: foodData.ingredients || {},
+        confidence: foodData.confidence || 'medium',
+        suggestions: foodData.suggestions || {},
+        source: 'cloud_function',
+        itemCount: foodData.foodItems.length,
+      };
+      
+      console.log('=== FINAL CLOUD FUNCTION RESPONSE ===');
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', Object.keys(response));
+      console.log('Analysis ID:', response.analysisId);
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      console.log('=== END CLOUD FUNCTION RESPONSE ===');
+      
+      return response;
+      
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error(`=== analyzeFoodImage failed after ${executionTime}ms ===`, error);
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Failed to analyze food image: ${error.message}`
+      );
+    }
+  });
+
+/**
+ * Analyze fridge image using cloud function
+ * Handles fridge scanning with server-side image optimization
+ */
+exports.analyzeFridgeImage = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== analyzeFridgeImage Cloud Function Started ===');
+    
+    try {
+      // Validate input
+      const { base64Image, dietaryRestrictions } = data;
+      
+      if (!base64Image) {
+        throw new functions.https.HttpsError('invalid-argument', 'Base64 image is required');
+      }
+      
+      console.log('Analyzing fridge image for ingredients');
+      
+      // Convert base64 to buffer and process image
+      const imageBuffer = Buffer.from(base64Image, 'base64');
+      const processedBuffer = await processImageForAI(imageBuffer);
+      const processedBase64 = processedBuffer.toString('base64');
+      
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+      
+      // Build contextual prompt
+      let contextualPrompt = 'Analyze this fridge image to identify raw ingredients that can be used for cooking.';
+      
+      if (dietaryRestrictions && dietaryRestrictions.length > 0) {
+        contextualPrompt += ` Consider dietary restrictions: ${dietaryRestrictions.join(', ')}.`;
+      }
+      
+      const prompt = `${contextualPrompt}
+
+Identify all visible raw ingredients in this fridge that can be used for cooking.
+
+CRITICAL: Return ONLY raw JSON data. Do not wrap in \`\`\`json\`\`\` or \`\`\` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
+
+{
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "category": "vegetable|protein|dairy|grain|fruit|herb|spice|other"
+    }
+  ],
+  "suggestedMeals": [
+    {
+      "title": "meal name",
+      "cookingTime": "30 minutes",
+      "difficulty": "easy|medium|hard",
+      "calories": 0
+    }
+  ]
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown or code blocks.
+- Focus on ingredients that can be used for cooking main meals.
+- Provide 2 diverse (1 medium and 1 hard) meal suggestions using the identified ingredients.
+- All nutritional values must be numbers (not strings).
+- Category must be one of the following: vegetable|protein|dairy|grain|fruit|herb|spice|other`;
+
+      // Generate content with image
+      const result = await model.generateContent([
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: processedBase64
+          }
+        }
+      ]);
+      
+      const response = result.response.text();
+      console.log(`Raw AI response length: ${response.length} characters`);
+      
+      // Process AI response
+      const fridgeData = await processAIResponse(response, 'fridge_analysis');
+      
+      // Validate response structure
+      if (!fridgeData.ingredients || !Array.isArray(fridgeData.ingredients)) {
+        throw new Error('Invalid fridge data structure in AI response');
+      }
+      
+      const executionTime = Date.now() - startTime;
+      console.log(`=== analyzeFridgeImage completed in ${executionTime}ms ===`);
+      
+      // Save fridge analysis data to Firestore
+      const fridgeAnalysisData = {
+        ingredients: fridgeData.ingredients || [],
+        suggestedMeals: fridgeData.suggestedMeals || [],
+        source: 'cloud_function',
+        executionTime: executionTime,
+        ingredientCount: fridgeData.ingredients?.length || 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: context.auth?.uid || 'anonymous',
+      };
+
+      // Save analysis to Firestore
+      const analysisRef = await firestore.collection('fridge_analyses').add(fridgeAnalysisData);
+      
+      // Save suggested meals individually to meals collection
+      const mealIds = [];
+      if (fridgeData.suggestedMeals && Array.isArray(fridgeData.suggestedMeals) && fridgeData.suggestedMeals.length > 0) {
+        const batch = firestore.batch();
+        
+        for (const suggestedMeal of fridgeData.suggestedMeals) {
+          const mealRef = firestore.collection('meals').doc();
+          const mealId = mealRef.id;
+          
+          // Create meal document with same structure as saveBasicMealsToFirestore
+          const basicMealData = {
+            title: suggestedMeal.title || 'Fridge Suggested Meal',
+            mealType: suggestedMeal.mealType || 'main',
+            calories: suggestedMeal.calories || 0,
+            categories: ['fridge-suggested'],
+            nutritionalInfo: suggestedMeal.nutritionalInfo || {},
+            ingredients: suggestedMeal.ingredients || {},
+            instructions: suggestedMeal.instructions || [],
+            cookingTime: suggestedMeal.cookingTime || '30 minutes',
+            difficulty: suggestedMeal.difficulty || 'medium',
+            servings: suggestedMeal.servings || 1,
+            status: 'pending', // Firebase Functions will process this
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            type: suggestedMeal.type || 'main',
+            userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+            source: 'ai_generated',
+            version: 'basic',
+            processingAttempts: 0, // Track retry attempts
+            lastProcessingAttempt: null, // Timestamp of last attempt
+            processingPriority: Date.now(), // FIFO processing
+            needsProcessing: true, // Flag for Firebase Functions
+          };
+          
+          console.log(`Saving fridge suggested meal: ${suggestedMeal.title} with ID: ${mealId}`);
+          console.log(`Fridge suggested meal data:`, JSON.stringify(basicMealData, null, 2));
+          batch.set(mealRef, basicMealData);
+          mealIds.push(mealId);
+        }
+        
+        // Commit all suggested meals in a single batch
+        await batch.commit();
+        console.log(`Saved ${mealIds.length} fridge suggested meals to Firestore with pending status`);
+      }
+      
+      console.log(`=== SAVED FRIDGE ANALYSIS TO FIRESTORE ===`);
+      console.log(`Analysis ID: ${analysisRef.id}`);
+      console.log(`Suggested Meal IDs: ${mealIds.join(', ')}`);
+      console.log(`Data saved successfully`);
+      console.log(`=== END FIRESTORE SAVE ===`);
+
+      // Return analysis ID and suggested meal IDs
+      return {
+        success: true,
+        analysisId: analysisRef.id,
+        suggestedMealIds: mealIds,
+        executionTime: executionTime,
+        // Include complete analysis data for immediate display
+        ingredients: fridgeData.ingredients || [],
+        suggestedMeals: fridgeData.suggestedMeals || [],
+        source: 'cloud_function',
+        ingredientCount: fridgeData.ingredients?.length || 0,
+      };
+      
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error(`=== analyzeFridgeImage failed after ${executionTime}ms ===`, error);
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Failed to analyze fridge image: ${error.message}`
+      );
+    }
+  });

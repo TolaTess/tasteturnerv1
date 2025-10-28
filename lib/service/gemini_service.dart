@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
 
 import '../constants.dart';
@@ -19,7 +20,6 @@ import '../data_models/user_meal.dart';
 import '../data_models/ingredient_data.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../widgets/loading_screen.dart';
 
 /// Enum to track which AI provider is being used
 enum AIProvider { gemini, openai, openrouter }
@@ -175,10 +175,10 @@ class GeminiService {
     int retryCount = 0,
     bool useFallback = true,
   }) async {
-    // Always start with Gemini for new requests
-    if (_currentProvider == AIProvider.openrouter && retryCount == 0) {
-      debugPrint('Resetting to Gemini provider for new request');
-      _currentProvider = AIProvider.gemini;
+    // Always start with OpenAI for client-side fallback (since cloud functions handle primary AI)
+    if (_currentProvider == AIProvider.gemini && retryCount == 0) {
+      debugPrint('Client-side fallback: Starting with OpenAI provider');
+      _currentProvider = AIProvider.openai;
     }
 
     // Try current provider first
@@ -190,10 +190,10 @@ class GeminiService {
         retryCount: retryCount,
       );
     } catch (e) {
-      // If we're using Gemini and it fails, retry with Gemini first
-      if (_currentProvider == AIProvider.gemini && retryCount < _maxRetries) {
+      // If we're using OpenAI and it fails, retry with OpenAI first
+      if (_currentProvider == AIProvider.openai && retryCount < _maxRetries) {
         debugPrint(
-            'Gemini failed, retrying with Gemini (attempt ${retryCount + 1}): $e');
+            'OpenAI failed, retrying with OpenAI (attempt ${retryCount + 1}): $e');
         return await _makeApiCallWithRetry(
           endpoint: endpoint,
           body: body,
@@ -203,26 +203,26 @@ class GeminiService {
         );
       }
 
-      // If Gemini has been retried and still fails, then try OpenAI fallback first, then OpenRouter
+      // If OpenAI has been retried and still fails, then try Gemini fallback, then OpenRouter
       if (useFallback &&
-          _currentProvider == AIProvider.gemini &&
+          _currentProvider == AIProvider.openai &&
           retryCount >= _maxRetries) {
-        // Try OpenAI
+        // Try Gemini
         try {
           debugPrint(
-              'Gemini failed after ${_maxRetries} retries, switching to OpenAI: $e');
-          _currentProvider = AIProvider.openai;
-          final openaiResult = await _makeApiCallToCurrentProvider(
+              'OpenAI failed after ${_maxRetries} retries, switching to Gemini: $e');
+          _currentProvider = AIProvider.gemini;
+          final geminiResult = await _makeApiCallToCurrentProvider(
             endpoint: endpoint,
             body: body,
             operation: operation,
             retryCount: 0,
           );
-          _currentProvider = AIProvider.gemini; // reset after success
-          debugPrint('Reset back to Gemini provider for next request');
-          return openaiResult;
-        } catch (openaiErr) {
-          debugPrint('OpenAI fallback failed: $openaiErr');
+          _currentProvider = AIProvider.openai; // reset after success
+          debugPrint('Reset back to OpenAI provider for next request');
+          return geminiResult;
+        } catch (geminiErr) {
+          debugPrint('Gemini fallback failed: $geminiErr');
           // Try OpenRouter if allowed
           if (_useOpenRouterFallback) {
             debugPrint('Switching to OpenRouter fallback...');
@@ -233,8 +233,8 @@ class GeminiService {
               operation: operation,
               retryCount: 0,
             );
-            _currentProvider = AIProvider.gemini; // reset
-            debugPrint('Reset back to Gemini provider for next request');
+            _currentProvider = AIProvider.openai; // reset
+            debugPrint('Reset back to OpenAI provider for next request');
             return orResult;
           }
         }
@@ -276,6 +276,145 @@ class GeminiService {
     }
   }
 
+  /// Fetch analysis data from Firestore using document ID
+  Future<Map<String, dynamic>> _fetchAnalysisDataFromFirestore({
+    required String analysisId,
+    required String operation,
+  }) async {
+    try {
+      String collectionName;
+
+      // Determine collection based on operation
+      switch (operation) {
+        case 'analyze food image':
+          collectionName = 'food_analyses';
+          break;
+        case 'analyze fridge image':
+          collectionName = 'fridge_analyses';
+          break;
+        case 'generate meals':
+          collectionName = 'meal_plans';
+          break;
+        default:
+          throw Exception('Unknown operation: $operation');
+      }
+
+      debugPrint(
+          '[Firestore] Fetching from collection: $collectionName, ID: $analysisId');
+
+      final doc = await FirebaseFirestore.instance
+          .collection(collectionName)
+          .doc(analysisId)
+          .get();
+
+      if (!doc.exists) {
+        throw Exception('Analysis document not found: $analysisId');
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      debugPrint(
+          '[Firestore] Successfully fetched data: ${data.keys.toList()}');
+
+      return data;
+    } catch (e) {
+      debugPrint('[Firestore] Error fetching analysis data: $e');
+      rethrow;
+    }
+  }
+
+  /// Generic cloud function caller with error handling and fallback
+  Future<Map<String, dynamic>> _callCloudFunction({
+    required String functionName,
+    required Map<String, dynamic> data,
+    required String operation,
+  }) async {
+    try {
+      debugPrint('[Cloud Function] Calling $functionName for $operation');
+      final startTime = DateTime.now();
+
+      final callable = FirebaseFunctions.instance.httpsCallable(functionName);
+      final result = await callable(data).timeout(const Duration(seconds: 90));
+
+      final executionTime = DateTime.now().difference(startTime).inMilliseconds;
+      debugPrint(
+          '[Cloud Function] $functionName completed in ${executionTime}ms');
+
+      if (result.data is Map<String, dynamic>) {
+        final response = result.data as Map<String, dynamic>;
+        if (response['success'] == true) {
+          debugPrint(
+              '[Cloud Function] $functionName succeeded via cloud function');
+
+          // Handle new optimized response format (complete data included)
+          if (response.containsKey('foodItems') ||
+              response.containsKey('meals') ||
+              response.containsKey('ingredients')) {
+            // Data is complete, use it directly (optimized path)
+            debugPrint(
+                '[Cloud Function] Using direct response data (optimized)');
+
+            // Still add meal IDs if they exist
+            if (response.containsKey('mealIds')) {
+              response['mealIds'] = response['mealIds'];
+              debugPrint(
+                  '[Cloud Function] Added ${(response['mealIds'] as List).length} meal IDs to response');
+            }
+            if (response.containsKey('suggestedMealIds')) {
+              response['suggestedMealIds'] = response['suggestedMealIds'];
+              debugPrint(
+                  '[Cloud Function] Added ${(response['suggestedMealIds'] as List).length} suggested meal IDs to response');
+            }
+
+            return response;
+          } else if (response.containsKey('analysisId') ||
+              response.containsKey('mealPlanId')) {
+            // Fallback to Firestore fetch (legacy support)
+            final analysisId = response['analysisId'] ?? response['mealPlanId'];
+            debugPrint(
+                '[Cloud Function] Fetching data from Firestore with ID: $analysisId');
+
+            // Fetch data from Firestore based on operation type
+            final firestoreData = await _fetchAnalysisDataFromFirestore(
+              analysisId: analysisId,
+              operation: operation,
+            );
+
+            // Add meal IDs to the response if they exist
+            if (response.containsKey('mealIds')) {
+              firestoreData['mealIds'] = response['mealIds'];
+              debugPrint(
+                  '[Cloud Function] Added ${(response['mealIds'] as List).length} meal IDs to response');
+            }
+            if (response.containsKey('suggestedMealIds')) {
+              firestoreData['suggestedMealIds'] = response['suggestedMealIds'];
+              debugPrint(
+                  '[Cloud Function] Added ${(response['suggestedMealIds'] as List).length} suggested meal IDs to response');
+            }
+
+            debugPrint(
+                '[Cloud Function] Successfully fetched data from Firestore');
+            return firestoreData;
+          } else {
+            // Fallback to old format (should not happen with new cloud functions)
+            debugPrint('[Cloud Function] Using legacy response format');
+            return response;
+          }
+        } else {
+          throw Exception(
+              'Cloud function returned unsuccessful result: ${response['error'] ?? 'Unknown error'}');
+        }
+      } else {
+        debugPrint(
+            '[Cloud Function] Invalid response format: ${result.data.runtimeType}');
+        throw Exception('Invalid response format from cloud function');
+      }
+    } catch (e) {
+      debugPrint('[Cloud Function] $functionName failed: $e');
+      // Re-throw to trigger fallback to client-side AI
+      throw Exception('Cloud function failed: $e');
+    }
+  }
+
   /// Make API call to Gemini
   Future<Map<String, dynamic>> _makeGeminiApiCall({
     required String endpoint,
@@ -314,7 +453,7 @@ class GeminiService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 90));
 
       if (response.statusCode == 200) {
         // Reset error tracking on success
@@ -487,7 +626,7 @@ class GeminiService {
             },
             body: jsonEncode(openRouterBody),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 90));
 
       if (response.statusCode == 200) {
         // Reset error tracking on success
@@ -852,7 +991,7 @@ class GeminiService {
             },
             body: jsonEncode(openaiBody),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 90));
 
       if (response.statusCode == 200) {
         _consecutiveOpenAIErrors = 0;
@@ -2488,7 +2627,93 @@ $contextInformation''';
     debugPrint(
         'Provider health reset - Gemini: $_isGeminiHealthy, OpenRouter: $_isOpenRouterHealthy');
 
-    // Try Gemini first
+    // Try OpenAI first for client-side fallback (since cloud functions handle primary AI)
+    final openaiApiKey = dotenv.env['OPENAI_API_KEY'];
+    debugPrint(
+        'OpenAI API key present: ${openaiApiKey != null && openaiApiKey.isNotEmpty}');
+
+    if (openaiApiKey != null && openaiApiKey.isNotEmpty) {
+      try {
+        debugPrint('Testing OpenAI API connection...');
+        final response = await http.post(
+          Uri.parse('https://api.openai.com/v1/models'),
+          headers: {
+            'Authorization': 'Bearer $openaiApiKey',
+            'Content-Type': 'application/json',
+          },
+        );
+
+        debugPrint('OpenAI models response status: ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+          final models = decoded['data'] as List;
+          debugPrint('Found ${models.length} OpenAI models');
+
+          // Log all available model names for debugging
+          debugPrint('Available OpenAI models:');
+          for (var model in models) {
+            debugPrint('  - ${model['id']}');
+          }
+
+          // Look for available text models in order of preference
+          final preferredModels = [
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'gpt-4',
+            'gpt-3.5-turbo',
+          ];
+
+          // Try preferred models first
+          for (final modelName in preferredModels) {
+            try {
+              final model = models.firstWhere(
+                (m) => m['id'].toString().startsWith(modelName),
+              );
+
+              // Store the model name
+              _activeModel = model['id'].toString();
+              _currentProvider = AIProvider.openai;
+              debugPrint('✅ OpenAI initialized with model: $_activeModel');
+              return true;
+            } catch (e) {
+              debugPrint('Model $modelName not found, trying next...');
+              continue;
+            }
+          }
+
+          // If no preferred model found, use any available OpenAI model
+          debugPrint(
+              '⚠️ No preferred models found, looking for any usable OpenAI model...');
+          for (var model in models) {
+            final modelName = model['id'].toString();
+            // Use any OpenAI model
+            if (modelName.startsWith('gpt-')) {
+              _activeModel = modelName;
+              _currentProvider = AIProvider.openai;
+              debugPrint('✅ Using fallback OpenAI model: $_activeModel');
+              return true;
+            }
+          }
+
+          debugPrint('❌ No usable OpenAI models found');
+        } else {
+          debugPrint(
+              '❌ OpenAI API returned error: ${response.statusCode} - ${response.body}');
+        }
+      } catch (e) {
+        debugPrint('❌ OpenAI initialization error: $e');
+        _isOpenAIHealthy = false;
+      }
+    } else {
+      debugPrint('⚠️ OpenAI API key not configured');
+    }
+
+    // If OpenAI fails, try Gemini
+    debugPrint(
+        'OpenAI initialization failed or not available, trying Gemini...');
+
     final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
     debugPrint(
         'Gemini API key present: ${geminiApiKey != null && geminiApiKey.isNotEmpty}');
@@ -3275,6 +3500,17 @@ $contextInformation''';
       debugPrint('Error extracting partial data: $e');
     }
 
+    // If no usable data was extracted, mark as complete failure
+    if (extractedData.isEmpty ||
+        (!extractedData.containsKey('mealPlan') &&
+            !extractedData.containsKey('foodItems') &&
+            !extractedData.containsKey('ingredients'))) {
+      extractedData['source'] =
+          true; // Mark as complete failure - no usable data
+      extractedData['error'] =
+          'No usable data could be extracted from malformed JSON';
+    }
+
     return extractedData;
   }
 
@@ -3665,11 +3901,11 @@ $contextInformation''';
       final String dynamicInstructions = _generateDynamicInstructions(
           targetMealCount, distribution, isIngredientBased);
 
-      // New explicit attempt order:
-      // 1) Gemini (9000 tokens)
-      // 2) OpenAI
-      // 3) Gemini (9000 tokens)
-      // 4) OpenAI
+      // New explicit attempt order for client-side fallback:
+      // 1) OpenAI (primary for client-side fallback)
+      // 2) Gemini (secondary fallback)
+      // 3) OpenAI (retry)
+      // 4) Gemini (retry)
       String lastResponseText = '';
 
       Future<Map<String, dynamic>> parseGeminiStyleResponse(
@@ -3896,7 +4132,67 @@ Generate $mealCount meals. Return JSON only:
   Future<Map<String, dynamic>> generateMealsIntelligently(
       String prompt, String contextInformation, String cuisine) async {
     try {
-      // Step 1: Generate meal titles, types, and basic ingredients
+      // Try cloud function first for better performance
+      try {
+        debugPrint(
+            '[Cloud Function] Attempting meal generation via cloud function');
+        final cloudResult = await _callCloudFunction(
+          functionName: 'generateMealsWithAI',
+          data: {
+            'prompt': prompt,
+            'context': contextInformation,
+            'cuisine': cuisine,
+            'mealCount': 10, // Default meal count
+            'distribution': {
+              'breakfast': 2,
+              'lunch': 3,
+              'dinner': 3,
+              'snack': 2
+            },
+            'isIngredientBased': false,
+          },
+          operation: 'generate meals intelligently',
+        );
+
+        // Convert cloud function response to expected format
+        final meals = cloudResult['meals'] as List<dynamic>? ?? [];
+        final mealPlan = meals; // Use meals as mealPlan for compatibility
+        final distribution =
+            cloudResult['distribution'] as Map<String, dynamic>? ??
+                {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2};
+
+        // Extract meal titles for compatibility with existing logic
+        final mealTitles =
+            meals.map((meal) => meal['title'] as String).toList();
+
+        debugPrint(
+            '[Cloud Function] Successfully generated ${meals.length} meals via cloud function');
+        debugPrint(
+            '[Cloud Function] New meals: ${cloudResult['newMealCount'] ?? 0}');
+        debugPrint(
+            '[Cloud Function] Existing meals: ${cloudResult['existingMealCount'] ?? 0}');
+
+        return {
+          'meals': meals,
+          'mealPlan': mealPlan,
+          'mealTitles': mealTitles,
+          'distribution': distribution,
+          'source': 'cloud_function',
+          'executionTime': cloudResult['executionTime'],
+          'mealCount': meals.length,
+          'newMealCount': cloudResult['newMealCount'] ?? 0,
+          'existingMealCount': cloudResult['existingMealCount'] ?? 0,
+          'mealIds': cloudResult['mealIds'] ?? [], // Include new meal IDs
+          'existingMealIds':
+              cloudResult['existingMealIds'] ?? [], // Include existing meal IDs
+        };
+      } catch (cloudError) {
+        debugPrint(
+            '[Cloud Function] Meal generation failed, falling back to client-side: $cloudError');
+        // Fall through to existing client-side logic
+      }
+
+      // Step 1: Generate meal titles, types, and basic ingredients (fallback)
       final mealData =
           await generateMealTitlesAndIngredients(prompt, contextInformation);
       final mealTitles = List<String>.from(
@@ -4291,6 +4587,44 @@ Generate $mealCount meals. Return JSON only:
     required File imageFile,
     String? dietaryRestrictions,
   }) async {
+    try {
+      // Try cloud function first for better performance
+      debugPrint(
+          '[Cloud Function] Attempting fridge image analysis via cloud function');
+
+      // Read and encode image for cloud function
+      final Uint8List imageBytes = await imageFile.readAsBytes();
+      final String base64Image = base64Encode(imageBytes);
+
+      final cloudResult = await _callCloudFunction(
+        functionName: 'analyzeFridgeImage',
+        data: {
+          'base64Image': base64Image,
+          'dietaryRestrictions':
+              dietaryRestrictions != null ? [dietaryRestrictions] : [],
+        },
+        operation: 'analyze fridge image',
+      );
+
+      debugPrint(
+          '[Cloud Function] Successfully analyzed fridge image via cloud function');
+
+      return {
+        'ingredients': cloudResult['ingredients'],
+        'suggestedMeals': cloudResult['suggestedMeals'],
+        'source': 'cloud_function',
+        'executionTime': cloudResult['executionTime'],
+        'ingredientCount': cloudResult['ingredientCount'],
+        'suggestedMealIds':
+            cloudResult['suggestedMealIds'] ?? [], // Include suggested meal IDs
+      };
+    } catch (cloudError) {
+      debugPrint(
+          '[Cloud Function] Fridge image analysis failed, falling back to client-side: $cloudError');
+      // Fall through to existing client-side logic
+    }
+
+    // Fallback to client-side analysis
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
@@ -4436,6 +4770,49 @@ Important guidelines:
     String? additionalContext,
   }) async {
     debugPrint('=== Starting analyzeFoodImageWithContext ===');
+
+    try {
+      // Try cloud function first for better performance
+      debugPrint(
+          '[Cloud Function] Attempting food image analysis via cloud function');
+
+      // Read and encode image for cloud function
+      Uint8List imageBytes = await imageFile.readAsBytes();
+      final String base64Image = base64Encode(imageBytes);
+
+      final cloudResult = await _callCloudFunction(
+        functionName: 'analyzeFoodImage',
+        data: {
+          'base64Image': base64Image,
+          'mealType': mealType,
+          'dietaryRestrictions':
+              dietaryRestrictions != null ? [dietaryRestrictions] : [],
+        },
+        operation: 'analyze food image',
+      );
+
+      debugPrint(
+          '[Cloud Function] Successfully analyzed food image via cloud function');
+
+      return {
+        'foodItems': cloudResult['foodItems'],
+        'totalNutrition': cloudResult['totalNutrition'],
+        'ingredients': cloudResult['ingredients'],
+        'confidence': cloudResult['confidence'],
+        'suggestions': cloudResult['suggestions'],
+        'source': 'cloud_function',
+        'executionTime': cloudResult['executionTime'],
+        'itemCount': cloudResult['itemCount'],
+        'suggestedMealIds':
+            cloudResult['suggestedMealIds'] ?? [], // Include suggested meal IDs
+      };
+    } catch (cloudError) {
+      debugPrint(
+          '[Cloud Function] Food image analysis failed, falling back to client-side: $cloudError');
+      // Fall through to existing client-side logic
+    }
+
+    // Fallback to client-side analysis
     debugPrint('Active model: $_activeModel');
     debugPrint('Current provider: ${_currentProvider.name}');
     debugPrint('Gemini healthy: $_isGeminiHealthy');

@@ -27,6 +27,7 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
   List<AssetEntity> selectedImages = [];
   final TextEditingController captionController = TextEditingController();
   bool _isLoading = false;
+  bool _isInitialLoading = true;
   final ScrollController _scrollController = ScrollController();
   static const int _batchSize = 20;
 
@@ -61,17 +62,70 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
 
     setState(() => _isLoading = true);
 
-    final int start = _loadedImages.length;
-    final int end =
-        start + _batchSize < images.length ? start + _batchSize : images.length;
+    try {
+      // Get more images from the album
+      final PermissionState permissionState =
+          await PhotoManager.requestPermissionExtend();
 
-    await Future.delayed(
-        const Duration(milliseconds: 100)); // Prevent UI blocking
+      if (!permissionState.hasAccess) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-    setState(() {
-      _loadedImages.addAll(images.sublist(start, end));
-      _isLoading = false;
-    });
+      final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+        onlyAll: true,
+        type: RequestType.image,
+        filterOption: FilterOptionGroup(
+          imageOption: const FilterOption(
+            sizeConstraint: SizeConstraint(ignoreSize: true),
+            needTitle: false,
+          ),
+          createTimeCond: DateTimeCond(
+            min: DateTime.now().subtract(const Duration(days: 180)),
+            max: DateTime.now(),
+          ),
+        ),
+      );
+
+      if (albums.isNotEmpty) {
+        final AssetPathEntity recentAlbum = albums[0];
+        final int currentCount = _loadedImages.length;
+
+        if (Platform.isIOS) {
+          await PhotoManager.setIgnorePermissionCheck(true);
+          final List<AssetEntity> moreImages =
+              await recentAlbum.getAssetListRange(
+            start: currentCount,
+            end: currentCount + _batchSize,
+          );
+
+          if (moreImages.isNotEmpty) {
+            setState(() {
+              images.addAll(moreImages);
+              _loadedImages.addAll(moreImages);
+            });
+          }
+        } else {
+          final int nextPage = (currentCount / _batchSize).floor();
+          final List<AssetEntity> moreImages =
+              await recentAlbum.getAssetListPaged(
+            page: nextPage,
+            size: _batchSize,
+          );
+
+          if (moreImages.isNotEmpty) {
+            setState(() {
+              images.addAll(moreImages);
+              _loadedImages.addAll(moreImages);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading more images: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadGalleryImages() async {
@@ -88,10 +142,11 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
       final FilterOptionGroup filter = FilterOptionGroup(
         imageOption: const FilterOption(
           sizeConstraint: SizeConstraint(ignoreSize: true),
-          needTitle: true,
+          needTitle: false, // Don't load titles for faster loading
         ),
         createTimeCond: DateTimeCond(
-          min: DateTime.now().subtract(const Duration(days: 365)),
+          min: DateTime.now().subtract(
+              const Duration(days: 180)), // Reduced from 365 to 180 days
           max: DateTime.now(),
         ),
       );
@@ -104,38 +159,42 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
 
       if (albums.isEmpty) {
         debugPrint('No photo albums found');
+        setState(() => _isInitialLoading = false);
         return;
       }
 
       final AssetPathEntity recentAlbum = albums[0];
 
-      // Optimize thumbnail loading for iOS
+      // Load initial batch only for faster startup
       if (Platform.isIOS) {
         await PhotoManager.setIgnorePermissionCheck(true);
-        final List<AssetEntity> galleryImages =
+        final List<AssetEntity> initialImages =
             await recentAlbum.getAssetListRange(
           start: 0,
-          end: 100,
+          end: _batchSize, // Load only first batch initially
         );
 
         setState(() {
-          images = galleryImages;
-          _loadedImages = galleryImages.take(_batchSize).toList();
+          images = initialImages;
+          _loadedImages = initialImages;
+          _isInitialLoading = false;
         });
       } else {
-        final List<AssetEntity> galleryImages =
+        final List<AssetEntity> initialImages =
             await recentAlbum.getAssetListPaged(
           page: 0,
-          size: 100,
+          size: _batchSize, // Load only first batch initially
         );
 
         setState(() {
-          images = galleryImages;
-          _loadedImages = galleryImages.take(_batchSize).toList();
+          images = initialImages;
+          _loadedImages = initialImages;
+          _isInitialLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Error loading gallery images: $e');
+      setState(() => _isInitialLoading = false);
       if (mounted) {
         showTastySnackbar(
           'Try again',
@@ -285,73 +344,124 @@ class _CustomImagePickerModalState extends State<CustomImagePickerModal> {
                 ),
                 SizedBox(height: getPercentageHeight(1, context)),
                 Expanded(
-                  child: _loadedImages.isEmpty
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                          color: kAccent,
-                        ))
-                      : GridView.builder(
-                          controller: _scrollController,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                  child: _isInitialLoading
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const CircularProgressIndicator(
+                                color: kAccent,
+                                strokeWidth: 3,
+                              ),
+                              SizedBox(height: getPercentageHeight(2, context)),
+                              Text(
+                                'Loading your photos...',
+                                style: TextStyle(
+                                  fontSize: getTextScale(3.5, context),
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                            ],
                           ),
-                          itemCount:
-                              _loadedImages.length + (_isLoading ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= _loadedImages.length) {
-                              return const Center(
-                                child:
-                                    CircularProgressIndicator(color: kAccent),
-                              );
-                            }
-
-                            final asset = _loadedImages[index];
-                            final isSelected = selectedImages.contains(asset);
-
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    selectedImages.remove(asset);
-                                  } else {
-                                    selectedImages.add(asset);
-                                  }
-                                });
-                              },
-                              child: Stack(
+                        )
+                      : _loadedImages.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Positioned.fill(
-                                    child: AssetEntityImage(
-                                      asset,
-                                      isOriginal: false,
-                                      thumbnailSize: ThumbnailSize.square(
-                                          getPercentageWidth(20, context)
-                                              .toInt()),
-                                      thumbnailFormat: ThumbnailFormat.jpeg,
-                                      fit: BoxFit.cover,
+                                  Icon(
+                                    Icons.photo_library_outlined,
+                                    size: getPercentageWidth(15, context),
+                                    color: isDarkMode ? kWhite : kBlack,
+                                  ),
+                                  SizedBox(
+                                      height: getPercentageHeight(2, context)),
+                                  Text(
+                                    'No photos found',
+                                    style: TextStyle(
+                                      fontSize: getTextScale(3.5, context),
+                                      color: isDarkMode ? kWhite : kBlack,
                                     ),
                                   ),
-                                  if (isSelected)
-                                    Positioned(
-                                      top: getPercentageHeight(1, context),
-                                      right: getPercentageWidth(1, context),
-                                      child: Icon(Icons.check_circle,
-                                          color: kAccent,
-                                          size: getPercentageWidth(6, context)),
-                                    ),
                                 ],
                               ),
-                            );
-                          },
-                        ),
+                            )
+                          : GridView.builder(
+                              controller: _scrollController,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                              ),
+                              itemCount:
+                                  _loadedImages.length + (_isLoading ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index >= _loadedImages.length) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                        color: kAccent),
+                                  );
+                                }
+
+                                final asset = _loadedImages[index];
+                                final isSelected =
+                                    selectedImages.contains(asset);
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        selectedImages.remove(asset);
+                                      } else {
+                                        selectedImages.add(asset);
+                                      }
+                                    });
+                                  },
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: AssetEntityImage(
+                                          asset,
+                                          isOriginal: false,
+                                          thumbnailSize: ThumbnailSize.square(
+                                              getPercentageWidth(20, context)
+                                                  .toInt()),
+                                          thumbnailFormat: ThumbnailFormat.jpeg,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Positioned(
+                                          top: getPercentageHeight(1, context),
+                                          right: getPercentageWidth(1, context),
+                                          child: Icon(Icons.check_circle,
+                                              color: kAccent,
+                                              size: getPercentageWidth(
+                                                  6, context)),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                 ),
                 if (_isLoading)
                   Padding(
                     padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                    child: CircularProgressIndicator(color: kAccent),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(color: kAccent),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        Text(
+                          'Loading more photos...',
+                          style: TextStyle(
+                            fontSize: getTextScale(3, context),
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 SizedBox(height: getPercentageHeight(1, context)),
                 SafeTextFormField(
@@ -446,6 +556,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
   List<AssetEntity> _loadedImages = [];
   final List<AssetEntity> _selectedImages = [];
   bool _isLoading = false;
+  bool _isInitialLoading = true;
   final ScrollController _scrollController = ScrollController();
   static const int _batchSize = 30;
   int _currentPage = 0;
@@ -512,6 +623,7 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
 
       if (!permission.hasAccess) {
         PhotoManager.openSetting();
+        setState(() => _isInitialLoading = false);
         return;
       }
 
@@ -522,17 +634,21 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
 
       if (albums.isEmpty) {
         debugPrint('No photo albums found');
+        setState(() => _isInitialLoading = false);
         return;
       }
 
-      final List<AssetEntity> recentImages =
-          await albums[0].getAssetListPaged(page: 0, size: _batchSize);
+      final List<AssetEntity> recentImages = await albums[0].getAssetListPaged(
+          page: 0, size: _batchSize); // Load only first batch initially
 
       setState(() {
         _galleryImages = recentImages;
         _loadedImages = recentImages;
+        _isInitialLoading = false;
       });
     } catch (e) {
+      debugPrint('Error loading gallery images: $e');
+      setState(() => _isInitialLoading = false);
       // Show error message to user if needed
       if (mounted) {
         showTastySnackbar(
@@ -640,64 +756,101 @@ class _MultiImagePickerModalState extends State<MultiImagePickerModal> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: _loadedImages.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(
-                    color: kAccent,
-                  ))
-                : GridView.builder(
-                    controller: _scrollController,
-                    itemCount: _loadedImages.length + (_isLoading ? 1 : 0),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
+            child: _isInitialLoading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: kAccent,
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading your photos...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                      ],
                     ),
-                    itemBuilder: (context, index) {
-                      if (index >= _loadedImages.length) {
-                        return const Center(
-                          child: CircularProgressIndicator(color: kAccent),
-                        );
-                      }
-
-                      final asset = _loadedImages[index];
-                      final isSelected = _selectedImages.contains(asset);
-
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedImages.remove(asset);
-                            } else {
-                              _selectedImages.add(asset);
-                            }
-                          });
-                        },
-                        child: Stack(
+                  )
+                : _loadedImages.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Positioned.fill(
-                              child: AssetEntityImage(
-                                asset,
-                                isOriginal: false,
-                                thumbnailSize: const ThumbnailSize.square(200),
-                                fit: BoxFit.cover,
+                            Icon(
+                              Icons.photo_library_outlined,
+                              size: 64,
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No photos found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: isDarkMode ? kWhite : kBlack,
                               ),
                             ),
-                            if (isSelected)
-                              const Positioned(
-                                top: 5,
-                                right: 5,
-                                child: Icon(
-                                  Icons.check_circle,
-                                  color: kAccent,
-                                ),
-                              ),
                           ],
                         ),
-                      );
-                    },
-                  ),
+                      )
+                    : GridView.builder(
+                        controller: _scrollController,
+                        itemCount: _loadedImages.length + (_isLoading ? 1 : 0),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
+                        itemBuilder: (context, index) {
+                          if (index >= _loadedImages.length) {
+                            return const Center(
+                              child: CircularProgressIndicator(color: kAccent),
+                            );
+                          }
+
+                          final asset = _loadedImages[index];
+                          final isSelected = _selectedImages.contains(asset);
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedImages.remove(asset);
+                                } else {
+                                  _selectedImages.add(asset);
+                                }
+                              });
+                            },
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: AssetEntityImage(
+                                    asset,
+                                    isOriginal: false,
+                                    thumbnailSize:
+                                        const ThumbnailSize.square(200),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Positioned(
+                                    top: 5,
+                                    right: 5,
+                                    child: Icon(
+                                      Icons.check_circle,
+                                      color: kAccent,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
           ),
           ElevatedButton(
             onPressed: _selectedImages.isNotEmpty ? _onConfirmSelection : null,

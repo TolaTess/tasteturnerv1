@@ -17,6 +17,7 @@
     "date-fns": "^4.1.0",
     "firebase-admin": "^12.3.0",
     "firebase-functions": "^5.0.1",
+    "jimp": "^0.22.10",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {

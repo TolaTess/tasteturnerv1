@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/bottom_nav.dart';
 
 class CloudNotificationService extends GetxService {
   static CloudNotificationService get instance =>
@@ -278,8 +279,8 @@ class CloudNotificationService extends GetxService {
   /// Navigate to meal planning screen
   void _navigateToMealPlanning(Map<String, dynamic> data) {
     try {
-      // Use GetX navigation to go to meal planning
-      Get.toNamed('/meal-planning');
+      // Navigate to meal design screen (tab 4 in bottom nav)
+      Get.to(() => const BottomNavSec(selectedIndex: 4));
     } catch (e) {
       debugPrint('Error navigating to meal planning: $e');
     }
@@ -288,8 +289,8 @@ class CloudNotificationService extends GetxService {
   /// Navigate to water tracking screen
   void _navigateToWaterTracking(Map<String, dynamic> data) {
     try {
-      // Use GetX navigation to go to water tracking
-      Get.toNamed('/water-tracking');
+      // Navigate to home screen where water tracking is available
+      Get.to(() => const BottomNavSec(selectedIndex: 0));
     } catch (e) {
       debugPrint('Error navigating to water tracking: $e');
     }
@@ -298,8 +299,8 @@ class CloudNotificationService extends GetxService {
   /// Navigate to evening review screen
   void _navigateToEveningReview(Map<String, dynamic> data) {
     try {
-      // Use GetX navigation to go to evening review
-      Get.toNamed('/evening-review');
+      // Navigate to home screen where evening review is available
+      Get.to(() => const BottomNavSec(selectedIndex: 0));
     } catch (e) {
       debugPrint('Error navigating to evening review: $e');
     }

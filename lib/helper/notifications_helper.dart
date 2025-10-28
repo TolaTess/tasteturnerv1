@@ -187,7 +187,9 @@ void _showSuggestionDialog(BuildContext context, String title,
 Widget buildSuggestionsSection(BuildContext context,
     Map<String, dynamic> _editableAnalysis, bool isRecipe) {
   final isDarkMode = getThemeProvider(context).isDarkMode;
-  final suggestions = _editableAnalysis['suggestions'] as Map<String, dynamic>?;
+  final suggestionsRaw = _editableAnalysis['suggestions'];
+  final suggestions =
+      suggestionsRaw is Map ? Map<String, dynamic>.from(suggestionsRaw) : null;
 
   if (suggestions == null) return const SizedBox.shrink();
 
@@ -395,9 +397,7 @@ Future<bool> showCalorieAdjustmentDialog(
       adjustmentMealType = 'Dinner';
       break;
     case 'dinner':
-      adjustmentMealType = notAllowedMealType == 'snack'
-          ? 'Fruits'
-          : 'Snacks';
+      adjustmentMealType = notAllowedMealType == 'snack' ? 'Fruits' : 'Snacks';
       break;
   }
 
