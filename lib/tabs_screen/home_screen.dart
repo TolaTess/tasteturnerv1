@@ -107,6 +107,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return;
       }
 
+      // Check and show notification preference prompt for existing users
+      _checkNotificationPreference();
+
       // Then show the meal tutorial
       _showAddMealTutorial();
 
@@ -116,6 +119,171 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Setup Cloud Functions notifications (replaces local scheduling)
       _setupHybridNotifications();
     });
+  }
+
+  Future<void> _checkNotificationPreference() async {
+    try {
+      final user = userService.currentUser.value;
+      if (user == null) return;
+
+      // Check if user has set notification preference
+      final notificationPreferenceSet =
+          user.settings['notificationPreferenceSet'] as bool? ?? false;
+
+      if (!notificationPreferenceSet) {
+        // User hasn't set preference yet, show prompt after a short delay
+        await Future.delayed(const Duration(seconds: 120));
+        if (!mounted) return;
+        _showNotificationPreferenceDialog();
+      } else {
+        // User has set preference, check if notifications are enabled
+        final notificationsEnabled =
+            user.settings['notificationsEnabled'] as bool? ?? false;
+        if (notificationsEnabled && notificationService != null) {
+          // Initialize notifications if enabled
+          await _initializeNotifications();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking notification preference: $e');
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      await notificationService?.initNotification(
+        onNotificationTapped: (String? payload) {
+          if (payload != null) {
+            _handleNotificationTap(payload);
+          }
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('Notification initialization timed out');
+        },
+      );
+      debugPrint('Notifications initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing notifications: $e');
+    }
+  }
+
+  void _handleNotificationTap(String payload) async {
+    try {
+      debugPrint('Notification tapped: $payload');
+
+      if (payload.contains('meal_plan_reminder') ||
+          payload.contains('evening_review') ||
+          payload.contains('water_reminder')) {
+        if (payload.contains('meal_plan_reminder')) {
+          Get.to(() => const BottomNavSec(selectedIndex: 4));
+        } else if (payload.contains('water_reminder')) {
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
+        } else if (payload.contains('evening_review')) {
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling notification tap: $e');
+    }
+  }
+
+  void _showNotificationPreferenceDialog() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Row(
+            children: [
+              Icon(Icons.notifications_active,
+                  color: kAccent, size: getIconScale(8, context)),
+              SizedBox(width: getPercentageWidth(3, context)),
+              Expanded(
+                child: Text(
+                  'Enable Notifications?',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kDarkGrey,
+                    fontSize: getTextScale(4.5, context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Stay on track with meal reminders, hydration alerts, and personalized nutrition tips!',
+            style: TextStyle(
+              color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
+              fontSize: getTextScale(3.5, context),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                // User declined
+                await authController.updateUserData({
+                  'settings.notificationsEnabled': false,
+                  'settings.notificationPreferenceSet': true,
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Not Now',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(6, context),
+                  vertical: getPercentageHeight(1.5, context),
+                ),
+              ),
+              onPressed: () async {
+                // User accepted
+                await authController.updateUserData({
+                  'settings.notificationsEnabled': true,
+                  'settings.notificationPreferenceSet': true,
+                });
+                Navigator.of(context).pop();
+
+                // Initialize notifications
+                await _initializeNotifications();
+
+                // Show success message
+                showTastySnackbar(
+                  'Notifications Enabled',
+                  'You\'ll now receive helpful reminders!',
+                  context,
+                  backgroundColor: kAccent,
+                );
+              },
+              child: Text(
+                'Enable',
+                style: TextStyle(
+                  color: kWhite,
+                  fontSize: getTextScale(3.5, context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showAddMealTutorial() {
@@ -777,7 +945,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       message:
                           "Set your health goals to get personalized calorie and macro recommendations tailored to you",
                       actionText: "Set Goals",
-                      onAction: () {
+                      onAction: () async {
+                        // Dismiss the prompt immediately
+                        setState(() {
+                          _showGoalsPrompt = false;
+                        });
+
+                        // Mark as shown in storage
+                        await OnboardingPromptHelper.markGoalsPromptShown();
+
+                        // Navigate to nutrition settings
                         Navigator.push(
                           context,
                           MaterialPageRoute(

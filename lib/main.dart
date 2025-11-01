@@ -10,8 +10,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'constants.dart';
-import 'helper/utils.dart';
-import 'screens/add_food_screen.dart';
 import 'themes/theme_provider.dart';
 import 'themes/dark_mode.dart';
 import 'themes/light_mode.dart';
@@ -33,7 +31,6 @@ import 'service/post_service.dart';
 import 'service/helper_controller.dart';
 import 'service/battle_service.dart';
 import 'service/user_service.dart';
-import 'widgets/bottom_nav.dart';
 import 'data_models/message_screen_data.dart';
 
 void main() async {
@@ -84,83 +81,12 @@ void main() async {
   // // Get.put(ChallengeService(), permanent: true);
   // print('ChallengeService registered successfully');
 
-  // Register NotificationService with GetX (but don't initialize yet)
+  // Register NotificationService with GetX (but don't auto-initialize)
+  // Users will enable notifications through onboarding or settings
   final notificationService = NotificationService();
   Get.put(notificationService, permanent: true);
 
-  // Handle notification taps
-  void _handleNotificationTap(String payload) async {
-    try {
-      debugPrint('Notification tapped: $payload');
-
-      // Parse the payload to determine what to show
-      if (payload.contains('meal_plan_reminder') ||
-          payload.contains('evening_review') ||
-          payload.contains('water_reminder')) {
-        // Handle simple notification types directly
-        if (payload.contains('meal_plan_reminder')) {
-          // Navigate to meal design screen (tab 4 in bottom nav)
-          Get.to(() => const BottomNavSec(selectedIndex: 4));
-        } else if (payload.contains('water_reminder')) {
-          // Navigate to home screen where water tracking is available
-          Get.to(() => AddFoodScreen(date: DateTime.now()));
-        } else if (payload.contains('evening_review')) {
-          // Navigate to home screen where evening review is available
-          Get.to(() => AddFoodScreen(date: DateTime.now()));
-        }
-      } else {
-        // For complex notifications, use the notification handler service
-        try {
-          final handlerService = Get.find<NotificationHandlerService>();
-          await handlerService.handleNotificationPayload(payload);
-        } catch (e) {
-          debugPrint('Error handling complex notification: $e');
-          showTastySnackbar(
-              'Something went wrong', 'Please try again later', Get.context!,
-              backgroundColor: kRed);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error handling notification tap: $e');
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
-    }
-  }
-
-  // Initialize notifications in background after app starts
-  Future.microtask(() async {
-    int retries = 0;
-    while (retries < 3) {
-      try {
-        // Add timeout to prevent hanging
-        await notificationService.initNotification(
-          onNotificationTapped: (String? payload) {
-            if (payload != null) {
-              _handleNotificationTap(payload);
-            }
-          },
-        ).timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            debugPrint('Notification initialization timed out');
-            throw TimeoutException('Notification initialization timed out',
-                const Duration(seconds: 10));
-          },
-        );
-        debugPrint('Notifications service initialized successfully');
-        break;
-      } catch (e) {
-        retries++;
-        debugPrint('Notification init attempt $retries failed: $e');
-        if (retries >= 3) {
-          debugPrint('Notification initialization failed after 3 attempts');
-        } else {
-          await Future.delayed(Duration(seconds: retries));
-        }
-      }
-    }
-  });
+  debugPrint('NotificationService registered - awaiting user preference');
 
   // Initialize Firebase data in background
   Future.microtask(() async {

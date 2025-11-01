@@ -25,6 +25,7 @@ class SafeTextField extends StatefulWidget {
   final EdgeInsets scrollPadding;
   final String? Function(String?)? validator;
   final AutovalidateMode? autovalidateMode;
+  final bool capitalize;
 
   const SafeTextField({
     Key? key,
@@ -48,6 +49,7 @@ class SafeTextField extends StatefulWidget {
     this.scrollPadding = const EdgeInsets.all(20.0),
     this.validator,
     this.autovalidateMode,
+    this.capitalize = false,
   }) : super(key: key);
 
   @override
@@ -76,7 +78,7 @@ class _SafeTextFieldState extends State<SafeTextField> {
       focusNode: _focusNode,
       onChanged: (value) {
         // Capitalize first character
-        if (value.isNotEmpty && value[0] != value[0].toUpperCase()) {
+        if (widget.capitalize && value.isNotEmpty && value[0] != value[0].toUpperCase()) {
           final capitalizedValue = value[0].toUpperCase() + value.substring(1);
           widget.controller?.text = capitalizedValue;
           widget.controller?.selection = TextSelection.fromPosition(

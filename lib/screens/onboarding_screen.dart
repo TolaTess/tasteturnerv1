@@ -10,7 +10,10 @@ import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
+import '../screens/add_food_screen.dart';
 import '../service/badge_service.dart';
+import '../service/notification_service.dart';
+import '../service/notification_handler_service.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -33,6 +36,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // User inputs
   final TextEditingController nameController = TextEditingController();
   bool _isNextEnabled = false;
+  bool _notificationsEnabled = false;
+  bool _darkModeEnabled = false;
+  bool _isEditingName = false; // Track if user is editing their name
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -48,6 +54,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
+
+    // Get current theme preference
+    _darkModeEnabled = getThemeProvider(context).isDarkMode;
   }
 
   @override
@@ -84,6 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         case 1:
         case 2:
         case 3:
+        case 4:
           _isNextEnabled = true; // Visual slides - always enabled
           break;
         default:
@@ -130,6 +140,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'targetSteps': '10000',
           'dietPreference': 'Balanced',
           'gender': null, // Null - will trigger prompt
+          'notificationsEnabled': _notificationsEnabled,
+          'notificationPreferenceSet': true, // User has made a choice
         },
         preferences: {
           'diet': 'None', // Default - will trigger prompt
@@ -193,6 +205,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         await prefs.setBool('is_first_time_user', true);
 
+        // Initialize notifications if enabled
+        if (_notificationsEnabled) {
+          try {
+            final notificationService = Get.find<NotificationService>();
+            await notificationService.initNotification(
+              onNotificationTapped: (String? payload) {
+                if (payload != null) {
+                  _handleNotificationTap(payload);
+                }
+              },
+            ).timeout(
+              const Duration(seconds: 10),
+              onTimeout: () {
+                debugPrint('Notification initialization timed out');
+              },
+            );
+            debugPrint('Notifications enabled during onboarding');
+          } catch (e) {
+            debugPrint('Error initializing notifications: $e');
+          }
+        }
+
         // Close loading dialog
         Get.back();
 
@@ -231,6 +265,39 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // List<Map<String, dynamic>> saveFamilyMembers() {
   //   return familyMembers.map((e) => Map<String, dynamic>.from(e)).toList();
   // }
+
+  void _handleNotificationTap(String payload) async {
+    try {
+      debugPrint('Notification tapped: $payload');
+
+      if (payload.contains('meal_plan_reminder') ||
+          payload.contains('evening_review') ||
+          payload.contains('water_reminder')) {
+        if (payload.contains('meal_plan_reminder')) {
+          Get.to(() => const BottomNavSec(selectedIndex: 4));
+        } else if (payload.contains('water_reminder')) {
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
+        } else if (payload.contains('evening_review')) {
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
+        }
+      } else {
+        try {
+          final handlerService = Get.find<NotificationHandlerService>();
+          await handlerService.handleNotificationPayload(payload);
+        } catch (e) {
+          debugPrint('Error handling complex notification: $e');
+          showTastySnackbar(
+              'Something went wrong', 'Please try again later', Get.context!,
+              backgroundColor: kRed);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling notification tap: $e');
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', Get.context!,
+          backgroundColor: kRed);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,6 +354,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       _buildMealPlanningSlide(),
                       _buildTrackingSlide(),
                       _buildCommunitySlide(),
+                      _buildSettingsSlide(),
                     ],
                   ),
                 ),
@@ -305,40 +373,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Welcome & Name Input Page
   Widget _buildNamePage() {
+    final bool hasExistingName =
+        widget.displayName != null && widget.displayName!.isNotEmpty;
+    final bool showTextField = !hasExistingName || _isEditingName;
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
     return _buildPage(
-      textTheme: Theme.of(context).textTheme,
+      textTheme: textTheme,
       title: "Welcome to $appName!",
-      child1: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
-        decoration: BoxDecoration(
-          color: kDarkGrey,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: SafeTextFormField(
-          controller: nameController,
-          style:
-              TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
-          onChanged: (_) => _validateInputs(),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF3F3F3),
-            enabledBorder: outlineInputBorder(10),
-            focusedBorder: outlineInputBorder(10),
-            border: outlineInputBorder(10),
-            labelStyle: const TextStyle(color: Color(0xffefefef)),
-            hintStyle: TextStyle(
-                color: kLightGrey, fontSize: getTextScale(3.5, context)),
-            hintText: "Enter your name",
-            floatingLabelBehavior: FloatingLabelBehavior.always,
-            contentPadding: EdgeInsets.only(
-              top: getPercentageHeight(1.5, context),
-              bottom: getPercentageHeight(1.5, context),
-              right: getPercentageWidth(2, context),
-              left: getPercentageWidth(2, context),
+      child1: showTextField
+          ? Container(
+              padding: EdgeInsets.all(getPercentageWidth(5, context)),
+              decoration: BoxDecoration(
+                color: kDarkGrey,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SafeTextFormField(
+                controller: nameController,
+                autofocus: _isEditingName,
+                style: TextStyle(
+                    color: kDarkGrey, fontSize: getTextScale(3.5, context)),
+                onChanged: (_) => _validateInputs(),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFF3F3F3),
+                  enabledBorder: outlineInputBorder(10),
+                  focusedBorder: outlineInputBorder(10),
+                  border: outlineInputBorder(10),
+                  labelStyle: const TextStyle(color: Color(0xffefefef)),
+                  hintStyle: TextStyle(
+                      color: kLightGrey, fontSize: getTextScale(3.5, context)),
+                  hintText: "Enter your name",
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
+                  contentPadding: EdgeInsets.only(
+                    top: getPercentageHeight(1.5, context),
+                    bottom: getPercentageHeight(1.5, context),
+                    right: getPercentageWidth(2, context),
+                    left: getPercentageWidth(2, context),
+                  ),
+                ),
+              ),
+            )
+          : GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isEditingName = true;
+                });
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    nameController.text,
+                    style: textTheme.displaySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kDarkGrey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(width: getPercentageWidth(3, context)),
+                  Icon(
+                    Icons.edit,
+                    color: kAccent,
+                    size: getIconScale(7, context),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
-      ),
       child2: const SizedBox.shrink(),
       child3: Image.asset(
         'assets/images/tasty/tasty.png',
@@ -346,8 +448,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         width: getPercentageWidth(50, context),
         fit: BoxFit.contain,
       ),
-      description:
-          'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
+      description: hasExistingName && !_isEditingName
+          ? 'Great to see you!\n\nYour name looks good. Tap the edit icon if you\'d like to change it, or continue to explore what $appName can do for you.'
+          : 'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
     );
   }
 
@@ -359,7 +462,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Hi $userName!\nLet's Plan Your Perfect Meals",
+      title: "Hi $userName!\nWe can help you Plan Your Perfect Meals",
       description:
           "Get delicious, personalized meal plans designed to fit your unique dietary needs and health goals, including programs like No Sugar or Intermittent Fasting",
       child1: Container(
@@ -447,15 +550,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Visual Feature Slide 2: AI-Powered Nutrition & Instant Insights
   Widget _buildTrackingSlide() {
-    final userName = nameController.text.trim().isNotEmpty
-        ? nameController.text.trim()
-        : "there";
-
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
       title: "Meet Your AI Nutrition Coach",
       description:
-          "Snap a photo of your meal and let our Tasty AI Chat provide instant nutritional breakdowns, helping you make smarter food choices effortlessly",
+          "Snap a photo of your meal and let our Tasty AI coach provide instant nutritional breakdowns, helping you make smarter food choices effortlessly",
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
@@ -480,7 +579,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           children: [
             SizedBox(height: getPercentageHeight(3, context)),
             Text(
-              "Tasty AI Chat",
+              "Tasty AI Coach",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: getTextScale(5, context),
@@ -515,7 +614,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildFeatureBox(
                       context,
-                      "AI Chat",
+                      "Chat",
                       kAccentLight.withValues(alpha: 0.5), // Deep Orange
                       Icons.chat,
                     ),
@@ -539,13 +638,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Visual Feature Slide 3: Effortless Macro Tracking & Shopping Lists
   Widget _buildCommunitySlide() {
-    final userName = nameController.text.trim().isNotEmpty
-        ? nameController.text.trim()
-        : "there";
-
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Ready $userName?\nLet's Track Your Journey!",
+      title: "Track Your Journey!",
       description:
           "Easily track your macros and calories to stay on target. Plus, get auto-generated shopping lists to make healthy eating convenient and stress-free",
       child1: Container(
@@ -621,6 +716,154 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Settings Slide: Notifications & Dark Mode
+  Widget _buildSettingsSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : "there";
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Almost There, $userName!",
+      description:
+          "Customize your experience with notifications and theme preferences",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kAccent, kAccent.withValues(alpha: 0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kAccent.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: getPercentageHeight(2, context)),
+
+            // Notifications Toggle
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active,
+                    color: Colors.white,
+                    size: getIconScale(8, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(4, context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Enable Notifications",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: getTextScale(4, context),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        Text(
+                          "Get reminders for meals and hydration",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: getTextScale(3, context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _notificationsEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _notificationsEnabled = value;
+                      });
+                    },
+                    activeColor: kAccentLight,
+                    activeTrackColor: kAccentLight.withOpacity(0.5),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: getPercentageHeight(3, context)),
+
+            // Dark Mode Toggle
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _darkModeEnabled ? Icons.dark_mode : Icons.light_mode,
+                    color: Colors.white,
+                    size: getIconScale(8, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(4, context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Dark Mode",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: getTextScale(4, context),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        Text(
+                          "Choose your preferred theme",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: getTextScale(3, context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _darkModeEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _darkModeEnabled = value;
+                        getThemeProvider(context).toggleTheme();
+                      });
+                    },
+                    activeColor: kAccentLight,
+                    activeTrackColor: kAccentLight.withOpacity(0.5),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: getPercentageHeight(2, context)),
           ],
         ),
       ),
@@ -705,7 +948,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               description,
               textAlign: TextAlign.center,
               style: textTheme.bodyLarge?.copyWith(
-                color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,),
+                color:
+                    getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
+              ),
             ),
             SizedBox(height: getPercentageHeight(5, context)),
             child1,
@@ -724,7 +969,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Dismiss keyboard when navigating
       FocusScope.of(context).unfocus();
 
-      if (_currentPage < 3) {
+      if (_currentPage < 4) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
@@ -751,7 +996,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 3 ? "Get Started" : "Next",
+          _currentPage == 4 ? "Get Started" : "Next",
           textAlign: TextAlign.center,
           style: textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w500,

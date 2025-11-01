@@ -135,7 +135,8 @@ class _SignUpFormState extends State<SignUpForm> {
             child: EmailField(
               kHint: "Your Email",
               themeProvider: isDarkMode,
-              controller: widget.emailController,
+              controller: widget.emailController, 
+              noCapitalize: false,
             ),
           ),
           SizedBox(height: getPercentageHeight(5, context)),
@@ -149,6 +150,7 @@ class _SignUpFormState extends State<SignUpForm> {
               kHint: "Password",
               themeProvider: isDarkMode,
               controller: widget.passwordController,
+              noCapitalize: false,
             ),
           ),
           SizedBox(height: getPercentageHeight(5, context)),
@@ -165,6 +167,7 @@ class _SignUpFormState extends State<SignUpForm> {
                   kHint: "Confirm Password",
                   themeProvider: isDarkMode,
                   controller: widget.confirmPasswordController,
+                  noCapitalize: false,
                 ),
                 if (showPasswordError)
                   Padding(

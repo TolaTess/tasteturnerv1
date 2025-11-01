@@ -56,17 +56,19 @@ class EmailField extends StatelessWidget {
       {super.key,
       required this.kHint,
       required this.themeProvider,
-      required this.controller});
+      required this.controller,
+      required this.noCapitalize});
 
   final bool themeProvider;
   final String kHint;
   final TextEditingController controller;
-
+  final bool noCapitalize;
   @override
-  Widget build(BuildContext context) {  
+  Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return SafeTextField(
       controller: controller,
+      capitalize: noCapitalize,
       style: textTheme.bodyMedium?.copyWith(
         color: themeProvider ? kWhite : kBlack,
       ),
@@ -100,12 +102,13 @@ class PasswordField extends StatefulWidget {
       {super.key,
       required this.kHint,
       required this.themeProvider,
-      required this.controller});
+      required this.controller,
+      required this.noCapitalize});
 
   final String kHint;
   final bool themeProvider;
   final TextEditingController controller;
-
+  final bool noCapitalize;
   @override
   State<PasswordField> createState() => _PasswordFieldState();
 }
@@ -117,6 +120,7 @@ class _PasswordFieldState extends State<PasswordField> {
     final textTheme = Theme.of(context).textTheme;
     return SafeTextField(
       controller: widget.controller,
+      capitalize: widget.noCapitalize,
       style: textTheme.bodyMedium?.copyWith(
         color: widget.themeProvider ? kWhite : kBlack,
       ),
@@ -141,7 +145,7 @@ class _PasswordFieldState extends State<PasswordField> {
           icon: Icon(
             _isTextVisible ? Icons.visibility : Icons.visibility_off,
             color: widget.themeProvider ? kWhite : kDarkGrey,
-            size: getIconScale(5.5, context),   
+            size: getIconScale(5.5, context),
           ),
           onPressed: () {
             setState(() {

@@ -94,6 +94,7 @@ class _SigninFormState extends State<SigninForm> {
             kHint: "Your Email",
             themeProvider: isDarkMode,
             controller: emailController,
+            noCapitalize: false,
           ),
 
           SizedBox(height: getPercentageHeight(5, context)),
@@ -103,6 +104,7 @@ class _SigninFormState extends State<SigninForm> {
             kHint: "Password",
             themeProvider: isDarkMode,
             controller: passwordController,
+            noCapitalize: false,
           ),
 
           SizedBox(height: getPercentageHeight(5, context)),
