@@ -22,6 +22,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
   final String? mealType;
   final String? screen;
   final bool? skipAnalysisSave;
+  final bool? isFeedPage;
 
   const FoodAnalysisResultsScreen({
     super.key,
@@ -37,6 +38,7 @@ class FoodAnalysisResultsScreen extends StatefulWidget {
     this.mealType,
     this.screen,
     this.skipAnalysisSave,
+    this.isFeedPage,
   });
 
   @override
@@ -61,6 +63,20 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
     // Recalculate totals on initial load to ensure consistency
     _recalculateTotalNutrition();
+  }
+
+  /// Calculate health score from confidence level
+  int _calculateHealthScoreFromConfidence(String confidence) {
+    switch (confidence.toLowerCase()) {
+      case 'high':
+        return 8; // High confidence = good health score
+      case 'medium':
+        return 6; // Medium confidence = moderate health score
+      case 'low':
+        return 4; // Low confidence = lower health score
+      default:
+        return 6; // Default to medium
+    }
   }
 
   /// Normalize and validate analysis data to prevent duplicates and handle errors
@@ -115,7 +131,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           'sodium': 0,
         };
       }
-      _editableAnalysis['healthScore'] = _editableAnalysis['healthScore'] ?? 5;
+      // Calculate health score from confidence if healthScore doesn't exist
+      if (!_editableAnalysis.containsKey('healthScore') ||
+          _editableAnalysis['healthScore'] == null) {
+        final confidence =
+            _editableAnalysis['confidence'] as String? ?? 'medium';
+        _editableAnalysis['healthScore'] =
+            _calculateHealthScoreFromConfidence(confidence);
+      }
       _editableAnalysis['estimatedPortionSize'] =
           _editableAnalysis['estimatedPortionSize'] ?? 'medium';
       _editableAnalysis['confidence'] =
@@ -133,8 +156,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         item['confidence'] = item['confidence'] ?? 'medium';
 
         // Ensure nutritional info exists
-        item['nutritionalInfo'] =
-            item['nutritionalInfo'] ??
+        item['nutritionalInfo'] = item['nutritionalInfo'] ??
             {
               'calories': 100,
               'protein': 5,
@@ -409,7 +431,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     });
 
     try {
-      // Show immediate success message since meal is already saved by cloud functions
+      // Show immediate success message
       showTastySnackbar(
         'Success!',
         'Meal added to your daily meals!',
@@ -420,7 +442,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       // Navigate back immediately
       Navigator.of(context).pop(true);
 
-      // Save to daily meals in the background (non-blocking)
+      // Save to daily meals and create meal in background (non-blocking)
       _saveToDailyMealsInBackground();
     } catch (e) {
       debugPrint('Failed to save analysis: $e');
@@ -437,25 +459,42 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     }
   }
 
-  /// Save to daily meals in the background without blocking UI
+  /// Save to daily meals and create meal in background without blocking UI
   Future<void> _saveToDailyMealsInBackground() async {
     try {
-      // Skip if coming from buddy chat or challenge detail screen
-      if (widget.skipAnalysisSave == true ||
-          widget.screen == 'challenge_detail') {
-        return;
+      // Get suggested meal IDs from the analysis result
+      final mealIds = _editableAnalysis['mealIds'] as List<dynamic>? ?? [];
+
+      String actualMealId = '';
+
+      if (mealIds.isNotEmpty) {
+        // Use the first meal ID as the primary meal ID
+        debugPrint('Meal IDs: $mealIds');
+        actualMealId = mealIds.first.toString();
+      } else {
+        // Create a new meal in the meals collection if no meal IDs exist
+        debugPrint('No meal IDs, creating new meal');
+        try {
+          actualMealId = await geminiService.createMealFromAnalysis(
+            analysisResult: _editableAnalysis,
+            userId: userService.userId ?? '',
+            imagePath: 'cloud_function_generated',
+            mealType: mealType,
+          );
+          debugPrint(
+              'Successfully created new meal $actualMealId in meals collection');
+        } catch (e) {
+          debugPrint('Failed to create meal in meals collection: $e');
+          // Fallback to temporary ID
+          actualMealId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+        }
       }
 
-      // Get suggested meal IDs from the analysis result
-      final suggestedMealIds =
-          _editableAnalysis['suggestedMealIds'] as List<dynamic>? ?? [];
-
-      if (suggestedMealIds.isNotEmpty) {
-        // Use the first suggested meal ID as the primary meal ID
-        final String mealId = suggestedMealIds.first.toString();
-
+      // Skip daily meals addition for challenge detail screen
+      if (widget.skipAnalysisSave != true &&
+          widget.screen != 'challenge_detail') {
         await geminiService.addAnalyzedMealToDaily(
-          mealId: mealId,
+          mealId: actualMealId,
           userId: userService.userId ?? '',
           mealType: mealType,
           analysisResult: _editableAnalysis,
@@ -463,24 +502,24 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         );
 
         debugPrint(
-          'Successfully added meal $mealId to daily meals in background',
+          'Successfully added meal $actualMealId to daily meals in background',
         );
-      } else {
-        // Fallback: create a temporary meal ID if no suggested meals
-        final String tempMealId =
-            'temp_${DateTime.now().millisecondsSinceEpoch}';
+      }
 
-        await geminiService.addAnalyzedMealToDaily(
-          mealId: tempMealId,
-          userId: userService.userId ?? '',
-          mealType: mealType,
-          analysisResult: _editableAnalysis,
-          date: widget.date ?? DateTime.now(),
-        );
-
-        debugPrint(
-          'Successfully added temporary meal $tempMealId to daily meals in background',
-        );
+      // Update existing post with meal ID if we have one and it's from challenge detail
+      if (widget.postId != null &&
+          widget.postId!.isNotEmpty &&
+          actualMealId.isNotEmpty) {
+        try {
+          await postController.updatePost(
+            postId: widget.postId!,
+            updateData: {'mealId': actualMealId},
+          );
+          debugPrint(
+              'Successfully updated post ${widget.postId} with mealId: $actualMealId');
+        } catch (e) {
+          debugPrint('Failed to update post with mealId: $e');
+        }
       }
 
       // Handle post creation for analyze & upload flow in background
@@ -514,9 +553,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         // Upload image to Firebase Storage for main/regular posts
         String imagePath =
             'tastyanalysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final uploadTask = await firebaseStorage
-            .ref(imagePath)
-            .putFile(widget.imageFile);
+        final uploadTask =
+            await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
         postImageUrl = await uploadTask.ref.getDownloadURL();
       } else {
         // For battle posts, upload to battle storage
@@ -527,13 +565,19 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         );
       }
 
-      // Generate a temporary post ID since cloud functions handle meal creation
+      // Get the actual meal ID from the analysis result (generated by cloud function)
+      final mealIds = _editableAnalysis['mealIds'] as List<dynamic>? ?? [];
+      final String actualMealId = mealIds.isNotEmpty
+          ? mealIds.first.toString()
+          : 'post_${DateTime.now().millisecondsSinceEpoch}'; // Fallback if no meal ID
+
+      // Generate a temporary post ID
       final String tempPostId = 'post_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Create the post
+      // Create the post with the actual meal ID
       final post = Post(
         id: isBattlePost ? '' : tempPostId,
-        mealId: tempPostId,
+        mealId: actualMealId, // Use the actual meal ID from cloud function
         userId: userService.userId ?? '',
         mediaPaths: [postImageUrl],
         name: userService.currentUser.value?.displayName ?? '',
@@ -548,7 +592,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         postImageUrl,
       ]);
 
-      debugPrint('Successfully created post in background');
+      debugPrint(
+          'Successfully created post in background with mealId: $actualMealId');
     } catch (e) {
       debugPrint('Background post creation failed: $e');
       // Don't show error to user since UI already showed success
@@ -560,6 +605,13 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     if (!_hasCreatedMeal && !_isSaving) {
       await _createMealOnly();
     }
+
+    // If coming from feed page, navigate to explore page instead of going back
+    if (widget.isFeedPage == true) {
+      Navigator.of(context).pushReplacementNamed('/explore');
+      return false; // Prevent default back navigation
+    }
+
     return true; // Allow navigation back
   }
 
@@ -619,14 +671,11 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           (totalNutrition['protein'] as double) + itemProtein;
       totalNutrition['carbs'] = (totalNutrition['carbs'] as double) + itemCarbs;
       totalNutrition['fat'] = (totalNutrition['fat'] as double) + itemFat;
-      totalNutrition['fiber'] =
-          (totalNutrition['fiber'] as double) +
+      totalNutrition['fiber'] = (totalNutrition['fiber'] as double) +
           _parseNumeric(nutrition['fiber']);
-      totalNutrition['sugar'] =
-          (totalNutrition['sugar'] as double) +
+      totalNutrition['sugar'] = (totalNutrition['sugar'] as double) +
           _parseNumeric(nutrition['sugar']);
-      totalNutrition['sodium'] =
-          (totalNutrition['sodium'] as double) +
+      totalNutrition['sodium'] = (totalNutrition['sodium'] as double) +
           _parseNumeric(nutrition['sodium']);
     }
 
@@ -710,8 +759,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     final source = _editableAnalysis['source'] is bool
         ? _editableAnalysis['source'] as bool
         : _editableAnalysis['source'] == 'cloud_function'
-        ? false
-        : true;
+            ? false
+            : true;
 
     // Check if we have fallback data (source = true) or empty/zero nutrition
     if (source == true) return true;
@@ -723,12 +772,11 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     );
 
     // Check if food items are empty or contain only fallback items
-    final hasEmptyFoodItems =
-        foodItems.isEmpty ||
+    final hasEmptyFoodItems = foodItems.isEmpty ||
         (foodItems.length == 1 &&
             foodItems.first['name']?.toString().toLowerCase().contains(
-                  'unknown',
-                ) ==
+                      'unknown',
+                    ) ==
                 true);
 
     return hasZeroNutrition || hasEmptyFoodItems;
@@ -771,8 +819,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     final source = _editableAnalysis['source'] is bool
         ? _editableAnalysis['source'] as bool
         : _editableAnalysis['source'] == 'cloud_function'
-        ? false
-        : true;
+            ? false
+            : true;
 
     // Check if AI generation failed
     final bool aiFailed = _isAIGenerationFailed();
@@ -784,7 +832,20 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         appBar: AppBar(
           backgroundColor: isDarkMode ? kBlack : kWhite,
           elevation: 0,
-          automaticallyImplyLeading: true,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+            onPressed: () {
+              if (widget.isFeedPage == true) {
+                Navigator.of(context).pushReplacementNamed('/explore');
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
           title: Text(
             aiFailed ? 'Analysis Failed' : 'Food Analysis Results',
             style: textTheme.displaySmall?.copyWith(
@@ -812,17 +873,17 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         body: _isSaving
             ? const Center(child: CircularProgressIndicator(color: kAccent))
             : aiFailed
-            ? _buildAIFailedUI(context, isDarkMode, textTheme)
-            : _buildNormalAnalysisUI(
-                context,
-                isDarkMode,
-                textTheme,
-                totalNutrition,
-                foodItems,
-                healthScore,
-                confidence,
-                source,
-              ),
+                ? _buildAIFailedUI(context, isDarkMode, textTheme)
+                : _buildNormalAnalysisUI(
+                    context,
+                    isDarkMode,
+                    textTheme,
+                    totalNutrition,
+                    foodItems,
+                    healthScore,
+                    confidence,
+                    source,
+                  ),
       ),
     );
   }
@@ -885,9 +946,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     fontSize: getTextScale(3.5, context),
-                    color: isDarkMode
-                        ? kWhite.withValues(alpha: 0.8)
-                        : kDarkGrey,
+                    color:
+                        isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
                     height: 1.5,
                   ),
                 ),
@@ -912,7 +972,13 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
           // Alternative action
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (widget.isFeedPage == true) {
+                Navigator.of(context).pushReplacementNamed('/explore');
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
             child: Text(
               'Go Back',
               style: textTheme.bodyMedium?.copyWith(
@@ -1102,9 +1168,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                   'Calculated from macros:',
                   style: TextStyle(
                     fontSize: getTextScale(3, context),
-                    color: isDarkMode
-                        ? kWhite.withValues(alpha: 0.7)
-                        : kDarkGrey,
+                    color:
+                        isDarkMode ? kWhite.withValues(alpha: 0.7) : kDarkGrey,
                   ),
                 ),
                 Text(
@@ -1296,8 +1361,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     );
 
     // Parse and store original values
-    _originalWeight =
-        double.tryParse(
+    _originalWeight = double.tryParse(
           widget.foodItem['estimatedWeight']?.toString().replaceAll('g', '') ??
               '0',
         ) ??
@@ -1389,9 +1453,8 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
 
     // Use macro-based calories if they don't equal the provided calories
-    final finalCalories = calculatedCalories != calories
-        ? calculatedCalories
-        : calories;
+    final finalCalories =
+        calculatedCalories != calories ? calculatedCalories : calories;
 
     nutrition['calories'] = finalCalories.round();
     nutrition['protein'] = protein.round();

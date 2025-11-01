@@ -751,11 +751,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 final selectedGeneration = filteredGenerations[
                     filteredGenerations.length - 1]; // Get last generation
 
-                // Check if nutritional summary exists, if not show default UI
-                if (selectedGeneration['nutritionalSummary'] == null) {
-                  return _buildDefaultView(context, false);
-                }
-
+                // Fetch meals regardless of nutritional summary (summary can be calculated client-side)
                 final diet =
                     selectedGeneration['diet']?.toString() ?? 'general';
                 final mealsFuture =
@@ -781,7 +777,8 @@ class _BuddyTabState extends State<BuddyTab> {
                     }
 
                     final meals = mealsSnapshot.data ?? [];
-                    final nutritionalSummary = geminiService.calculateNutritionalSummary(meals);
+                    final nutritionalSummary =
+                        geminiService.calculateNutritionalSummary(meals);
 
                     if (meals.isEmpty) {
                       return _buildDefaultView(context, true);
@@ -936,79 +933,79 @@ class _BuddyTabState extends State<BuddyTab> {
 
                           // ------------------------------------Premium / Ads-------------------------------------
                           SizedBox(height: getPercentageHeight(2, context)),
-                          if (nutritionalSummary['totalCalories'] != 0)
-                          ...[
-                          Container(
-                            margin: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(4, context)),
-                            padding: EdgeInsets.symmetric(
-                                vertical: getPercentageHeight(1, context)),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: kAccentLight),
+                          if (nutritionalSummary['totalCalories'] != 0) ...[
+                            Container(
+                              margin: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(4, context)),
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(1, context)),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: kAccentLight),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Column(
+                                    children: [
+                                      Text(
+                                        '${nutritionalSummary['totalCalories']}',
+                                        style: textTheme.bodyLarge?.copyWith(),
+                                      ),
+                                      Text(
+                                        'Calories',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text(
+                                        '${nutritionalSummary['totalProtein']}g',
+                                        style: textTheme.bodyLarge?.copyWith(),
+                                      ),
+                                      Text(
+                                        'Protein',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text(
+                                        '${nutritionalSummary['totalCarbs']}g',
+                                        style: textTheme.bodyLarge?.copyWith(),
+                                      ),
+                                      Text(
+                                        'Carbs',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text(
+                                        '${nutritionalSummary['totalFat']}g',
+                                        style: textTheme.bodyLarge?.copyWith(),
+                                      ),
+                                      Text(
+                                        'Fat',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Column(
-                                  children: [
-                                    Text(
-                                      '${nutritionalSummary['totalCalories']}',
-                                      style: textTheme.bodyLarge?.copyWith(),
-                                    ),
-                                    Text(
-                                      'Calories',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  children: [
-                                    Text(
-                                      '${nutritionalSummary['totalProtein']}g',
-                                      style: textTheme.bodyLarge?.copyWith(),
-                                    ),
-                                    Text(
-                                      'Protein',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  children: [
-                                    Text(
-                                      '${nutritionalSummary['totalCarbs']}g',
-                                      style: textTheme.bodyLarge?.copyWith(),
-                                    ),
-                                    Text(
-                                      'Carbs',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  children: [
-                                    Text(
-                                      '${nutritionalSummary['totalFat']}g',
-                                      style: textTheme.bodyLarge?.copyWith(),
-                                    ),
-                                    Text(
-                                      'Fat',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
                           ],
                           SizedBox(height: getPercentageHeight(2, context)),
                           ValueListenableBuilder<Set<String>>(

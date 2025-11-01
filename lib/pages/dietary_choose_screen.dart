@@ -61,19 +61,23 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
     // Listen to changes in reactive lists
     ever(helperController.headers, (value) {
-      if (mounted) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         setState(() {
           cuisineTypes = List<Map<String, dynamic>>.from(value);
         });
-      }
+      });
     });
 
     ever(helperController.category, (value) {
-      if (mounted) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         setState(() {
           dietTypes = List<Map<String, dynamic>>.from(value);
         });
-      }
+      });
     });
 
     if (!widget.isOnboarding) {
@@ -584,7 +588,6 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       }
     }
   }
-
 
   void _updatePreferences() {
     if (widget.isOnboarding && widget.onPreferencesSelected != null) {

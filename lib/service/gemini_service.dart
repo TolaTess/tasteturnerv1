@@ -288,6 +288,7 @@ class GeminiService {
       switch (operation) {
         case 'analyze food image':
           collectionName = 'food_analyses';
+          collectionName = 'tastyanalysis';
           break;
         case 'analyze fridge image':
           collectionName = 'fridge_analyses';
@@ -353,16 +354,16 @@ class GeminiService {
             debugPrint(
                 '[Cloud Function] Using direct response data (optimized)');
 
-            // Still add meal IDs if they exist
+            // Still add meal IDs if they exist (mealIds is a Map, not List)
             if (response.containsKey('mealIds')) {
-              response['mealIds'] = response['mealIds'];
-              debugPrint(
-                  '[Cloud Function] Added ${(response['mealIds'] as List).length} meal IDs to response');
-            }
-            if (response.containsKey('suggestedMealIds')) {
-              response['suggestedMealIds'] = response['suggestedMealIds'];
-              debugPrint(
-                  '[Cloud Function] Added ${(response['suggestedMealIds'] as List).length} suggested meal IDs to response');
+              final mealIds = response['mealIds'];
+              if (mealIds is Map) {
+                debugPrint(
+                    '[Cloud Function] Added ${mealIds.length} meal IDs (map) to response');
+              } else if (mealIds is List) {
+                debugPrint(
+                    '[Cloud Function] Added ${mealIds.length} meal IDs (list) to response');
+              }
             }
 
             return response;
@@ -379,16 +380,17 @@ class GeminiService {
               operation: operation,
             );
 
-            // Add meal IDs to the response if they exist
+            // Add meal IDs to the response if they exist (mealIds is a Map, not List)
             if (response.containsKey('mealIds')) {
-              firestoreData['mealIds'] = response['mealIds'];
-              debugPrint(
-                  '[Cloud Function] Added ${(response['mealIds'] as List).length} meal IDs to response');
-            }
-            if (response.containsKey('suggestedMealIds')) {
-              firestoreData['suggestedMealIds'] = response['suggestedMealIds'];
-              debugPrint(
-                  '[Cloud Function] Added ${(response['suggestedMealIds'] as List).length} suggested meal IDs to response');
+              final mealIds = response['mealIds'];
+              firestoreData['mealIds'] = mealIds;
+              if (mealIds is Map) {
+                debugPrint(
+                    '[Cloud Function] Added ${mealIds.length} meal IDs (map) to response');
+              } else if (mealIds is List) {
+                debugPrint(
+                    '[Cloud Function] Added ${mealIds.length} meal IDs (list) to response');
+              }
             }
 
             debugPrint(
@@ -4261,75 +4263,36 @@ Generate $mealCount meals. Return JSON only:
             'Saved ${missingMeals.length} basic meals to Firestore with pending status');
       }
 
-      // Step 5: Combine existing and new meals for immediate return
-      final allMeals = <Map<String, dynamic>>[];
+      // Step 5: Return minimal payload for immediate UI use
+      final minimalMeals = <Map<String, dynamic>>[];
+      final collectedMealIds = <String>[];
 
-      // Add existing meals with their planned meal types
       for (final meal in mealPlan) {
         final title = meal['title'] as String;
         final mealType = meal['mealType'] as String;
-        final type = meal['type'] as String;
+        String? id;
+        String status = 'pending';
 
         if (existingMeals.containsKey(title)) {
-          final existingMeal = existingMeals[title]!;
-          allMeals.add({
-            'id': existingMeal.mealId,
-            'title': existingMeal.title,
-            'categories': existingMeal.categories,
-            'ingredients': existingMeal.ingredients,
-            'calories': existingMeal.calories,
-            'nutritionalInfo': existingMeal.nutritionalInfo,
-            'instructions': existingMeal.instructions,
+          id = existingMeals[title]!.mealId;
+          status = 'completed';
+        } else {
+          final mealIds = (saveResult['mealIds'] as Map<String, String>?);
+          id = mealIds != null ? mealIds[title] : null;
+        }
+
+        if (id != null && id.isNotEmpty) {
+          minimalMeals.add({
+            'id': id,
+            'title': title,
             'mealType': mealType,
-            'source': 'existing_database',
-            'status': 'completed',
+            'status': status,
           });
-        } else {
-          // Add new meals with basic data (will be processed by Firebase Functions)
-          final mealIds = saveResult['mealIds'] as Map<String, String>;
-          final mealId = mealIds[title];
-
-          if (mealId != null) {
-            allMeals.add({
-              'id': mealId,
-              'title': title,
-              'categories': [type],
-              'ingredients': {},
-              'calories': 0,
-              'nutritionalInfo': {},
-              'instructions': [],
-              'mealType': mealType,
-              'source': 'ai_generated',
-              'status': 'pending',
-            });
-          }
+          collectedMealIds.add(id);
         }
       }
 
-      // Calculate basic nutritional summary (estimates for new meals)
-      int totalCalories = 0;
-      int totalProtein = 0;
-      int totalCarbs = 0;
-      int totalFat = 0;
-
-      for (final meal in allMeals) {
-        if (meal['source'] == 'existing_database') {
-          // Use actual data for existing meals
-          totalCalories += _parseCalories(meal['calories']);
-          totalProtein += 0; // Estimate
-          totalCarbs += 0; // Estimate
-          totalFat += 0; // Estimate
-        } else {
-          // Estimate for new meals (will be updated when Firebase Functions processing completes)
-          totalCalories += 0; // Average meal estimate
-          totalProtein += 0; // Average protein estimate
-          totalCarbs += 0; // Average carbs estimate
-          totalFat += 0; // Average fat estimate
-        }
-      }
-
-      // Check if meal generation failed (empty mealPlan indicates failure)
-      if (allMeals.isEmpty) {
+      if (minimalMeals.isEmpty) {
         return {
           'meals': [],
           'source': 'failed',
@@ -4339,20 +4302,15 @@ Generate $mealCount meals. Return JSON only:
       }
 
       return {
-        'meals': allMeals,
+        'meals': minimalMeals,
+        'mealIds': collectedMealIds,
         'source': 'mixed',
-        'count': allMeals.length,
+        'count': minimalMeals.length,
         'message':
-            'Generated ${missingMeals.length} new meals and found ${existingMeals.length} existing meals. Details are being populated by Firebase Functions.',
+            'Generated ${missingMeals.length} new meals and found ${existingMeals.length} existing meals. Details will be populated asynchronously by Firebase Functions.',
         'existingCount': existingMeals.length,
         'newCount': missingMeals.length,
         'pendingCount': missingMeals.length,
-        'nutritionalSummary': {
-          'totalCalories': totalCalories,
-          'totalProtein': totalProtein,
-          'totalCarbs': totalCarbs,
-          'totalFat': totalFat,
-        },
         'firebaseProcessing': {
           'active': missingMeals.isNotEmpty,
           'total': missingMeals.length,
@@ -4615,8 +4573,7 @@ Generate $mealCount meals. Return JSON only:
         'source': 'cloud_function',
         'executionTime': cloudResult['executionTime'],
         'ingredientCount': cloudResult['ingredientCount'],
-        'suggestedMealIds':
-            cloudResult['suggestedMealIds'] ?? [], // Include suggested meal IDs
+        'mealIds': cloudResult['mealIds'] ?? [], // Include meal IDs
       };
     } catch (cloudError) {
       debugPrint(
@@ -4803,8 +4760,7 @@ Important guidelines:
         'source': 'cloud_function',
         'executionTime': cloudResult['executionTime'],
         'itemCount': cloudResult['itemCount'],
-        'suggestedMealIds':
-            cloudResult['suggestedMealIds'] ?? [], // Include suggested meal IDs
+        'mealIds': cloudResult['mealIds'] ?? [], // Include meal IDs
       };
     } catch (cloudError) {
       debugPrint(

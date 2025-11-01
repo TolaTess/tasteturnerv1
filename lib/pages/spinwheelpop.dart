@@ -64,33 +64,40 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     _loadMuteState();
 
     // Set default for meal category
-    final categoryDatasMeal = helperController.headers;
-    if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
-      // Check if meal times are already added to avoid duplicates
-      final hasMealTimes = categoryDatasMeal.any((item) =>
-          item['id'] == '1' || item['id'] == '2' || item['id'] == '3');
+    // Defer any mutations to reactive lists until after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final categoryDatasMeal = helperController.headers;
+      if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
+        // Check if meal times are already added to avoid duplicates
+        final hasMealTimes = categoryDatasMeal.any((item) =>
+            item['id'] == '1' || item['id'] == '2' || item['id'] == '3');
 
-      if (!hasMealTimes) {
-        // Add meal times to start of the list
-        categoryDatasMeal.insertAll(0, [
-          {'id': '1', 'name': 'breakfast'},
-          {'id': '2', 'name': 'lunch'},
-          {'id': '3', 'name': 'dinner'},
-        ]);
+        if (!hasMealTimes) {
+          // Add meal times to start of the list
+          categoryDatasMeal.insertAll(0, [
+            {'id': '1', 'name': 'breakfast'},
+            {'id': '2', 'name': 'lunch'},
+            {'id': '3', 'name': 'dinner'},
+          ]);
+        }
+
+        selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
+
+        // Safely extract the name
+        final nameData = categoryDatasMeal[0]['name'];
+        if (nameData is String) {
+          selectedCategoryMeal = nameData;
+        } else if (nameData is Map<String, dynamic>) {
+          selectedCategoryMeal = nameData['name']?.toString() ?? '';
+        } else {
+          selectedCategoryMeal = nameData?.toString() ?? '';
+        }
+
+        if (mounted) {
+          setState(() {});
+        }
       }
-
-      selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
-
-      // Safely extract the name
-      final nameData = categoryDatasMeal[0]['name'];
-      if (nameData is String) {
-        selectedCategoryMeal = nameData;
-      } else if (nameData is Map<String, dynamic>) {
-        selectedCategoryMeal = nameData['name']?.toString() ?? '';
-      } else {
-        selectedCategoryMeal = nameData?.toString() ?? '';
-      }
-    }
+    });
 
     // Set default for meal diet categories
     if (userService.currentUser.value?.familyMode ?? false) {
@@ -303,7 +310,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
-        userService.currentUser.value?.settings?['dietPreference'];
+        userService.currentUser.value?.settings['dietPreference'];
 
     return Scaffold(
       appBar: AppBar(
@@ -548,46 +555,44 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
         Row(
           children: [
-            if (dietPreference != null)
-              Expanded(
-                flex: 1,
-                child: GestureDetector(
-                  onTap: () {
-                    if (mounted) {
-                      setState(() {
-                        final dietPrefStr = dietPreference?.toString() ?? '';
-                        selectedCategoryIdMeal = dietPrefStr;
-                        selectedCategoryMeal = dietPrefStr;
-                      });
-                      _updateMealListByType();
-                    }
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(2, context),
-                      vertical: getPercentageHeight(1.3, context),
-                    ),
-                    decoration: BoxDecoration(
-                      color: selectedCategoryMeal.toLowerCase() ==
-                              (dietPreference?.toString() ?? '').toLowerCase()
-                          ? kAccent.withValues(alpha: 0.2)
-                          : kLightGrey.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        dietPreference,
-                        style: textTheme.titleMedium?.copyWith(
-                            color: selectedCategoryMeal.toLowerCase() ==
-                                    (dietPreference?.toString() ?? '')
-                                        .toLowerCase()
-                                ? kAccent
-                                : kLightGrey),
-                      ),
+            Expanded(
+              flex: 1,
+              child: GestureDetector(
+                onTap: () {
+                  if (mounted) {
+                    setState(() {
+                      final dietPrefStr = dietPreference.toString();
+                      selectedCategoryIdMeal = dietPrefStr;
+                      selectedCategoryMeal = dietPrefStr;
+                    });
+                    _updateMealListByType();
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(1.3, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: selectedCategoryMeal.toLowerCase() ==
+                            (dietPreference.toString()).toLowerCase()
+                        ? kAccent.withValues(alpha: 0.2)
+                        : kLightGrey.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      dietPreference,
+                      style: textTheme.titleMedium?.copyWith(
+                          color: selectedCategoryMeal.toLowerCase() ==
+                                  (dietPreference.toString()).toLowerCase()
+                              ? kAccent
+                              : kLightGrey),
                     ),
                   ),
                 ),
               ),
+            ),
             Expanded(
               flex: 3,
               child: CategorySelector(

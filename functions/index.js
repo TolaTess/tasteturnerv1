@@ -2080,7 +2080,77 @@ function normalizeNumericValues(data, operation) {
   // Deep clone and ensure proper typing
   const normalized = JSON.parse(JSON.stringify(data));
 
-  if (operation === 'tasty_analysis' || operation === 'food_analysis') {
+  if (operation === 'fridge_analysis') {
+    // Normalize fridge analysis data
+    // Map foodItems to ingredients if present
+    if (normalized.foodItems && Array.isArray(normalized.foodItems)) {
+      normalized.ingredients = normalized.foodItems.map(item => ({
+        name: item.name || '',
+        category: item.category || 'other'
+      }));
+      delete normalized.foodItems; // Remove foodItems as we've converted to ingredients
+    }
+
+    // Ensure ingredients array exists
+    if (!normalized.ingredients || !Array.isArray(normalized.ingredients)) {
+      normalized.ingredients = [];
+    }
+
+    // Normalize suggested meals - ensure proper structure
+    if (normalized.suggestedMeals && Array.isArray(normalized.suggestedMeals)) {
+      normalized.suggestedMeals = normalized.suggestedMeals.filter(meal => {
+        // Filter out malformed meals that only have field names as titles
+        if (!meal || typeof meal !== 'object') return false;
+        const title = (meal.title || '').trim();
+        
+        // Skip empty titles
+        if (!title) return false;
+        
+        // Skip titles that are just field names
+        if (title === 'title' || title === 'cookingTime' || title === 'difficulty' || title === 'calories') {
+          return false;
+        }
+        
+        // Skip titles that are just time values (e.g., "30 minutes", "45 mins")
+        if (/^\d+\s*(minutes?|mins?|hours?|hrs?)$/i.test(title)) {
+          return false;
+        }
+        
+        // Skip titles that are just difficulty levels
+        if (title === 'easy' || title === 'medium' || title === 'hard') {
+          return false;
+        }
+        
+        // Skip titles that are just numbers or numbers with colons (e.g., ": 700", "700")
+        if (/^:?\s*\d+$/.test(title)) {
+          return false;
+        }
+        
+        // Skip titles that are just separators or punctuation
+        if (/^[,:\s\{\}]+$/.test(title)) {
+          return false;
+        }
+        
+        // Skip titles that contain JSON-like syntax
+        if (title.includes('}: {') || title.includes('}, {')) {
+          return false;
+        }
+        
+        // Title must be at least 5 characters to be a valid recipe name
+        if (title.length < 5) {
+          return false;
+        }
+        
+        return true;
+      }).map(meal => ({
+        title: meal.title || 'Untitled Recipe',
+        cookingTime: meal.cookingTime || 'Unknown',
+        difficulty: meal.difficulty || 'medium',
+        calories: typeof meal.calories === 'number' ? meal.calories : 
+                  (typeof meal.calories === 'string' && !isNaN(meal.calories) ? parseInt(meal.calories) : 0)
+      }));
+    }
+  } else if (operation === 'tasty_analysis' || operation === 'food_analysis') {
     // Normalize food analysis data
     if (normalized.foodItems && Array.isArray(normalized.foodItems)) {
       normalized.foodItems.forEach(item => {
@@ -2904,6 +2974,32 @@ function createFallbackResponse(operation, error) {
         cuisine: 'general',
         confidence: 'low',
         notes: 'Analysis failed: ' + error + '. Please verify all information manually.'
+      };
+    case 'fridge_analysis':
+      return {
+        ingredients: [],
+        suggestedMeals: [],
+        error: true,
+        message: 'Fridge analysis failed: ' + error
+      };
+    case 'tasty_analysis':
+    case 'food_analysis':
+      return {
+        foodItems: [],
+        totalNutrition: {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sugar: 0,
+          sodium: 0
+        },
+        ingredients: {},
+        confidence: 'low',
+        suggestions: [],
+        error: true,
+        message: 'Food analysis failed: ' + error
       };
     default:
       return { error: true, message: 'Operation failed: ' + error };
@@ -3895,6 +3991,32 @@ async function processImageForAI(imageBuffer) {
  * Generate meals with AI using cloud function
  * Handles meal plan generation with optimized performance
  */
+// Minimal extractor for {title, mealType, type} triples from arbitrary text
+function _extractMinimalMealsFromText(text) {
+  if (!text || typeof text !== 'string') return [];
+  const results = [];
+  // Regex matches JSON-like patterns with quoted keys
+  const entryRegex = /\{[^}]*?"title"\s*:\s*"([^"]+)"[^}]*?"mealType"\s*:\s*"(breakfast|lunch|dinner|snack)"[^}]*?"type"\s*:\s*"(protein|grain|vegetable|fruit)"[^}]*?\}/gims;
+  let m;
+  while ((m = entryRegex.exec(text)) !== null) {
+    results.push({ title: m[1], mealType: m[2], type: m[3] });
+  }
+  // If nothing matched, try a lenient line-based fallback
+  if (results.length === 0) {
+    const titleRegex = /"title"\s*:\s*"([^"]+)"/i;
+    const mealTypeRegex = /"mealType"\s*:\s*"(breakfast|lunch|dinner|snack)"/i;
+    const typeRegex = /"type"\s*:\s*"(protein|grain|vegetable|fruit)"/i;
+    // Split by opening braces to heuristically find objects
+    for (const chunk of text.split('{')) {
+      const t = chunk.match(titleRegex)?.[1];
+      const mt = chunk.match(mealTypeRegex)?.[1];
+      const tp = chunk.match(typeRegex)?.[1];
+      if (t && mt && tp) results.push({ title: t, mealType: mt, type: tp });
+    }
+  }
+  return results;
+}
+
 exports.generateMealsWithAI = functions
   .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
@@ -3920,8 +4042,6 @@ exports.generateMealsWithAI = functions
 ${userContext || ''}
 
 ${prompt}
-
-${contextInformation || ''}
 
 Generate ${mealCount || (isIngredientBased ? 2 : 10)} meals. Return JSON only:
 {
@@ -3955,16 +4075,33 @@ Important guidelines:
       
       // Process AI response with robust parsing
       const mealData = await processAIResponse(response, 'meal_generation');
-      
-      // Validate response structure (expecting mealPlan, not meals)
-      if (!mealData.mealPlan || !Array.isArray(mealData.mealPlan)) {
-        throw new Error('Invalid meal data structure in AI response - expected mealPlan array');
+
+      // Accept multiple shapes: { mealPlan: [...] } or raw array
+      let planArray = Array.isArray(mealData?.mealPlan)
+        ? mealData.mealPlan
+        : Array.isArray(mealData)
+          ? mealData
+          : Array.isArray(mealData?.data)
+            ? mealData.data
+            : [];
+
+      // If still empty, attempt minimal regex-based extraction directly from the raw response
+      if (!Array.isArray(planArray) || planArray.length === 0) {
+        const minimal = _extractMinimalMealsFromText(response);
+        if (minimal.length > 0) {
+          planArray = minimal;
+          console.log(`Extracted ${planArray.length} meals via minimal regex extraction`);
+        }
       }
-      
-      console.log(`Generated ${mealData.mealPlan.length} meals from AI`);
-      
+
+      if (!Array.isArray(planArray) || planArray.length === 0) {
+        throw new Error('Invalid meal data structure in AI response - no meals array found');
+      }
+
+      console.log(`Generated ${planArray.length} meals from AI`);
+
       // Extract meal titles for existing meal check
-      const mealTitles = mealData.mealPlan.map(meal => meal.title).filter(title => title);
+      const mealTitles = planArray.map(meal => meal.title).filter(title => title);
       console.log(`Checking for existing meals with titles: ${mealTitles.join(', ')}`);
       
       // Check for existing meals server-side
@@ -3975,7 +4112,7 @@ Important guidelines:
       const missingMeals = [];
       const existingMealTitles = Object.keys(existingMeals);
       
-      for (const meal of mealData.mealPlan) {
+      for (const meal of planArray) {
         const title = meal.title;
         if (!existingMealTitles.includes(title)) {
           missingMeals.push(meal);
@@ -4025,39 +4162,25 @@ Important guidelines:
         console.log(`Saved ${mealIds.length} new meals to Firestore with pending status`);
       }
       
-      // Prepare response with both existing and new meals
-      const allMeals = [];
-      
-      // Add existing meals
+      // Build minimal response only (ids, title, mealType, status)
+      const minimalMeals = [];
+      const existingMealIds = [];
       for (const [title, existingMeal] of Object.entries(existingMeals)) {
-        allMeals.push({
+        minimalMeals.push({
           id: existingMeal.mealId,
           title: existingMeal.title,
-          categories: existingMeal.categories,
-          ingredients: existingMeal.ingredients,
-          calories: existingMeal.calories,
-          nutritionalInfo: existingMeal.nutritionalInfo,
-          instructions: existingMeal.instructions,
-          mealType: mealData.mealPlan.find(m => m.title === title)?.mealType || 'main',
-          source: 'existing_database',
+          mealType: planArray.find(m => m.title === title)?.mealType || 'main',
           status: 'completed',
         });
+        existingMealIds.push(existingMeal.mealId);
       }
-      
-      // Add new meals with minimal data (Firebase Functions will fill out details)
       for (let i = 0; i < missingMeals.length; i++) {
         const meal = missingMeals[i];
         const mealId = mealIds[i];
-        allMeals.push({
+        minimalMeals.push({
           id: mealId,
           title: meal.title,
-          categories: [meal.cuisine || 'general'],
-          ingredients: {}, // Will be filled by Firebase Functions
-          calories: 0, // Will be filled by Firebase Functions
-          nutritionalInfo: {}, // Will be filled by Firebase Functions
-          instructions: [], // Will be filled by Firebase Functions
           mealType: meal.mealType || 'main',
-          source: 'ai_generated',
           status: 'pending',
         });
       }
@@ -4066,12 +4189,12 @@ Important guidelines:
       const mealPlanRef = firestore.collection('meal_plans').doc();
       const mealPlanData = {
         mealIds: mealIds, // Only new meal IDs
-        existingMealIds: Object.values(existingMeals).map(meal => meal.mealId),
-        allMealIds: allMeals.map(meal => meal.id),
+        existingMealIds: existingMealIds,
+        allMealIds: minimalMeals.map(meal => meal.id),
         distribution: mealData.distribution || distribution,
         source: 'cloud_function',
         executionTime: Date.now() - startTime,
-        mealCount: allMeals.length,
+        mealCount: minimalMeals.length,
         newMealCount: missingMeals.length,
         existingMealCount: Object.keys(existingMeals).length,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -4087,15 +4210,15 @@ Important guidelines:
       console.log(`Data saved successfully - Firebase Functions will fill out meal details`);
       console.log(`=== END FIRESTORE SAVE ===`);
 
-      // Return comprehensive meal plan data
+      // Return minimal meal plan data
       return {
         success: true,
         mealPlanId: mealPlanRef.id,
-        meals: allMeals,
+        meals: minimalMeals,
         mealIds: mealIds, // Only new meal IDs
-        existingMealIds: Object.values(existingMeals).map(meal => meal.mealId),
+        existingMealIds: existingMealIds,
         executionTime: Date.now() - startTime,
-        mealCount: allMeals.length,
+        mealCount: minimalMeals.length,
         newMealCount: missingMeals.length,
         existingMealCount: Object.keys(existingMeals).length,
       };
@@ -4262,63 +4385,67 @@ Important guidelines:
       };
 
       // Save analysis to Firestore
-      const analysisRef = await firestore.collection('food_analyses').add(analysisData);
+      const analysisRef = await firestore.collection('tastyanalysis').add(analysisData);
       
-      // If there are suggested meals, save them individually to meals collection
+      
+      // Create a basic meal from the food analysis data and save to meals collection
       const mealIds = [];
-      if (foodData.suggestedMeals && Array.isArray(foodData.suggestedMeals) && foodData.suggestedMeals.length > 0) {
-        const batch = firestore.batch();
+      if (foodData.foodItems && foodData.foodItems.length > 0) {
+        const mealRef = firestore.collection('meals').doc();
+        const mealId = mealRef.id;
         
-        for (const suggestedMeal of foodData.suggestedMeals) {
-          const mealRef = firestore.collection('meals').doc();
-          const mealId = mealRef.id;
-          
-          // Create meal document with same structure as saveBasicMealsToFirestore
-          const basicMealData = {
-            title: suggestedMeal.title || 'Suggested Meal',
-            mealType: suggestedMeal.mealType || 'main',
-            calories: suggestedMeal.calories || 0,
-            categories: [],
-            nutritionalInfo: suggestedMeal.nutritionalInfo || {},
-            ingredients: suggestedMeal.ingredients || {},
-            instructions: suggestedMeal.instructions || [],
-            cookingTime: suggestedMeal.cookingTime || '30 minutes',
-            difficulty: suggestedMeal.difficulty || 'medium',
-            servings: suggestedMeal.servings || 1,
-            status: 'pending', // Firebase Functions will process this
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            type: suggestedMeal.type || 'main',
-            userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
-            source: 'ai_generated',
-            version: 'basic',
-            processingAttempts: 0, // Track retry attempts
-            lastProcessingAttempt: null, // Timestamp of last attempt
-            processingPriority: Date.now(), // FIFO processing
-            needsProcessing: true, // Flag for Firebase Functions
-          };
-          
-          console.log(`Saving suggested meal: ${suggestedMeal.title} with ID: ${mealId}`);
-          console.log(`Suggested meal data:`, JSON.stringify(basicMealData, null, 2));
-          batch.set(mealRef, basicMealData);
-          mealIds.push(mealId);
-        }
+        // Create a meal title from the food items
+        const foodItemNames = foodData.foodItems.map(item => item.name || item.title || 'Unknown').join(', ');
+        const mealTitle = foodItemNames.length > 50 ? foodItemNames.substring(0, 47) + '...' : foodItemNames;
         
-        // Commit all suggested meals in a single batch
-        await batch.commit();
-        console.log(`Saved ${mealIds.length} suggested meals to Firestore with pending status`);
+        // Create meal document with same structure as saveBasicMealsToFirestore
+        const basicMealData = {
+          title: mealTitle || 'Analyzed Meal',
+          mealType: 'main', // Default meal type
+          calories: foodData.totalNutrition?.calories || 0,
+          categories: [],
+          nutritionalInfo: foodData.totalNutrition || {},
+          ingredients: foodData.ingredients || {},
+          instructions: [], // Will be filled by AI later
+          cookingTime: '30 minutes', // Default, will be filled by AI later
+          difficulty: 'medium', // Default, will be filled by AI later
+          servings: 1, // Default, will be filled by AI later
+          status: 'pending', // Firebase Functions will process this
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          type: 'main',
+          userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+          source: 'ai_generated',
+          version: 'basic',
+          processingAttempts: 0, // Track retry attempts
+          lastProcessingAttempt: null, // Timestamp of last attempt
+          processingPriority: Date.now(), // FIFO processing
+          needsProcessing: true, // Flag for Firebase Functions
+          foodItems: foodData.foodItems, // Store the analyzed food items
+          confidence: foodData.confidence || 'medium',
+          suggestions: foodData.suggestions || {},
+        };
+        
+        console.log(`Saving basic meal: ${mealTitle} with ID: ${mealId}`);
+        console.log(`Basic meal data:`, JSON.stringify(basicMealData, null, 2));
+        
+        // Save the basic meal to Firestore
+        await mealRef.set(basicMealData);
+        mealIds.push(mealId);
+        
+        console.log(`Saved basic meal to Firestore with pending status`);
       }
       
       console.log(`=== SAVED TO FIRESTORE ===`);
       console.log(`Analysis ID: ${analysisRef.id}`);
-      console.log(`Suggested Meal IDs: ${mealIds.join(', ')}`);
+      console.log(`Meal IDs: ${mealIds.join(', ')}`);
       console.log(`Data saved successfully`);
       console.log(`=== END FIRESTORE SAVE ===`);
 
-      // Return analysis ID and suggested meal IDs
+      // Return analysis ID and meal IDs
       const response = {
         success: true,
         analysisId: analysisRef.id,
-        suggestedMealIds: mealIds,
+        mealIds: mealIds,
         executionTime: executionTime,
         // Include complete analysis data for immediate display
         foodItems: foodData.foodItems,
@@ -4451,34 +4578,53 @@ Important guidelines:
         userId: context.auth?.uid || 'anonymous',
       };
 
-      // Save analysis to Firestore
-      const analysisRef = await firestore.collection('fridge_analyses').add(fridgeAnalysisData);
+      // Save analysis to Firestore (fridge_analysis collection)
+      const analysisRef = await firestore.collection('fridge_analysis').add(fridgeAnalysisData);
       
-      // Save suggested meals individually to meals collection
+      // Save suggested meals individually to global meals collection
       const mealIds = [];
+      
       if (fridgeData.suggestedMeals && Array.isArray(fridgeData.suggestedMeals) && fridgeData.suggestedMeals.length > 0) {
         const batch = firestore.batch();
         
         for (const suggestedMeal of fridgeData.suggestedMeals) {
+          // Validate meal has a proper title before saving
+          const mealTitle = suggestedMeal.title?.trim() || '';
+          
+          // Skip meals without valid titles (should have been filtered, but double-check)
+          if (!mealTitle || mealTitle.length < 5 || 
+              mealTitle === 'title' || mealTitle === 'cookingTime' || 
+              mealTitle === 'difficulty' || mealTitle === 'calories' ||
+              /^\d+\s*(minutes?|mins?|hours?|hrs?)$/i.test(mealTitle) ||
+              mealTitle === 'easy' || mealTitle === 'medium' || mealTitle === 'hard' ||
+              /^:?\s*\d+$/.test(mealTitle)) {
+            console.log(`Skipping invalid meal with title: "${mealTitle}"`);
+            continue;
+          }
+          
           const mealRef = firestore.collection('meals').doc();
           const mealId = mealRef.id;
           
           // Create meal document with same structure as saveBasicMealsToFirestore
           const basicMealData = {
-            title: suggestedMeal.title || 'Fridge Suggested Meal',
+            title: mealTitle, // Use the validated title
             mealType: suggestedMeal.mealType || 'main',
-            calories: suggestedMeal.calories || 0,
+            calories: typeof suggestedMeal.calories === 'number' 
+              ? suggestedMeal.calories 
+              : (typeof suggestedMeal.calories === 'string' && !isNaN(suggestedMeal.calories) 
+                  ? parseInt(suggestedMeal.calories) 
+                  : 0),
             categories: ['fridge-suggested'],
             nutritionalInfo: suggestedMeal.nutritionalInfo || {},
             ingredients: suggestedMeal.ingredients || {},
             instructions: suggestedMeal.instructions || [],
-            cookingTime: suggestedMeal.cookingTime || '30 minutes',
-            difficulty: suggestedMeal.difficulty || 'medium',
+            cookingTime: suggestedMeal.cookingTime?.toString() || '30 minutes',
+            difficulty: suggestedMeal.difficulty?.toString() || 'medium',
             servings: suggestedMeal.servings || 1,
             status: 'pending', // Firebase Functions will process this
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             type: suggestedMeal.type || 'main',
-            userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+            userId: "hhY2Fp8pA5cVPCWJKuCb1IGWagh1",
             source: 'ai_generated',
             version: 'basic',
             processingAttempts: 0, // Track retry attempts
@@ -4487,15 +4633,19 @@ Important guidelines:
             needsProcessing: true, // Flag for Firebase Functions
           };
           
-          console.log(`Saving fridge suggested meal: ${suggestedMeal.title} with ID: ${mealId}`);
+          console.log(`Saving fridge suggested meal: "${mealTitle}" with ID: ${mealId}`);
           console.log(`Fridge suggested meal data:`, JSON.stringify(basicMealData, null, 2));
           batch.set(mealRef, basicMealData);
           mealIds.push(mealId);
         }
         
-        // Commit all suggested meals in a single batch
-        await batch.commit();
-        console.log(`Saved ${mealIds.length} fridge suggested meals to Firestore with pending status`);
+        if (mealIds.length > 0) {
+          // Commit all suggested meals in a single batch
+          await batch.commit();
+          console.log(`Saved ${mealIds.length} fridge suggested meals to Firestore with pending status`);
+        } else {
+          console.log(`No valid meals to save after filtering`);
+        }
       }
       
       console.log(`=== SAVED FRIDGE ANALYSIS TO FIRESTORE ===`);
@@ -4504,11 +4654,21 @@ Important guidelines:
       console.log(`Data saved successfully`);
       console.log(`=== END FIRESTORE SAVE ===`);
 
+      // Create mealIds map for client (title -> mealId)
+      const mealIdsMap = {};
+      fridgeData.suggestedMeals?.forEach((meal, index) => {
+        const mealTitle = meal.title?.trim() || '';
+        if (mealTitle && mealIds[index]) {
+          mealIdsMap[mealTitle] = mealIds[index];
+        }
+      });
+      
       // Return analysis ID and suggested meal IDs
       return {
         success: true,
         analysisId: analysisRef.id,
         suggestedMealIds: mealIds,
+        mealIds: mealIdsMap, // Map of title -> mealId for client
         executionTime: executionTime,
         // Include complete analysis data for immediate display
         ingredients: fridgeData.ingredients || [],

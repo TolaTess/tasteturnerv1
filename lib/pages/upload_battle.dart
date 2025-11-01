@@ -298,7 +298,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
     );
   }
 
-  Future<void> _uploadMedia(String postId) async {
+  Future<void> _uploadMedia(String postId, {bool isFeedPage = false}) async {
     if (_selectedMedia.isEmpty) {
       if (mounted) {
         _pickMedia(fromCamera: false);
@@ -355,6 +355,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 isMainPost: widget.isMainPost,
                 selectedCategory: selectedCategory,
                 isAnalyzeAndUpload: true,
+                isFeedPage: isFeedPage,
               ),
             ),
           );
@@ -690,7 +691,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
                 onPressed: () {
                   if (!_isVideo) {
                     // For analyze & upload: don't pass a postId, let meal be created first
-                    _uploadMedia('analyze_and_upload');
+                    _uploadMedia('analyze_and_upload', isFeedPage: true);
                   } else {
                     showTastySnackbar(
                       'Info',
@@ -749,7 +750,7 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
               ),
 
             AppButton(
-              onPressed: isUploading ? () {} : () => _uploadMedia(''),
+              onPressed: isUploading ? () {} : () => _uploadMedia('', isFeedPage: true),
               text: isUploading ? "Uploading..." : "Upload Without Analysis",
               isLoading: isUploading,
               type: AppButtonType.primary,

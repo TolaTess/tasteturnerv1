@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -41,6 +42,7 @@ class _DineInScreenState extends State<DineInScreen> {
   File? _fridgeImage;
   List<Map<String, dynamic>> _fridgeRecipes = [];
   bool _showFridgeRecipes = false;
+  StreamSubscription? _mealUpdateSubscription;
 
   // Legacy variables (keeping for challenge mode)
   MacroData? selectedCarb;
@@ -65,60 +67,128 @@ class _DineInScreenState extends State<DineInScreen> {
     super.initState();
     _loadSavedMeal();
     _loadFridgeData();
-    _loadFridgeRecipesFromSharedPreferences(); // Load persisted fridge recipes
+    _loadFridgeRecipesFromSharedPreferences();
     loadExcludedIngredients();
     debugPrint('Excluded ingredients: ${excludedIngredients.length}');
-
-    // Load excluded ingredients lazily after UI is built
-    // _loadExcludedIngredientsLazily();
-    // _checkChallengeNotification();
-    // _loadChallengeData();
   }
 
   @override
   void dispose() {
     _fridgeController.dispose();
     _fridgeFocusNode.dispose();
+    _mealUpdateSubscription?.cancel();
     super.dispose();
   }
 
-  loadExcludedIngredients() async {
+  void loadExcludedIngredients() {
     excludedIngredients = excludeIngredients.toList();
   }
 
-  // /// Load excluded ingredients lazily after UI is built
-  // void _loadExcludedIngredientsLazily() {
-  //   // Use addPostFrameCallback to ensure this runs after the first frame is rendered
-  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
-  //     try {
-  //       debugPrint('Loading excluded ingredients from Firebase...');
+  // Set up Firestore listeners to update meals when they're processed off-device
+  void _setupMealUpdateListeners() {
+    // Cancel existing subscription if any
+    _mealUpdateSubscription?.cancel();
 
-  //       // Only fetch if we don't already have the data
-  //       if (firebaseService.generalData.isEmpty) {
-  //         await firebaseService.fetchGeneralData();
-  //       }
+    // Get all meal IDs from current fridge recipes
+    final mealIds = _fridgeRecipes
+        .where((recipe) => recipe['mealId'] != null)
+        .map((recipe) => recipe['mealId'] as String)
+        .toList();
 
-  //       if (mounted && firebaseService.generalData.isNotEmpty) {
-  //         setState(() {
-  //           excludedIngredients = firebaseService
-  //               .generalData['excludeIngredients']
-  //               .toString()
-  //               .split(',');
-  //         });
-  //         debugPrint(
-  //             'Excluded ingredients loaded: ${excludedIngredients.length}');
-  //       }
-  //     } catch (e) {
-  //       debugPrint('Error loading excluded ingredients: $e');
-  //       // Fallback to local data if Firebase fails
-  //       if (mounted) {
-  //         setState(() {
-  //           excludedIngredients = excludeIngredients.toList();
-  //         });
-  //       }
-  //     }
-  //   });
-  // }
+    if (mealIds.isEmpty) {
+      debugPrint('No meal IDs to listen to');
+      return;
+    }
+
+    debugPrint('Setting up Firestore listeners for ${mealIds.length} meals');
+
+    // Listen to updates for all meal IDs from global meals collection
+    final firestore = FirebaseFirestore.instance;
+
+    // Create a stream that listens to all meal documents from global meals collection
+    _mealUpdateSubscription =
+        Stream.periodic(const Duration(seconds: 5)).asyncMap((_) async {
+      try {
+        // Batch fetch all meals from global meals collection
+        final meals = await Future.wait(
+          mealIds.map((mealId) async {
+            try {
+              final doc = await firestore.collection('meals').doc(mealId).get();
+
+              if (doc.exists) {
+                return {'id': mealId, 'data': doc.data()};
+              }
+              return null;
+            } catch (e) {
+              debugPrint('Error fetching meal $mealId: $e');
+              return null;
+            }
+          }),
+        );
+
+        return meals
+            .where((m) => m != null)
+            .cast<Map<String, dynamic>>()
+            .toList();
+      } catch (e) {
+        debugPrint('Error in meal listener: $e');
+        return <Map<String, dynamic>>[];
+      }
+    }).listen((meals) {
+      if (meals.isEmpty) return;
+
+      bool hasUpdates = false;
+      final updatedRecipes = List<Map<String, dynamic>>.from(_fridgeRecipes);
+
+      for (final mealInfo in meals) {
+        final mealId = mealInfo['id'] as String;
+        final mealData = mealInfo['data'] as Map<String, dynamic>?;
+
+        if (mealData == null) continue;
+
+        // Find the recipe with this mealId and update it
+        final recipeIndex = updatedRecipes.indexWhere(
+          (recipe) => recipe['mealId'] == mealId,
+        );
+
+        if (recipeIndex != -1) {
+          final existingRecipe = updatedRecipes[recipeIndex];
+          final status = mealData['status']?.toString() ?? 'pending';
+
+          // Only update if status changed from pending to completed
+          if (status == 'completed' &&
+              existingRecipe['status'] != 'completed') {
+            updatedRecipes[recipeIndex] = {
+              ...existingRecipe,
+              'title': mealData['title']?.toString() ?? existingRecipe['title'],
+              'description': mealData['description']?.toString() ??
+                  existingRecipe['description'],
+              'cookingTime': mealData['cookingTime']?.toString() ??
+                  existingRecipe['cookingTime'],
+              'difficulty': mealData['difficulty']?.toString() ??
+                  existingRecipe['difficulty'],
+              'calories': mealData['calories'] ?? existingRecipe['calories'],
+              'ingredients':
+                  mealData['ingredients'] ?? existingRecipe['ingredients'],
+              'instructions':
+                  mealData['instructions'] ?? existingRecipe['instructions'],
+              'status': status,
+            };
+            hasUpdates = true;
+            debugPrint('Updated meal $mealId: ${mealData['title']}');
+          }
+        }
+      }
+
+      if (hasUpdates && mounted) {
+        setState(() {
+          _fridgeRecipes = updatedRecipes;
+        });
+        // Save updated recipes
+        _saveFridgeRecipesToSharedPreferences();
+      }
+    });
+  }
 
   // Local storage keys
   static const String _selectedMealKey = 'dine_in_selected_meal';
@@ -349,7 +419,7 @@ class _DineInScreenState extends State<DineInScreen> {
       }
     } catch (e) {
       debugPrint('Error loading saved challenge data: $e');
-    } 
+    }
   }
 
   // Save challenge data to local storage
@@ -646,7 +716,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
       debugPrint('Starting image picker with source: $source');
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging (increased to 60 seconds for slower devices)
       final XFile? image = await _imagePicker
           .pickImage(
         source: source,
@@ -657,16 +727,24 @@ class _DineInScreenState extends State<DineInScreen> {
             CameraDevice.rear, // Use rear camera for better quality
       )
           .timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 60),
         onTimeout: () {
-          debugPrint('Image picker timed out');
+          debugPrint('Image picker timed out after 60 seconds');
           throw TimeoutException(
-              'Camera operation timed out', const Duration(seconds: 30));
+              'Camera operation timed out. Please try again or use gallery instead.',
+              const Duration(seconds: 60));
         },
       );
       debugPrint('Image picker completed, result: ${image?.path}');
 
       if (image != null) {
+        // Clear previous ingredients and recipes when analyzing a new image
+        setState(() {
+          fridgeIngredients.clear();
+          _fridgeRecipes.clear();
+          _showFridgeRecipes = false;
+        });
+
         // Process the image to fix any color issues (like green tint)
         final processedImage = await _processImage(File(image.path));
         setState(() {
@@ -755,7 +833,7 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
-  Future<void> _analyzeFridgeImage() async {  
+  Future<void> _analyzeFridgeImage() async {
     if (_fridgeImage == null) return;
 
     setState(() {
@@ -798,7 +876,22 @@ class _DineInScreenState extends State<DineInScreen> {
       }
 
       if (analysisResult['ingredients'] != null) {
-        final ingredients = analysisResult['ingredients'] as List<dynamic>;
+        // Safely convert ingredients to List
+        dynamic ingredientsRaw = analysisResult['ingredients'];
+        List<dynamic> ingredients;
+
+        if (ingredientsRaw is List) {
+          ingredients = ingredientsRaw;
+        } else if (ingredientsRaw is Map) {
+          // If it's a Map, convert to List (shouldn't happen but handle it)
+          debugPrint('WARNING: ingredients is a Map, converting to List');
+          ingredients = [ingredientsRaw];
+        } else {
+          debugPrint(
+              'ERROR: ingredients is unexpected type: ${ingredientsRaw.runtimeType}');
+          ingredients = [];
+        }
+
         debugPrint('Raw ingredients: $ingredients');
 
         final ingredientNames = ingredients
@@ -826,32 +919,72 @@ class _DineInScreenState extends State<DineInScreen> {
 
         // If we have suggested meals from the analysis, use them directly
         if (analysisResult['suggestedMeals'] != null) {
-          final suggestedMeals =
-              analysisResult['suggestedMeals'] as List<dynamic>;
+          // Safely convert suggestedMeals to List
+          dynamic suggestedMealsRaw = analysisResult['suggestedMeals'];
+          List<dynamic> suggestedMeals;
+
+          if (suggestedMealsRaw is List) {
+            suggestedMeals = suggestedMealsRaw;
+          } else if (suggestedMealsRaw is Map) {
+            // If it's a Map, convert to List (shouldn't happen but handle it)
+            debugPrint('WARNING: suggestedMeals is a Map, converting to List');
+            suggestedMeals = [suggestedMealsRaw];
+          } else {
+            debugPrint(
+                'ERROR: suggestedMeals is unexpected type: ${suggestedMealsRaw.runtimeType}');
+            suggestedMeals = [];
+          }
+
           debugPrint('Suggested meals: $suggestedMeals');
 
           setState(() {
             // Convert each meal properly to preserve all fields
             _fridgeRecipes = suggestedMeals.map((meal) {
+              // Handle different map types (Map, Map<String, dynamic>, etc.)
+              Map<String, dynamic> mealMap;
               if (meal is Map<String, dynamic>) {
-                debugPrint('Processing meal: $meal');
+                mealMap = meal;
+              } else if (meal is Map) {
+                // Convert generic Map to Map<String, dynamic>
+                mealMap = Map<String, dynamic>.from(meal);
+              } else {
+                debugPrint(
+                    'Meal is not a Map, type: ${meal.runtimeType}, value: $meal');
                 return {
-                  'title': meal['title'] ?? 'Untitled Recipe',
-                  'description': meal['description'] ?? 'No description',
-                  'cookingTime': meal['cookingTime'] ?? 'Unknown',
-                  'difficulty': meal['difficulty'] ?? 'medium',
-                  'calories': meal['calories'] ?? 0,
-                  'ingredients': meal['ingredients'] ?? {},
+                  'title': 'Untitled Recipe',
+                  'description': 'No description',
+                  'cookingTime': 'Unknown',
+                  'difficulty': 'medium',
+                  'calories': 0,
+                  'ingredients': {},
                 };
               }
-              return {
-                'title': 'Untitled Recipe',
-                'description': 'No description',
-                'cookingTime': 'Unknown',
-                'difficulty': 'medium',
-                'calories': 0,
-                'ingredients': {},
+
+              // Extract title with proper null/empty handling
+              final title = mealMap['title'];
+              final titleString = (title?.toString() ?? '').trim();
+
+              final processedMeal = {
+                'title':
+                    titleString.isNotEmpty ? titleString : 'Untitled Recipe',
+                'description':
+                    mealMap['description']?.toString() ?? 'No description',
+                'cookingTime': mealMap['cookingTime']?.toString() ?? 'Unknown',
+                'difficulty': mealMap['difficulty']?.toString() ?? 'medium',
+                'calories': mealMap['calories'] is num
+                    ? mealMap['calories'] as num
+                    : (mealMap['calories'] is String
+                        ? int.tryParse(mealMap['calories'] as String) ?? 0
+                        : 0),
+                'ingredients': mealMap['ingredients'] is Map
+                    ? Map<String, dynamic>.from(mealMap['ingredients'] as Map)
+                    : <String, dynamic>{},
+                'mealId':
+                    mealMap['mealId']?.toString(), // Store mealId if present
               };
+
+              debugPrint('Processed meal title: ${processedMeal['title']}');
+              return processedMeal;
             }).toList();
             _showFridgeRecipes = true;
           });
@@ -859,22 +992,98 @@ class _DineInScreenState extends State<DineInScreen> {
           debugPrint('Updated _fridgeRecipes: $_fridgeRecipes');
           debugPrint('_showFridgeRecipes: $_showFridgeRecipes');
 
-          // Save recipes to SharedPreferences for persistence
-          await _saveFridgeRecipesToSharedPreferences();
+          // If meals came from cloud function, extract mealIds and skip saving
+          final isCloudFunction = analysisResult['source'] == 'cloud_function';
+          debugPrint(
+              'Is cloud function: $isCloudFunction, mealIds present: ${analysisResult['mealIds'] != null}');
 
-          if (_fridgeRecipes.isNotEmpty) {
-            for (var recipe in _fridgeRecipes) {
-              _saveRecipeToDatabase(recipe);
+          if (isCloudFunction && analysisResult['mealIds'] != null) {
+            // Safely extract mealIdsMap
+            dynamic mealIdsRaw = analysisResult['mealIds'];
+            Map<String, dynamic> mealIdsMap;
+
+            if (mealIdsRaw is Map<String, dynamic>) {
+              mealIdsMap = mealIdsRaw;
+            } else if (mealIdsRaw is Map) {
+              mealIdsMap = Map<String, dynamic>.from(mealIdsRaw);
+            } else {
+              debugPrint(
+                  'ERROR: mealIds is not a Map, type: ${mealIdsRaw.runtimeType}');
+              mealIdsMap = {};
             }
-          }
 
-          // Show success message
-          showTastySnackbar(
-            'Analysis Complete!',
-            'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions',
-            context,
-            backgroundColor: kAccent,
-          );
+            debugPrint('Meal IDs from cloud function: $mealIdsMap');
+            debugPrint('Meal IDs keys: ${mealIdsMap.keys.toList()}');
+
+            // Update recipes with mealIds from cloud function
+            setState(() {
+              _fridgeRecipes = _fridgeRecipes.map((recipe) {
+                final title = recipe['title'] as String? ?? '';
+                debugPrint('Checking recipe title: "$title"');
+
+                // Try exact match first
+                if (mealIdsMap.containsKey(title)) {
+                  recipe['mealId'] = mealIdsMap[title];
+                  debugPrint(
+                      'Assigned mealId ${mealIdsMap[title]} to recipe: $title (exact match)');
+                } else {
+                  // Try case-insensitive and trimmed match
+                  final normalizedTitle = title.trim().toLowerCase();
+                  String? matchedKey;
+                  for (final key in mealIdsMap.keys) {
+                    if (key.trim().toLowerCase() == normalizedTitle) {
+                      matchedKey = key;
+                      break;
+                    }
+                  }
+
+                  if (matchedKey != null) {
+                    recipe['mealId'] = mealIdsMap[matchedKey];
+                    debugPrint(
+                        'Assigned mealId ${mealIdsMap[matchedKey]} to recipe: $title (normalized match with "$matchedKey")');
+                  } else {
+                    debugPrint(
+                        'WARNING: Could not find mealId for recipe: "$title"');
+                    debugPrint(
+                        'Available keys in mealIdsMap: ${mealIdsMap.keys.toList()}');
+                  }
+                }
+                return recipe;
+              }).toList();
+            });
+
+            // Save recipes to SharedPreferences with mealIds
+            await _saveFridgeRecipesToSharedPreferences();
+
+            // Set up listeners for meal updates (meals already saved by cloud function)
+            _setupMealUpdateListeners();
+
+            // Show success message
+            showTastySnackbar(
+              'Analysis Complete!',
+              'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions. Meals are being processed.',
+              context,
+              backgroundColor: kAccent,
+            );
+          } else {
+            // Client-side fallback: save recipes manually
+            // Save recipes to SharedPreferences for persistence
+            await _saveFridgeRecipesToSharedPreferences();
+
+            if (_fridgeRecipes.isNotEmpty) {
+              for (var recipe in _fridgeRecipes) {
+                _saveRecipeToDatabase(recipe);
+              }
+            }
+
+            // Show success message
+            showTastySnackbar(
+              'Analysis Complete!',
+              'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions',
+              context,
+              backgroundColor: kAccent,
+            );
+          }
         } else {
           debugPrint('No suggested meals found, generating recipes...');
           // Fallback to generating recipes from ingredients
@@ -930,7 +1139,7 @@ class _DineInScreenState extends State<DineInScreen> {
     // await _generateFridgeRecipes();
   }
 
-  Future<void> _generateFridgeRecipes() async { 
+  Future<void> _generateFridgeRecipes() async {
     if (fridgeIngredients.length < 3) {
       showTastySnackbar(
         'Not Enough Ingredients',
@@ -1096,12 +1305,17 @@ class _DineInScreenState extends State<DineInScreen> {
           final recipeIndex = _fridgeRecipes
               .indexWhere((recipe) => recipe['title'] == recipeTitle);
           if (recipeIndex != -1) {
-            _fridgeRecipes[recipeIndex]['mealId'] = mealId;
+            setState(() {
+              _fridgeRecipes[recipeIndex]['mealId'] = mealId;
+            });
             debugPrint(
                 'Updated recipe with mealId: $mealId for title: $recipeTitle');
 
             // Save the updated recipe to SharedPreferences for persistence
             await _saveFridgeRecipesToSharedPreferences();
+
+            // Set up listeners for meal updates after saving
+            _setupMealUpdateListeners();
           }
         }
       }
@@ -1124,7 +1338,7 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   // Convert ingredients map to proper format
-    Map<String, String> _convertIngredientsToMap(dynamic ingredients) {
+  Map<String, String> _convertIngredientsToMap(dynamic ingredients) {
     if (ingredients is Map) {
       return ingredients.map((key, value) => MapEntry(
             key.toString(),
@@ -1177,11 +1391,83 @@ class _DineInScreenState extends State<DineInScreen> {
   Future<void> _saveFridgeRecipesToSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // Add timestamp to new recipes if they don't have one
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final recipesWithTimestamp = _fridgeRecipes.map((recipe) {
+        if (!recipe.containsKey('savedAt') || recipe['savedAt'] == null) {
+          recipe['savedAt'] = now;
+        }
+        return Map<String, dynamic>.from(recipe);
+      }).toList();
+
+      // Load existing recipes from SharedPreferences
+      final existingRecipesJson = prefs.getStringList('fridge_recipes') ?? [];
+      final existingRecipes = existingRecipesJson
+          .map((recipeJson) {
+            try {
+              return Map<String, dynamic>.from(jsonDecode(recipeJson));
+            } catch (e) {
+              debugPrint('Error parsing existing recipe: $e');
+              return null;
+            }
+          })
+          .where((recipe) => recipe != null)
+          .cast<Map<String, dynamic>>()
+          .toList();
+
+      // Merge existing and new recipes, removing duplicates by mealId or title
+      final allRecipes = <Map<String, dynamic>>[];
+
+      // Add existing recipes that aren't in the new list
+      for (final existing in existingRecipes) {
+        final existingMealId = existing['mealId'] as String?;
+        final existingTitle = existing['title'] as String?;
+
+        bool isDuplicate = false;
+        for (final newRecipe in recipesWithTimestamp) {
+          final newMealId = newRecipe['mealId'] as String?;
+          final newTitle = newRecipe['title'] as String?;
+
+          // Match by mealId if both have it, otherwise match by title
+          if (existingMealId != null &&
+              newMealId != null &&
+              existingMealId == newMealId) {
+            isDuplicate = true;
+            break;
+          } else if (existingTitle != null &&
+              newTitle != null &&
+              existingTitle == newTitle) {
+            isDuplicate = true;
+            break;
+          }
+        }
+
+        if (!isDuplicate) {
+          allRecipes.add(existing);
+        }
+      }
+
+      // Add all new recipes (they will override duplicates)
+      allRecipes.addAll(recipesWithTimestamp);
+
+      // Sort by savedAt timestamp (newest first)
+      allRecipes.sort((a, b) {
+        final aTime = a['savedAt'] as int? ?? 0;
+        final bTime = b['savedAt'] as int? ?? 0;
+        return bTime.compareTo(aTime); // Descending order (newest first)
+      });
+
+      // Keep only the 5 most recent recipes
+      final recipesToSave = allRecipes.take(5).toList();
+
+      // Save to SharedPreferences
       final recipesJson =
-          _fridgeRecipes.map((recipe) => jsonEncode(recipe)).toList();
+          recipesToSave.map((recipe) => jsonEncode(recipe)).toList();
       await prefs.setStringList('fridge_recipes', recipesJson);
+
       debugPrint(
-          'Saved ${_fridgeRecipes.length} fridge recipes to SharedPreferences');
+          'Saved ${recipesToSave.length} fridge recipes to SharedPreferences (max 5, removed ${allRecipes.length - recipesToSave.length} oldest)');
     } catch (e) {
       debugPrint('Error saving fridge recipes to SharedPreferences: $e');
     }
@@ -1197,7 +1483,14 @@ class _DineInScreenState extends State<DineInScreen> {
         final loadedRecipes = recipesJson
             .map((recipeJson) {
               try {
-                return Map<String, dynamic>.from(jsonDecode(recipeJson));
+                final recipe =
+                    Map<String, dynamic>.from(jsonDecode(recipeJson));
+                // Add timestamp to old recipes that don't have one (treat as very old)
+                if (!recipe.containsKey('savedAt') ||
+                    recipe['savedAt'] == null) {
+                  recipe['savedAt'] = 0; // Very old timestamp
+                }
+                return recipe;
               } catch (e) {
                 debugPrint('Error parsing recipe from SharedPreferences: $e');
                 return null;
@@ -1208,12 +1501,21 @@ class _DineInScreenState extends State<DineInScreen> {
             .toList();
 
         if (loadedRecipes.isNotEmpty) {
+          // Sort by savedAt (newest first) and limit to 5
+          loadedRecipes.sort((a, b) {
+            final aTime = a['savedAt'] as int? ?? 0;
+            final bTime = b['savedAt'] as int? ?? 0;
+            return bTime.compareTo(aTime); // Descending order (newest first)
+          });
+
+          final recipesToLoad = loadedRecipes.take(5).toList();
+
           setState(() {
-            _fridgeRecipes = loadedRecipes;
+            _fridgeRecipes = recipesToLoad;
             _showFridgeRecipes = true;
           });
           debugPrint(
-              'Loaded ${loadedRecipes.length} fridge recipes from SharedPreferences');
+              'Loaded ${recipesToLoad.length} fridge recipes from SharedPreferences (max 5)');
         }
       }
     } catch (e) {
@@ -2056,7 +2358,7 @@ class _DineInScreenState extends State<DineInScreen> {
           SizedBox(height: getPercentageHeight(1, context)),
 
           // Description
-          if (recipe['calories'] != null) ...[
+          if (recipe['calories'] != null && recipe['calories'] != 0) ...[
             Text(
               '${recipe['calories']} calories',
               style: textTheme.bodySmall?.copyWith(
@@ -2069,7 +2371,7 @@ class _DineInScreenState extends State<DineInScreen> {
           // Cooking info
           Row(
             children: [
-              if (recipe['cookingTime'] != null) ...[
+              if (recipe['cookingTime'] != null && recipe['cookingTime'] != 'Unknown') ...[
                 Icon(Icons.timer,
                     size: getIconScale(4, context), color: kAccent),
                 SizedBox(width: getPercentageWidth(1, context)),
@@ -2100,7 +2402,7 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {  
+  Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
 

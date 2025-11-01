@@ -1715,7 +1715,7 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
         setState(() {
           _currentIndex = (_currentIndex + 1) % widget.messages.length;
@@ -1741,7 +1741,7 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
       content: Row(
         children: [
           const CircularProgressIndicator(color: kAccent),
-          SizedBox(width: getPercentageWidth(3, context)),
+          SizedBox(width: getPercentageWidth(5, context)),
           Text(
             widget.messages[_currentIndex],
             style: textTheme.displaySmall?.copyWith(
