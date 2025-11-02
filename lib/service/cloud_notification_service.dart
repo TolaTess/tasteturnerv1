@@ -26,7 +26,8 @@ class CloudNotificationService extends GetxService {
   @override
   Future<void> onInit() async {
     super.onInit();
-    await initializeCloudNotifications();
+    // Do not auto-initialize - only initialize when user explicitly enables notifications
+    // This prevents permission requests without user context
   }
 
   /// Initialize Cloud Functions notifications
@@ -34,7 +35,8 @@ class CloudNotificationService extends GetxService {
     if (_isInitialized) return;
 
     try {
-      // Request permission for notifications
+      // Only request permission if user has explicitly enabled notifications
+      // Permission request should be handled by UI layer with proper context
       await _requestNotificationPermission();
 
       // Get FCM token

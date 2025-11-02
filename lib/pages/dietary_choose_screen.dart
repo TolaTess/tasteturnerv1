@@ -56,8 +56,41 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
         'Healthy Eating';
 
     // Initialize from helperController (reactive lists)
-    cuisineTypes = List<Map<String, dynamic>>.from(helperController.headers);
-    dietTypes = List<Map<String, dynamic>>.from(helperController.category);
+    // Data should already be preloaded from home screen, but handle gracefully if not
+    try {
+      cuisineTypes = helperController.headers.isNotEmpty
+          ? List<Map<String, dynamic>>.from(helperController.headers)
+          : [];
+      dietTypes = helperController.category.isNotEmpty
+          ? List<Map<String, dynamic>>.from(helperController.category)
+          : [];
+    } catch (e) {
+      debugPrint('Error initializing cuisineTypes/dietTypes: $e');
+      cuisineTypes = [];
+      dietTypes = [];
+    }
+
+    // Only fetch if data is still empty (shouldn't happen if preloaded, but safety fallback)
+    if (cuisineTypes.isEmpty) {
+      helperController.fetchHeaders().then((_) {
+        if (mounted) {
+          setState(() {
+            cuisineTypes =
+                List<Map<String, dynamic>>.from(helperController.headers);
+          });
+        }
+      });
+    }
+    if (dietTypes.isEmpty) {
+      helperController.fetchCategorys().then((_) {
+        if (mounted) {
+          setState(() {
+            dietTypes =
+                List<Map<String, dynamic>>.from(helperController.category);
+          });
+        }
+      });
+    }
 
     // Listen to changes in reactive lists
     ever(helperController.headers, (value) {

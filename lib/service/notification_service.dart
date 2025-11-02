@@ -95,10 +95,16 @@ class NotificationService {
     const initSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // IMPORTANT: Set all permission flags to false during initialization
+    // On iOS, setting these to true will immediately request permissions when initialize() is called
+    // We will request permissions explicitly later when user enables notifications
     const initSettingiOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission:
+          false, // Changed from true - will request explicitly later
+      requestBadgePermission:
+          false, // Changed from true - will request explicitly later
+      requestSoundPermission:
+          false, // Changed from true - will request explicitly later
     );
 
     const initSettings = InitializationSettings(
@@ -118,7 +124,33 @@ class NotificationService {
       },
     );
 
+    // NOTE: We do NOT request permissions here during initialization
+    // Permissions will be requested explicitly when user enables notifications
+    // via requestIOSPermissions() method
+
     _isInitialized = true;
+  }
+
+  /// Request iOS notification permissions explicitly
+  /// This should only be called when user explicitly enables notifications
+  Future<bool> requestIOSPermissions() async {
+    if (!Platform.isIOS || !_isInitialized) return false;
+
+    try {
+      final result = await notificationPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Error requesting iOS notification permissions: $e');
+      return false;
+    }
   }
 
   // Get user's timezone

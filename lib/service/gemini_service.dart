@@ -292,8 +292,10 @@ class GeminiService {
           break;
         case 'analyze fridge image':
           collectionName = 'fridge_analyses';
+          collectionName = 'fridge_analysis';
           break;
         case 'generate meals':
+          collectionName = 'mealPlans';
           collectionName = 'meal_plans';
           break;
         default:

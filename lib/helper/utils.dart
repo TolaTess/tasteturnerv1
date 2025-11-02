@@ -10,7 +10,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/helper/helper_functions.dart';
@@ -688,11 +687,30 @@ String featureCheck(String featureName) {
 }
 
 // Helper method to get current week number
+// Matches the cloud function's ISO week calculation exactly
+// Cloud function: finds Thursday of the week, then calculates week from year start using Math.ceil
 String getCurrentWeek() {
   final now = DateTime.now();
-  final dayOfYear = int.parse(DateFormat("D").format(now));
-  final weekNumber = ((dayOfYear - now.weekday + 10) / 7).floor();
-  return 'week_${now.year}-${weekNumber.toString().padLeft(2, '0')}';
+  
+  // Use UTC dates to match cloud function
+  final d = DateTime.utc(now.year, now.month, now.day);
+  
+  // Get day of week: Dart's weekday is 1=Monday, 7=Sunday
+  // Convert to cloud function format: 1=Monday, 7=Sunday (same as Dart!)
+  int dayNum = d.weekday; // Already 1-7, where 7 is Sunday
+  
+  // Move to Thursday of this week: add (4 - dayNum) days
+  // Monday=1 -> add 3 days to get Thursday
+  // Sunday=7 -> add -3 days (go back 3 days to Thursday)
+  final thursday = d.add(Duration(days: 4 - dayNum));
+  
+  // Calculate week number: (days from year start + 1) / 7, rounded up
+  // This matches JavaScript's Math.ceil((d - yearStart) / 86400000 + 1) / 7)
+  final yearStart = DateTime.utc(thursday.year, 1, 1);
+  final daysFromYearStart = thursday.difference(yearStart).inDays + 1;
+  final weekNumber = ((daysFromYearStart) / 7).ceil(); // Equivalent to Math.ceil((days + 1) / 7)
+  
+  return 'week_${thursday.year}-${weekNumber.toString().padLeft(2, '0')}';
 }
 
 String getRandomBio(List<String> type) {

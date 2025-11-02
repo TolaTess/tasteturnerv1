@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/settings.dart';
 import '../helper/utils.dart';
@@ -11,6 +12,9 @@ import '../screens/help_screen.dart';
 import '../screens/premium_screen.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
+import '../service/auth_controller.dart';
+import '../service/notification_service.dart';
+import '../service/hybrid_notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -142,6 +146,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                                     case 'Dark Mode':
                                       break;
+                                    case 'Notifications':
+                                      // Handled by toggle in widget
+                                      break;
                                   }
                                 },
                               ))
@@ -172,19 +179,127 @@ class SettingCategory extends StatefulWidget {
 }
 
 class _SettingCategoryState extends State<SettingCategory> {
+  // Helper function to safely convert settings value to bool
+  bool _safeBoolFromSettings(dynamic value, {bool defaultValue = false}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true';
+    }
+    if (value is int) {
+      return value != 0;
+    }
+    return defaultValue;
+  }
+
+  // Handle notification toggle
+  Future<void> _handleNotificationToggle(bool value) async {
+    final authController = Get.find<AuthController>();
+
+    try {
+      await authController.updateUserData({
+        'settings.notificationsEnabled': value,
+        'settings.notificationPreferenceSet': true,
+      });
+
+      // Note: userService.currentUser will automatically update via Firestore listener
+      // No need to manually reload - the reactive widget will update automatically
+
+      if (value) {
+        // User enabled notifications - initialize them
+        await _initializeNotifications();
+        if (mounted) {
+          showTastySnackbar(
+            'Notifications Enabled',
+            'You\'ll now receive helpful reminders!',
+            context,
+            backgroundColor: kAccent,
+          );
+        }
+      } else {
+        // User disabled notifications
+        if (mounted) {
+          showTastySnackbar(
+            'Notifications Disabled',
+            'You won\'t receive reminders',
+            context,
+            backgroundColor: kLightGrey,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating notification preference: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to update notification settings',
+          context,
+          backgroundColor: kRed,
+        );
+        // Force UI update to revert toggle on error
+        setState(() {});
+      }
+    }
+  }
+
+  // Initialize notifications (same logic as home_screen)
+  Future<void> _initializeNotifications() async {
+    try {
+      final notificationService = Get.find<NotificationService>();
+
+      // Initialize local notification service (without requesting permissions)
+      await notificationService.initNotification(
+        onNotificationTapped: (String? payload) {
+          if (payload != null) {
+            debugPrint('Notification tapped from settings: $payload');
+          }
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('Notification initialization timed out');
+        },
+      );
+
+      // Request iOS permissions explicitly now that user has enabled notifications
+      try {
+        await notificationService.requestIOSPermissions();
+        debugPrint('iOS notification permissions requested from settings');
+      } catch (e) {
+        debugPrint('Error requesting iOS notification permissions: $e');
+      }
+
+      // Initialize hybrid notification service for Android/iOS
+      try {
+        final hybridNotificationService = Get.find<HybridNotificationService>();
+        await hybridNotificationService.initializeHybridNotifications();
+        debugPrint('Hybrid notifications initialized from settings');
+      } catch (e) {
+        debugPrint('Error initializing hybrid notifications: $e');
+      }
+
+      debugPrint('Notifications initialized successfully from settings');
+    } catch (e) {
+      debugPrint('Error initializing notifications from settings: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
+    final isToggleable = widget.setting.category == 'Dark Mode' ||
+        widget.setting.category == 'Notifications';
+
     return Column(
       children: [
         GestureDetector(
-          onTap: widget.press,
+          onTap: isToggleable ? null : widget.press,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               vertical: 5,
             ),
-            child: widget.setting.category == 'Dark Mode'
+            child: isToggleable
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -210,6 +325,7 @@ class _SettingCategoryState extends State<SettingCategory> {
                           ),
                         ],
                       ),
+                      // Dark Mode toggle - always shown when category is Dark Mode
                       if (widget.setting.category == 'Dark Mode')
                         CupertinoSwitch(
                           value:
@@ -219,6 +335,20 @@ class _SettingCategoryState extends State<SettingCategory> {
                               Provider.of<ThemeProvider>(context, listen: false)
                                   .toggleTheme(),
                         ),
+                      // Notifications toggle - always shown when category is Notifications
+                      if (widget.setting.category == 'Notifications')
+                        Obx(() {
+                          final user = userService.currentUser.value;
+                          final isEnabled = user != null
+                              ? _safeBoolFromSettings(
+                                  user.settings['notificationsEnabled'],
+                                  defaultValue: false)
+                              : false;
+                          return CupertinoSwitch(
+                            value: isEnabled,
+                            onChanged: _handleNotificationToggle,
+                          );
+                        }),
                     ],
                   )
                 : Row(

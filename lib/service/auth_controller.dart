@@ -472,6 +472,8 @@ class AuthController extends GetxController {
       await prefs.setBool('prompt_dietary_shown', false);
       await prefs.setBool('prompt_weight_shown', false);
       await prefs.setBool('prompt_profile_shown', false);
+      await prefs.setBool('has_completed_homepage_guidance_dine_in', false);
+      await prefs.setBool('has_seen_family_nutrition_dialog', false);
       // _userDataSubscription is cancelled by the _handleAuthState listener
       await FirebaseAuth.instance.signOut();
     } catch (e) {

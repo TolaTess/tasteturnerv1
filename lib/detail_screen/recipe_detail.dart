@@ -428,6 +428,70 @@ class _RecipeTittleState extends State<RecipeTittle> {
     _loadFavoriteStatus();
   }
 
+  /// Format cooking time to show only numbers and "hours" or "minutes"
+  String _formatCookingTime(String? cookingTime) {
+    if (cookingTime == null || cookingTime.isEmpty) return '';
+
+    // Remove common prefixes/suffixes and normalize
+    String cleaned = cookingTime.trim();
+
+    // Skip if it's "Unknown" or similar invalid values
+    if (cleaned.toLowerCase() == 'unknown' ||
+        cleaned.toLowerCase() == 'n/a' ||
+        cleaned.isEmpty) {
+      return '';
+    }
+
+    // Extract numbers and time units
+    final RegExp numberRegex = RegExp(r'\d+');
+    final numbers = numberRegex.allMatches(cleaned);
+
+    if (numbers.isEmpty) return '';
+
+    // Check for hours and minutes patterns
+    final hoursMatch =
+        RegExp(r'(\d+)\s*(?:hour|hr|h|hours|hrs)', caseSensitive: false)
+            .firstMatch(cleaned);
+    final minutesMatch =
+        RegExp(r'(\d+)\s*(?:minute|min|m|minutes|mins)', caseSensitive: false)
+            .firstMatch(cleaned);
+
+    int? hours;
+    int? minutes;
+
+    if (hoursMatch != null) {
+      hours = int.tryParse(hoursMatch.group(1) ?? '');
+    }
+    if (minutesMatch != null) {
+      minutes = int.tryParse(minutesMatch.group(1) ?? '');
+    }
+
+    // If no explicit units found, assume minutes for single number
+    if (hours == null && minutes == null) {
+      final firstNumber = int.tryParse(numbers.first.group(0) ?? '');
+      if (firstNumber != null) {
+        // If number > 60, assume minutes but convert to hours
+        if (firstNumber >= 60) {
+          hours = firstNumber ~/ 60;
+          minutes = firstNumber % 60;
+        } else {
+          minutes = firstNumber;
+        }
+      }
+    }
+
+    // Format output
+    final parts = <String>[];
+    if (hours != null && hours > 0) {
+      parts.add('$hours ${hours == 1 ? 'hour' : 'hours'}');
+    }
+    if (minutes != null && minutes > 0) {
+      parts.add('$minutes ${minutes == 1 ? 'minute' : 'minutes'}');
+    }
+
+    return parts.isEmpty ? '' : parts.join(' ');
+  }
+
   Future<void> _loadFavoriteStatus() async {
     final isFavorite =
         await firebaseService.isRecipeFavorite(_userId, widget.meal.mealId);
@@ -502,21 +566,33 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       SizedBox(height: getPercentageHeight(1, context)),
                       if (widget.meal.cookingTime != null &&
                           widget.meal.cookingTime!.isNotEmpty) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(width: getPercentageWidth(4, context)),
-                            Icon(Icons.access_time,
-                                size: getIconScale(4, context), color: kAccent),
-                            SizedBox(width: getPercentageWidth(2, context)),
-                            Text(
-                              widget.meal.cookingTime!,
-                              textAlign: TextAlign.center,
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
+                        Builder(
+                          builder: (context) {
+                            final formattedTime =
+                                _formatCookingTime(widget.meal.cookingTime);
+                            if (formattedTime.isEmpty)
+                              return const SizedBox.shrink();
+
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(width: getPercentageWidth(4, context)),
+                                Icon(Icons.access_time,
+                                    size: getIconScale(4, context),
+                                    color: kAccent),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                Text(
+                                  formattedTime,
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w400,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                       SizedBox(height: getPercentageHeight(1, context)),

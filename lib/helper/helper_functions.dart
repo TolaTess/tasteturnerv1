@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tasteturner/helper/utils.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -126,10 +127,10 @@ Widget buildFullWidthAddMealButton({
   }
 
   return Container(
-    width: MediaQuery.of(context).size.width - getPercentageWidth(4, context),
+    width: MediaQuery.of(context).size.width - getPercentageWidth(9, context),
     height: getPercentageHeight(7, context),
     decoration: BoxDecoration(
-      color: isDarkMode ? kDarkGrey : kWhite,
+      color: isDarkMode ? kBackgroundColor : kDarkGrey,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
@@ -840,6 +841,187 @@ bool canUseAI() {
   return isPremium || isFreeTrial;
 }
 
+/// Check camera permission status and request if needed
+Future<bool> checkAndRequestCameraPermission(
+    BuildContext context, bool isDarkMode) async {
+  final status = await Permission.camera.status;
+
+  if (status.isGranted) {
+    return true;
+  }
+
+  if (status.isDenied) {
+    // Show explanation dialog before requesting
+    final shouldRequest =
+        await _showCameraPermissionExplanation(context, isDarkMode);
+    if (!shouldRequest) {
+      return false;
+    }
+
+    // Request permission
+    final result = await Permission.camera.request();
+    if (result.isGranted) {
+      return true;
+    } else if (result.isPermanentlyDenied) {
+      await _showCameraPermissionPermanentlyDeniedDialog(context, isDarkMode);
+      return false;
+    }
+    return false;
+  }
+
+  if (status.isPermanentlyDenied) {
+    await _showCameraPermissionPermanentlyDeniedDialog(context, isDarkMode);
+    return false;
+  }
+
+  if (status.isRestricted) {
+    showTastySnackbar(
+      'Camera Unavailable',
+      'Camera access is restricted on this device.',
+      context,
+      backgroundColor: kRed,
+    );
+    return false;
+  }
+
+  return false;
+}
+
+/// Show camera permission explanation dialog
+Future<bool> _showCameraPermissionExplanation(
+    BuildContext context, bool isDarkMode) async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          children: [
+            Icon(Icons.camera_alt,
+                color: kAccent, size: getIconScale(8, context)),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                'Camera Access Needed',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                  fontSize: getTextScale(4.5, context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Camera access helps analyze your meals for accurate nutrition tracking and better dietary insights.',
+          style: TextStyle(
+            color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Allow',
+              style: TextStyle(
+                color: kWhite,
+                fontSize: getTextScale(3.5, context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  return result ?? false;
+}
+
+/// Show dialog when camera permission is permanently denied
+Future<void> _showCameraPermissionPermanentlyDeniedDialog(
+    BuildContext context, bool isDarkMode) async {
+  await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Camera Permission Required',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kDarkGrey,
+            fontSize: getTextScale(4.5, context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Camera access was denied. To use this feature, please enable camera permission in Settings → TasteTurner → Camera.',
+          style: TextStyle(
+            color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
+            fontSize: getTextScale(3.5, context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await openAppSettings();
+            },
+            child: Text(
+              'Open Settings',
+              style: TextStyle(
+                color: kWhite,
+                fontSize: getTextScale(3.5, context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 // Consolidated camera action function with optional mealType
 Future<void> handleCameraAction({
   required BuildContext context,
@@ -865,6 +1047,15 @@ Future<void> handleCameraAction({
 
     if (selectedOption == null) {
       return; // User cancelled the dialog
+    }
+
+    // Check camera permission if user selected camera option
+    if (selectedOption == 'photo') {
+      final hasPermission =
+          await checkAndRequestCameraPermission(context, isDarkMode);
+      if (!hasPermission) {
+        return; // Permission denied or user cancelled
+      }
     }
 
     // Show loading dialog
@@ -960,9 +1151,20 @@ Future<void> handleCameraAction({
     debugPrint('Food analysis error (catch 2): $e');
     debugPrint('Stack trace: ${StackTrace.current}');
     hideLoadingDialog(context); // Close loading dialog
+
+    // Check if error is permission-related
+    String errorMessage = 'Analysis failed: ${e.toString()}';
+    if (e.toString().contains('permission') ||
+        e.toString().contains('Permission')) {
+      errorMessage =
+          'Camera permission denied. Please enable camera access in Settings → TasteTurner → Camera.';
+    } else if (e.toString().contains('camera')) {
+      errorMessage = 'Camera not available. Please try using gallery instead.';
+    }
+
     showTastySnackbar(
       'Error',
-      'Analysis failed: ${e.toString()}',
+      errorMessage,
       context,
       backgroundColor: kRed,
     );

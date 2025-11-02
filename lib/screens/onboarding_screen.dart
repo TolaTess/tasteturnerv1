@@ -14,6 +14,7 @@ import '../screens/add_food_screen.dart';
 import '../service/badge_service.dart';
 import '../service/notification_service.dart';
 import '../service/notification_handler_service.dart';
+import '../service/hybrid_notification_service.dart';
 import '../widgets/bottom_nav.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -209,6 +210,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         if (_notificationsEnabled) {
           try {
             final notificationService = Get.find<NotificationService>();
+            // Initialize without requesting permissions
             await notificationService.initNotification(
               onNotificationTapped: (String? payload) {
                 if (payload != null) {
@@ -221,6 +223,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 debugPrint('Notification initialization timed out');
               },
             );
+
+            // Request iOS permissions explicitly now that user has enabled notifications
+            try {
+              await notificationService.requestIOSPermissions();
+              debugPrint(
+                  'iOS notification permissions requested during onboarding');
+            } catch (e) {
+              debugPrint('Error requesting iOS notification permissions: $e');
+            }
+
+            // Initialize hybrid notification service for Android/iOS
+            try {
+              final hybridNotificationService =
+                  Get.find<HybridNotificationService>();
+              await hybridNotificationService.initializeHybridNotifications();
+              debugPrint('Hybrid notifications initialized during onboarding');
+            } catch (e) {
+              debugPrint('Error initializing hybrid notifications: $e');
+            }
+
             debugPrint('Notifications enabled during onboarding');
           } catch (e) {
             debugPrint('Error initializing notifications: $e');

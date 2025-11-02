@@ -30,6 +30,7 @@ import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 import '../service/notification_service.dart';
 import '../service/hybrid_notification_service.dart';
+import '../service/helper_controller.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
 import '../pages/edit_goal.dart';
@@ -118,7 +119,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Setup Cloud Functions notifications (replaces local scheduling)
       _setupHybridNotifications();
+
+      // Preload dietary/cuisine data early for better performance
+      _preloadDietaryData();
     });
+  }
+
+  // Helper function to safely convert settings value to bool
+  bool _safeBoolFromSettings(dynamic value, {bool defaultValue = false}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true';
+    }
+    if (value is int) {
+      return value != 0;
+    }
+    return defaultValue;
   }
 
   Future<void> _checkNotificationPreference() async {
@@ -126,19 +143,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final user = userService.currentUser.value;
       if (user == null) return;
 
-      // Check if user has set notification preference
-      final notificationPreferenceSet =
-          user.settings['notificationPreferenceSet'] as bool? ?? false;
+      // Check if user has set notification preference (safe conversion from String or bool)
+      final notificationPreferenceSet = _safeBoolFromSettings(
+          user.settings['notificationPreferenceSet'],
+          defaultValue: false);
 
       if (!notificationPreferenceSet) {
-        // User hasn't set preference yet, show prompt after a short delay
-        await Future.delayed(const Duration(seconds: 120));
+        // User hasn't set preference yet, show prompt after user has interacted with the app
+        // Wait for user to complete a meaningful action (reduced from 120s to 60s)
+        // Or show after tutorial completion if first-time user
+        await Future.delayed(const Duration(seconds: 60));
         if (!mounted) return;
         _showNotificationPreferenceDialog();
       } else {
         // User has set preference, check if notifications are enabled
-        final notificationsEnabled =
-            user.settings['notificationsEnabled'] as bool? ?? false;
+        final notificationsEnabled = _safeBoolFromSettings(
+            user.settings['notificationsEnabled'],
+            defaultValue: false);
         if (notificationsEnabled && notificationService != null) {
           // Initialize notifications if enabled
           await _initializeNotifications();
@@ -151,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _initializeNotifications() async {
     try {
+      // Initialize local notification service (without requesting permissions)
       await notificationService?.initNotification(
         onNotificationTapped: (String? payload) {
           if (payload != null) {
@@ -163,6 +185,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           debugPrint('Notification initialization timed out');
         },
       );
+
+      // Request iOS permissions explicitly now that user has enabled notifications
+      try {
+        await notificationService?.requestIOSPermissions();
+        debugPrint('iOS notification permissions requested');
+      } catch (e) {
+        debugPrint('Error requesting iOS notification permissions: $e');
+      }
+
+      // Initialize hybrid notification service for Android/iOS
+      try {
+        await hybridNotificationService?.initializeHybridNotifications();
+        debugPrint('Hybrid notifications initialized successfully');
+      } catch (e) {
+        debugPrint('Error initializing hybrid notifications: $e');
+      }
+
       debugPrint('Notifications initialized successfully');
     } catch (e) {
       debugPrint('Error initializing notifications: $e');
@@ -643,6 +682,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('allDisabledKey') ?? false;
+  }
+
+  /// Preload dietary and cuisine data in background for better performance
+  /// This ensures data is ready when user navigates to dietary choose screen
+  void _preloadDietaryData() {
+    // Fetch data in background without blocking UI
+    Future.microtask(() async {
+      try {
+        final helperController = Get.find<HelperController>();
+        // Only fetch if data is not already loaded
+        if (helperController.headers.isEmpty) {
+          await helperController.fetchHeaders();
+        }
+        if (helperController.category.isEmpty) {
+          await helperController.fetchCategorys();
+        }
+        debugPrint('Dietary data preloaded successfully');
+      } catch (e) {
+        debugPrint('Error preloading dietary data: $e');
+      }
+    });
   }
 
   Future<void> _loadShoppingDay() async {

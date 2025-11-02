@@ -32,7 +32,8 @@ class HybridNotificationService extends GetxService {
   @override
   Future<void> onInit() async {
     super.onInit();
-    await initializeHybridNotifications();
+    // Do not auto-initialize - only initialize when user explicitly enables notifications
+    // This prevents permission requests without user context
   }
 
   /// Initialize hybrid notifications
@@ -58,7 +59,8 @@ class HybridNotificationService extends GetxService {
   /// Initialize Android notifications (FCM)
   Future<void> _initializeAndroidNotifications() async {
     try {
-      // Request permission for notifications
+      // Only request permission if user has explicitly enabled notifications
+      // Permission request should be handled by UI layer with proper context
       await _requestNotificationPermission();
 
       // Get FCM token
@@ -311,7 +313,11 @@ class HybridNotificationService extends GetxService {
         debugPrint(
             'Android notification preferences updated in Cloud Functions');
       } else if (Platform.isIOS) {
-        // For iOS: Update local notification service
+        // For iOS: Initialize service if not already initialized
+        if (_localNotificationService == null) {
+          _localNotificationService = NotificationService();
+        }
+        // Update local notification service
         await _setupIOSNotificationPreferences();
         debugPrint('iOS notification preferences updated locally');
       }

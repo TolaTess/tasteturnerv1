@@ -478,7 +478,9 @@ exports.updateDailySummaryOnActivityChange = functions.firestore
  * It reads all meals for the week, aggregates the ingredients, and
  * updates the weekly shopping list for that user in the specified format.
  */
-exports.generateAndSaveWeeklyShoppingList = functions.firestore
+exports.generateAndSaveWeeklyShoppingList = functions
+  .runWith({ timeoutSeconds: 540, memory: '512MB' })
+  .firestore
   .document("mealPlans/{userId}/date/{date}")
   .onWrite(async (change, context) => {
     const { userId, date } = context.params;
@@ -565,25 +567,77 @@ exports.generateAndSaveWeeklyShoppingList = functions.firestore
       }
 
       // 4. Find existing ingredients or create new ones, then build the map
+      // Process in batches to avoid timeout and optimize performance
+      const ingredientNames = Object.keys(weeklyIngredients);
       const requiredItems = {};
-      for (const name in weeklyIngredients) {
-        const { quantity, unit } = weeklyIngredients[name];
-        const ingredientsRef = firestore.collection("ingredients");
-        let ingredientId = null;
+      const BATCH_SIZE = 5; // Process 5 ingredients in parallel at a time
+      
+      console.log(`Processing ${ingredientNames.length} ingredients in batches of ${BATCH_SIZE}`);
+      
+      for (let i = 0; i < ingredientNames.length; i += BATCH_SIZE) {
+        const batch = ingredientNames.slice(i, i + BATCH_SIZE);
+        console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(ingredientNames.length / BATCH_SIZE)}: ${batch.join(', ')}`);
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (name) => {
+          const { quantity, unit } = weeklyIngredients[name];
+          let ingredientId = null;
 
-        // Try to find existing ingredient with robust name checking
-        ingredientId = await _findExistingIngredient(name);
+          try {
+            // Clean the ingredient name first (remove parentheses, preparation notes)
+            const cleanedName = _cleanIngredientName(name);
+            
+            // Try to find existing ingredient with cleaned name first
+            ingredientId = await _findExistingIngredient(cleanedName);
+            
+            // If not found with cleaned name, try original name as fallback
+            if (!ingredientId) {
+              ingredientId = await _findExistingIngredient(name);
+            }
 
-        if (!ingredientId) {
-          console.log(`Ingredient "${name}" not found. Generating...`);
-          ingredientId = await _generateAndSaveIngredient(name);
+            if (!ingredientId) {
+              // Use cleaned name for generation to avoid creating duplicates
+              console.log(`Ingredient "${cleanedName}" (cleaned from "${name}") not found. Generating...`);
+              ingredientId = await _generateAndSaveIngredient(cleanedName);
+            }
+
+            if (ingredientId) {
+              const key = `${ingredientId}/${quantity}${unit}`;
+              return { key, success: true };
+            } else {
+              console.warn(`Failed to get ingredient ID for "${name}"`);
+              return { key: null, success: false, name };
+            }
+          } catch (error) {
+            console.error(`Error processing ingredient "${name}": ${error.message}`);
+            return { key: null, success: false, name, error: error.message };
+          }
+        });
+
+        // Wait for batch to complete
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add successful items to requiredItems
+        for (const result of batchResults) {
+          if (result.success && result.key) {
+            requiredItems[result.key] = false; // Default to false
+          } else {
+            console.warn(`Skipping ingredient "${result.name}" - failed to process`);
+          }
         }
-
-        if (ingredientId) {
-          const key = `${ingredientId}/${quantity}${unit}`;
-          requiredItems[key] = false; // Default to false
+        
+        // Small delay between batches to avoid overwhelming the API
+        if (i + BATCH_SIZE < ingredientNames.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
+      
+      console.log(`Successfully processed ${Object.keys(requiredItems).length} of ${ingredientNames.length} ingredients`);
+
+      console.log(`=== SHOPPING LIST GENERATION ===`);
+      console.log(`Week ID: ${weekId}`);
+      console.log(`Total ingredients found: ${Object.keys(requiredItems).length}`);
+      console.log(`Required items keys: ${Object.keys(requiredItems).slice(0, 10).join(', ')}${Object.keys(requiredItems).length > 10 ? '...' : ''}`);
 
       // 5. Use a transaction to safely merge the new list with the existing one
       const listRef = firestore
@@ -592,31 +646,67 @@ exports.generateAndSaveWeeklyShoppingList = functions.firestore
         .collection("shoppingList")
         .doc(weekId);
 
-      await firestore.runTransaction(async (transaction) => {
-        const doc = await transaction.get(listRef);
-        const existingGeneratedItems = doc.data()?.generatedItems || {};
-        const newGeneratedItems = {};
+      try {
+        await firestore.runTransaction(async (transaction) => {
+          const doc = await transaction.get(listRef);
+          const existingData = doc.data();
+          const existingGeneratedItems = existingData?.generatedItems || {};
+          const existingManualItems = existingData?.manualItems || {};
+          const newGeneratedItems = {};
 
-        // Preserve the status of existing items.
-        // Add new items with a default status of 'false'.
-        // Items no longer in the plan are implicitly removed.
-        for (const key in requiredItems) {
-            newGeneratedItems[key] = existingGeneratedItems[key] || false;
-        }
+          console.log(`Existing generatedItems count: ${Object.keys(existingGeneratedItems).length}`);
+          console.log(`Existing manualItems count: ${Object.keys(existingManualItems).length}`);
 
-        transaction.set(
-          listRef,
-          {
+          // Preserve the status of existing items.
+          // Add new items with a default status of 'false'.
+          // Items no longer in the plan are implicitly removed.
+          for (const key in requiredItems) {
+            newGeneratedItems[key] = existingGeneratedItems[key] !== undefined ? existingGeneratedItems[key] : false;
+          }
+
+          console.log(`New generatedItems count: ${Object.keys(newGeneratedItems).length}`);
+          console.log(`New generatedItems sample: ${JSON.stringify(Object.fromEntries(Object.entries(newGeneratedItems).slice(0, 3)))}`);
+
+          // Prepare the update document - preserve manualItems
+          const updateData = {
             generatedItems: newGeneratedItems,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true } // Merge to avoid overwriting 'manualItems'
-        );
-      });
+          };
+
+          // Only include manualItems if they exist (to preserve them)
+          if (existingManualItems && Object.keys(existingManualItems).length > 0) {
+            updateData.manualItems = existingManualItems;
+          }
+
+          transaction.set(listRef, updateData, { merge: true });
+
+          console.log(`Transaction prepared: generatedItems=${Object.keys(newGeneratedItems).length}, manualItems preserved=${existingManualItems && Object.keys(existingManualItems).length > 0}`);
+        });
+
+        // Verify the save by reading back the document
+        const verifyDoc = await listRef.get();
+        if (verifyDoc.exists) {
+          const verifyData = verifyDoc.data();
+          const verifyGenerated = verifyData?.generatedItems || {};
+          const verifyManual = verifyData?.manualItems || {};
+          console.log(`=== VERIFICATION AFTER SAVE ===`);
+          console.log(`Document exists: ${verifyDoc.exists}`);
+          console.log(`Generated items count in Firestore: ${Object.keys(verifyGenerated).length}`);
+          console.log(`Manual items count in Firestore: ${Object.keys(verifyManual).length}`);
+          console.log(`Sample generated items in Firestore: ${JSON.stringify(Object.fromEntries(Object.entries(verifyGenerated).slice(0, 3)))}`);
+        } else {
+          console.error(`ERROR: Document does not exist after transaction!`);
+        }
+      } catch (transactionError) {
+        console.error(`Transaction error: ${transactionError.message}`);
+        console.error(`Transaction stack: ${transactionError.stack}`);
+        throw transactionError;
+      }
 
       console.log(
         `Successfully updated shopping list for user ${userId}, week ${weekId}`
       );
+      console.log(`=== END SHOPPING LIST GENERATION ===`);
       return null;
     } catch (error) {
       console.error("Error generating shopping list:", error);
@@ -675,6 +765,44 @@ async function _findExistingIngredient(ingredientName) {
     console.error(`Error finding existing ingredient "${ingredientName}":`, error);
     return null;
   }
+}
+
+/**
+ * Clean ingredient name by removing parentheses and preparation notes
+ * This helps match ingredients like "Garlic (minced, for sauce)" to "Garlic"
+ * @param {string} ingredientName The ingredient name to clean.
+ * @returns {string} The cleaned ingredient name.
+ */
+function _cleanIngredientName(ingredientName) {
+  if (!ingredientName) return '';
+  
+  let cleaned = ingredientName.trim();
+  
+  // Remove everything in parentheses (including nested parentheses)
+  cleaned = cleaned.replace(/\([^)]*\)/g, '').trim();
+  
+  // Remove trailing commas and common preparation words
+  // Words like: chopped, minced, sliced, diced, grated, crushed, smashed, peeled, deveined, etc.
+  const preparationWords = [
+    'chopped', 'minced', 'sliced', 'diced', 'grated', 'crushed', 'smashed',
+    'peeled', 'deveined', 'uncooked', 'cooked', 'fresh', 'dried', 'optional',
+    'for garnish', 'for dressing', 'for sauce', 'for roasting', 'for frying',
+    'for boiling', 'skin-on', 'boneless', 'skinless'
+  ];
+  
+  // Remove trailing commas and spaces
+  cleaned = cleaned.replace(/,\s*$/, '').trim();
+  
+  // Remove preparation words at the end (case insensitive)
+  for (const word of preparationWords) {
+    const regex = new RegExp(`,\\s*${word}\\s*$|\\s+${word}\\s*$`, 'i');
+    cleaned = cleaned.replace(regex, '').trim();
+  }
+  
+  // Clean up multiple spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
 }
 
 /**
@@ -4185,27 +4313,90 @@ Important guidelines:
         });
       }
       
-      // Save meal plan metadata for reference
-      const mealPlanRef = firestore.collection('meal_plans').doc();
-      const mealPlanData = {
-        mealIds: mealIds, // Only new meal IDs
-        existingMealIds: existingMealIds,
-        allMealIds: minimalMeals.map(meal => meal.id),
-        distribution: mealData.distribution || distribution,
-        source: 'cloud_function',
-        executionTime: Date.now() - startTime,
-        mealCount: minimalMeals.length,
-        newMealCount: missingMeals.length,
-        existingMealCount: Object.keys(existingMeals).length,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        userId: context.auth?.uid || 'anonymous',
+      // Save meal plan to mealPlans/{userId}/buddy/{date} collection
+      const userId = context.auth?.uid || 'anonymous';
+      const today = new Date();
+      const dateStr = format(today, 'yyyy-MM-dd');
+      const mealPlanRef = firestore
+        .collection('mealPlans')
+        .doc(userId)
+        .collection('buddy')
+        .doc(dateStr);
+      
+      // Helper function to append meal type suffix (matching client-side appendMealType)
+      const appendMealType = (mealId, mealType) => {
+        const type = (mealType || '').toLowerCase();
+        if (type === 'breakfast') {
+          return `${mealId}/bf`;
+        } else if (type === 'lunch') {
+          return `${mealId}/lh`;
+        } else if (type === 'dinner') {
+          return `${mealId}/dn`;
+        } else if (type === 'snack') {
+          return `${mealId}/sk`;
+        }
+        return mealId; // Return as-is if type doesn't match
       };
       
-      await firestore.collection('meal_plans').doc(mealPlanRef.id).set(mealPlanData);
+      // Fetch existing document to preserve generations
+      let existingGenerations = [];
+      try {
+        const existingDoc = await mealPlanRef.get();
+        if (existingDoc.exists) {
+          const existingData = existingDoc.data();
+          const generations = existingData?.generations;
+          if (Array.isArray(generations)) {
+            existingGenerations = generations.map(gen => {
+              if (typeof gen === 'object' && gen !== null) {
+                return gen;
+              }
+              return {};
+            });
+          }
+        }
+      } catch (error) {
+        console.log(`Error fetching existing meal plan: ${error.message}`);
+      }
+      
+      // Format meal IDs with meal type suffixes (matching client-side behavior)
+      // If mealType is missing, assign based on position (cycling through breakfast, lunch, dinner, snack)
+      const defaultMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+      const formattedMealIds = minimalMeals.map((meal, index) => {
+        const mealId = meal.id;
+        let mealType = meal.mealType || '';
+        
+        // If no mealType is specified, assign based on position (matching client behavior)
+        if (!mealType || mealType === 'main' || mealType === '') {
+          mealType = defaultMealTypes[index % defaultMealTypes.length];
+        }
+        
+        return appendMealType(mealId, mealType);
+      });
+      
+      // Create new generation object matching client-side structure
+      const newGeneration = {
+        mealIds: formattedMealIds, // Meal IDs with meal type suffixes (e.g., "mealId/bf", "mealId/lh")
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        diet: cuisine || 'general',
+        // Optional fields that may be added by client
+        nutritionalSummary: null,
+        tips: null,
+      };
+      
+      // Add the new generation to the list
+      existingGenerations.push(newGeneration);
+      
+      // Save meal plan data with generations array
+      const mealPlanData = {
+        date: dateStr,
+        generations: existingGenerations,
+      };
+      
+      await mealPlanRef.set(mealPlanData);
       
       console.log(`=== SAVED MEAL PLAN TO FIRESTORE ===`);
-      console.log(`Meal Plan ID: ${mealPlanRef.id}`);
-      console.log(`Total meals: ${allMeals.length} (${Object.keys(existingMeals).length} existing, ${missingMeals.length} new with minimal data)`);
+      console.log(`Meal Plan Path: mealPlans/${userId}/buddy/${dateStr}`);
+      console.log(`Total meals: ${minimalMeals.length} (${Object.keys(existingMeals).length} existing, ${missingMeals.length} new with minimal data)`);
       console.log(`New Meal IDs (pending Firebase Functions processing): ${mealIds.join(', ')}`);
       console.log(`Data saved successfully - Firebase Functions will fill out meal details`);
       console.log(`=== END FIRESTORE SAVE ===`);
@@ -4213,7 +4404,7 @@ Important guidelines:
       // Return minimal meal plan data
       return {
         success: true,
-        mealPlanId: mealPlanRef.id,
+        date: dateStr,
         meals: minimalMeals,
         mealIds: mealIds, // Only new meal IDs
         existingMealIds: existingMealIds,
