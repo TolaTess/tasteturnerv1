@@ -22,6 +22,8 @@ class _SignupScreenState extends State<SignupScreen> {
   int _index = 0;
   String _welcomeMessage = '';
   Timer? _timer;
+  bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
 
   @override
   void initState() {
@@ -40,6 +42,46 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isGoogleLoading || _isAppleLoading) return;
+    
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      await authController.signInWithGoogle(context);
+    } catch (e) {
+      // Error handling is done in authController
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    if (_isGoogleLoading || _isAppleLoading) return;
+    
+    setState(() {
+      _isAppleLoading = true;
+    });
+
+    try {
+      await authController.signInWithApple(context);
+    } catch (e) {
+      // Error handling is done in authController
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAppleLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -149,8 +191,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       if (Platform.isIOS)
                         Expanded(
                           child: InkWell(
-                            onTap: () =>
-                                authController.signInWithApple(context),
+                            onTap: _isAppleLoading || _isGoogleLoading
+                                ? null
+                                : _handleAppleSignIn,
                             child: Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(9, context),
@@ -162,10 +205,21 @@ class _SignupScreenState extends State<SignupScreen> {
                                   50,
                                 ),
                               ),
-                              child: SvgPicture.asset(
-                                "assets/images/svg/apple.svg",
-                                height: getPercentageWidth(5, context),
-                              ),
+                              child: _isAppleLoading
+                                  ? SizedBox(
+                                      height: getPercentageWidth(5, context),
+                                      width: getPercentageWidth(5, context),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          kAccent,
+                                        ),
+                                      ),
+                                    )
+                                  : SvgPicture.asset(
+                                      "assets/images/svg/apple.svg",
+                                      height: getPercentageWidth(5, context),
+                                    ),
                             ),
                           ),
                         ),
@@ -173,7 +227,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       // sign up with Google
                       Expanded(
                         child: InkWell(
-                          onTap: () => authController.signInWithGoogle(context),
+                          onTap: _isGoogleLoading || _isAppleLoading
+                              ? null
+                              : _handleGoogleSignIn,
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
@@ -185,10 +241,21 @@ class _SignupScreenState extends State<SignupScreen> {
                                 50,
                               ),
                             ),
-                            child: SvgPicture.asset(
-                              "assets/images/svg/google.svg",
-                              height: getPercentageWidth(5, context),
-                            ),
+                            child: _isGoogleLoading
+                                ? SizedBox(
+                                    height: getPercentageWidth(5, context),
+                                    width: getPercentageWidth(5, context),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        kWhite,
+                                      ),
+                                    ),
+                                  )
+                                : SvgPicture.asset(
+                                    "assets/images/svg/google.svg",
+                                    height: getPercentageWidth(5, context),
+                                  ),
                           ),
                         ),
                       ),

@@ -52,14 +52,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Add a status listener to navigate to the onboarding screen after the animation finishes
     _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
+      if (status == AnimationStatus.completed && mounted) {
         if (widget.isUser) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const BottomNavSec(),
-            ),
-          );
+          _navigateToMainApp();
         } else {
           _navigateToOnboarding();
         }
@@ -68,12 +63,31 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToOnboarding() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SignupScreen(),
-      ),
-    );
+    if (!mounted) return;
+    try {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SignupScreen(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error navigating to signup: $e');
+    }
+  }
+
+  void _navigateToMainApp() {
+    if (!mounted) return;
+    try {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomNavSec(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error navigating to main app: $e');
+    }
   }
 
   @override

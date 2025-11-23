@@ -70,15 +70,75 @@ class SigninForm extends StatefulWidget {
 class _SigninFormState extends State<SigninForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController resetPasswordEmailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    resetPasswordEmailController.dispose();
     super.dispose();
   }
 
   bool remember = false;
+
+  // Email validation regex
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  void _handleLogin() {
+    _performLogin();
+  }
+
+  Future<void> _performLogin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    // Validate email format
+    if (email.isEmpty) {
+      showTastySnackbar(
+        'Error',
+        'Please enter your email address',
+        context,
+      );
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      showTastySnackbar(
+        'Error',
+        'Please enter a valid email address',
+        context,
+      );
+      return;
+    }
+
+    if (password.isEmpty) {
+      showTastySnackbar(
+        'Error',
+        'Please enter your password',
+        context,
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await authController.loginUser(context, email, password);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -113,6 +173,12 @@ class _SigninFormState extends State<SigninForm> {
             alignment: Alignment.center,
             child: GestureDetector(
               onTap: () {
+                // Clear the reset password email field when opening dialog
+                resetPasswordEmailController.clear();
+                // Pre-fill with login email if available
+                if (emailController.text.isNotEmpty && _isValidEmail(emailController.text)) {
+                  resetPasswordEmailController.text = emailController.text;
+                }
                 // Show dialog to get email
                 showDialog(
                   context: context,
@@ -138,7 +204,7 @@ class _SigninFormState extends State<SigninForm> {
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),
                         SafeTextField(
-                          controller: emailController,
+                          controller: resetPasswordEmailController,
                           decoration: InputDecoration(
                             hintText: 'Email',
                             hintStyle: textTheme.bodyMedium?.copyWith(),
@@ -149,7 +215,10 @@ class _SigninFormState extends State<SigninForm> {
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          resetPasswordEmailController.clear();
+                          Navigator.pop(context);
+                        },
                         child: Text(
                           'Cancel',
                           style: textTheme.bodyMedium?.copyWith(
@@ -158,16 +227,32 @@ class _SigninFormState extends State<SigninForm> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          if (emailController.text.isNotEmpty) {
-                            authController.resetPassword(emailController.text);
-                            Navigator.pop(context);
-                          } else {
+                        onPressed: () async {
+                          final email = resetPasswordEmailController.text.trim();
+                          if (email.isEmpty) {
                             showTastySnackbar(
                               'Error',
                               'Please enter your email address',
                               context,
                             );
+                            return;
+                          }
+                          if (!_isValidEmail(email)) {
+                            showTastySnackbar(
+                              'Error',
+                              'Please enter a valid email address',
+                              context,
+                            );
+                            return;
+                          }
+                          try {
+                            await authController.resetPassword(email);
+                            resetPasswordEmailController.clear();
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          } catch (e) {
+                            // Error handling is done in authController
                           }
                         },
                         child: Text(
@@ -193,11 +278,11 @@ class _SigninFormState extends State<SigninForm> {
 
           //Sign in button
           AppButton(
-            text: "Login",
-            onPressed: () => authController.loginUser(
-                context, emailController.text, passwordController.text),
+            text: _isLoading ? "Logging in..." : "Login",
+            onPressed: _isLoading ? () {} : _handleLogin,
             type: AppButtonType.primary,
             width: 100,
+            isLoading: _isLoading,
           ),
         ],
       ),

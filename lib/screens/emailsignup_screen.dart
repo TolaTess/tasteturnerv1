@@ -99,24 +99,128 @@ class SignUpForm extends StatefulWidget {
 }
 
 class _SignUpFormState extends State<SignUpForm> {
-  bool remember1 = false;
   bool remember2 = false;
   bool showTermsError = false;
   bool showPasswordError = false;
+  bool showEmailError = false;
+  bool showPasswordStrengthError = false;
+  bool _isLoading = false;
+  String? _passwordStrengthMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listeners for real-time validation
+    widget.emailController.addListener(() {
+      _onEmailChanged(widget.emailController.text);
+    });
+    widget.passwordController.addListener(() {
+      _onPasswordChanged(widget.passwordController.text);
+    });
+    widget.confirmPasswordController.addListener(() {
+      _onConfirmPasswordChanged(widget.confirmPasswordController.text);
+    });
+  }
+
+  // Email validation regex
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  // Password strength validation
+  String? _validatePasswordStrength(String password) {
+    if (password.isEmpty) return null;
+    
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    
+    bool hasUpperCase = password.contains(RegExp(r'[A-Z]'));
+    bool hasLowerCase = password.contains(RegExp(r'[a-z]'));
+    bool hasDigits = password.contains(RegExp(r'[0-9]'));
+    bool hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    
+    int strength = 0;
+    if (hasUpperCase) strength++;
+    if (hasLowerCase) strength++;
+    if (hasDigits) strength++;
+    if (hasSpecialChar) strength++;
+    
+    if (strength < 2) {
+      return 'Password should contain uppercase, lowercase, numbers, or special characters';
+    }
+    
+    return null; // Password is strong enough
+  }
+
+  // Real-time password validation
+  void _onPasswordChanged(String password) {
+    setState(() {
+      _passwordStrengthMessage = _validatePasswordStrength(password);
+      showPasswordStrengthError = _passwordStrengthMessage != null;
+      
+      // Check password match if confirm password is not empty
+      if (widget.confirmPasswordController.text.isNotEmpty) {
+        showPasswordError = password != widget.confirmPasswordController.text;
+      } else {
+        showPasswordError = false;
+      }
+    });
+  }
+
+  // Real-time confirm password validation
+  void _onConfirmPasswordChanged(String confirmPassword) {
+    setState(() {
+      showPasswordError = widget.passwordController.text != confirmPassword;
+    });
+  }
+
+  // Real-time email validation
+  void _onEmailChanged(String email) {
+    setState(() {
+      showEmailError = email.isNotEmpty && !_isValidEmail(email);
+    });
+  }
 
   void _handleSignUp() {
+    _performSignUp();
+  }
+
+  Future<void> _performSignUp() async {
+    final email = widget.emailController.text.trim();
+    final password = widget.passwordController.text;
+    final confirmPassword = widget.confirmPasswordController.text;
+
+    // Validate all fields
+    bool isValid = true;
     setState(() {
+      showEmailError = email.isEmpty || !_isValidEmail(email);
+      showPasswordStrengthError = _validatePasswordStrength(password) != null;
+      showPasswordError = password != confirmPassword;
       showTermsError = !remember2;
-      showPasswordError = widget.passwordController.text !=
-          widget.confirmPasswordController.text;
+      
+      if (showEmailError || showPasswordStrengthError || showPasswordError || showTermsError) {
+        isValid = false;
+      }
     });
 
-    if (!remember2 || showPasswordError) {
+    if (!isValid) {
       return;
     }
 
-    authController.registerUser(
-        context, widget.emailController.text, widget.passwordController.text);
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await authController.registerUser(context, email, password);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -132,11 +236,27 @@ class _SignUpFormState extends State<SignUpForm> {
             padding: EdgeInsets.symmetric(
               horizontal: getPercentageWidth(5, context),
             ),
-            child: EmailField(
-              kHint: "Your Email",
-              themeProvider: isDarkMode,
-              controller: widget.emailController, 
-              noCapitalize: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                EmailField(
+                  kHint: "Your Email",
+                  themeProvider: isDarkMode,
+                  controller: widget.emailController, 
+                  noCapitalize: false,
+                ),
+                if (showEmailError)
+                  Padding(
+                    padding:
+                        EdgeInsets.only(top: getPercentageHeight(1, context)),
+                    child: Text(
+                      "Please enter a valid email address",
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(height: getPercentageHeight(5, context)),
@@ -146,16 +266,32 @@ class _SignUpFormState extends State<SignUpForm> {
             padding: EdgeInsets.symmetric(
               horizontal: getPercentageWidth(5, context),
             ),
-            child: PasswordField(
-              kHint: "Password",
-              themeProvider: isDarkMode,
-              controller: widget.passwordController,
-              noCapitalize: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PasswordField(
+                  kHint: "Password",
+                  themeProvider: isDarkMode,
+                  controller: widget.passwordController,
+                  noCapitalize: false,
+                ),
+                if (showPasswordStrengthError && _passwordStrengthMessage != null)
+                  Padding(
+                    padding:
+                        EdgeInsets.only(top: getPercentageHeight(1, context)),
+                    child: Text(
+                      _passwordStrengthMessage!,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(height: getPercentageHeight(5, context)),
 
-          // Password form field
+          // Confirm Password form field
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: getPercentageWidth(5, context),
@@ -261,10 +397,11 @@ class _SignUpFormState extends State<SignUpForm> {
               horizontal: getPercentageWidth(5, context),
             ),
             child: AppButton(
-              text: "Sign Up",
-              onPressed: _handleSignUp,
+              text: _isLoading ? "Signing up..." : "Sign Up",
+              onPressed: _isLoading ? () {} : _handleSignUp,
               type: AppButtonType.primary,
               width: 100,
+              isLoading: _isLoading,
             ),
           ),
 
@@ -358,7 +495,7 @@ class TermsOfServiceScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Last updated: 2025",
+                  "Last updated: ${DateTime.now().year}",
                   style: textTheme.bodyMedium?.copyWith(
                     fontStyle: FontStyle.italic,
                   ),
