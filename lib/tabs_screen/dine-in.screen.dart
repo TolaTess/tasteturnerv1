@@ -14,10 +14,8 @@ import '../data_models/macro_data.dart';
 import '../helper/helper_functions.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
-import '../pages/upload_battle.dart';
 import '../service/macro_manager.dart';
 import '../service/gemini_service.dart' as gemini;
-import '../widgets/ingredient_battle_widget.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
 import '../detail_screen/recipe_detail.dart';
@@ -99,13 +97,14 @@ class _DineInScreenState extends State<DineInScreen> {
       return;
     }
 
-    debugPrint('Setting up real-time Firestore listeners for ${mealIds.length} meals');
+    debugPrint(
+        'Setting up real-time Firestore listeners for ${mealIds.length} meals');
 
     final firestore = FirebaseFirestore.instance;
 
     // Firestore whereIn supports max 10 items, so we need to batch if needed
     const int maxWhereInItems = 10;
-    
+
     if (mealIds.length <= maxWhereInItems) {
       // Single listener for <= 10 meals
       _setupSingleMealListener(firestore, mealIds);
@@ -170,8 +169,7 @@ class _DineInScreenState extends State<DineInScreen> {
         final status = mealData['status']?.toString() ?? 'pending';
 
         // Only update if status changed from pending to completed
-        if (status == 'completed' &&
-            existingRecipe['status'] != 'completed') {
+        if (status == 'completed' && existingRecipe['status'] != 'completed') {
           updatedRecipes[recipeIndex] = {
             ...existingRecipe,
             'title': mealData['title']?.toString() ?? existingRecipe['title'],
@@ -337,7 +335,8 @@ class _DineInScreenState extends State<DineInScreen> {
       // Check camera permission if user selected camera option
       if (selectedOption == 'photo') {
         final isDarkMode = getThemeProvider(context).isDarkMode;
-        final hasPermission = await checkAndRequestCameraPermission(context, isDarkMode);
+        final hasPermission =
+            await checkAndRequestCameraPermission(context, isDarkMode);
         if (!hasPermission) {
           return; // Permission denied or user cancelled
         }
@@ -1182,27 +1181,6 @@ class _DineInScreenState extends State<DineInScreen> {
     }
   }
 
-  void _navigateToUploadBattle() {
-    if (selectedCarb != null && selectedProtein != null) {
-      // Create battle ID from ingredient names + random number
-      final battleId =
-          '${selectedCarb!.title.toLowerCase().replaceAll(' ', '_')}_'
-          '${selectedProtein!.title.toLowerCase().replaceAll(' ', '_')}_'
-          '${_random.nextInt(9999).toString().padLeft(4, '0')}';
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UploadBattleImageScreen(
-            battleId: battleId,
-            battleCategory: 'Dine-In',
-            isMainPost: false,
-          ),
-        ),
-      );
-    }
-  }
-
   Widget _buildFridgeInterface(bool isDarkMode, TextTheme textTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1698,27 +1676,10 @@ class _DineInScreenState extends State<DineInScreen> {
                     ),
                     SizedBox(height: getPercentageHeight(1.5, context)),
 
-                    // Weekly Ingredients Battle Widget
-                    const WeeklyIngredientBattle(),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-
                     // Fridge interface
                     _buildFridgeInterface(isDarkMode, textTheme),
                     SizedBox(height: getPercentageHeight(2, context)),
 
-                    // Upload button if recipes are generated
-                    if (_showFridgeRecipes && _fridgeRecipes.isNotEmpty) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: AppButton(
-                          text: 'Upload Your Creation',
-                          onPressed: () => _navigateToUploadBattle(),
-                          type: AppButtonType.primary,
-                          color: kAccent,
-                        ),
-                      ),
-                    ],
                     SizedBox(height: getPercentageHeight(10, context)),
                   ],
                 ),

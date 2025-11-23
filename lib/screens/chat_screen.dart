@@ -88,10 +88,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _shareImage(String imageUrl) {
     String message = '';
-    if (widget.screen == 'battle_post') {
-      message =
-          'Shared from ${capitalizeFirstLetter(widget.dataSrc?['name'])} for ${capitalizeFirstLetter(widget.dataSrc?['category'])} Battle /${widget.dataSrc?['id']} /${widget.dataSrc?['name']} /${widget.screen}';
-    } else if (widget.screen == 'share_recipe') {
+    if (widget.screen == 'share_recipe') {
       message =
           'Shared caption: ${capitalizeFirstLetter(widget.dataSrc?['title'])} /${widget.dataSrc?['mealId']} /${widget.dataSrc?['title']} /${widget.screen}';
     } else {
@@ -494,7 +491,7 @@ class ChatItem extends StatelessWidget {
                                 builder: (context) => ChallengeDetailScreen(
                                   screen: extractedItems.isNotEmpty
                                       ? extractedItems.last
-                                      : 'battle_post',
+                                      : 'post',
                                   dataSrc: dataSrc.toMap(),
                                   isMessage: true,
                                 ),

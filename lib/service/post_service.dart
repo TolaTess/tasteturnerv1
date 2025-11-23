@@ -18,7 +18,6 @@ class PostService extends GetxService {
     int limit = 24,
     String? lastPostId,
     String? excludePostId,
-    bool includeBattlePosts = true,
     bool useCache = true,
   }) async {
     try {
@@ -39,7 +38,6 @@ class PostService extends GetxService {
         'limit': limit,
         'lastPostId': lastPostId,
         'excludePostId': excludePostId,
-        'includeBattlePosts': includeBattlePosts,
       });
 
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -210,43 +208,6 @@ class PostService extends GetxService {
     }
   }
 
-  /// Get battle posts for the current week (Monday to Sunday)
-  Future<List<Map<String, dynamic>>> getBattlePostsForCurrentWeek({
-    int limit = 20,
-  }) async {
-    try {
-      // Calculate current week's Monday and Sunday
-      final now = DateTime.now();
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final sunday = monday.add(const Duration(days: 6));
-
-      // Set time to start of Monday and end of Sunday
-      final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd =
-          DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-      final HttpsCallable callable =
-          _functions.httpsCallable('getChallengePostsForWeek');
-      final HttpsCallableResult result = await callable.call({
-        'weekStart': weekStart.toIso8601String(),
-        'weekEnd': weekEnd.toIso8601String(),
-        'limit': limit,
-      });
-
-      final data = Map<String, dynamic>.from(result.data as Map);
-
-      if (data['success'] == true) {
-        return (data['posts'] as List)
-            .map((post) => Map<String, dynamic>.from(post))
-            .toList();
-      } else {
-        throw Exception(data['error'] ?? 'Failed to fetch battle posts');
-      }
-    } catch (e) {
-      debugPrint('Error fetching battle posts: $e');
-      return [];
-    }
-  }
-
   /// Clear user-specific cache
   void clearUserCache(String userId) {
     _feedCache.removeWhere((key, value) => key.startsWith('user_$userId'));
@@ -302,7 +263,6 @@ extension PostFeedPagination on PostFeedResult {
     String category = 'general',
     int limit = 24,
     String? excludePostId,
-    bool includeBattlePosts = true,
   }) async {
     if (!hasMore || lastPostId == null) {
       return PostFeedResult(
@@ -318,7 +278,6 @@ extension PostFeedPagination on PostFeedResult {
       limit: limit,
       lastPostId: lastPostId,
       excludePostId: excludePostId,
-      includeBattlePosts: includeBattlePosts,
       useCache: false, // Don't cache pagination results
     );
   }

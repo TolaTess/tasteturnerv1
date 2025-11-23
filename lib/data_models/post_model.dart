@@ -12,8 +12,6 @@ class Post {
   final String? category;
   final List<String> favorites;
   final DateTime? createdAt;
-  final bool? isBattle;
-  final String? battleId;
   final bool isVideo;
 
   Post({
@@ -28,8 +26,6 @@ class Post {
     this.category,
     this.favorites = const [],
     this.createdAt,
-    this.isBattle,
-    this.battleId,
     this.isVideo = false,
   });
 
@@ -49,8 +45,6 @@ class Post {
           : data['createdAt'] is String
               ? DateTime.tryParse(data['createdAt'])
               : null,
-      isBattle: data['isBattle'] ?? false,
-      battleId: data['battleId'] ?? '',
       isVideo: data['isVideo'] ?? false,
     );
   }
@@ -67,8 +61,6 @@ class Post {
       favorites: List<String>.from(data['favorites'] ?? []),
       createdAt:
           data['createdAt'] != null ? DateTime.parse(data['createdAt']) : null,
-      isBattle: data['isBattle'] ?? false,
-      battleId: data['battleId'] ?? '',
       isVideo: data['isVideo'] ?? false,
     );
   }
@@ -84,8 +76,6 @@ class Post {
       'category': category ?? 'general',
       'favorites': favorites,
       'createdAt': createdAt?.toIso8601String(),
-      'isBattle': isBattle ?? false,
-      'battleId': battleId ?? '', // Ensure battleId is never null
       'isVideo': isVideo,
     };
   }
@@ -99,8 +89,6 @@ class Post {
     String? category,
     List<String>? favorites,
     DateTime? createdAt,
-    bool? isBattle,
-    String? battleId,
     bool? isVideo,
   }) {
     return Post(
@@ -112,8 +100,6 @@ class Post {
       category: category ?? this.category,
       favorites: favorites ?? this.favorites,
       createdAt: createdAt ?? this.createdAt,
-      isBattle: isBattle ?? this.isBattle,
-      battleId: battleId ?? this.battleId,
       isVideo: isVideo ?? this.isVideo,
     );
   }

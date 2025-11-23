@@ -118,9 +118,11 @@ class ChallengeService extends GetxService {
       final weekEnd =
           DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
 
+      // Battle feature removed - return empty snapshot
       final snapshot = await _firestore
           .collection('posts')
-          .where('isBattle', isEqualTo: true)
+          .where('isBattle', isEqualTo: false) // This will return no results since battles are removed
+          .limit(0)
           .get();
 
       final userLikesMap = <String, Map<String, dynamic>>{};

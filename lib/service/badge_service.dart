@@ -40,7 +40,7 @@ class BadgeService extends GetxController {
         debugPrint('Permission denied loading badges: $e');
         // Don't show error to user for permission issues - might be temporary
       } else {
-        debugPrint('Error loading badges: $e');
+      debugPrint('Error loading badges: $e');
       }
       // Set empty list on error to prevent UI issues
       availableBadges.value = [];
@@ -81,7 +81,7 @@ class BadgeService extends GetxController {
         userProgress.value = [];
         earnedBadges.value = [];
       } else {
-        debugPrint('Error loading user progress: $e');
+      debugPrint('Error loading user progress: $e');
         // For other errors, also set empty lists to prevent UI issues
         userProgress.value = [];
         earnedBadges.value = [];
@@ -449,12 +449,6 @@ class BadgeService extends GetxController {
       case 'step_goals_met':
         return await _getStepGoalsMetCount(userId);
 
-      case 'battles_participated':
-        return await _getBattlesParticipatedCount(userId);
-
-      case 'battles_won':
-        return await _getBattlesWonCount(userId);
-
       case 'unique_recipes_tried':
         return await _getUniqueRecipesCount(userId);
 
@@ -815,31 +809,6 @@ class BadgeService extends GetxController {
         }
       }
       return goalsMetCount;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  Future<int> _getBattlesParticipatedCount(String userId) async {
-    try {
-      final snapshot = await _firestore
-          .collection('battle_participants')
-          .where('userId', arrayContains: userId)
-          .get();
-
-      return snapshot.docs.length;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  Future<int> _getBattlesWonCount(String userId) async {
-    try {
-      final snapshot = await _firestore
-          .collection('battle_winners')
-          .where('userId', arrayContains: userId)
-          .get();
-      return snapshot.docs.length;
     } catch (e) {
       return 0;
     }

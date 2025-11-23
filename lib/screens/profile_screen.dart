@@ -38,12 +38,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> searchContentDatas = [];
   late Future<Map<String, dynamic>> chartDataFuture;
   final userId = userService.userId ?? '';
-  List<Map<String, dynamic>> ongoingBattles = [];
   bool isLoading = true;
   bool isPostsLoading = true;
-  bool showBattle = false;
   final GlobalKey _addSettingsButtonKey = GlobalKey();
-  final GlobalKey _addBattleButtonKey = GlobalKey();
   final GlobalKey _addBadgesButtonKey = GlobalKey();
   final GlobalKey _addWeightButtonKey = GlobalKey();
   late ScrollController _scrollController;
@@ -73,9 +70,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Points are now loaded as part of BadgeService.loadUserProgress
     authController.listenToUserData(userId);
     super.initState();
-    setState(() {
-      showBattle = ongoingBattles.isNotEmpty;
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
       _checkWeightPromptAfterTutorial();
@@ -193,13 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           searchContentDatas = result.posts;
           isPostsLoading = false;
-          showBattle = ongoingBattles.isNotEmpty;
         });
       } else if (mounted) {
         setState(() {
           searchContentDatas = [];
           isPostsLoading = false;
-          showBattle = ongoingBattles.isNotEmpty;
         });
         if (result.error != null) {
           debugPrint('Error fetching user posts: ${result.error}');
@@ -211,7 +203,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           searchContentDatas = [];
           isPostsLoading = false;
-          showBattle = ongoingBattles.isNotEmpty;
         });
       }
     }

@@ -74,15 +74,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   void _setupDineInDataListeners() {
-    // Listen to posts collection changes for battle posts
-    _subscription = firestore
-        .collection('posts')
-        .where('isBattle', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
-        .limit(100) // Get more posts to ensure we have enough for the week
-        .snapshots()
-        .listen((snapshot) {
-      _updateDineInLeaderboardData(snapshot);
+    // Battle feature removed - no longer listening to battle posts
+    // Dine-in leaderboard functionality disabled
+    setState(() {
+      isLoading = false;
     });
   }
 
@@ -150,111 +145,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     }
   }
 
-  Future<void> _updateDineInLeaderboardData(QuerySnapshot snapshot) async {
-    try {
-      final userId = userService.userId;
-      final Map<String, Map<String, dynamic>> userLikesMap =
-          <String, Map<String, dynamic>>{};
-
-      // Calculate current week's Monday and Friday
-      final now = DateTime.now();
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final sunday = monday.add(const Duration(days: 6));
-
-      // Set time to start of Monday and end of Friday
-      final weekStart = DateTime(monday.year, monday.month, monday.day);
-      final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-
-      // Process each battle post
-      for (var doc in snapshot.docs) {
-        final postData = doc.data() as Map<String, dynamic>?;
-        if (postData == null) continue;
-
-        // Check if post is from current week
-        if (postData['createdAt'] != null) {
-          try {
-            final postDate = DateTime.parse(postData['createdAt']);
-            if (postDate.isBefore(weekStart) || postDate.isAfter(weekEnd)) {
-              continue; // Skip posts outside current week
-            }
-          } catch (e) {
-            continue; // Skip posts with invalid dates
-          }
-        } else {
-          continue; // Skip posts without createdAt
-        }
-
-        final postUserId = postData['userId'];
-        final favorites = List<String>.from(postData['favorites'] ?? []);
-        final likesCount = favorites.length;
-
-        if (postUserId != null && likesCount > 0) {
-          if (userLikesMap.containsKey(postUserId)) {
-            userLikesMap[postUserId]!['totalLikes'] += likesCount;
-            userLikesMap[postUserId]!['postCount'] += 1;
-          } else {
-            userLikesMap[postUserId] = {
-              'userId': postUserId,
-              'totalLikes': likesCount,
-              'postCount': 1,
-            };
-          }
-        }
-      }
-
-      // Convert to list and sort by total likes
-      final List<Map<String, dynamic>> data = [];
-      int actualRank = 1;
-
-      // Sort users by total likes (descending)
-      final sortedUsers = userLikesMap.values.toList()
-        ..sort((a, b) =>
-            (b['totalLikes'] as int).compareTo(a['totalLikes'] as int));
-
-      for (var userData in sortedUsers) {
-        final docUserId = userData['userId'] as String;
-
-        // Fetch user details
-        final userDoc =
-            await firestore.collection('users').doc(docUserId).get();
-        final userDataFromFirestore = userDoc.data() as Map<String, dynamic>?;
-
-        final userMap = {
-          'id': docUserId,
-          'displayName': userDataFromFirestore?['displayName'] ?? 'Unknown',
-          'profileImage':
-              userDataFromFirestore?['profileImage']?.toString().isNotEmpty ==
-                      true
-                  ? userDataFromFirestore!['profileImage']
-                  : intPlaceholderImage,
-          'totalLikes': userData['totalLikes'],
-          'postCount': userData['postCount'],
-          'rank': actualRank,
-          'subtitle': userDataFromFirestore?['bio'] ?? 'DINE-IN CHALLENGER',
-        };
-
-        // Check if this is the current user
-        if (docUserId == userId) {
-          currentUserRank = userMap;
-        }
-
-        data.add(userMap);
-        actualRank++;
-      }
-
-      if (mounted) {
-        setState(() {
-          leaderboardData = data;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
   @override
   void dispose() {
     _subscription?.cancel();
@@ -266,15 +156,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       setState(() => isLoading = true);
 
       if (isDineInMode && showChallengePosts) {
-        // Refresh dine-in leaderboard data
-        final snapshot = await firestore
-            .collection('posts')
-            .where('isBattle', isEqualTo: true)
-            .orderBy('createdAt', descending: true)
-            .limit(100)
-            .get();
-
-        await _updateDineInLeaderboardData(snapshot);
+        // Battle feature removed - dine-in leaderboard disabled
+        setState(() {
+          isLoading = false;
+        });
       } else {
         // Refresh winners data
         await helperController.fetchWinners();

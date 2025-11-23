@@ -1,6 +1,6 @@
 # TasteTurner
 
-TasteTurner is a **Health & Fitness nutrition app for iOS and Android**, designed to make meal planning fun, social, and family-friendly. Targeting health-conscious adults, including parents, TasteTurner simplifies healthy eating with features like randomized recipe discovery, weekly ingredient battles, and kid-focused meal planning. The app offers a **free tier (with ads)** and a **Premium subscription ($9.99/mo or $79.99/yr)** for advanced features like unlimited child profiles and ad-free experiences.
+TasteTurner is a **Health & Fitness nutrition app for iOS and Android**, designed to make meal planning fun, social, and family-friendly. Targeting health-conscious adults, including parents, TasteTurner simplifies healthy eating with features like randomized recipe discovery and kid-focused meal planning. The app offers a **free tier (with ads)** and a **Premium subscription ($9.99/mo or $79.99/yr)** for advanced features like unlimited child profiles and ad-free experiences.
 
 **Current Version**: 1.0 (Pre-Launch, August 2025 Release)
 **Platforms**: iOS (~60MB installed), Android (~60MB AAB)
@@ -22,7 +22,7 @@ TasteTurner is a **Health & Fitness nutrition app for iOS and Android**, designe
 
 ### Overview
 
-TasteTurner empowers adults to plan healthy meals with a playful, engaging experience. Key features include a **spin-the-wheel recipe discovery**, **Weekly Ingredients Battle**, **AI-driven meal advice**, and a **Family Meal Planning Dashboard** for parents managing kids’ meals (ages 2-12). The app supports both individual health goals (e.g., “Lose Weight,” “Healthy Eating”) and family-oriented goals (e.g., “Family Nutrition”) with kid-friendly filters like Low-Sugar and Nut-Free.
+TasteTurner empowers adults to plan healthy meals with a playful, engaging experience. Key features include a **spin-the-wheel recipe discovery**, **AI-driven meal advice**, and a **Family Meal Planning Dashboard** for parents managing kids' meals (ages 2-12). The app supports both individual health goals (e.g., "Lose Weight," "Healthy Eating") and family-oriented goals (e.g., "Family Nutrition") with kid-friendly filters like Low-Sugar and Nut-Free.
 
 The app is in pre-launch development, with a planned release in **August 2025** on the App Store and Google Play. It targets health-conscious users, particularly **parents (30-40% of Health & Fitness users)**, aiming for \>70% day-7 retention and 5-10% Premium conversion rates.
 
@@ -30,8 +30,7 @@ The app is in pre-launch development, with a planned release in **August 2025** 
 
 ### Features
 
-  * **Spin-the-Wheel Recipe Discovery**: Randomly suggests healthy recipes, with kid-friendly filters (e.g., Low-Sugar, Nut-Free, Picky Eater-Friendly) in “Family Nutrition” mode.
-  * **Weekly Ingredients Battle**: Users vote on ingredients (e.g., Zucchini vs. Sweet Potato), fostering community engagement.
+  * **Spin-the-Wheel Recipe Discovery**: Randomly suggests healthy recipes, with kid-friendly filters (e.g., Low-Sugar, Nut-Free, Picky Eater-Friendly) in "Family Nutrition" mode.
   * **AI Chat**: Personalized recipe tips, including a Parent Meal Advisor for kid meal ideas (e.g., picky-eater solutions).
   * **Meal Planning Calendar**: Schedule meals, mark special days (e.g., “Family Day”), and assign kid-specific meals.
   * **Calendar Sharing**: Share meal plans with family/friends via Firestore (shared\_calendars).

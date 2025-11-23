@@ -200,8 +200,6 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
       mediaPaths: uploadedUrls,
       name: userService.currentUser.value?.displayName ?? '',
       category: 'general',
-      isBattle: false,
-      battleId: 'private',
       createdAt: DateTime.now(),
     );
 

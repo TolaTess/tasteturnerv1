@@ -29,7 +29,6 @@ import 'service/nutrition_controller.dart';
 import 'service/post_manager.dart';
 import 'service/post_service.dart';
 import 'service/helper_controller.dart';
-import 'service/battle_service.dart';
 import 'service/user_service.dart';
 import 'data_models/message_screen_data.dart';
 
@@ -59,7 +58,6 @@ void main() async {
   Get.put(AuthController());
   Get.put(HelperController());
   Get.put(FirebaseService());
-  Get.lazyPut(() => BattleService()); // Lazy load - only needed for battles
   Get.lazyPut(() =>
       CalendarSharingService()); // Lazy load - only needed for calendar sharing
   Get.lazyPut(

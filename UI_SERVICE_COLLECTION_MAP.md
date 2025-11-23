@@ -287,15 +287,9 @@ This document maps each UI feature through its service layer to Firebase collect
 - **Verification Status**: ✅
 
 ### 6.3 Ingredient Battles
-- **UI Location**: Challenge/ingredient battle widgets
-- **Service Called**: `BattleService` methods (lib/service/battle_service.dart)
-- **Firebase Collections**: 
-  - `battles/{battleId}` - Battle documents
-  - `points/{userId}` - User points for battles (line 17)
-  - Firebase Storage: `battles/{battleId}/{userId}_{timestamp}.jpg` - Battle images (line 47)
-- **Data Flow**: READ/WRITE - Battle data, points updates
-- **Key Code Verified**: `firestore.collection('battles')` (line 14), `firestore.collection('points').doc(userId)` (line 17)
-- **Verification Status**: ✅
+- **Status**: ❌ REMOVED - Battle feature has been removed from the app
+- **Documentation**: See `dev plan/BATTLE_FEATURE_DOCUMENTATION.md` for full details
+- **Note**: Battle data remains in Firestore but is no longer accessible via client rules
 
 ---
 
@@ -879,7 +873,7 @@ Use this checklist to systematically verify each feature:
 - [x] 5.5 Generate 54321 Shopping List ✅
 - [x] 6.1 Fetch Ingredients ✅
 - [x] 6.2 Add Ingredient ✅
-- [x] 6.3 Ingredient Battles ✅
+- [x] 6.3 Ingredient Battles ❌ (REMOVED - see BATTLE_FEATURE_DOCUMENTATION.md)
 - [x] 7.1 Food Image Analysis ✅
 - [x] 7.2 Save Analysis to Firestore ✅
 - [x] 7.3 Fridge Image Analysis ✅

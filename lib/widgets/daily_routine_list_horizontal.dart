@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../service/battle_service.dart';
+import '../service/badge_service.dart';
 import '../service/routine_service.dart';
 import 'package:tasteturner/data_models/routine_item.dart';
 
@@ -88,7 +88,7 @@ class RoutineController extends GetxController {
           body:
               'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
         );
-        await BattleService.instance.updateUserPoints(userId, 10);
+        await BadgeService.instance.awardPoints(userId, 10, reason: 'Daily Routine Champion');
       }
       await prefs.setBool('routine_notification_shown_$today', true);
     } catch (e) {

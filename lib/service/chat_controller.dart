@@ -332,23 +332,44 @@ class ChatController extends GetxController {
 
   // Get or create a chat document based on participants
   Future<String> getOrCreateChatId(String userId1, String userId2) async {
-    final querySnapshot = await firestore
-        .collection('chats')
-        .where('participants', arrayContains: userId1)
-        .get();
+    try {
+      final userDoc = await firestore.collection('users').doc(userId1).get();
+      final existingChatIds = List<String>.from(userDoc.data()?['chats'] ?? []);
 
-    for (var doc in querySnapshot.docs) {
-      if (doc['participants'].contains(userId2)) {
-        return doc.id;
+      for (final chatId in existingChatIds) {
+        try {
+          final chatDoc = await firestore.collection('chats').doc(chatId).get();
+          if (!chatDoc.exists) {
+            continue;
+          }
+          final participants =
+              List<String>.from(chatDoc.data()?['participants'] ?? []);
+          if (participants.contains(userId2)) {
+            return chatId;
+          }
+        } catch (e) {
+          debugPrint('Error checking chat $chatId: $e');
+          continue;
+        }
       }
+    } catch (e) {
+      debugPrint('Error loading user chats: $e');
     }
 
     // Create a new chat if none exists
+    // Ensure current user is in participants array for security rules
+    final currentUserId = userService.userId ?? userId1;
+    final participants = [userId1, userId2];
+    if (!participants.contains(currentUserId)) {
+      participants.add(currentUserId);
+    }
+
     final chatDoc = await firestore.collection('chats').add({
-      'participants': [userId1, userId2],
+      'participants': participants,
       'createdAt': FieldValue.serverTimestamp(),
       'lastMessage': '',
       'lastMessageTime': null,
+      'isActive': true,
     });
 
     await _updateUserChats(userId1, chatDoc.id);

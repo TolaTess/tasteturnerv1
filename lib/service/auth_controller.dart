@@ -487,10 +487,6 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('shopping_day', '');
       await prefs.setString('top_ingredient_1', '');
-      await prefs.setString('top_ingredient_2', '');
-      await prefs.setInt('count_1', 0);
-      await prefs.setInt('count_2', 0);
-      await prefs.setBool('ingredient_battle_new_week', true);
       await prefs.setBool('routine_notification_shown_$today', true);
       await prefs.setBool('routine_badge_$yesterday', false);
       await prefs.setBool('prompt_goals_shown', false);

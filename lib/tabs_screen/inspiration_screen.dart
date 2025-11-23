@@ -6,7 +6,6 @@ import 'package:tasteturner/service/post_service.dart';
 
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../pages/upload_battle.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/info_icon_widget.dart';
 
@@ -198,10 +197,8 @@ class _InspirationScreenState extends State<InspirationScreen> {
       floatingActionButton: FloatingActionButton(
         key: _addUploadButtonKey,
         onPressed: () {
-          Get.to(
-            () => const UploadBattleImageScreen(
-                battleId: 'general', isMainPost: true),
-          );
+          // Upload functionality removed with battle feature
+          // TODO: Add regular post upload if needed
         },
         backgroundColor: kAccent,
         child: Icon(Icons.add_a_photo, color: isDarkMode ? kWhite : kBlack),
@@ -224,7 +221,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
               SearchContentGrid(
                 key: _gridKey,
                 screenLength: 24, // Show more images on this dedicated screen
-                listType: 'battle_post',
+                listType: 'post',
                 selectedCategory: selectedGoal,
               ),
             ],

@@ -47,7 +47,6 @@ class PostController extends GetxController {
       final result = await postService.getPostsFeed(
         category: 'general',
         limit: 50,
-        includeBattlePosts: true,
       );
 
       if (result.isSuccess && result.posts.isNotEmpty) {
@@ -71,8 +70,6 @@ class PostController extends GetxController {
                         ? postData['createdAt']
                         : null)
                 : null,
-            isBattle: postData['isBattle'] ?? false,
-            battleId: postData['battleId'] ?? '',
             isVideo: postData['isVideo'] ?? false,
           );
         }).toList();
@@ -408,10 +405,12 @@ class PostController extends GetxController {
         debugPrint('Batch commit failed: $batchError');
         // Provide more specific error message
         if (batchError.toString().contains('permission')) {
-          throw Exception('Permission denied. Please check your account status.');
-        } else if (batchError.toString().contains('network') || 
-                   batchError.toString().contains('unavailable')) {
-          throw Exception('Network error. Please check your connection and try again.');
+          throw Exception(
+              'Permission denied. Please check your account status.');
+        } else if (batchError.toString().contains('network') ||
+            batchError.toString().contains('unavailable')) {
+          throw Exception(
+              'Network error. Please check your connection and try again.');
         } else {
           throw Exception('Failed to save post. Please try again.');
         }
@@ -419,8 +418,9 @@ class PostController extends GetxController {
     } catch (e) {
       debugPrint('Error in uploadPost: $e');
       // Re-throw with more context if it's not already a formatted exception
-      if (e is Exception && !e.toString().contains('Permission') && 
-          !e.toString().contains('Network') && 
+      if (e is Exception &&
+          !e.toString().contains('Permission') &&
+          !e.toString().contains('Network') &&
           !e.toString().contains('Failed to save')) {
         throw Exception('Failed to upload post: $e');
       }
@@ -464,8 +464,6 @@ class PostController extends GetxController {
   Future<void> deleteAnyPost({
     required String postId,
     required String userId,
-    bool isBattle = false,
-    String? battleId,
   }) async {
     // Remove the post and its images from posts collection and user
     await deletePostAndImages(postId, userId);

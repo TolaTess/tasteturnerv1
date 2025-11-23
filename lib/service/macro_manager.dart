@@ -7,20 +7,17 @@ import '../data_models/macro_data.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import 'meal_api_service.dart';
-import 'battle_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class MacroManager extends GetxController {
   static final MacroManager instance = Get.put(MacroManager());
   static int _instanceCount = 0;
-  final BattleService _battleService = Get.find<BattleService>();
   final FirebaseFunctions functions = FirebaseFunctions.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth auth = FirebaseAuth.instance;
 
   List<MacroData> _demoIngredientData = [];
-  RxList<Map<String, dynamic>> _ingredientBattle = <Map<String, dynamic>>[].obs;
   RxList<MacroData> generatedShoppingList = <MacroData>[].obs;
   RxList<MacroData> manualShoppingList = <MacroData>[].obs;
   RxBool isShoppingListLoading = true.obs;
@@ -35,7 +32,6 @@ class MacroManager extends GetxController {
 
   // Getter to retrieve ingredients
   List<MacroData> get ingredient => _demoIngredientData;
-  List<Map<String, dynamic>> get ingredientBattle => _ingredientBattle;
   final RxMap<String, bool> shoppingList = <String, bool>{}.obs;
   final RxMap<String, bool> previousShoppingList = <String, bool>{}.obs;
   final RxMap<String, bool> groceryList = <String, bool>{}.obs;

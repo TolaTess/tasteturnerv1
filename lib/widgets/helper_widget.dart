@@ -91,8 +91,7 @@ class SearchContentGridState extends State<SearchContentGrid> {
             isLoading = false;
           });
         }
-      } else if (widget.listType == "post" ||
-          widget.listType == 'battle_post') {
+      } else if (widget.listType == "post") {
         // Use new PostService for efficient loading
         final postService = PostService.instance;
         final result = await postService.getPostsFeed(
@@ -100,15 +99,11 @@ class SearchContentGridState extends State<SearchContentGrid> {
               widget.selectedCategory.isEmpty ? 'all' : widget.selectedCategory,
           limit: widget.screenLength * 2, // Load more for better UX
           excludePostId: widget.postId.isNotEmpty ? widget.postId : null,
-          includeBattlePosts: true,
         );
 
         if (result.isSuccess && mounted) {
-          // Filter out battle posts from current week
-          final filteredPosts = _filterOutCurrentWeekBattlePosts(result.posts);
-
           setState(() {
-            searchContentDatas = filteredPosts;
+            searchContentDatas = result.posts;
             lastPostId = result.lastPostId;
             hasMorePosts = result.hasMore;
             isLoading = false;
@@ -152,16 +147,12 @@ class SearchContentGridState extends State<SearchContentGrid> {
         limit: widget.screenLength,
         lastPostId: lastPostId,
         excludePostId: widget.postId.isNotEmpty ? widget.postId : null,
-        includeBattlePosts: true,
         useCache: false, // Don't cache pagination
       );
 
       if (result.isSuccess && mounted) {
-        // Filter out battle posts from current week
-        final filteredPosts = _filterOutCurrentWeekBattlePosts(result.posts);
-
         setState(() {
-          searchContentDatas.addAll(filteredPosts);
+          searchContentDatas.addAll(result.posts);
           lastPostId = result.lastPostId;
           hasMorePosts = result.hasMore;
         });
@@ -171,43 +162,6 @@ class SearchContentGridState extends State<SearchContentGrid> {
     }
   }
 
-  /// Filter out battle posts from the current week to avoid duplication
-  List<Map<String, dynamic>> _filterOutCurrentWeekBattlePosts(
-      List<Map<String, dynamic>> posts) {
-    // Calculate current week's Monday and Friday
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
-
-    // Set time to start of Monday and end of Friday
-    final weekStart = DateTime(monday.year, monday.month, monday.day);
-    final weekEnd = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
-
-    return posts.where((post) {
-      // Keep the post if it's not a battle post
-      if (post['isBattle'] != true) {
-        return true;
-      }
-
-      // For battle posts, check if they're from the current week
-      if (post['createdAt'] != null) {
-        try {
-          final postDate = DateTime.parse(post['createdAt']);
-          final isInCurrentWeek =
-              postDate.isAfter(weekStart) && postDate.isBefore(weekEnd);
-
-          // Remove battle posts from current week (they'll be shown in horizontal list)
-          return !isInCurrentWeek;
-        } catch (e) {
-          // If date parsing fails, keep the post
-          return true;
-        }
-      }
-
-      // If no createdAt, keep the post
-      return true;
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -513,29 +467,11 @@ class _ChallengePostsHorizontalListState
   @override
   void initState() {
     super.initState();
-    _loadChallengePosts();
-  }
-
-  Future<void> _loadChallengePosts() async {
-    try {
-      final postService = PostService.instance;
-      final posts = await postService.getBattlePostsForCurrentWeek(limit: 20);
-
-      if (mounted) {
-        setState(() {
-          challengePosts = posts;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading battle posts: $e');
-      if (mounted) {
+    // Battle feature removed - widget no longer loads posts
         setState(() {
           challengePosts = [];
           isLoading = false;
         });
-      }
-    }
   }
 
   @override

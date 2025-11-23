@@ -34,7 +34,7 @@ class ChallengeDetailScreen extends StatefulWidget {
   const ChallengeDetailScreen({
     super.key,
     required this.dataSrc,
-    this.screen = 'battle_post',
+    this.screen = 'post',
     this.isMessage = false,
     this.allPosts,
     this.initialIndex = 0,
@@ -540,11 +540,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       return extractedItems[1];
     }
 
-    if (widget.screen == 'battle_post') {
-      return _currentPostData['name']?.toString().isNotEmpty == true
-          ? _currentPostData['name'].toString()
-          : 'Food Battle ${widget.dataSrc['category']?.toString().isNotEmpty == true ? ' - ${widget.dataSrc['category'].toString()}' : ''}';
-    } else if (widget.screen == 'myPost') {
+    if (widget.screen == 'myPost') {
       if (_currentPostData['name']?.toString().isNotEmpty != true) {
         return _currentPostData['senderId'] == userService.userId
             ? 'My Post'
@@ -1121,8 +1117,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                                         ? extractedItems.first
                                         : ''),
                                 userId: userService.userId ?? '',
-                                isBattle: _currentPostData['isBattle'] ?? false,
-                                battleId: _currentPostData['battleId'] ?? '',
                               );
                               if (context.mounted) {
                                 Get.to(() => const BottomNavSec(
