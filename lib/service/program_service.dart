@@ -117,21 +117,27 @@ class ProgramService extends GetxController {
   // Check if user is already enrolled in a program
   Future<bool> isUserEnrolledInProgram(String programId) async {
     final userId = userService.userId;
-    if (userId == null) return false;
+    if (userId == null || userId.isEmpty) return false;
 
     try {
       final userProgramDoc =
           await _firestore.collection('userProgram').doc(programId).get();
 
       if (userProgramDoc.exists) {
-        final data = userProgramDoc.data() as Map<String, dynamic>;
+        final data = userProgramDoc.data();
+        if (data == null) return false;
+
         final userIds = data['userIds'] as List?;
-        return userIds?.contains(userId) ?? false;
+        if (userIds == null) return false;
+
+        return userIds.contains(userId);
       }
 
       return false;
     } catch (e) {
       debugPrint('Error checking program enrollment: $e');
+      // If permission denied, assume user is not enrolled (document might exist but user can't read it)
+      // This allows the join flow to proceed
       return false;
     }
   }
@@ -139,7 +145,9 @@ class ProgramService extends GetxController {
   // Join a program with a specific option
   Future<void> joinProgram(String programId, String option) async {
     final userId = userService.userId;
-    if (userId == null) throw Exception('User not authenticated');
+    if (userId == null || userId.isEmpty) {
+      throw Exception('User not authenticated');
+    }
 
     try {
       // Check if user is already enrolled
@@ -148,26 +156,48 @@ class ProgramService extends GetxController {
         throw Exception('You are already enrolled in this program');
       }
 
-      // Check if userProgram document exists
-      final userProgramDoc =
-          await _firestore.collection('userProgram').doc(programId).get();
+      // Use a transaction to safely add user to program
+      // This ensures atomicity and handles race conditions
+      await _firestore.runTransaction((transaction) async {
+        final userProgramRef =
+            _firestore.collection('userProgram').doc(programId);
+        final userProgramDoc = await transaction.get(userProgramRef);
 
-      if (userProgramDoc.exists) {
-        // Update existing document - add user to userIds array
-        await _firestore.collection('userProgram').doc(programId).update({
-          'userIds': FieldValue.arrayUnion([userId])
-        });
-      } else {
-        // Create new document with userIds array
-        await _firestore.collection('userProgram').doc(programId).set({
-          'userIds': [userId]
-        });
-      }
+        if (userProgramDoc.exists) {
+          final data = userProgramDoc.data();
+          final existingUserIds = (data?['userIds'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [];
+
+          // Double-check user is not already enrolled
+          if (existingUserIds.contains(userId)) {
+            throw Exception('You are already enrolled in this program');
+          }
+
+          // Update existing document - add user to userIds array
+          transaction.update(userProgramRef, {
+            'userIds': FieldValue.arrayUnion([userId])
+          });
+        } else {
+          // Create new document with userIds array
+          transaction.set(userProgramRef, {
+            'userIds': [userId]
+          });
+        }
+      });
 
       await loadUserPrograms();
     } catch (e) {
       debugPrint('Error joining program: $e');
-      throw Exception('Failed to join program');
+      // Provide more specific error message
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('Permission denied. Please check your account status.');
+      } else if (e.toString().contains('already enrolled')) {
+        throw Exception('You are already enrolled in this program');
+      } else {
+        throw Exception('Failed to join program: ${e.toString()}');
+      }
     }
   }
 

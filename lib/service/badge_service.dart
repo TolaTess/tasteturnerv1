@@ -34,7 +34,16 @@ class BadgeService extends GetxController {
       availableBadges.value =
           snapshot.docs.map((doc) => Badge.fromFirestore(doc.data())).toList();
     } catch (e) {
-      debugPrint('Error loading badges: $e');
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('permission-denied') ||
+          errorString.contains('permission denied')) {
+        debugPrint('Permission denied loading badges: $e');
+        // Don't show error to user for permission issues - might be temporary
+      } else {
+        debugPrint('Error loading badges: $e');
+      }
+      // Set empty list on error to prevent UI issues
+      availableBadges.value = [];
     }
   }
 
@@ -64,7 +73,19 @@ class BadgeService extends GetxController {
       // Check for first 100 users badge if user has a userNumber
       await _checkFirst100UsersBadge(userId);
     } catch (e) {
-      debugPrint('Error loading user progress: $e');
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('permission-denied') ||
+          errorString.contains('permission denied')) {
+        debugPrint('Permission denied loading user badge progress: $e');
+        // Set empty lists on permission error
+        userProgress.value = [];
+        earnedBadges.value = [];
+      } else {
+        debugPrint('Error loading user progress: $e');
+        // For other errors, also set empty lists to prevent UI issues
+        userProgress.value = [];
+        earnedBadges.value = [];
+      }
     }
   }
 

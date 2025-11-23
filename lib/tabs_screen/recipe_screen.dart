@@ -40,13 +40,20 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
     _categoryDatasIngredient = [...helperController.macros];
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
-      selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
+      final firstCategory = _categoryDatasIngredient[0];
+      selectedCategoryId = firstCategory['id']?.toString() ?? '';
+      selectedCategory = firstCategory['name']?.toString() ?? 'All';
     }
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
-    myMealList =
-        mealList.where((meal) => meal.userId == userService.userId).toList();
+
+    // Add null check for userId
+    final userId = userService.userId;
+    if (userId != null && userId.isNotEmpty) {
+      myMealList = mealList.where((meal) => meal.userId == userId).toList();
+    } else {
+      myMealList = [];
+    }
 
     _fetchFavouriteMeals();
   }
@@ -54,24 +61,61 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _fetchFavouriteMeals();
-    _updateIngredientList(selectedCategory);
+    // Only update if category has changed to avoid unnecessary calls
+    // Removed duplicate _fetchFavouriteMeals() call - already called in initState
+    // _updateIngredientList will be called when category changes
   }
 
   Future<void> _fetchFavouriteMeals() async {
-    final favs = await mealManager.fetchFavoriteMeals();
-    if (mounted) {
-      setState(() {
-        favouriteMealList = favs;
-      });
+    if (!mounted) return;
+
+    try {
+      final favs = await mealManager.fetchFavoriteMeals();
+      if (mounted) {
+        setState(() {
+          favouriteMealList = favs;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching favorite meals: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to load favorites. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
   Future<void> _updateIngredientList(String category) async {
-    fullLabelsList = await macroManager.getIngredientsByCategory(category);
-    favouriteMealList = await mealManager.fetchFavoriteMeals();
-    for (var item in fullLabelsList) {
-      headerSet.addAll(item.features.keys);
+    if (!mounted) return;
+
+    try {
+      final ingredients = await macroManager.getIngredientsByCategory(category);
+      final favs = await mealManager.fetchFavoriteMeals();
+
+      if (!mounted) return;
+
+      setState(() {
+        fullLabelsList = ingredients;
+        favouriteMealList = favs;
+        headerSet.clear();
+        for (var item in fullLabelsList) {
+          headerSet.addAll(item.features.keys);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error updating ingredient list: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to load ingredients. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -83,19 +127,51 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
         userService.currentUser.value?.settings['dietPreference'];
 
     // Filter techniques based on user's diet preference
-    final filteredTechniques = _categoryDatasIngredient..shuffle();
+    // Create a copy before shuffling to avoid modifying the original list
+    final filteredTechniques =
+        List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
     final limitedTechniques = filteredTechniques.take(5).toList();
 
     return RefreshIndicator(
       color: kAccent,
       onRefresh: () async {
-        await _fetchFavouriteMeals();
+        if (!mounted) return;
+        try {
+          // Refresh all data, not just favorites
+          await Future.wait([
+            _fetchFavouriteMeals(),
+            _updateIngredientList(selectedCategory),
+          ]);
+
+          // Also refresh meal lists
+          if (mounted) {
+            setState(() {
+              mealList = mealManager.meals;
+              final userId = userService.userId;
+              if (userId != null && userId.isNotEmpty) {
+                myMealList =
+                    mealList.where((meal) => meal.userId == userId).toList();
+              } else {
+                myMealList = [];
+              }
+            });
+          }
+        } catch (e) {
+          debugPrint('Error refreshing data: $e');
+          if (mounted && context.mounted) {
+            showTastySnackbar(
+              'Refresh Failed',
+              'Unable to refresh data. Please try again.',
+              context,
+              backgroundColor: Colors.red,
+            );
+          }
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -204,12 +280,27 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                     'No description available',
                                 color: colors[index % colors.length],
                                 onTap: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => TechniqueDetailWidget(
-                                      technique: technique,
-                                    ),
-                                  );
+                                  if (!mounted) return;
+                                  try {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) =>
+                                          TechniqueDetailWidget(
+                                        technique: technique,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    debugPrint(
+                                        'Error showing technique dialog: $e');
+                                    if (mounted && context.mounted) {
+                                      showTastySnackbar(
+                                        'Error',
+                                        'Unable to show technique details.',
+                                        context,
+                                        backgroundColor: Colors.red,
+                                      );
+                                    }
+                                  }
                                 },
                                 index: index,
                                 isSelected: false,
@@ -235,16 +326,31 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 //Search by Meals
                 TitleSection(
                   title: searchMeal,
-                  press: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RecipeListCategory(
-                        index: 1,
-                        searchIngredient: '',
-                        screen: 'ingredient',
-                      ),
-                    ),
-                  ),
+                  press: () {
+                    if (!mounted) return;
+                    try {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RecipeListCategory(
+                            index: 1,
+                            searchIngredient: '',
+                            screen: 'ingredient',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      debugPrint('Error navigating to RecipeListCategory: $e');
+                      if (mounted && context.mounted) {
+                        showTastySnackbar(
+                          'Error',
+                          'Unable to open recipe list. Please try again.',
+                          context,
+                          backgroundColor: Colors.red,
+                        );
+                      }
+                    }
+                  },
                   more: seeAll,
                 ),
                 SizedBox(
@@ -305,26 +411,36 @@ class MealsCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        if (isFavourite && dataSrc.title == "Lunch") {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const FavoriteScreen(),
-            ),
-          );
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RecipeListCategory(
-                index: 1,
-                searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
-                    ? "myMeals"
-                    : dataSrc.title,
-                screen: 'categories',
-                isNoTechnique: true,
+        try {
+          if (isFavourite && dataSrc.title == "Lunch") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FavoriteScreen(),
               ),
-            ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RecipeListCategory(
+                  index: 1,
+                  searchIngredient: isMyMeal && dataSrc.title == "Breakfast"
+                      ? "myMeals"
+                      : dataSrc.title,
+                  screen: 'categories',
+                  isNoTechnique: true,
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Error navigating from MealsCard: $e');
+          showTastySnackbar(
+            'Error',
+            'Unable to open recipe list. Please try again.',
+            context,
+            backgroundColor: Colors.red,
           );
         }
       },

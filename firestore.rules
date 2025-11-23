@@ -183,32 +183,154 @@ service cloud.firestore {
     }
     
     // ============================================================================
+    // BADGES COLLECTION (Available badges - top level)
+    // ============================================================================
+    match /badges/{badgeId} {
+      // Authenticated users can read available badges
+      allow read: if isAuthenticated();
+      
+      // Only cloud functions can write badges
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
+    // PROGRAM TRACKING COLLECTION (User program progress)
+    // ============================================================================
+    match /programTracking/{userId} {
+      // Users can only access their own program tracking
+      allow read, write: if isOwner(userId);
+      
+      match /programs/{programId} {
+        // Users can only access their own program progress
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================================================
+    // SHARED CALENDARS COLLECTION
+    // ============================================================================
+    match /shared_calendars/{calendarId} {
+      // Users can read calendars they're part of (userId in userIds array)
+      allow read: if isAuthenticated() && 
+                     (resource.data.userIds != null &&
+                      request.auth.uid in resource.data.userIds);
+      
+      // Users can create calendars (must set themselves as owner and in userIds)
+      allow create: if isAuthenticated() && 
+                       request.resource.data.owner == request.auth.uid &&
+                       request.resource.data.userIds != null &&
+                       request.auth.uid in request.resource.data.userIds;
+      
+      // Users can update calendars they own or are part of
+      // Can add users to userIds array, but cannot remove themselves if they're the owner
+      allow update: if isAuthenticated() && 
+                      resource.data.userIds != null &&
+                      request.auth.uid in resource.data.userIds &&
+                      // Ensure userIds array still contains the user after update
+                      (request.resource.data.userIds == null ||
+                       request.auth.uid in request.resource.data.userIds);
+      
+      // Only owners can delete calendars
+      allow delete: if isAuthenticated() && 
+                      resource.data.owner == request.auth.uid;
+    }
+    
+    // ============================================================================
+    // COUNTERS COLLECTION (App counters like user numbers)
+    // ============================================================================
+    match /counters/{counterId} {
+      // Authenticated users can read counters
+      allow read: if isAuthenticated();
+      
+      // Only cloud functions can write counters
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
+    // BATTLE PARTICIPANTS COLLECTION
+    // ============================================================================
+    match /battle_participants/{battleId} {
+      // Authenticated users can read battle participants
+      allow read: if isAuthenticated();
+      
+      // Only cloud functions can write battle participants
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
+    // BATTLE WINNERS COLLECTION
+    // ============================================================================
+    match /battle_winners/{battleId} {
+      // Authenticated users can read battle winners
+      allow read: if isAuthenticated();
+      
+      // Only cloud functions can write battle winners
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
     // CHATS COLLECTION
     // ============================================================================
     match /chats/{chatId} {
-      // Users can read chats they're part of (check if chatId matches their userId or buddyChatId)
+      // Helper function to check if user is in participants array (for existing chats)
+      function isParticipant() {
+        return resource.data.participants != null &&
+               request.auth.uid in resource.data.participants;
+      }
+      
+      // Helper function to check if user is in participants array (for new chats)
+      function isParticipantInRequest() {
+        return request.resource.data.participants != null &&
+               request.auth.uid in request.resource.data.participants;
+      }
+      
+      // Helper function to safely check buddyChatId (only use when necessary)
+      function isBuddyChat() {
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        return userDoc != null && 
+               userDoc.data != null &&
+               userDoc.data.buddyChatId != null &&
+               userDoc.data.buddyChatId == chatId;
+      }
+      
+      // Helper function to check if user can access chat (for message operations)
+      function canAccessChat() {
+        // Check if chatId matches userId (user's own chat)
+        return chatId == request.auth.uid ||
+               // Check if user is in participants array
+               (resource.data.participants != null &&
+                request.auth.uid in resource.data.participants) ||
+               // Check buddyChatId as fallback (only if other checks fail)
+               isBuddyChat();
+      }
+      
+      // Users can read chats they're part of (by chatId, buddyChatId, or participants array)
       allow read: if isAuthenticated() && 
                      (chatId == request.auth.uid ||
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+                      isParticipant() ||
+                      isBuddyChat());
       
-      // Users can create/update chats they're part of
-      allow create, update: if isAuthenticated() && 
-                              (chatId == request.auth.uid ||
-                               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+      // Users can create chats (must include themselves in participants)
+      allow create: if isAuthenticated() && 
+                       isParticipantInRequest();
+      
+      // Users can update chats they're part of
+      allow update: if isAuthenticated() && 
+                      (chatId == request.auth.uid ||
+                       isParticipant() ||
+                       isBuddyChat());
       
       // Users can delete their own chats
       allow delete: if isAuthenticated() && chatId == request.auth.uid;
       
       match /messages/{messageId} {
         // Users can read messages in chats they're part of
-        allow read: if isAuthenticated() && 
-                       (chatId == request.auth.uid ||
-                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+        allow read: if isAuthenticated() && canAccessChat();
         
         // Users can create messages in chats they're part of
+        // Check parent chat document to verify access
         allow create: if isAuthenticated() && 
-                        (chatId == request.auth.uid ||
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId) &&
+                        canAccessChat() &&
                         request.resource.data.senderId == request.auth.uid;
         
         // Users can update/delete their own messages
@@ -269,19 +391,27 @@ service cloud.firestore {
     // USER PROGRAM COLLECTION (User program enrollments)
     // ============================================================================
     match /userProgram/{programId} {
-      // Authenticated users can read programs they're enrolled in
-      // Check if userId is in the userIds array
-      allow read: if isAuthenticated() && 
-                     (resource.data.userIds != null && 
-                      request.auth.uid in resource.data.userIds);
+      // Authenticated users can read to check enrollment status
+      // This is needed for checking if user is already enrolled before joining
+      allow read: if isAuthenticated();
       
       // Users can create their own program enrollments
       allow create: if isAuthenticated() && 
                        request.resource.data.userIds != null &&
                        request.auth.uid in request.resource.data.userIds;
       
-      // Only cloud functions can update program enrollments
-      allow update, delete: if false; // Cloud functions use admin SDK
+      // Users can update to add themselves to userIds array using arrayUnion
+      // This allows users to join programs by adding themselves to existing documents
+      // Security: User must be in the new userIds array, and array size can only increase
+      allow update: if isAuthenticated() && 
+                       request.resource.data.userIds != null &&
+                       request.auth.uid in request.resource.data.userIds &&
+                       // Prevent removing users - array size must stay same or increase
+                       (resource.data.userIds == null || 
+                        request.resource.data.userIds.size() >= resource.data.userIds.size());
+      
+      // Only cloud functions can delete program enrollments
+      allow delete: if false; // Cloud functions use admin SDK
     }
     
     // ============================================================================

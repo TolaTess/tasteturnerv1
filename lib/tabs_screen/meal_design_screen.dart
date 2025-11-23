@@ -42,6 +42,7 @@ class MealDesignScreen extends StatefulWidget {
 class _MealDesignScreenState extends State<MealDesignScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late PageController _calendarPageController; // Move PageController to widget level
   DateTime selectedDate = DateTime.now();
   Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -79,6 +80,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     _tabController = TabController(
         length: _tabCount, vsync: this, initialIndex: widget.initialTabIndex);
     _tabController.addListener(_handleTabIndex);
+    
+    // Initialize PageController for calendar at widget level
+    _calendarPageController = PageController(initialPage: 1);
+    
     _setupDataListeners();
 
     if (widget.initialTabIndex == 1) {
@@ -139,27 +144,61 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   void _setupDataListeners() {
+    // Don't await - fire and forget for initial setup
     _onRefresh();
   }
 
   Future<void> _onRefresh() async {
-    _mealPlanController.refresh();
+    if (!mounted) return;
+    try {
+      _mealPlanController.refresh();
+    } catch (e) {
+      debugPrint('Error refreshing meal plan: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to refresh meal plan. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
   }
 
   void _initializeBuddyData() {
-    final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final lowerBound = dateFormat.format(sevenDaysAgo);
-    final upperBound = dateFormat.format(now);
+    if (!mounted) return;
+    
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('Warning: userId is null in _initializeBuddyData');
+      return;
+    }
+    
+    try {
+      final now = DateTime.now();
+      final sevenDaysAgo = now.subtract(const Duration(days: 7));
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final lowerBound = dateFormat.format(sevenDaysAgo);
+      final upperBound = dateFormat.format(now);
 
-    _buddyDataFuture = firestore
-        .collection('mealPlans')
-        .doc(userService.userId)
-        .collection('buddy')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
-        .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
-        .get();
+      _buddyDataFuture = firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('buddy')
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
+          .get();
+    } catch (e) {
+      debugPrint('Error initializing buddy data: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to load buddy data. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
   }
 
   @override
@@ -177,11 +216,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       );
       _tabController.addListener(_handleTabIndex);
     }
-    _onRefresh();
-    if (!mounted) return;
-    setState(() {
-      isPremium = userService.currentUser.value?.isPremium ?? false;
-    });
+    
+    // Only update premium status if it changed, avoid unnecessary refresh
+    final newPremiumStatus = userService.currentUser.value?.isPremium ?? false;
+    if (newPremiumStatus != isPremium && mounted) {
+      setState(() {
+        isPremium = newPremiumStatus;
+      });
+    }
+    // Removed _onRefresh() call - it's inefficient to refresh on every dependency change
   }
 
   void _handleTabIndex() {
@@ -197,6 +240,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     // _saveCurrentShoppingList();
     _tabController.removeListener(_handleTabIndex);
     _tabController.dispose();
+    _calendarPageController.dispose(); // Dispose PageController
     super.dispose();
   }
 
@@ -507,8 +551,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     if (_mealPlanController.showSharedCalendars.value)
                       Flexible(
                         child: FutureBuilder<List<SharedCalendar>>(
-                          future: calendarSharingService
-                              .fetchSharedCalendarsForUser(userService.userId!),
+                          future: () {
+                            final userId = userService.userId;
+                            if (userId == null || userId.isEmpty) {
+                              return Future.value(<SharedCalendar>[]);
+                            }
+                            return calendarSharingService
+                                .fetchSharedCalendarsForUser(userId);
+                          }(),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -609,8 +659,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             ? getPercentageHeight(42, context)
                             : getPercentageHeight(32, context),
                         child: PageView.builder(
-                          controller: PageController(
-                              initialPage: 1), // Start at current month
+                          controller: _calendarPageController, // Use widget-level controller
                           itemBuilder: (context, pageIndex) {
                             // Calculate the month offset (-1, 0, 1 for prev, current, next)
                             final monthOffset = pageIndex - 1;
@@ -805,30 +854,53 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   void _shareCalendar(String shareType) async {
-    // Check if user is premium or has free share left
-    final userDoc =
-        await firestore.collection('users').doc(userService.userId).get();
+    if (!mounted) return;
+    
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'User ID is missing. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+      return;
+    }
+    
+    try {
+      // Check if user is premium or has free share left
+      final userDoc = await firestore.collection('users').doc(userId).get();
     final isPremium = userService.currentUser.value?.isPremium ?? false;
     int calendarShares = 0;
     if (userDoc.exists) {
       final data = userDoc.data() as Map<String, dynamic>;
       calendarShares = (data['calendarShares'] ?? 0) as int;
     }
-    if (!isPremium && calendarShares >= 1) {
-      // Show upgrade dialog
+      if (!mounted) return;
+      
+      if (!isPremium && calendarShares >= 1) {
+        // Show upgrade dialog
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => showPremiumDialog(
+                context,
+                getThemeProvider(context).isDarkMode,
+                'Premium Feature',
+                'Please upgrade to premium to share more calenders!'),
+          );
+        }
+        return;
+      }
+      
+      if (!mounted) return;
+      if (!context.mounted) return;
+      
       showDialog(
         context: context,
-        builder: (context) => showPremiumDialog(
-            context,
-            getThemeProvider(context).isDarkMode,
-            'Premium Feature',
-            'Please upgrade to premium to share more calenders!'),
-      );
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
+        builder: (BuildContext context) {
         final isDarkMode = getThemeProvider(context).isDarkMode;
         String calendarTitle = '';
         return AlertDialog(
@@ -876,99 +948,150 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
             TextButton(
               onPressed: () async {
-                if (calendarTitle.isNotEmpty) {
-                  Navigator.pop(context);
-                  if (_mealPlanController.isPersonalCalendar.value) {
-                    // 1. Create new shared calendar doc
-                    final newCalRef =
-                        await firestore.collection('shared_calendars').add({
-                      'header': calendarTitle,
-                      'owner': userService.userId,
-                      'userIds': [userService.userId],
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-                    final newCalId = newCalRef.id;
+                try {
+                  if (calendarTitle.isNotEmpty) {
+                    Navigator.pop(context);
+                    if (_mealPlanController.isPersonalCalendar.value) {
+                      // 1. Create new shared calendar doc
+                      final newCalRef =
+                          await firestore.collection('shared_calendars').add({
+                        'header': calendarTitle,
+                        'owner': userId,
+                        'userIds': [userId],
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                      final newCalId = newCalRef.id;
 
-                    // 2. Fetch personal calendar items: single day or all days
-                    final userId = userService.userId!;
-                    QuerySnapshot personalItems;
+                      // 2. Fetch personal calendar items: single day or all days
+                      QuerySnapshot personalItems;
 
-                    if (shareType == 'single_day') {
-                      // Only fetch the selected date
-                      final dateStr =
-                          DateFormat('yyyy-MM-dd').format(selectedDate);
-                      personalItems = await firestore
-                          .collection('mealPlans')
-                          .doc(userId)
-                          .collection('date')
-                          .where(FieldPath.documentId, isEqualTo: dateStr)
-                          .get();
-                    } else {
-                      // Fetch all dates
-                      personalItems = await firestore
-                          .collection('mealPlans')
-                          .doc(userId)
-                          .collection('date')
-                          .get();
-                    }
-
-                    // 3. Only include items from today onwards
-                    final today = DateTime.now();
-                    final filteredDocs = personalItems.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>?;
-                      final dateStr = data?['date'] as String?;
-                      if (dateStr == null) return false;
-                      try {
-                        final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-                        final normalizedDate =
-                            DateTime(date.year, date.month, date.day);
-                        final normalizedToday =
-                            DateTime(today.year, today.month, today.day);
-                        return !normalizedDate.isBefore(normalizedToday);
-                      } catch (e) {
-                        return false;
+                      if (shareType == 'single_day') {
+                        // Only fetch the selected date
+                        final dateStr =
+                            DateFormat('yyyy-MM-dd').format(selectedDate);
+                        personalItems = await firestore
+                            .collection('mealPlans')
+                            .doc(userId)
+                            .collection('date')
+                            .where(FieldPath.documentId, isEqualTo: dateStr)
+                            .get();
+                      } else {
+                        // Fetch all dates
+                        personalItems = await firestore
+                            .collection('mealPlans')
+                            .doc(userId)
+                            .collection('date')
+                            .get();
                       }
-                    });
 
-                    // 4. Copy to shared calendar in batches
-                    final batch = firestore.batch();
-                    for (final doc in filteredDocs) {
-                      final data = doc.data() as Map<String, dynamic>?;
-                      final dateId = doc.id;
-                      final sharedDocRef = firestore
-                          .collection('shared_calendars')
-                          .doc(newCalId)
-                          .collection('date')
-                          .doc(dateId);
-                      batch.set(sharedDocRef, data);
+                      // 3. Only include items from today onwards
+                      final today = DateTime.now();
+                      final filteredDocs = personalItems.docs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>?;
+                        final dateStr = data?['date'] as String?;
+                        if (dateStr == null) return false;
+                        try {
+                          final date = DateFormat('yyyy-MM-dd').parse(dateStr);
+                          final normalizedDate =
+                              DateTime(date.year, date.month, date.day);
+                          final normalizedToday =
+                              DateTime(today.year, today.month, today.day);
+                          return !normalizedDate.isBefore(normalizedToday);
+                        } catch (e) {
+                          return false;
+                        }
+                      });
+
+                      // 4. Copy to shared calendar in batches
+                      final batch = firestore.batch();
+                      for (final doc in filteredDocs) {
+                        final data = doc.data() as Map<String, dynamic>?;
+                        final dateId = doc.id;
+                        final sharedDocRef = firestore
+                            .collection('shared_calendars')
+                            .doc(newCalId)
+                            .collection('date')
+                            .doc(dateId);
+                        batch.set(sharedDocRef, data);
+                      }
+                      await batch.commit();
+                      FirebaseAnalytics.instance
+                          .logEvent(name: 'calendar_shared');
+
+                      if (!mounted) return;
+                      
+                      // 5. Navigate to FriendScreen with newCalId
+                      try {
+                        await Get.to(() => FriendScreen(
+                              dataSrc: {
+                                'type': shareType == 'single_day'
+                                    ? 'specific_date'
+                                    : 'entire_calendar',
+                                'screen': 'meal_design',
+                                'calendarId': newCalId,
+                                'header': calendarTitle,
+                                'isPersonal': 'true',
+                              },
+                            ));
+                      } catch (e) {
+                        debugPrint('Error navigating to FriendScreen: $e');
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to open sharing screen. Please try again.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
+                    } else {
+                      final selectedCalendarId = _mealPlanController
+                          .selectedSharedCalendarId.value;
+                      if (selectedCalendarId == null || selectedCalendarId.isEmpty) {
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'No calendar selected. Please select a calendar first.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                        return;
+                      }
+                      
+                      try {
+                        await Get.to(() => FriendScreen(
+                              dataSrc: {
+                                'type': 'entire_calendar',
+                                'screen': 'meal_design',
+                                'calendarId': selectedCalendarId,
+                                'header': calendarTitle,
+                                'isPersonal': 'false',
+                              },
+                            ));
+                      } catch (e) {
+                        debugPrint('Error navigating to FriendScreen: $e');
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to open sharing screen. Please try again.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
                     }
-                    await batch.commit();
-                    FirebaseAnalytics.instance
-                        .logEvent(name: 'calendar_shared');
-
-                    // 5. Navigate to FriendScreen with newCalId
-                    Get.to(() => FriendScreen(
-                          dataSrc: {
-                            'type': shareType == 'single_day'
-                                ? 'specific_date'
-                                : 'entire_calendar',
-                            'screen': 'meal_design',
-                            'calendarId': newCalId,
-                            'header': calendarTitle,
-                            'isPersonal': 'true',
-                          },
-                        ));
-                  } else {
-                    Get.to(() => FriendScreen(
-                          dataSrc: {
-                            'type': 'entire_calendar',
-                            'screen': 'meal_design',
-                            'calendarId': _mealPlanController
-                                .selectedSharedCalendarId.value,
-                            'header': calendarTitle,
-                            'isPersonal': 'false',
-                          },
-                        ));
+                  }
+                } catch (e) {
+                  debugPrint('Error in share calendar dialog: $e');
+                  if (mounted && context.mounted) {
+                    Navigator.pop(context);
+                    showTastySnackbar(
+                      'Error',
+                      'Failed to share calendar. Please try again.',
+                      context,
+                      backgroundColor: Colors.red,
+                    );
                   }
                 }
               },
@@ -982,6 +1105,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         );
       },
     );
+    } catch (e) {
+      debugPrint('Error in _shareCalendar: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to share calendar. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
   }
 
   void _updateCategoryData(String categoryId, String category) {
@@ -1150,14 +1284,27 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       // Main meal content
                       InkWell(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RecipeDetailScreen(
-                                mealData: meal,
+                          if (!mounted) return;
+                          try {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RecipeDetailScreen(
+                                  mealData: meal,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          } catch (e) {
+                            debugPrint('Error navigating to RecipeDetailScreen: $e');
+                            if (mounted && context.mounted) {
+                              showTastySnackbar(
+                                'Error',
+                                'Unable to open recipe details. Please try again.',
+                                context,
+                                backgroundColor: Colors.red,
+                              );
+                            }
+                          }
                         },
                         child: Column(
                           children: [
@@ -1266,18 +1413,30 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                         .collection('date')
                                         .doc(formattedDate);
 
-                            final doc = await docRef.get();
-                            if (doc.exists) {
-                              await docRef.update({
-                                'meals': FieldValue.arrayRemove(
-                                    [mealWithType.fullMealId])
-                              });
+                            try {
+                              final doc = await docRef.get();
+                              if (doc.exists) {
+                                await docRef.update({
+                                  'meals': FieldValue.arrayRemove(
+                                      [mealWithType.fullMealId])
+                                });
 
-                              if (!mounted) return;
-                              setState(() {
-                                meals.removeAt(index);
-                              });
-                              _mealPlanController.refresh();
+                                if (!mounted) return;
+                                setState(() {
+                                  meals.removeAt(index);
+                                });
+                                _mealPlanController.refresh();
+                              }
+                            } catch (e) {
+                              debugPrint('Error removing meal from plan: $e');
+                              if (mounted && context.mounted) {
+                                showTastySnackbar(
+                                  'Error',
+                                  'Failed to remove meal. Please try again.',
+                                  context,
+                                  backgroundColor: Colors.red,
+                                );
+                              }
                             }
                           },
                         ),
@@ -1394,13 +1553,29 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Future<void> _updateMealType(String fullMealId, String mealId,
       String mealType, String familyMember, bool isDarkMode) async {
-    final result = await showMealTypePicker(context, isDarkMode);
-    if (result != null) {
-      final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-      final mealToAdd = '${mealId}/${result}/${familyMember.toLowerCase()}';
-      mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
+    if (!mounted) return;
+    
+    try {
+      final result = await showMealTypePicker(context, isDarkMode);
+      if (result != null && mounted) {
+        final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+        final mealToAdd = '${mealId}/${result}/${familyMember.toLowerCase()}';
+        await mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
+        if (mounted) {
+          _mealPlanController.refresh();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating meal type: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to update meal type. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
-    _mealPlanController.refresh();
   }
 
   void _selectDate(DateTime date) {
@@ -1456,30 +1631,47 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
 
     if (goStraightToAddMeal) {
+      if (!mounted) return;
+      
       final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RecipeListCategory(
-            index: 0,
-            searchIngredient: '',
-            isMealplan: true,
-            mealPlanDate: formattedDate,
-            isSpecial: selectedDayType != 'regular_day',
-            screen: 'ingredient',
-            isSharedCalendar: _mealPlanController.showSharedCalendars.value,
-            sharedCalendarId: _mealPlanController.showSharedCalendars.value
-                ? _mealPlanController.selectedSharedCalendarId.value
-                : null,
-            familyMember: selectedCategory.toLowerCase(),
-            isFamilyMode: familyMode,
-            isBackToMealPlan: true,
-            isNoTechnique: true,
+      final sharedCalendarId = _mealPlanController.showSharedCalendars.value
+          ? _mealPlanController.selectedSharedCalendarId.value
+          : null;
+      
+      try {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeListCategory(
+              index: 0,
+              searchIngredient: '',
+              isMealplan: true,
+              mealPlanDate: formattedDate,
+              isSpecial: selectedDayType != 'regular_day',
+              screen: 'ingredient',
+              isSharedCalendar: _mealPlanController.showSharedCalendars.value,
+              sharedCalendarId: sharedCalendarId,
+              familyMember: selectedCategory.toLowerCase(),
+              isFamilyMode: familyMode,
+              isBackToMealPlan: true,
+              isNoTechnique: true,
+            ),
           ),
-        ),
-      ).then((_) {
-        _mealPlanController.refresh();
-      });
+        );
+        if (mounted) {
+          _mealPlanController.refresh();
+        }
+      } catch (e) {
+        debugPrint('Error navigating to RecipeListCategory: $e');
+        if (mounted && context.mounted) {
+          showTastySnackbar(
+            'Error',
+            'Unable to open recipe selection. Please try again.',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
+      }
       return;
     }
 
@@ -1635,9 +1827,14 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   IconButton(
                     icon: Icon(Icons.ios_share, size: getIconScale(5, context)),
                     onPressed: () async {
+                      if (!mounted) return;
                       Navigator.pop(context);
-                      _shareCalendar('single_day');
-                      _mealPlanController.refresh();
+                      if (mounted) {
+                        _shareCalendar('single_day');
+                        if (mounted) {
+                          _mealPlanController.refresh();
+                        }
+                      }
                     },
                     color: isDarkMode ? kWhite : kBlack,
                   ),
@@ -1684,18 +1881,43 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     // Format date as yyyy-MM-dd for Firestore document ID
     final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-    final userId = userService.userId!;
+    final userId = userService.userId;
+    
+    if (userId == null || userId.isEmpty) {
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'User ID is missing. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+      return;
+    }
 
     try {
       DocumentReference? sharedCalendarRef;
 
       if (_mealPlanController.showSharedCalendars.value) {
+        final selectedCalendarId = _mealPlanController.selectedSharedCalendarId.value;
+        if (selectedCalendarId == null || selectedCalendarId.isEmpty) {
+          if (mounted && context.mounted) {
+            showTastySnackbar(
+              'Error',
+              'No calendar selected. Please select a calendar first.',
+              context,
+              backgroundColor: Colors.red,
+            );
+          }
+          return;
+        }
+        
         sharedCalendarRef = firestore
             .collection('shared_calendars')
-            .doc(_mealPlanController.selectedSharedCalendarId.value!)
+            .doc(selectedCalendarId)
             .collection('date')
             .doc(formattedDate);
-        await sharedCalendarRef!.set({
+        await sharedCalendarRef.set({
           'userId': userId,
           'dayType': dayType,
           'isSpecial': dayType.isNotEmpty && dayType != 'regular_day',
@@ -1716,33 +1938,58 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
       // Only navigate to recipe selection if "Add Meal" was clicked
       if (action == 'add_meal') {
+        if (!mounted) return;
+        
         FirebaseAnalytics.instance.logEvent(name: 'meal_plan_added');
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RecipeListCategory(
-                index: 0,
-                searchIngredient: '',
-                isMealplan: true,
-                mealPlanDate: formattedDate,
-                isSpecial: dayType != 'regular_day',
-                screen: 'ingredient',
-                isSharedCalendar: _mealPlanController.showSharedCalendars.value,
-                sharedCalendarId: _mealPlanController.showSharedCalendars.value
-                    ? _mealPlanController.selectedSharedCalendarId.value
-                    : null,
-                familyMember: selectedCategory.toLowerCase(),
-                isFamilyMode: familyMode,
-                isNoTechnique: true,
-                isBackToMealPlan: true),
-          ),
-        ).then((_) {
-          // Refresh meal plans after adding new meals
-          _mealPlanController.refresh();
-        });
+        final sharedCalendarId = _mealPlanController.showSharedCalendars.value
+            ? _mealPlanController.selectedSharedCalendarId.value
+            : null;
+        
+        try {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RecipeListCategory(
+                  index: 0,
+                  searchIngredient: '',
+                  isMealplan: true,
+                  mealPlanDate: formattedDate,
+                  isSpecial: dayType != 'regular_day',
+                  screen: 'ingredient',
+                  isSharedCalendar: _mealPlanController.showSharedCalendars.value,
+                  sharedCalendarId: sharedCalendarId,
+                  familyMember: selectedCategory.toLowerCase(),
+                  isFamilyMode: familyMode,
+                  isNoTechnique: true,
+                  isBackToMealPlan: true),
+            ),
+          );
+          if (mounted) {
+            // Refresh meal plans after adding new meals
+            _mealPlanController.refresh();
+          }
+        } catch (e) {
+          debugPrint('Error navigating to RecipeListCategory: $e');
+          if (mounted && context.mounted) {
+            showTastySnackbar(
+              'Error',
+              'Unable to open recipe selection. Please try again.',
+              context,
+              backgroundColor: Colors.red,
+            );
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error in _addMealPlan: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to add meal plan. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -1867,12 +2114,25 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                           SizedBox(width: getPercentageWidth(2, context)),
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ShoppingTab(),
-                                ),
-                              );
+                              if (!mounted) return;
+                              try {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ShoppingTab(),
+                                  ),
+                                );
+                              } catch (e) {
+                                debugPrint('Error navigating to ShoppingTab: $e');
+                                if (mounted && context.mounted) {
+                                  showTastySnackbar(
+                                    'Error',
+                                    'Unable to open shopping list. Please try again.',
+                                    context,
+                                    backgroundColor: Colors.red,
+                                  );
+                                }
+                              }
                             },
                             child: SvgPicture.asset(
                               'assets/images/svg/shopping.svg',

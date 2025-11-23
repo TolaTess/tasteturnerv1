@@ -182,12 +182,26 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       setState(() {
         isLoading = false;
       });
-      Get.snackbar(
-        'Error',
-        'Failed to load user programs: please try again',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+
+      // Distinguish between permission errors and other errors
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('permission-denied') ||
+          errorString.contains('permission denied')) {
+        Get.snackbar(
+          'Permission Error',
+          'You do not have permission to access program data. Please check your account status.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      } else {
+        debugPrint('Error loading user programs: $e');
+        Get.snackbar(
+          'Error',
+          'Failed to load user programs. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
     }
   }
 
@@ -299,6 +313,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           await _handleDayTransition();
         }
       } else {
+        // No progress data exists yet - this is normal for new users
         // Initialize tracking document
         await _initializeTracking();
         setState(() {
@@ -313,12 +328,32 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       setState(() {
         isLoading = false;
       });
-      Get.snackbar(
-        'Error',
-        'Failed to load progress data: please try again',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+
+      // Distinguish between permission errors and other errors
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('permission-denied') ||
+          errorString.contains('permission denied')) {
+        Get.snackbar(
+          'Permission Error',
+          'You do not have permission to access this data. Please check your account status.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      } else {
+        // For other errors (network, etc.), show generic error
+        // But don't show error if it's just missing data (which is handled above)
+        debugPrint('Error loading progress data: $e');
+        // Only show snackbar for actual errors, not missing data
+        if (!errorString.contains('not found') &&
+            !errorString.contains('does not exist')) {
+          Get.snackbar(
+            'Error',
+            'Failed to load progress data. Please try again.',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
     }
   }
 

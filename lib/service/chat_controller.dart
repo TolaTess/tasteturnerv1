@@ -12,7 +12,8 @@ class ChatController extends GetxController {
   var messages = <ChatScreenData>[].obs;
 
   late String chatId;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _messagesSubscription;
 
   // Initialize chat and listen for messages
   Future<void> initializeChat(String friendId) async {
@@ -157,7 +158,9 @@ class ChatController extends GetxController {
 
       final userDoc = await firestore.collection('users').doc(userId).get();
       final userData = userDoc.data();
-      if (!userDoc.exists || userData == null || !userData.containsKey('chats')) {
+      if (!userDoc.exists ||
+          userData == null ||
+          !userData.containsKey('chats')) {
         return [];
       }
 
@@ -173,21 +176,22 @@ class ChatController extends GetxController {
       }
 
       // Fetch all chat documents in parallel for better performance
-      final chatDocs = await Future.wait(
-        validChatIds.map((chatId) => 
-          firestore.collection('chats').doc(chatId).get()
-        ),
-      );
-
-      // Process results
+      // Use individual try-catch for each chat to handle permission errors gracefully
       final List<Map<String, dynamic>> chats = [];
-      for (var i = 0; i < chatDocs.length; i++) {
-        final chatDoc = chatDocs[i];
-        if (chatDoc.exists) {
-          final chatData = chatDoc.data();
-          if (chatData != null) {
-            chats.add({'chatId': validChatIds[i], ...chatData});
+      for (final chatId in validChatIds) {
+        try {
+          final chatDoc = await firestore.collection('chats').doc(chatId).get();
+          if (chatDoc.exists) {
+            final chatData = chatDoc.data();
+            if (chatData != null) {
+              chats.add({'chatId': chatId, ...chatData});
+            }
           }
+        } catch (e) {
+          // Skip chats the user doesn't have permission to read
+          // This can happen if chat permissions changed or chat was deleted
+          debugPrint("Error fetching chat $chatId: $e");
+          continue;
         }
       }
       return chats;
