@@ -239,7 +239,7 @@ class _ProgramScreenState extends State<ProgramScreen>
     final prompt =
         'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
     final response =
-        await geminiService.getResponse(prompt, 1024, role: buddyAiRole);
+        await geminiService.getResponse(prompt, maxTokens: 1024, role: buddyAiRole);
     setState(() {
       aiCoachResponse = response;
       isLoading = false;

@@ -22,7 +22,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class OnboardingScreen extends StatefulWidget {
   final String userId;
   final String? displayName;
-  const OnboardingScreen({super.key, required this.userId, this.displayName});
+  final String? authProvider; // Track which auth provider was used (apple.com, google.com, password)
+  const OnboardingScreen({super.key, required this.userId, this.displayName, this.authProvider});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -88,8 +89,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       switch (_currentPage) {
         case 0:
           final name = nameController.text.trim();
-          // Only name is required
-          _isNextEnabled = name.isNotEmpty && !isProfane(name);
+          // For Apple Sign In with provided name, always enable Next (name is read-only)
+          final bool isAppleSignInWithName = widget.authProvider == 'apple.com' && 
+              widget.displayName != null && widget.displayName!.isNotEmpty;
+          // Only name is required, or if Apple provided name, it's always valid
+          _isNextEnabled = isAppleSignInWithName || (name.isNotEmpty && !isProfane(name));
           break;
         case 1:
         case 2:
@@ -397,7 +401,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildNamePage() {
     final bool hasExistingName =
         widget.displayName != null && widget.displayName!.isNotEmpty;
-    final bool showTextField = !hasExistingName || _isEditingName;
+    // For Apple Sign In, if name is provided, it should be read-only (no edit option)
+    final bool isAppleSignIn = widget.authProvider == 'apple.com';
+    final bool isNameFromApple = isAppleSignIn && hasExistingName;
+    // Show text field only if: no name exists OR (not Apple Sign In OR user explicitly wants to edit)
+    final bool showTextField = !hasExistingName || (!isAppleSignIn && _isEditingName);
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -437,32 +445,58 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
             )
-          : GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isEditingName = true;
-                });
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    nameController.text,
-                    style: textTheme.displaySmall?.copyWith(
-                      color: isDarkMode ? kWhite : kDarkGrey,
-                      fontWeight: FontWeight.bold,
+          : isNameFromApple
+              ? // Apple Sign In with name - show as read-only (no edit option per Apple guidelines)
+              Container(
+                  padding: EdgeInsets.all(getPercentageWidth(5, context)),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: kAccent.withValues(alpha: 0.3),
+                      width: 2,
                     ),
                   ),
-                  SizedBox(width: getPercentageWidth(3, context)),
-                  Icon(
-                    Icons.edit,
-                    color: kAccent,
-                    size: getIconScale(7, context),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        nameController.text,
+                        style: textTheme.displaySmall?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                )
+              : // Other providers or no name - allow editing
+              GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isEditingName = true;
+                    });
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        nameController.text,
+                        style: textTheme.displaySmall?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(width: getPercentageWidth(3, context)),
+                      Icon(
+                        Icons.edit,
+                        color: kAccent,
+                        size: getIconScale(7, context),
+                      ),
+                    ],
+                  ),
+                ),
       child2: const SizedBox.shrink(),
       child3: Image.asset(
         'assets/images/tasty/tasty.png',
@@ -470,9 +504,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         width: getPercentageWidth(50, context),
         fit: BoxFit.contain,
       ),
-      description: hasExistingName && !_isEditingName
-          ? 'Great to see you!\n\nYour name looks good. Tap the edit icon if you\'d like to change it, or continue to explore what $appName can do for you.'
-          : 'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
+      description: isNameFromApple
+          ? 'Great to see you!\n\nWelcome to $appName! Let\'s explore what we can do for you.'
+          : hasExistingName && !_isEditingName
+              ? 'Great to see you!\n\nYour name looks good. Tap the edit icon if you\'d like to change it, or continue to explore what $appName can do for you.'
+              : 'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
     );
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -56,6 +57,14 @@ class AuthController extends GetxController {
 
         // Extract display name from provider data if user.displayName is null
         String? displayName = user.displayName;
+        String? authProvider;
+        
+        // Determine auth provider from user's provider data
+        if (user.providerData.isNotEmpty) {
+          authProvider = user.providerData.first.providerId;
+          debugPrint("Auth provider detected: $authProvider");
+        }
+        
         if (displayName == null || displayName.isEmpty) {
           for (final providerData in user.providerData) {
             if (providerData.displayName != null &&
@@ -67,8 +76,10 @@ class AuthController extends GetxController {
           }
         }
 
-        Get.offAll(
-            () => OnboardingScreen(userId: user.uid, displayName: displayName));
+        Get.offAll(() => OnboardingScreen(
+            userId: user.uid, 
+            displayName: displayName,
+            authProvider: authProvider));
       } else {
         // Existing user - load data and proceed to main app
         try {
@@ -81,8 +92,15 @@ class AuthController extends GetxController {
           await _setLoggedIn(true);
             // Extract display name from provider data if user.displayName is null
           if (user.uid == tastyId3) {
+            // Determine auth provider for existing user too
+            String? authProvider;
+            if (user.providerData.isNotEmpty) {
+              authProvider = user.providerData.first.providerId;
+            }
             Get.offAll(() => OnboardingScreen(
-                userId: user.uid, displayName: user.displayName));
+                userId: user.uid, 
+                displayName: user.displayName,
+                authProvider: authProvider));
           } else {
             Get.offAll(() => const BottomNavSec());
           }
@@ -237,7 +255,10 @@ class AuthController extends GetxController {
 
         String userId = cred.user!.uid;
         await _setLoggedIn(true);
-        Get.offAll(() => OnboardingScreen(userId: userId, displayName: null));
+        Get.offAll(() => OnboardingScreen(
+            userId: userId, 
+            displayName: null,
+            authProvider: 'password')); // Email/password sign up
       } else {
         showTastySnackbar(
           'Please try again.',
@@ -536,6 +557,56 @@ class AuthController extends GetxController {
         context,
         backgroundColor: Colors.red,
       );
+    }
+  }
+
+  /// Verify purchase receipt with server and update premium status
+  /// This method calls the cloud function to validate the receipt with Apple
+  Future<void> verifyPurchaseWithServer(
+    BuildContext context,
+    String receiptData,
+    String productId,
+    String plan,
+  ) async {
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) {
+        throw Exception("User ID is invalid or empty.");
+      }
+
+      debugPrint("Verifying purchase with server for product: $productId, plan: $plan");
+
+      // Call the cloud function to verify the receipt
+      final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
+      final result = await callable.call({
+        'receiptData': receiptData,
+        'productId': productId,
+        'plan': plan,
+      }).timeout(const Duration(seconds: 30));
+
+      final response = result.data as Map<String, dynamic>;
+      
+      if (response['success'] == true) {
+        debugPrint("Purchase verified successfully on server");
+        // The cloud function already updated the premium status in Firestore
+        // The real-time listener will automatically update the UI
+        showTastySnackbar(
+          'Success',
+          'Purchase verified successfully!',
+          context,
+        );
+      } else {
+        throw Exception(response['message'] ?? 'Purchase verification failed');
+      }
+    } catch (e) {
+      debugPrint("Error verifying purchase with server: $e");
+      showTastySnackbar(
+        'Please try again.',
+        'Failed to verify purchase: ${e.toString()}',
+        context,
+        backgroundColor: Colors.red,
+      );
+      rethrow;
     }
   }
 }

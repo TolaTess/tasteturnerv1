@@ -16,6 +16,8 @@ import '../widgets/icon_widget.dart';
 import '../widgets/bottom_model.dart';
 import '../screens/premium_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 
 class TastyScreen extends StatefulWidget {
   final String screen;
@@ -31,6 +33,11 @@ class _TastyScreenState extends State<TastyScreen> {
   String? chatId;
 
   late ChatController chatController;
+  
+  // Speech-to-text
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  String _recognizedText = '';
 
   // List of welcome messages
   final List<String> _welcomeMessages = [
@@ -116,7 +123,7 @@ class _TastyScreenState extends State<TastyScreen> {
     final messages = chatController.messages;
     final chatContent = messages.map((m) => m.messageContent).join('\n');
     final summaryPrompt = "Summarize this conversation: $chatContent";
-    final summary = await geminiService.getResponse(summaryPrompt, 512);
+    final summary = await geminiService.getResponse(summaryPrompt, maxTokens: 512);
 
     try {
       // Prepare update data
@@ -139,9 +146,100 @@ class _TastyScreenState extends State<TastyScreen> {
     }
   }
 
+  // Speech-to-text methods
+  Future<void> _startListening() async {
+    // Request microphone permission
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        showTastySnackbar(
+          'Permission Required',
+          'Microphone permission is needed for voice notes.',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      return;
+    }
+
+    // Check if speech recognition is available
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        if (mounted) {
+          setState(() {
+            if (status == 'done' || status == 'notListening') {
+              _isListening = false;
+            }
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('Speech recognition error: $error');
+        if (mounted) {
+          setState(() {
+            _isListening = false;
+          });
+          showTastySnackbar(
+            'Speech Error',
+            'Failed to recognize speech. Please try again.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
+      },
+    );
+
+    if (!available) {
+      if (mounted) {
+        showTastySnackbar(
+          'Not Available',
+          'Speech recognition is not available on this device.',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isListening = true;
+        _recognizedText = '';
+      });
+    }
+
+    // Start listening
+    await _speech.listen(
+      onResult: (result) {
+        if (mounted) {
+          setState(() {
+            _recognizedText = result.recognizedWords;
+            // Update text controller with recognized text
+            textController.text = _recognizedText;
+          });
+        }
+      },
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      partialResults: true,
+      localeId: 'en_US',
+    );
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+    if (mounted) {
+      setState(() {
+        _isListening = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _speech.stop();
     _scrollController.dispose();
+    textController.dispose();
     _saveChatSummary();
     super.dispose();
   }
@@ -423,6 +521,32 @@ class _TastyScreenState extends State<TastyScreen> {
               ),
             ),
             SizedBox(width: getPercentageWidth(1, context)),
+            // Voice note button
+            InkWell(
+              onTap: !canUseAI()
+                  ? null
+                  : _isListening
+                      ? () => _stopListening()
+                      : () => _startListening(),
+              child: Container(
+                height: kIconSizeMedium * 1.8,
+                width: kIconSizeMedium * 1.8,
+                margin: const EdgeInsets.only(left: 5),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isListening 
+                      ? kRed.withValues(alpha: kMidOpacity)
+                      : kAccent.withValues(alpha: kMidOpacity),
+                ),
+                child: Icon(
+                  _isListening ? Icons.mic : Icons.mic_none,
+                  size: kIconSizeMedium,
+                  color: getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+            ),
+            SizedBox(width: getPercentageWidth(1, context)),
             Expanded(
               child: SafeTextFormField(
                 controller: textController,
@@ -634,7 +758,7 @@ class _TastyScreenState extends State<TastyScreen> {
     try {
       final response = await geminiService.getResponse(
         prompt,
-        512,
+        maxTokens: 512,
         role: buddyAiRole,
       );
 
@@ -699,7 +823,7 @@ Respond with only a friendly, encouraging welcome message that addresses the use
 
       final response = await geminiService.getResponse(
         welcomePrompt,
-        512,
+        maxTokens: 512,
         role: buddyAiRole,
       );
 
@@ -889,7 +1013,7 @@ Give 3-4 practical tips. Be encouraging!
       try {
         final response = await geminiService.getResponse(
           optimizePrompt,
-          512,
+          maxTokens: 512,
           role: buddyAiRole,
         );
 
@@ -1032,7 +1156,7 @@ Give 3-4 practical tips. Be encouraging!
           final prompt = "${userInput}, user name is ${username ?? ''}".trim();
           response = await geminiService.getResponse(
             prompt,
-            512,
+            maxTokens: 512,
             role: buddyAiRole,
           );
 

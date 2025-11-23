@@ -3035,8 +3035,7 @@ $contextInformation''';
     await _getUserContext(); // This will fetch fresh data
   }
 
-  Future<String> getResponse(String prompt, int maxTokens,
-      {String? role}) async {
+  Future<String> getResponse(String prompt, {int maxTokens = 2048, String? role}) async {
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
@@ -3979,7 +3978,7 @@ $dynamicInstructions
               "temperature": 0.7,
               "topK": 40,
               "topP": 0.95,
-              "maxOutputTokens": 6000, // Increased for complex meal planning
+              "maxOutputTokens": 8000, // Increased for complex meal planning
             },
           };
 
@@ -4134,7 +4133,8 @@ Generate $mealCount meals. Return JSON only:
   /// Generate meals using the new intelligent approach: titles first, then check existing,
   /// then save basic data for Firebase Functions processing
   Future<Map<String, dynamic>> generateMealsIntelligently(
-      String prompt, String contextInformation, String cuisine) async {
+      String prompt, String contextInformation, String cuisine,
+      {bool partOfWeeklyMeal = false}) async {
     try {
       // Try cloud function first for better performance
       try {
@@ -4154,6 +4154,7 @@ Generate $mealCount meals. Return JSON only:
               'snack': 2
             },
             'isIngredientBased': false,
+            'partOfWeeklyMeal': partOfWeeklyMeal,
           },
           operation: 'generate meals intelligently',
         );
@@ -4260,7 +4261,8 @@ Generate $mealCount meals. Return JSON only:
       // Step 4: Save basic meals to Firestore with 'pending' status for Firebase Functions processing
       Map<String, dynamic> saveResult = {};
       if (missingMeals.isNotEmpty) {
-        saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine);
+        saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine,
+            partOfWeeklyMeal: partOfWeeklyMeal);
         debugPrint(
             'Saved ${missingMeals.length} basic meals to Firestore with pending status');
       }
@@ -4670,7 +4672,7 @@ Important guidelines:
             "topK": 20,
             "topP": 0.8,
             "maxOutputTokens":
-                6144, // Fridge analysis - complex with multiple ingredients + meal suggestions
+                8192, // Fridge analysis - complex with multiple ingredients + meal suggestions
           },
         },
         operation: 'analyze fridge image',
@@ -4906,7 +4908,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
               "topK": 20,
               "topP": 0.8,
               "maxOutputTokens":
-                  6000, // Food analysis - increased for complex analysis
+                  8192, // Food analysis - increased for complex analysis
             },
           },
           operation: 'analyze food image',
@@ -4947,7 +4949,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                     "temperature": 0.1,
                     "topK": 20,
                     "topP": 0.8,
-                    "maxOutputTokens": 6000, // Increased token limit
+                    "maxOutputTokens": 8192, // Increased token limit
                   },
                 },
                 operation: 'analyze food image (retry with 6000 tokens)',
@@ -6376,7 +6378,8 @@ Generate completely new and different meal ideas using the same ingredients.
 
   /// Save basic meals to Firestore with minimal data for Firebase Functions processing
   Future<Map<String, dynamic>> saveBasicMealsToFirestore(
-      List<Map<String, dynamic>> newMeals, String cuisine) async {
+      List<Map<String, dynamic>> newMeals, String cuisine,
+      {bool partOfWeeklyMeal = false}) async {
     try {
       final userId = userService.userId ?? '';
       if (userId.isEmpty) {
@@ -6409,6 +6412,7 @@ Generate completely new and different meal ideas using the same ingredients.
           'processingPriority':
               DateTime.now().millisecondsSinceEpoch, // FIFO processing
           'needsProcessing': true, // Flag for Firebase Functions
+          'partOfWeeklyMeal': partOfWeeklyMeal, // Flag for weekly meal plan context
         };
 
         // Debug logging to check ingredients and calories

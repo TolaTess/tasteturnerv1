@@ -84,16 +84,43 @@ class _PremiumScreenState extends State<PremiumScreen> {
     if (purchaseDetails == null) return;
     if (purchaseDetails.status == PurchaseStatus.purchased ||
         purchaseDetails.status == PurchaseStatus.restored) {
-      final userId = userService.userId;
-      if (userId != null) {
+      try {
+        final userId = userService.userId;
+        if (userId == null) {
+          throw Exception("User ID is not available.");
+        }
+
+        // Extract receipt data from purchase details
+        final receiptData = purchaseDetails.verificationData.serverVerificationData;
+        if (receiptData == null || receiptData.isEmpty) {
+          throw Exception("Receipt data is missing from purchase.");
+        }
+
+        // Determine product ID and plan
+        final productId = purchaseDetails.productID;
         final selectedPlan = isYearlySelected ? 'year' : 'month';
-        await authController.updateIsPremiumStatus(
-            context, userId, true, selectedPlan);
+
+        debugPrint("Verifying purchase: productId=$productId, plan=$selectedPlan");
+
+        // Verify purchase with server (this will update premium status after validation)
+        await authController.verifyPurchaseWithServer(
+          context,
+          receiptData,
+          productId,
+          selectedPlan,
+        );
+
+        setState(() {
+          _purchaseInProgress = false;
+        });
+        Navigator.pop(context);
+      } catch (e) {
+        debugPrint("Error processing purchase: $e");
+        setState(() {
+          _purchaseInProgress = false;
+          _purchaseError = e.toString();
+        });
       }
-      setState(() {
-        _purchaseInProgress = false;
-      });
-      Navigator.pop(context);
     } else if (purchaseDetails.status == PurchaseStatus.error) {
       setState(() {
         _purchaseInProgress = false;

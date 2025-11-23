@@ -8,6 +8,9 @@ import '../service/nutrition_controller.dart';
 import '../service/routine_service.dart';
 import '../screens/tomorrow_action_items_screen.dart';
 import '../service/notification_handler_service.dart';
+import '../service/health_journal_service.dart';
+import '../data_models/health_journal_model.dart';
+import 'health_journal_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
   final DateTime date;
@@ -25,9 +28,11 @@ class DailySummaryWidget extends StatefulWidget {
 
 class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   final dailyDataController = Get.find<NutritionController>();
+  final healthJournalService = HealthJournalService.instance;
   bool isLoading = true;
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
+  HealthJournalEntry? journalEntry;
 
   @override
   void initState() {
@@ -58,6 +63,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
       // Load routine completion data
       await _loadRoutineCompletionData(userId, dateString);
+
+      // Load health journal entry
+      final journal = await healthJournalService.fetchJournalEntry(userId, widget.date);
+      if (journal != null) {
+        journalEntry = journal;
+      }
 
       // Load user goals
       final user = userService.currentUser.value;
@@ -319,6 +330,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             fatProgress,
             routineProgress,
           ),
+
+          // Health Journal Entry
+          if (journalEntry != null) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            HealthJournalWidget(journalEntry: journalEntry!),
+          ],
         ],
       ),
     );

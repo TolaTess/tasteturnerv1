@@ -45,6 +45,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
   int grainDishes = 2;
   int vegDishes = 3;
   String selectedCuisine = 'Balanced';
+  final TextEditingController customMealPlanController = TextEditingController();
 
   List<Map<String, dynamic>> cuisineTypes = [];
   List<Map<String, dynamic>> dietTypes = [];
@@ -506,6 +507,75 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
                           ],
                         ),
                       ],
+                      // Custom meal plan text input
+                      Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(4, context),
+                      vertical: getPercentageHeight(1, context),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Custom Meal Plan Requirements (Optional)',
+                          style: TextStyle(
+                            color: getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                            fontSize: getTextScale(3.5, context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        TextField(
+                          controller: customMealPlanController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'E.g., "Focus on high protein meals", "Include Mediterranean flavors", "Quick 30-minute recipes"',
+                            hintStyle: TextStyle(
+                              color: getThemeProvider(context).isDarkMode
+                                  ? kLightGrey
+                                  : kDarkGrey,
+                              fontSize: getTextScale(3, context),
+                            ),
+                            filled: true,
+                            fillColor: getThemeProvider(context).isDarkMode
+                                ? kLightGrey.withValues(alpha: 0.1)
+                                : kWhite,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: getThemeProvider(context).isDarkMode
+                                    ? kLightGrey
+                                    : kDarkGrey,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: getThemeProvider(context).isDarkMode
+                                    ? kLightGrey
+                                    : kDarkGrey,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: kAccent,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          style: TextStyle(
+                            color: getThemeProvider(context).isDarkMode
+                                ? kWhite
+                                : kDarkGrey,
+                            fontSize: getTextScale(3.5, context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                     ],
                   ),
                 ),
@@ -560,7 +630,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
       final mealPlan = await geminiService.generateMealsIntelligently(
-          prompt, mealPlanContext, cuisine);
+          prompt, mealPlanContext, cuisine,
+          partOfWeeklyMeal: true);
 
       debugPrint('mealPlan: $mealPlan');
 
@@ -631,6 +702,7 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
   @override
   void dispose() {
+    customMealPlanController.dispose();
     super.dispose();
   }
 
@@ -724,7 +796,7 @@ Include:
 - $proteinDishes protein dishes
 - $grainDishes grain dishes  
 - $vegDishes vegetable dishes
-
+${customMealPlanController.text.trim().isNotEmpty ? '\nADDITIONAL REQUIREMENTS:\n${customMealPlanController.text.trim()}\n' : ''}
 CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption, meet the calorie target, and align with the nutrition goal.
 ''';
   }
