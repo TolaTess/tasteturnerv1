@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../service/user_service.dart';
 import 'safe_text_field.dart';
 
 class FamilyMembersDialog extends StatefulWidget {
@@ -302,13 +301,15 @@ class _EditFamilyMemberDialogState extends State<EditFamilyMemberDialog> {
   @override
   void initState() {
     super.initState();
-    nameController =
-        TextEditingController(text: capitalizeFirstLetter(widget.familyMember['name'] ?? ''));
+    nameController = TextEditingController(
+        text: capitalizeFirstLetter(widget.familyMember['name'] ?? ''));
     fitnessGoalController = TextEditingController(
-        text: capitalizeFirstLetter(widget.familyMember['fitnessGoal'] ?? 'Healthy Eating'));
-    foodGoalController =
-        TextEditingController(text: capitalizeFirstLetter(widget.familyMember['foodGoal'] ?? '2000'));
-    selectedAgeGroup = capitalizeFirstLetter(widget.familyMember['ageGroup'] ?? 'Adult');
+        text: capitalizeFirstLetter(
+            widget.familyMember['fitnessGoal'] ?? 'Healthy Eating'));
+    foodGoalController = TextEditingController(
+        text: capitalizeFirstLetter(widget.familyMember['foodGoal'] ?? '2000'));
+    selectedAgeGroup =
+        capitalizeFirstLetter(widget.familyMember['ageGroup'] ?? 'Adult');
   }
 
   @override
@@ -320,7 +321,10 @@ class _EditFamilyMemberDialogState extends State<EditFamilyMemberDialog> {
   }
 
   void _saveChanges() {
-    if (nameController.text.trim().isEmpty) {
+    final name = nameController.text.trim();
+
+    // Validate name
+    if (name.isEmpty) {
       showTastySnackbar(
         'Name Required',
         'Please enter a name for the family member.',
@@ -330,8 +334,22 @@ class _EditFamilyMemberDialogState extends State<EditFamilyMemberDialog> {
       return;
     }
 
+    // Validate name length
+    if (name.length < 2 || name.length > 50) {
+      showTastySnackbar(
+        'Invalid Name',
+        'Name must be between 2 and 50 characters.',
+        context,
+        backgroundColor: kRed,
+      );
+      return;
+    }
+
+    // Sanitize name - remove potentially harmful characters
+    final sanitizedName = name.replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+
     final updatedMember = {
-      'name': nameController.text.trim(),
+      'name': sanitizedName,
       'ageGroup': selectedAgeGroup,
       'fitnessGoal': fitnessGoalController.text.trim(),
       'foodGoal': foodGoalController.text.trim(),

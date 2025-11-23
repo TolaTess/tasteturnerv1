@@ -217,9 +217,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       ),
                                     )
                                   : SvgPicture.asset(
-                                      "assets/images/svg/apple.svg",
-                                      height: getPercentageWidth(5, context),
-                                    ),
+                                "assets/images/svg/apple.svg",
+                                height: getPercentageWidth(5, context),
+                              ),
                             ),
                           ),
                         ),
@@ -253,9 +253,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   )
                                 : SvgPicture.asset(
-                                    "assets/images/svg/google.svg",
-                                    height: getPercentageWidth(5, context),
-                                  ),
+                              "assets/images/svg/google.svg",
+                              height: getPercentageWidth(5, context),
+                            ),
                           ),
                         ),
                       ),

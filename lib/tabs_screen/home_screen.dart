@@ -70,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _networkCheckTimer;
   bool _showGoalsPrompt = false;
   bool _tutorialCompleted = false;
+  Worker? _unreadNotificationsWorker;
 
   @override
   void initState() {
@@ -77,18 +78,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Initialize ProgramService
     _programService = Get.put(ProgramService());
 
+    // Setup listener for unread notifications (moved out of build method)
+    _setupUnreadNotificationsListener();
+
     // Initialize NotificationService - will be done in post frame callback
     // to ensure the service is ready
 
     // _initializeMealData();
     loadShowCaloriesPref().then((value) {
-      setState(() {
-        showCaloriesAndGoal = value;
-      });
+      if (mounted) {
+        setState(() {
+          showCaloriesAndGoal = value;
+        });
+      }
     });
     _getAllDisabled().then((value) {
-      if (value) {
-        allDisabled = value;
+      if (mounted && value) {
         setState(() {
           allDisabled = value;
         });
@@ -99,6 +104,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _setupDataListeners();
     _startNetworkCheck();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
       // Initialize NotificationService after the widget is built
       try {
         notificationService = Get.find<NotificationService>();
@@ -108,17 +115,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return;
       }
 
+      if (!mounted) return;
+
       // Check and show notification preference prompt for existing users
       _checkNotificationPreference();
+
+      if (!mounted) return;
 
       // Then show the meal tutorial
       _showAddMealTutorial();
 
+      if (!mounted) return;
+
       // Check goals prompt after tutorial (60 seconds delay)
       _checkGoalsPromptAfterTutorial();
 
+      if (!mounted) return;
+
       // Setup Cloud Functions notifications (replaces local scheduling)
       _setupHybridNotifications();
+
+      if (!mounted) return;
 
       // Preload dietary/cuisine data early for better performance
       _preloadDietaryData();
@@ -171,11 +188,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _initializeNotifications() async {
+    if (!mounted) return;
+
     try {
       // Initialize local notification service (without requesting permissions)
       await notificationService?.initNotification(
         onNotificationTapped: (String? payload) {
-          if (payload != null) {
+          if (payload != null && mounted) {
             _handleNotificationTap(payload);
           }
         },
@@ -186,6 +205,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
       );
 
+      if (!mounted) return;
+
       // Request iOS permissions explicitly now that user has enabled notifications
       try {
         await notificationService?.requestIOSPermissions();
@@ -193,6 +214,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       } catch (e) {
         debugPrint('Error requesting iOS notification permissions: $e');
       }
+
+      if (!mounted) return;
 
       // Initialize hybrid notification service for Android/iOS
       try {
@@ -209,12 +232,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _handleNotificationTap(String payload) async {
+    if (!mounted) return;
+
     try {
       debugPrint('Notification tapped: $payload');
 
       if (payload.contains('meal_plan_reminder') ||
           payload.contains('evening_review') ||
           payload.contains('water_reminder')) {
+        if (!mounted) return;
+
         if (payload.contains('meal_plan_reminder')) {
           Get.to(() => const BottomNavSec(selectedIndex: 4));
         } else if (payload.contains('water_reminder')) {
@@ -225,6 +252,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       debugPrint('Error handling notification tap: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to open notification. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
     }
   }
 
@@ -265,12 +300,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           actions: [
             TextButton(
               onPressed: () async {
-                // User declined
-                await authController.updateUserData({
-                  'settings.notificationsEnabled': false,
-                  'settings.notificationPreferenceSet': true,
-                });
-                Navigator.of(context).pop();
+                if (!mounted) return;
+                try {
+                  // User declined
+                  await authController.updateUserData({
+                    'settings.notificationsEnabled': false,
+                    'settings.notificationPreferenceSet': true,
+                  });
+                  if (mounted && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                } catch (e) {
+                  debugPrint('Error updating notification preference: $e');
+                  if (mounted && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                }
               },
               child: Text(
                 'Not Now',
@@ -292,23 +337,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               onPressed: () async {
-                // User accepted
-                await authController.updateUserData({
-                  'settings.notificationsEnabled': true,
-                  'settings.notificationPreferenceSet': true,
-                });
-                Navigator.of(context).pop();
+                if (!mounted) return;
+                try {
+                  // User accepted
+                  await authController.updateUserData({
+                    'settings.notificationsEnabled': true,
+                    'settings.notificationPreferenceSet': true,
+                  });
+                  if (mounted && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
 
-                // Initialize notifications
-                await _initializeNotifications();
+                  if (!mounted) return;
 
-                // Show success message
-                showTastySnackbar(
-                  'Notifications Enabled',
-                  'You\'ll now receive helpful reminders!',
-                  context,
-                  backgroundColor: kAccent,
-                );
+                  // Initialize notifications
+                  await _initializeNotifications();
+
+                  // Show success message
+                  if (mounted && context.mounted) {
+                    showTastySnackbar(
+                      'Notifications Enabled',
+                      'You\'ll now receive helpful reminders!',
+                      context,
+                      backgroundColor: kAccent,
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Error enabling notifications: $e');
+                  if (mounted && context.mounted) {
+                    Navigator.of(context).pop();
+                    showTastySnackbar(
+                      'Error',
+                      'Failed to enable notifications. Please try again.',
+                      context,
+                      backgroundColor: Colors.red,
+                    );
+                  }
+                }
               },
               child: Text(
                 'Enable',
@@ -502,22 +567,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _saveFamilyMembers(List<Map<String, String>> members) async {
-    try {
-      // Convert to FamilyMember objects
-      final familyMembers = members
-          .where((m) => m['name']?.isNotEmpty == true)
-          .map((m) => FamilyMember(
-                name: m['name']!,
-                ageGroup: m['ageGroup']!,
-                fitnessGoal: m['fitnessGoal']!,
-                foodGoal: m['foodGoal']!,
-              ))
-          .toList();
+    if (!mounted) return;
 
-      if (familyMembers.isEmpty) return;
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) {
+        debugPrint('Error: userId is null in _saveFamilyMembers');
+        if (mounted && context.mounted) {
+          showTastySnackbar(
+            'Error',
+            'User ID is missing. Please try again.',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
+        return;
+      }
+
+      // Validate and sanitize family member data
+      final familyMembers = members.where((m) {
+        final name = m['name']?.trim() ?? '';
+        return name.isNotEmpty && name.length >= 2 && name.length <= 50;
+      }).map((m) {
+        // Sanitize name
+        final sanitizedName =
+            (m['name']?.trim() ?? '').replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+
+        return FamilyMember(
+          name: sanitizedName,
+          ageGroup: m['ageGroup'] ?? 'Adult',
+          fitnessGoal: m['fitnessGoal'] ?? 'Family Nutrition',
+          foodGoal: m['foodGoal'] ?? '2000',
+        );
+      }).toList();
+
+      if (familyMembers.isEmpty) {
+        if (mounted && context.mounted) {
+          showTastySnackbar(
+            'Invalid Input',
+            'Please enter valid family member names (2-50 characters).',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
+        return;
+      }
 
       // Update user in Firestore
-      await firestore.collection('users').doc(userService.userId).update({
+      await firestore.collection('users').doc(userId).update({
         'familyMode': true,
         'familyMembers': familyMembers.map((f) => f.toMap()).toList(),
       });
@@ -567,30 +664,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> loadMeals(String date) async {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
-    QuerySnapshot snapshot = await firestore
-        .collection('mealPlans')
-        .doc(userService.userId)
-        .collection('date')
-        .where('date', isEqualTo: formattedDate)
-        .get();
+    if (!mounted) return;
 
-    if (snapshot.docs.isNotEmpty) {
-      final data = snapshot.docs.first.data() as Map<String, dynamic>?;
-      final mealsList = data?['meals'] as List<dynamic>? ?? [];
-      if (mealsList.isNotEmpty) {
-        hasMealPlan = true;
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('Warning: userId is null or empty in loadMeals');
+      if (mounted) {
+        setState(() {
+          hasMealPlan = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
+      QuerySnapshot snapshot = await firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('date')
+          .where('date', isEqualTo: formattedDate)
+          .get();
+
+      if (!mounted) return;
+
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data() as Map<String, dynamic>?;
+        final mealsList = data?['meals'] as List<dynamic>? ?? [];
+        if (mealsList.isNotEmpty) {
+          hasMealPlan = true;
+        } else {
+          hasMealPlan = false;
+        }
       } else {
         hasMealPlan = false;
       }
-    } else {
-      hasMealPlan = false;
-    }
 
-    if (mounted) {
-      setState(() {
-        hasMealPlan = hasMealPlan;
-      });
+      if (mounted) {
+        setState(() {
+          hasMealPlan = hasMealPlan;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading meals: $e');
+      if (mounted) {
+        setState(() {
+          hasMealPlan = false;
+        });
+      }
     }
   }
 
@@ -600,12 +721,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _onRefresh() async {
-    _initializeMealData();
-    chatController.loadUserChats(userService.userId ?? '');
-    await helperController.fetchWinners();
-    await firebaseService.fetchGeneralData();
-    loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
-    await macroManager.fetchIngredients();
+    if (!mounted) return;
+
+    try {
+      _initializeMealData();
+
+      final userId = userService.userId;
+      if (userId != null && userId.isNotEmpty) {
+        chatController.loadUserChats(userId);
+      }
+
+      // Run independent operations in parallel
+      await Future.wait([
+        helperController.fetchWinners(),
+        firebaseService.fetchGeneralData(),
+        macroManager.fetchIngredients(),
+      ]);
+
+      if (mounted) {
+        loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
+      }
+    } catch (e) {
+      debugPrint('Error refreshing data: $e');
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+          'Refresh Failed',
+          'Unable to refresh data. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
   }
 
   /// Setup hybrid notifications (FCM for Android, Local for iOS)
@@ -660,23 +806,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _initializeMealData() async {
-    Map<String, String> settings = {};
-    userService.currentUser.value?.settings.forEach((key, value) {
-      settings[key.toString()] = value.toString();
-    });
+    if (!mounted) return;
 
-    dailyDataController.listenToDailyData(
-        userService.userId ?? '', DateTime.now());
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('Warning: userId is null in _initializeMealData');
+      return;
+    }
+
+    // Settings conversion is not needed - dailyDataController doesn't use it
+    // Removed unnecessary settings map creation
+
+    dailyDataController.listenToDailyData(userId, DateTime.now());
   }
 
   void _initializeMealDataByDate() async {
-    Map<String, String> settings = {};
-    userService.currentUser.value?.settings.forEach((key, value) {
-      settings[key.toString()] = value.toString();
-    });
+    if (!mounted) return;
 
-    dailyDataController.listenToDailyData(
-        userService.userId ?? '', currentDate);
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('Warning: userId is null in _initializeMealDataByDate');
+      return;
+    }
+
+    // Settings conversion is not needed - dailyDataController doesn't use it
+    // Removed unnecessary settings map creation
+
+    dailyDataController.listenToDailyData(userId, currentDate);
   }
 
   Future<bool> _getAllDisabled() async {
@@ -689,13 +845,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _preloadDietaryData() {
     // Fetch data in background without blocking UI
     Future.microtask(() async {
+      if (!mounted) return;
+
       try {
-        final helperController = Get.find<HelperController>();
+        HelperController? helperController;
+        try {
+          helperController = Get.find<HelperController>();
+        } catch (e) {
+          debugPrint('HelperController not found: $e');
+          return;
+        }
+
+        if (!mounted) return;
+
         // Only fetch if data is not already loaded
         if (helperController.headers.isEmpty) {
           await helperController.fetchHeaders();
         }
-        if (helperController.category.isEmpty) {
+        if (mounted && helperController.category.isEmpty) {
           await helperController.fetchCategorys();
         }
         debugPrint('Dietary data preloaded successfully');
@@ -712,10 +879,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  // Start network connectivity check
+  // Start network connectivity check (optimized to check every 30 seconds instead of 5)
   void _startNetworkCheck() {
-    _networkCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _checkNetworkConnectivity();
+    _networkCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _checkNetworkConnectivity();
+      } else {
+        timer.cancel();
+      }
     });
   }
 
@@ -808,10 +979,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastUnreadCount = unreadCount; // Update last unread count
   }
 
+  /// Setup listener for unread notifications using GetX Worker
+  void _setupUnreadNotificationsListener() {
+    _unreadNotificationsWorker = ever(
+      chatController.userChats,
+      (_) {
+        // Calculate unread count when chats change
+        final nonBuddyChats = chatController.userChats
+            .where((chat) => !(chat['participants'] as List).contains('buddy'))
+            .toList();
+
+        final int unreadCount = nonBuddyChats.fold<int>(
+          0,
+          (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
+        );
+
+        _handleUnreadNotifications(unreadCount);
+      },
+    );
+  }
+
   @override
   void dispose() {
     _tastyPopupTimer?.cancel();
     _networkCheckTimer?.cancel();
+    _unreadNotificationsWorker?.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -984,8 +1177,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   sum + (chat['unreadCount'] as int? ?? 0),
                             );
 
-                            // Handle notifications
-                            _handleUnreadNotifications(unreadCount);
+                            // Note: Unread notifications are now handled by _setupUnreadNotificationsListener()
+                            // This prevents async operations in build method
 
                             if (unreadCount >= 1) {
                               return Container(
@@ -1055,13 +1248,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         // Mark as shown in storage
                         await OnboardingPromptHelper.markGoalsPromptShown();
 
+                        if (!mounted) return;
+
                         // Navigate to nutrition settings
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NutritionSettingsPage(),
-                          ),
-                        );
+                        try {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const NutritionSettingsPage(),
+                            ),
+                          );
+                        } catch (e) {
+                          debugPrint(
+                              'Error navigating to NutritionSettingsPage: $e');
+                          if (mounted && context.mounted) {
+                            showTastySnackbar(
+                              'Error',
+                              'Unable to open nutrition settings. Please try again.',
+                              context,
+                              backgroundColor: Colors.red,
+                            );
+                          }
+                        }
                       },
                       onDismiss: () {
                         setState(() {
@@ -1388,15 +1597,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     builder: (context, constraints) {
                       final isDarkMode = getThemeProvider(context).isDarkMode;
                       final userData = {
-                        'name': currentUser?.displayName ?? '',
+                        'name': currentUser.displayName ?? '',
                         'fitnessGoal':
-                            currentUser?.settings['fitnessGoal'] ?? '',
-                        'foodGoal': currentUser?.settings['foodGoal'] ?? '',
+                            currentUser.settings['fitnessGoal'] ?? '',
+                        'foodGoal': currentUser.settings['foodGoal'] ?? '',
                         'meals': [],
                         'avatar': null,
                       };
 
-                      final familyMembers = currentUser?.familyMembers ?? [];
+                      final familyMembers = currentUser.familyMembers ?? [];
                       final familyList =
                           familyMembers.map((f) => f.toMap()).toList();
                       final displayList = [userData, ...familyList];
@@ -1432,11 +1641,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     onSelectUser: (index) {
                                       setState(() {
                                         selectedUserIndex = index;
+                                        // No need for redundant setState - the above already triggers rebuild
                                       });
-                                      // Force rebuild of all components that depend on user data
-                                      if (mounted) {
-                                        setState(() {});
-                                      }
                                     },
                                     isDarkMode: isDarkMode,
                                   ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
-import '../themes/theme_provider.dart';
 
 class PostOnboardingWalkthrough extends StatefulWidget {
   const PostOnboardingWalkthrough({super.key});
@@ -62,6 +62,7 @@ class _PostOnboardingWalkthroughState extends State<PostOnboardingWalkthrough>
   @override
   void dispose() {
     _bounceController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -77,12 +78,22 @@ class _PostOnboardingWalkthroughState extends State<PostOnboardingWalkthrough>
   }
 
   void _completeWalkthrough() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BottomNavSec(),
-      ),
-    );
+    if (!mounted) return;
+
+    try {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BottomNavSec(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error navigating from walkthrough: $e');
+      if (mounted) {
+        // Fallback navigation
+        Get.offAll(() => const BottomNavSec());
+      }
+    }
   }
 
   @override

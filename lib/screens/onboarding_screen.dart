@@ -22,8 +22,10 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class OnboardingScreen extends StatefulWidget {
   final String userId;
   final String? displayName;
-  final String? authProvider; // Track which auth provider was used (apple.com, google.com, password)
-  const OnboardingScreen({super.key, required this.userId, this.displayName, this.authProvider});
+  final String?
+      authProvider; // Track which auth provider was used (apple.com, google.com, password)
+  const OnboardingScreen(
+      {super.key, required this.userId, this.displayName, this.authProvider});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -41,6 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _notificationsEnabled = false;
   bool _darkModeEnabled = false;
   bool _isEditingName = false; // Track if user is editing their name
+  bool _isSubmitting = false; // Prevent multiple submissions
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -64,6 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void dispose() {
     _bounceController.dispose();
+    _controller.dispose();
     nameController.dispose();
     super.dispose();
   }
@@ -80,7 +84,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       'nigga',
       'nigger',
     ];
-    return profaneWords.any(text.toLowerCase().contains);
+    final lowerText = text.toLowerCase();
+    return profaneWords.any((word) => lowerText.contains(word));
+  }
+
+  // Validate and sanitize name
+  String? _validateName(String name) {
+    final trimmed = name.trim();
+
+    if (trimmed.isEmpty) {
+      return 'Name cannot be empty';
+    }
+
+    if (trimmed.length < 2) {
+      return 'Name must be at least 2 characters';
+    }
+
+    if (trimmed.length > 50) {
+      return 'Name must be less than 50 characters';
+    }
+
+    if (isProfane(trimmed)) {
+      return 'Please use appropriate language';
+    }
+
+    // Remove any potentially harmful characters
+    final sanitized = trimmed.replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+    if (sanitized != trimmed) {
+      return 'Name contains invalid characters';
+    }
+
+    return null; // Valid
   }
 
   /// ✅ Check if all required fields are filled before enabling "Next"
@@ -90,10 +124,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         case 0:
           final name = nameController.text.trim();
           // For Apple Sign In with provided name, always enable Next (name is read-only)
-          final bool isAppleSignInWithName = widget.authProvider == 'apple.com' && 
-              widget.displayName != null && widget.displayName!.isNotEmpty;
+          final bool isAppleSignInWithName =
+              widget.authProvider == 'apple.com' &&
+                  widget.displayName != null &&
+                  widget.displayName!.isNotEmpty;
           // Only name is required, or if Apple provided name, it's always valid
-          _isNextEnabled = isAppleSignInWithName || (name.isNotEmpty && !isProfane(name));
+          if (isAppleSignInWithName) {
+            _isNextEnabled = true;
+          } else {
+            final validationError = _validateName(name);
+            _isNextEnabled = validationError == null;
+          }
           break;
         case 1:
         case 2:
@@ -108,11 +149,42 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _submitOnboarding() async {
+    if (_isSubmitting) return; // Prevent multiple submissions
+
     try {
       if (widget.userId.isEmpty) {
         debugPrint("Error: User ID is missing.");
+        if (mounted) {
+          Get.snackbar(
+            'Error',
+            'User ID is missing. Please try again.',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
         return;
       }
+
+      // Validate name before submission
+      final name = nameController.text.trim();
+      final nameValidation = _validateName(name);
+      if (nameValidation != null) {
+        if (mounted) {
+          Get.snackbar(
+            'Invalid Name',
+            nameValidation,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      if (!mounted) return;
 
       Get.dialog(
         const Center(
@@ -122,9 +194,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         barrierDismissible: false,
       );
 
+      // Sanitize name before saving
+      final sanitizedName =
+          nameController.text.trim().replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+
       final newUser = UserModel(
         userId: widget.userId,
-        displayName: nameController.text.trim(),
+        displayName: sanitizedName,
         bio: getRandomBio(bios),
         dob: '', // Empty - will trigger prompt
         profileImage: '',
@@ -203,70 +279,121 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         await helperController.saveMealPlan(
             widget.userId, formattedDate, 'welcome_day');
 
-        if (widget.userId != tastyId3 || widget.userId != tastyId4) {
+        if (widget.userId != tastyId3 && widget.userId != tastyId4) {
           await friendController.followFriend(
               widget.userId, tastyId, 'Tasty AI', context);
         }
 
         await prefs.setBool('is_first_time_user', true);
 
-        // Initialize notifications if enabled
-        if (_notificationsEnabled) {
-          try {
-            final notificationService = Get.find<NotificationService>();
-            // Initialize without requesting permissions
-            await notificationService.initNotification(
-              onNotificationTapped: (String? payload) {
-                if (payload != null) {
-                  _handleNotificationTap(payload);
-                }
-              },
-            ).timeout(
-              const Duration(seconds: 10),
-              onTimeout: () {
-                debugPrint('Notification initialization timed out');
-              },
-            );
-
-            // Request iOS permissions explicitly now that user has enabled notifications
-            try {
-              await notificationService.requestIOSPermissions();
-              debugPrint(
-                  'iOS notification permissions requested during onboarding');
-            } catch (e) {
-              debugPrint('Error requesting iOS notification permissions: $e');
-            }
-
-            // Initialize hybrid notification service for Android/iOS
-            try {
-              final hybridNotificationService =
-                  Get.find<HybridNotificationService>();
-              await hybridNotificationService.initializeHybridNotifications();
-              debugPrint('Hybrid notifications initialized during onboarding');
-            } catch (e) {
-              debugPrint('Error initializing hybrid notifications: $e');
-            }
-
-            debugPrint('Notifications enabled during onboarding');
-          } catch (e) {
-            debugPrint('Error initializing notifications: $e');
-          }
-        }
-
-        // Close loading dialog
-        Get.back();
-
-        // Navigate to main app with bottom navigation
-        Get.offAll(() => const BottomNavSec());
-
+        // Request UMP consent before navigation
         try {
           await requestUMPConsent();
         } catch (e) {
           debugPrint("Error requesting UMP consent: $e");
         }
-      } catch (e) {
+
+        // Initialize notifications if enabled
+        if (_notificationsEnabled && mounted) {
+          try {
+            NotificationService? notificationService;
+            try {
+              notificationService = Get.find<NotificationService>();
+            } catch (e) {
+              debugPrint('NotificationService not found: $e');
+              if (mounted) {
+                Get.snackbar(
+                  'Notification Setup',
+                  'Notifications could not be initialized. You can enable them later in settings.',
+                  backgroundColor: kAccentLight,
+                  colorText: kWhite,
+                  duration: const Duration(seconds: 3),
+                );
+              }
+            }
+
+            if (notificationService != null && mounted) {
+              // Initialize without requesting permissions
+              await notificationService.initNotification(
+                onNotificationTapped: (String? payload) {
+                  if (payload != null && mounted) {
+                    _handleNotificationTap(payload);
+                  }
+                },
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  debugPrint('Notification initialization timed out');
+                },
+              );
+
+              // Request iOS permissions explicitly now that user has enabled notifications
+              if (mounted) {
+                try {
+                  await notificationService.requestIOSPermissions();
+                  debugPrint(
+                      'iOS notification permissions requested during onboarding');
+                } catch (e) {
+                  debugPrint(
+                      'Error requesting iOS notification permissions: $e');
+                }
+              }
+
+              // Initialize hybrid notification service for Android/iOS
+              if (mounted) {
+                try {
+                  HybridNotificationService? hybridNotificationService;
+                  try {
+                    hybridNotificationService =
+                        Get.find<HybridNotificationService>();
+                  } catch (e) {
+                    debugPrint('HybridNotificationService not found: $e');
+                  }
+
+                  if (hybridNotificationService != null) {
+                    await hybridNotificationService
+                        .initializeHybridNotifications();
+                    debugPrint(
+                        'Hybrid notifications initialized during onboarding');
+                  }
+                } catch (e) {
+                  debugPrint('Error initializing hybrid notifications: $e');
+                }
+              }
+
+              debugPrint('Notifications enabled during onboarding');
+            }
+          } catch (e) {
+            debugPrint('Error initializing notifications: $e');
+            if (mounted) {
+              // Show non-blocking error - notifications are optional
+              Get.snackbar(
+                'Notification Setup',
+                'Notifications could not be initialized. You can enable them later in settings.',
+                backgroundColor: kAccentLight,
+                colorText: kWhite,
+                duration: const Duration(seconds: 3),
+              );
+            }
+          }
+        }
+
+        if (!mounted) return;
+
         // Close loading dialog
-        Get.back();
+        if (Get.isDialogOpen ?? false) {
+          Get.back();
+        }
+
+        // Navigate to main app with bottom navigation
+        Get.offAll(() => const BottomNavSec());
+      } catch (e) {
+        if (!mounted) return;
+
+        // Close loading dialog if open
+        if (Get.isDialogOpen ?? false) {
+          Get.back();
+        }
 
         debugPrint("Error saving user data: $e");
         Get.snackbar(
@@ -275,16 +402,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error in _submitOnboarding: $e");
-      Get.snackbar(
-        'Error',
-        'Something went wrong. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      Get.back();
+      if (mounted) {
+        // Close loading dialog if open
+        if (Get.isDialogOpen ?? false) {
+          Get.back();
+        }
+
+        Get.snackbar(
+          'Error',
+          'Something went wrong. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -293,12 +436,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // }
 
   void _handleNotificationTap(String payload) async {
+    if (!mounted) return;
+
     try {
       debugPrint('Notification tapped: $payload');
 
       if (payload.contains('meal_plan_reminder') ||
           payload.contains('evening_review') ||
           payload.contains('water_reminder')) {
+        if (!mounted) return;
+
         if (payload.contains('meal_plan_reminder')) {
           Get.to(() => const BottomNavSec(selectedIndex: 4));
         } else if (payload.contains('water_reminder')) {
@@ -307,21 +454,39 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Get.to(() => AddFoodScreen(date: DateTime.now()));
         }
       } else {
+        if (!mounted) return;
+
         try {
-          final handlerService = Get.find<NotificationHandlerService>();
-          await handlerService.handleNotificationPayload(payload);
+          NotificationHandlerService? handlerService;
+          try {
+            handlerService = Get.find<NotificationHandlerService>();
+          } catch (e) {
+            debugPrint('NotificationHandlerService not found: $e');
+          }
+
+          if (handlerService != null) {
+            await handlerService.handleNotificationPayload(payload);
+          } else if (mounted && context.mounted) {
+            showTastySnackbar(
+                'Something went wrong', 'Please try again later', context,
+                backgroundColor: kRed);
+          }
         } catch (e) {
           debugPrint('Error handling complex notification: $e');
-          showTastySnackbar(
-              'Something went wrong', 'Please try again later', Get.context!,
-              backgroundColor: kRed);
+          if (mounted && context.mounted) {
+            showTastySnackbar(
+                'Something went wrong', 'Please try again later', context,
+                backgroundColor: kRed);
+          }
         }
       }
     } catch (e) {
       debugPrint('Error handling notification tap: $e');
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      if (mounted && context.mounted) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -405,7 +570,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final bool isAppleSignIn = widget.authProvider == 'apple.com';
     final bool isNameFromApple = isAppleSignIn && hasExistingName;
     // Show text field only if: no name exists OR (not Apple Sign In OR user explicitly wants to edit)
-    final bool showTextField = !hasExistingName || (!isAppleSignIn && _isEditingName);
+    final bool showTextField =
+        !hasExistingName || (!isAppleSignIn && _isEditingName);
     final textTheme = Theme.of(context).textTheme;
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -450,7 +616,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               Container(
                   padding: EdgeInsets.all(getPercentageWidth(5, context)),
                   decoration: BoxDecoration(
-                    color: isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1),
+                    color:
+                        isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: kAccent.withValues(alpha: 0.3),

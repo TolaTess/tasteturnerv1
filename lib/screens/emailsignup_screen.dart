@@ -240,10 +240,10 @@ class _SignUpFormState extends State<SignUpForm> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 EmailField(
-                  kHint: "Your Email",
-                  themeProvider: isDarkMode,
-                  controller: widget.emailController, 
-                  noCapitalize: false,
+              kHint: "Your Email",
+              themeProvider: isDarkMode,
+              controller: widget.emailController, 
+              noCapitalize: false,
                 ),
                 if (showEmailError)
                   Padding(
@@ -270,10 +270,10 @@ class _SignUpFormState extends State<SignUpForm> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 PasswordField(
-                  kHint: "Password",
-                  themeProvider: isDarkMode,
-                  controller: widget.passwordController,
-                  noCapitalize: false,
+              kHint: "Password",
+              themeProvider: isDarkMode,
+              controller: widget.passwordController,
+              noCapitalize: false,
                 ),
                 if (showPasswordStrengthError && _passwordStrengthMessage != null)
                   Padding(

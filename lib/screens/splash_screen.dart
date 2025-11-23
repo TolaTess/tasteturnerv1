@@ -65,12 +65,12 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigateToOnboarding() {
     if (!mounted) return;
     try {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SignupScreen(),
-        ),
-      );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SignupScreen(),
+      ),
+    );
     } catch (e) {
       debugPrint('Error navigating to signup: $e');
     }
