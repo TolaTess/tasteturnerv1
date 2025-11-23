@@ -1301,7 +1301,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
           
           response = await geminiService.getResponse(
             prompt,
-            maxTokens: 512,
+            maxTokens: 8000, // Increased for comprehensive chat responses
             role: buddyAiRole,
           );
 

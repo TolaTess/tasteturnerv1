@@ -12,12 +12,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Helper function to check if user is premium
-    function isPremium(userId) {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(userId)).data.isPremium == true;
-    }
-    
     // ============================================================================
     // USERS COLLECTION
     // ============================================================================

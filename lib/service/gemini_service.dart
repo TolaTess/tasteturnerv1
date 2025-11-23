@@ -3035,7 +3035,8 @@ $contextInformation''';
     await _getUserContext(); // This will fetch fresh data
   }
 
-  Future<String> getResponse(String prompt, {int maxTokens = 2048, String? role}) async {
+  Future<String> getResponse(String prompt,
+      {int maxTokens = 8000, String? role}) async {
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
@@ -4263,7 +4264,8 @@ Generate $mealCount meals. Return JSON only:
       Map<String, dynamic> saveResult = {};
       if (missingMeals.isNotEmpty) {
         saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine,
-            partOfWeeklyMeal: partOfWeeklyMeal, weeklyPlanContext: weeklyPlanContext);
+            partOfWeeklyMeal: partOfWeeklyMeal,
+            weeklyPlanContext: weeklyPlanContext);
         debugPrint(
             'Saved ${missingMeals.length} basic meals to Firestore with pending status');
       }
@@ -6413,8 +6415,10 @@ Generate completely new and different meal ideas using the same ingredients.
           'processingPriority':
               DateTime.now().millisecondsSinceEpoch, // FIFO processing
           'needsProcessing': true, // Flag for Firebase Functions
-          'partOfWeeklyMeal': partOfWeeklyMeal, // Flag for weekly meal plan context
-          'weeklyPlanContext': weeklyPlanContext, // Context about the weekly meal plan
+          'partOfWeeklyMeal':
+              partOfWeeklyMeal, // Flag for weekly meal plan context
+          'weeklyPlanContext':
+              weeklyPlanContext, // Context about the weekly meal plan
         };
 
         // Debug logging to check ingredients and calories
