@@ -243,8 +243,16 @@ class _TastyScreenState extends State<TastyScreen> {
     _speech.stop();
     _scrollController.dispose();
     textController.dispose();
-    _saveChatSummary();
+    // Don't await async operations in dispose - use deactivate instead
     super.dispose();
+  }
+
+  @override
+  void deactivate() {
+    // Save chat summary before widget is deactivated
+    // This is called before dispose, so we can safely call async operations
+    _saveChatSummary();
+    super.deactivate();
   }
 
   Widget _buildPremiumPrompt(ThemeProvider themeProvider, TextTheme textTheme) {
@@ -1397,13 +1405,14 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
       });
     } else {
       // New chat - create it and listen
-      await chatController.initializeChat('buddy').then((_) {
-        setState(() {
-          chatId = chatController.chatId;
-        });
+      await chatController.initializeChat('buddy');
+      setState(() {
+        chatId = chatController.chatId;
+      });
+      if (chatId != null) {
         userService.setBuddyChatId(chatId!);
         chatController.markMessagesAsRead(chatId!, 'buddy');
-      });
+      }
 
       // For completely new chats: Send AI-generated welcome message
       final userContext = _getUserContext();

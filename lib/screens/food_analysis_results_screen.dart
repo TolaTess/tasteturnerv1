@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../helper/ingredient_utils.dart';
 import '../widgets/primary_button.dart';
 import '../data_models/post_model.dart';
 import '../service/battle_service.dart';
@@ -235,7 +236,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
     // Group ingredients by normalized name
     stringIngredients.forEach((originalName, amount) {
-      final normalizedName = _normalizeIngredientName(originalName);
+      final normalizedName = normalizeIngredientName(originalName);
 
       if (!groupedIngredients.containsKey(normalizedName)) {
         groupedIngredients[normalizedName] = [];
@@ -251,82 +252,12 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         normalizedIngredients[ingredient.key] = ingredient.value;
       } else {
         // Multiple ingredients with same normalized name - combine them
-        final combinedResult = _combineIngredients(ingredientList);
+        final combinedResult = combineIngredients(ingredientList);
         normalizedIngredients[combinedResult.key] = combinedResult.value;
       }
     });
 
     return normalizedIngredients;
-  }
-
-  /// Normalize ingredient name for comparison (lowercase, no spaces, common substitutions)
-  String _normalizeIngredientName(String name) {
-    return name
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
-        .replaceAll(RegExp(r'[^\w]'), '') // Remove non-word characters
-        .replaceAll('oilolive', 'oliveoil') // Handle oil variations
-        .replaceAll('saltpink', 'pinksalt')
-        .replaceAll('saltrock', 'rocksalt')
-        .replaceAll('saltsea', 'seasalt');
-  }
-
-  /// Combine multiple ingredients with the same normalized name
-  MapEntry<String, String> _combineIngredients(
-    List<MapEntry<String, String>> ingredients,
-  ) {
-    // Use the most descriptive name (longest with spaces)
-    String bestName = ingredients.first.key;
-    for (final ingredient in ingredients) {
-      if (ingredient.key.contains(' ') &&
-          ingredient.key.length > bestName.length) {
-        bestName = ingredient.key;
-      }
-    }
-
-    // Try to combine quantities if they have the same unit
-    final quantities = <double>[];
-    String? commonUnit;
-    bool canCombine = true;
-
-    for (final ingredient in ingredients) {
-      final amount = ingredient.value.toLowerCase().trim();
-      final match = RegExp(r'(\d+(?:\.\d+)?)\s*([a-zA-Z]*)').firstMatch(amount);
-
-      if (match != null) {
-        final quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
-        final unit = match.group(2) ?? '';
-
-        if (commonUnit == null) {
-          commonUnit = unit;
-        } else if (commonUnit != unit && unit.isNotEmpty) {
-          // Different units, can't combine
-          canCombine = false;
-          break;
-        }
-        quantities.add(quantity);
-      } else {
-        // Can't parse quantity, can't combine
-        canCombine = false;
-        break;
-      }
-    }
-
-    if (canCombine && quantities.isNotEmpty) {
-      final totalQuantity = quantities.reduce((a, b) => a + b);
-      final combinedAmount = commonUnit != null && commonUnit.isNotEmpty
-          ? '$totalQuantity$commonUnit'
-          : totalQuantity.toString();
-      return MapEntry(bestName, combinedAmount);
-    } else {
-      // Can't combine, use the first one and add a note
-      final firstAmount = ingredients.first.value;
-      final additionalCount = ingredients.length - 1;
-      final combinedAmount = additionalCount > 0
-          ? '$firstAmount (+$additionalCount more)'
-          : firstAmount;
-      return MapEntry(bestName, combinedAmount);
-    }
   }
 
   Color _getHealthScoreColor(int? score, String? confidence) {

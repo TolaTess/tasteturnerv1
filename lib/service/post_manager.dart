@@ -370,7 +370,11 @@ class PostController extends GetxController {
           downloadUrls.add(downloadUrl);
         } finally {
           // Ensure cleanup of temporary files
-          await File(compressedPath).delete().catchError((e) {});
+          try {
+            await File(compressedPath).delete();
+          } catch (e) {
+            debugPrint('Error deleting temporary compressed file: $e');
+          }
         }
       }
 
@@ -397,9 +401,30 @@ class PostController extends GetxController {
         'posts': FieldValue.arrayUnion([postRef.id]),
       });
 
-      await batch.commit();
+      try {
+        await batch.commit();
+        debugPrint('Successfully uploaded post and updated user references');
+      } catch (batchError) {
+        debugPrint('Batch commit failed: $batchError');
+        // Provide more specific error message
+        if (batchError.toString().contains('permission')) {
+          throw Exception('Permission denied. Please check your account status.');
+        } else if (batchError.toString().contains('network') || 
+                   batchError.toString().contains('unavailable')) {
+          throw Exception('Network error. Please check your connection and try again.');
+        } else {
+          throw Exception('Failed to save post. Please try again.');
+        }
+      }
     } catch (e) {
-      throw Exception('Failed to upload post: $e');
+      debugPrint('Error in uploadPost: $e');
+      // Re-throw with more context if it's not already a formatted exception
+      if (e is Exception && !e.toString().contains('Permission') && 
+          !e.toString().contains('Network') && 
+          !e.toString().contains('Failed to save')) {
+        throw Exception('Failed to upload post: $e');
+      }
+      rethrow;
     }
   }
 

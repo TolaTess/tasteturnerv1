@@ -398,7 +398,12 @@ class _UploadBattleImageScreenState extends State<UploadBattleImageScreen> {
           );
 
           // Clean up temporary file
-          await File(compressedPath).delete();
+          try {
+            await File(compressedPath).delete();
+          } catch (e) {
+            debugPrint('Error deleting temporary compressed file: $e');
+            // Continue execution even if cleanup fails
+          }
 
           setState(() {
             _uploadProgress = 0.8; // Update progress after upload

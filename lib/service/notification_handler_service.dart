@@ -67,7 +67,9 @@ class NotificationHandlerService extends GetxService {
       try {
         final jsonPayload = json.decode(payload);
         return Map<String, dynamic>.from(jsonPayload);
-      } catch (jsonError) {}
+      } catch (jsonError) {
+        debugPrint('Error parsing JSON payload: $jsonError');
+      }
 
       // Fallback to manual parsing for backward compatibility
       // Remove the curly braces and split by comma

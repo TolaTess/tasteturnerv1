@@ -3,7 +3,6 @@ import 'package:flutter/material.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Enum to track which AI provider is being used
 enum AIProvider { gemini, openai, openrouter }
@@ -47,6 +46,9 @@ class AIProviderService {
   };
 
   String _preferredOpenRouterModel = 'gemini-2.0-flash';
+
+  // OpenAI configuration
+  String _preferredOpenAIModel = 'gpt-4o';
 
   // Error handling
   static const int _maxRetries = 3;
@@ -233,8 +235,143 @@ class AIProviderService {
     required String operation,
     int retryCount = 0,
   }) async {
-    // OpenAI implementation (similar to Gemini)
-    throw UnimplementedError('OpenAI API calls not yet implemented in split service');
+    final apiKey = dotenv.env['OPENAI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('OpenAI API key not configured');
+    }
+
+    if (!_isOpenAIHealthy) {
+      throw Exception('OpenAI API temporarily unavailable');
+    }
+
+    try {
+      // Convert Gemini format to OpenAI format
+      final openAIBody = _convertToOpenAIFormat(body);
+      final url = '$_openAIBaseUrl/chat/completions';
+
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $apiKey',
+            },
+            body: jsonEncode(openAIBody),
+          )
+          .timeout(const Duration(seconds: 90));
+
+      if (response.statusCode == 200) {
+        _consecutiveOpenAIErrors = 0;
+        _isOpenAIHealthy = true;
+        final decodedRaw = jsonDecode(response.body);
+        if (decodedRaw is! Map<String, dynamic>) {
+          throw Exception('Invalid response format from OpenAI API');
+        }
+        final decoded = decodedRaw as Map<String, dynamic>;
+        // Convert OpenAI format to Gemini format for consistency
+        return _convertFromOpenAIFormat(decoded);
+      } else {
+        _handleOpenAIError('HTTP ${response.statusCode}');
+        throw Exception('OpenAI API error: ${response.statusCode}');
+      }
+    } catch (e) {
+      _handleOpenAIError(e.toString());
+      rethrow;
+    }
+  }
+
+  /// Convert Gemini format to OpenAI format
+  Map<String, dynamic> _convertToOpenAIFormat(Map<String, dynamic> geminiBody) {
+    // Extract text from Gemini format
+    String text = '';
+    try {
+      final contentsRaw = geminiBody['contents'];
+      if (contentsRaw is List<dynamic> && contentsRaw.isNotEmpty) {
+        final firstContent = contentsRaw.first;
+        if (firstContent is Map<String, dynamic>) {
+          final partsRaw = firstContent['parts'];
+          if (partsRaw is List<dynamic> && partsRaw.isNotEmpty) {
+            final firstPart = partsRaw.first;
+            if (firstPart is Map<String, dynamic>) {
+              final textRaw = firstPart['text'];
+              if (textRaw is String) {
+                text = textRaw;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting text from Gemini format: $e');
+    }
+
+    // Get generation config
+    final generationConfigRaw = geminiBody['generationConfig'];
+    final generationConfig = (generationConfigRaw is Map<String, dynamic>)
+        ? generationConfigRaw
+        : <String, dynamic>{};
+    
+    final maxTokens = (generationConfig['maxOutputTokens'] as int?) ?? 4000;
+    final temperature = (generationConfig['temperature'] as num?)?.toDouble() ?? 0.7;
+
+    // Convert to OpenAI format
+    return {
+      'model': _preferredOpenAIModel,
+      'messages': [
+        {
+          'role': 'user',
+          'content': text,
+        }
+      ],
+      'max_tokens': maxTokens,
+      'temperature': temperature,
+    };
+  }
+
+  /// Convert OpenAI format to Gemini format
+  Map<String, dynamic> _convertFromOpenAIFormat(Map<String, dynamic> openaiResponse) {
+    final choicesRaw = openaiResponse['choices'];
+    final choices = (choicesRaw is List<dynamic>) ? choicesRaw : <dynamic>[];
+    if (choices.isEmpty) {
+      throw Exception('No choices in OpenAI response');
+    }
+    final firstChoice = choices.first;
+    if (firstChoice is! Map<String, dynamic>) {
+      throw Exception('Invalid choice format in OpenAI response');
+    }
+    final messageRaw = firstChoice['message'];
+    final message = (messageRaw is Map<String, dynamic>) ? messageRaw : null;
+    
+    if (message == null) {
+      throw Exception('No message in OpenAI response');
+    }
+
+    final contentRaw = message['content'];
+    final content = (contentRaw is String) ? contentRaw : '';
+
+    // Return as Gemini-style response
+    return {
+      'candidates': [
+        {
+          'content': {
+            'parts': [
+              {'text': content}
+            ]
+          }
+        }
+      ]
+    };
+  }
+
+  /// Handle OpenAI errors
+  void _handleOpenAIError(String error) {
+    _consecutiveOpenAIErrors++;
+    _lastOpenAIError = DateTime.now();
+    if (_consecutiveOpenAIErrors >= _maxConsecutiveErrors) {
+      _isOpenAIHealthy = false;
+      debugPrint('OpenAI marked as unhealthy after $_consecutiveOpenAIErrors consecutive errors');
+    }
+    debugPrint('OpenAI error: $error');
   }
 
   /// Make API call to OpenRouter

@@ -20,6 +20,7 @@ import '../data_models/user_meal.dart';
 import '../data_models/ingredient_data.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
+import '../helper/ingredient_utils.dart';
 
 /// Enum to track which AI provider is being used
 enum AIProvider { gemini, openai, openrouter }
@@ -88,8 +89,6 @@ class GeminiService {
 
   // OpenAI configuration
   final String _openAIBaseUrl = 'https://api.openai.com/v1';
-  static bool _isOpenAIHealthy = true;
-  static DateTime? _lastOpenAIError;
   static int _consecutiveOpenAIErrors = 0;
   String _preferredOpenAIModel = 'gpt-4.1';
   DateTime? _lastOpenAIModelCheck;
@@ -314,7 +313,10 @@ class GeminiService {
         throw Exception('Analysis document not found: $analysisId');
       }
 
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
+      if (data == null || data is! Map<String, dynamic>) {
+        throw Exception('Invalid document data format');
+      }
       debugPrint(
           '[Firestore] Successfully fetched data: ${data.keys.toList()}');
 
@@ -344,6 +346,9 @@ class GeminiService {
 
       if (result.data is Map<String, dynamic>) {
         final response = result.data as Map<String, dynamic>;
+        if (response.isEmpty) {
+          throw Exception('Empty response from cloud function');
+        }
         if (response['success'] == true) {
           debugPrint(
               '[Cloud Function] $functionName succeeded via cloud function');
@@ -449,7 +454,9 @@ class GeminiService {
         debugPrint('[Gemini] POST to $endpoint (retry=$retryCount)');
         debugPrint(
             '[Gemini] Request body preview (${preview.length} chars): $previewShort');
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Gemini] Error logging request preview: $e');
+      }
 
       final response = await http
           .post(
@@ -477,7 +484,9 @@ class GeminiService {
               : response.body;
           debugPrint('[Gemini] Response 200 OK, ${bodyLen} chars');
           debugPrint('[Gemini] Response preview: $bodyPreview');
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[Gemini] Error logging response preview: $e');
+        }
 
         final decoded = jsonDecode(response.body);
         return decoded;
@@ -576,6 +585,9 @@ class GeminiService {
         if (firstContent.containsKey('parts') &&
             firstContent['parts'] is List) {
           final parts = firstContent['parts'] as List;
+          if (parts.isEmpty) {
+            debugPrint('[Gemini] Request body has empty parts array');
+          }
           final hasImage = parts.any((part) =>
               part is Map &&
               (part['inline_data'] != null || part['image_url'] != null));
@@ -714,9 +726,18 @@ class GeminiService {
   /// Convert Gemini request format to OpenRouter format
   Map<String, dynamic> _convertToOpenRouterFormat(
       Map<String, dynamic> geminiBody) {
-    final contents = geminiBody['contents'] as List<dynamic>;
-    final generationConfig =
-        geminiBody['generationConfig'] as Map<String, dynamic>? ?? {};
+    final contentsRaw = geminiBody['contents'];
+    if (contentsRaw == null ||
+        contentsRaw is! List<dynamic> ||
+        contentsRaw.isEmpty) {
+      throw Exception('Invalid Gemini body: missing or empty contents');
+    }
+    final contents = contentsRaw as List<dynamic>;
+
+    final generationConfigRaw = geminiBody['generationConfig'];
+    final generationConfig = (generationConfigRaw is Map<String, dynamic>)
+        ? generationConfigRaw
+        : <String, dynamic>{};
 
     // Extract messages from Gemini format
     final messages = <Map<String, dynamic>>[];
@@ -797,26 +818,6 @@ class GeminiService {
 
     if (_consecutiveOpenRouterErrors >= _maxConsecutiveErrors) {
       _isOpenRouterHealthy = false;
-    }
-  }
-
-  /// Reset provider health status
-  void _resetProviderHealth() {
-    if (_lastGeminiError != null) {
-      final timeSinceLastError = DateTime.now().difference(_lastGeminiError!);
-      if (timeSinceLastError > _apiRecoveryTime) {
-        _isGeminiHealthy = true;
-        _consecutiveGeminiErrors = 0;
-      }
-    }
-
-    if (_lastOpenRouterError != null) {
-      final timeSinceLastError =
-          DateTime.now().difference(_lastOpenRouterError!);
-      if (timeSinceLastError > _apiRecoveryTime) {
-        _isOpenRouterHealthy = true;
-        _consecutiveOpenRouterErrors = 0;
-      }
     }
   }
 
@@ -999,7 +1000,7 @@ class GeminiService {
 
       if (response.statusCode == 200) {
         _consecutiveOpenAIErrors = 0;
-        _isOpenAIHealthy = true;
+        // OpenAI provider recovered
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
         return _convertFromOpenAIFormat(decoded);
       }
@@ -1028,14 +1029,25 @@ class GeminiService {
     // Extract text from Gemini format
     String text = '';
     try {
-      final contents = geminiBody['contents'] as List<dynamic>?;
-      if (contents != null && contents.isNotEmpty) {
-        final parts = contents.first['parts'] as List<dynamic>?;
-        if (parts != null && parts.isNotEmpty && parts.first['text'] != null) {
-          text = parts.first['text'] as String;
+      final contentsRaw = geminiBody['contents'];
+      if (contentsRaw is List<dynamic> && contentsRaw.isNotEmpty) {
+        final firstContent = contentsRaw.first;
+        if (firstContent is Map<String, dynamic>) {
+          final partsRaw = firstContent['parts'];
+          if (partsRaw is List<dynamic> && partsRaw.isNotEmpty) {
+            final firstPart = partsRaw.first;
+            if (firstPart is Map<String, dynamic>) {
+              final textRaw = firstPart['text'];
+              if (textRaw is String) {
+                text = textRaw;
+              }
+            }
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Gemini] Error extracting text from response: $e');
+    }
 
     final maxTokens =
         (geminiBody['generationConfig']?['maxOutputTokens'] as int?) ?? 4000;
@@ -1083,18 +1095,12 @@ class GeminiService {
 
   void _handleOpenAIError(String message) {
     _consecutiveOpenAIErrors++;
-    _lastOpenAIError = DateTime.now();
     if (_consecutiveOpenAIErrors >= _maxConsecutiveErrors) {
-      _isOpenAIHealthy = false;
+      // Provider marked as unhealthy - will be reset by recovery logic
+      debugPrint(
+          'OpenAI marked as unhealthy after $_consecutiveOpenAIErrors consecutive errors');
     }
     debugPrint('OpenAI error: $message');
-  }
-
-  String _buildUnifiedPrompt(String prompt, String contextInformation) {
-    // Compose a single prompt similar to the Gemini content used elsewhere
-    return '''$prompt
-
-$contextInformation''';
   }
 
   /// Determine best available OpenAI model and cache the selection
@@ -1144,7 +1150,9 @@ $contextInformation''';
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[OpenAI] Error checking available models: $e');
+    }
 
     // Fallback to preferred
     _cachedOpenAIModel = _preferredOpenAIModel;
@@ -1180,7 +1188,7 @@ $contextInformation''';
 
     // Group ingredients by normalized name
     stringIngredients.forEach((originalName, amount) {
-      final normalizedName = _normalizeIngredientName(originalName);
+      final normalizedName = normalizeIngredientName(originalName);
 
       if (!groupedIngredients.containsKey(normalizedName)) {
         groupedIngredients[normalizedName] = [];
@@ -1196,81 +1204,12 @@ $contextInformation''';
         normalizedIngredients[ingredient.key] = ingredient.value;
       } else {
         // Multiple ingredients with same normalized name - combine them
-        final combinedResult = _combineIngredients(ingredientList);
+        final combinedResult = combineIngredients(ingredientList);
         normalizedIngredients[combinedResult.key] = combinedResult.value;
       }
     });
 
     return normalizedIngredients;
-  }
-
-  /// Normalize ingredient name for comparison (lowercase, no spaces, common substitutions)
-  String _normalizeIngredientName(String name) {
-    return name
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '') // Remove all whitespace
-        .replaceAll(RegExp(r'[^\w]'), '') // Remove non-word characters
-        .replaceAll('oilolive', 'oliveoil') // Handle oil variations
-        .replaceAll('saltpink', 'pinksalt')
-        .replaceAll('saltrock', 'rocksalt')
-        .replaceAll('saltsea', 'seasalt');
-  }
-
-  /// Combine multiple ingredients with the same normalized name
-  MapEntry<String, String> _combineIngredients(
-      List<MapEntry<String, String>> ingredients) {
-    // Use the most descriptive name (longest with spaces)
-    String bestName = ingredients.first.key;
-    for (final ingredient in ingredients) {
-      if (ingredient.key.contains(' ') &&
-          ingredient.key.length > bestName.length) {
-        bestName = ingredient.key;
-      }
-    }
-
-    // Try to combine quantities if they have the same unit
-    final quantities = <double>[];
-    String? commonUnit;
-    bool canCombine = true;
-
-    for (final ingredient in ingredients) {
-      final amount = ingredient.value.toLowerCase().trim();
-      final match = RegExp(r'(\d+(?:\.\d+)?)\s*([a-zA-Z]*)').firstMatch(amount);
-
-      if (match != null) {
-        final quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
-        final unit = match.group(2) ?? '';
-
-        if (commonUnit == null) {
-          commonUnit = unit;
-        } else if (commonUnit != unit && unit.isNotEmpty) {
-          // Different units, can't combine
-          canCombine = false;
-          break;
-        }
-        quantities.add(quantity);
-      } else {
-        // Can't parse quantity, can't combine
-        canCombine = false;
-        break;
-      }
-    }
-
-    if (canCombine && quantities.isNotEmpty) {
-      final totalQuantity = quantities.reduce((a, b) => a + b);
-      final combinedAmount = commonUnit != null && commonUnit.isNotEmpty
-          ? '$totalQuantity$commonUnit'
-          : totalQuantity.toString();
-      return MapEntry(bestName, combinedAmount);
-    } else {
-      // Can't combine, use the first one and add a note
-      final firstAmount = ingredients.first.value;
-      final additionalCount = ingredients.length - 1;
-      final combinedAmount = additionalCount > 0
-          ? '$firstAmount (+$additionalCount more)'
-          : firstAmount;
-      return MapEntry(bestName, combinedAmount);
-    }
   }
 
   /// Enhanced error handling wrapper for AI responses
@@ -1494,31 +1433,6 @@ $contextInformation''';
         result['ingredients'].length;
 
     return result;
-  }
-
-  /// Create default nutritional info
-  Map<String, dynamic> _createDefaultNutritionalInfo() {
-    return {
-      'calories': 0,
-      'protein': 0,
-      'carbs': 0,
-      'fat': 0,
-      'fiber': 0,
-      'sugar': 0,
-      'sodium': 0,
-    };
-  }
-
-  /// Create default dietary flags
-  Map<String, dynamic> _createDefaultDietaryFlags() {
-    return {
-      'vegetarian': false,
-      'vegan': false,
-      'glutenFree': false,
-      'dairyFree': false,
-      'keto': false,
-      'lowCarb': false,
-    };
   }
 
   /// Extract fridge analysis data from raw text using regex patterns
@@ -2708,7 +2622,7 @@ $contextInformation''';
         }
       } catch (e) {
         debugPrint('❌ OpenAI initialization error: $e');
-        _isOpenAIHealthy = false;
+        // OpenAI provider marked as unhealthy
       }
     } else {
       debugPrint('⚠️ OpenAI API key not configured');
@@ -2946,24 +2860,37 @@ $contextInformation''';
 
         if (programId.isNotEmpty) {
           // Fetch program details
-          final programDoc =
-              await firestore.collection('programs').doc(programId).get();
+          DocumentSnapshot? programDoc;
+          try {
+            programDoc =
+                await firestore.collection('programs').doc(programId).get();
+          } catch (e) {
+            debugPrint('Error fetching program $programId: $e');
+            // Continue without program context if fetch fails
+            programDoc = null;
+          }
 
-          if (programDoc.exists) {
-            final programData = programDoc.data()!;
+          if (programDoc != null && programDoc.exists) {
+            final programDataRaw = programDoc.data();
+            if (programDataRaw == null ||
+                programDataRaw is! Map<String, dynamic>) {
+              debugPrint('Invalid program data format for $programId');
+            } else {
+              final programData = programDataRaw as Map<String, dynamic>;
 
-            context.addAll({
-              'hasProgram': true,
-              'currentProgram': {
-                'name': programData['name'] ?? 'Current Program',
-                'goal': programData['goal'] ?? 'Health improvement',
-                'dietType':
-                    programData['dietType'] ?? context['dietPreference'],
-              },
-              'programProgress': {
-                'currentWeek': userProgramData['currentWeek'] ?? 1,
-              },
-            });
+              context.addAll({
+                'hasProgram': true,
+                'currentProgram': {
+                  'name': programData['name'] ?? 'Current Program',
+                  'goal': programData['goal'] ?? 'Health improvement',
+                  'dietType':
+                      programData['dietType'] ?? context['dietPreference'],
+                },
+                'programProgress': {
+                  'currentWeek': userProgramData['currentWeek'] ?? 1,
+                },
+              });
+            }
           }
         }
       }
@@ -3910,7 +3837,6 @@ $contextInformation''';
       // 2) Gemini (secondary fallback)
       // 3) OpenAI (retry)
       // 4) Gemini (retry)
-      String lastResponseText = '';
 
       Future<Map<String, dynamic>> parseGeminiStyleResponse(
           Map<String, dynamic> response) async {
@@ -3928,13 +3854,14 @@ $contextInformation''';
         if (text == null || text.isEmpty) {
           throw Exception('Empty response from AI model');
         }
-        lastResponseText = text;
         debugPrint('[AI] Raw text length: ${text.length}');
         try {
           final snippet =
               text.length > 800 ? text.substring(0, 800) + '…' : text;
           debugPrint('[AI] Raw text preview: $snippet');
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[AI] Error logging text preview: $e');
+        }
         Map<String, dynamic> jsonResponse;
         try {
           jsonResponse = _extractJsonObject(text);
@@ -6063,45 +5990,80 @@ Generate completely new and different meal ideas using the same ingredients.
   Future<IngredientData?> checkIngredientExistsAdvanced(
       String ingredientName) async {
     try {
-      final normalizedName = _normalizeIngredientName(ingredientName);
+      final normalizedName = normalizeIngredientName(ingredientName);
 
       // First try exact match
-      var snapshot = await firestore
-          .collection('ingredients')
-          .where('title', isEqualTo: ingredientName.toLowerCase())
-          .limit(1)
-          .get();
+      try {
+        var snapshot = await firestore
+            .collection('ingredients')
+            .where('title', isEqualTo: ingredientName.toLowerCase())
+            .limit(1)
+            .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        return IngredientData.fromJson(snapshot.docs.first.data());
+        if (snapshot.docs.isNotEmpty) {
+          final data = snapshot.docs.first.data();
+          if (data.isNotEmpty) {
+            return IngredientData.fromJson(data);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error in exact ingredient match query: $e');
       }
 
       // Try normalized name match
-      snapshot = await firestore
-          .collection('ingredients')
-          .where('title', isEqualTo: normalizedName)
-          .limit(1)
-          .get();
+      try {
+        var snapshot = await firestore
+            .collection('ingredients')
+            .where('title', isEqualTo: normalizedName)
+            .limit(1)
+            .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        return IngredientData.fromJson(snapshot.docs.first.data());
+        if (snapshot.docs.isNotEmpty) {
+          final data = snapshot.docs.first.data();
+          if (data.isNotEmpty) {
+            return IngredientData.fromJson(data);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error in normalized ingredient match query: $e');
       }
 
       // Try normalized matching (remove spaces, hyphens, underscores)
-      final normalizedInputName = _normalizeIngredientName(ingredientName);
+      final normalizedInputName = normalizeIngredientName(ingredientName);
 
       // Get all ingredients and check for normalized matches
-      final allIngredientsSnapshot =
-          await firestore.collection('ingredients').get();
+      // Limit ingredient query to prevent fetching all ingredients
+      // Use a reasonable limit - most ingredient lookups should be by specific name
+      try {
+        final allIngredientsSnapshot =
+            await firestore.collection('ingredients').limit(1000).get();
 
-      for (final doc in allIngredientsSnapshot.docs) {
-        final ingredientData = doc.data();
-        final dbTitle = ingredientData['title'] as String? ?? '';
-        final normalizedDbTitle = _normalizeIngredientName(dbTitle);
-
-        if (normalizedInputName == normalizedDbTitle) {
-          return IngredientData.fromJson(ingredientData);
+        if (allIngredientsSnapshot.docs.isEmpty) {
+          debugPrint('No ingredients found in database');
+          return null;
         }
+
+        for (final doc in allIngredientsSnapshot.docs) {
+          try {
+            final ingredientData = doc.data();
+            if (ingredientData.isEmpty) continue;
+
+            final dbTitle = ingredientData['title'] as String? ?? '';
+            if (dbTitle.isEmpty) continue;
+
+            final normalizedDbTitle = normalizeIngredientName(dbTitle);
+
+            if (normalizedInputName == normalizedDbTitle) {
+              return IngredientData.fromJson(ingredientData);
+            }
+          } catch (e) {
+            debugPrint('Error processing ingredient document ${doc.id}: $e');
+            // Continue to next document
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching all ingredients for normalized match: $e');
+        return null;
       }
 
       return null;
@@ -6432,7 +6394,14 @@ Generate completely new and different meal ideas using the same ingredients.
       }
 
       // Commit all meals in a single batch
-      await batch.commit();
+      try {
+        await batch.commit();
+        debugPrint(
+            'Saved ${newMeals.length} basic meals to Firestore with pending status');
+      } catch (e) {
+        debugPrint('Error committing meal batch to Firestore: $e');
+        rethrow;
+      }
       debugPrint(
           'Saved ${newMeals.length} basic meals to Firestore with pending status');
 

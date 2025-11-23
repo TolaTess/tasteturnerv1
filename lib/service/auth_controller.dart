@@ -609,4 +609,11 @@ class AuthController extends GetxController {
       rethrow;
     }
   }
+
+  @override
+  void onClose() {
+    _userDataSubscription?.cancel();
+    _userDataSubscription = null;
+    super.onClose();
+  }
 }

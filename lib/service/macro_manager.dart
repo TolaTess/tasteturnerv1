@@ -205,7 +205,10 @@ class MacroManager extends GetxController {
 
   /// Fetch shopping list and listen for real-time updates
   void fetchShoppingList(String userId, String currentWeek) {
-    firestore
+    // Cancel existing subscription if any
+    _shoppingListSubscription?.cancel();
+    
+    _shoppingListSubscription = firestore
         .collection('userMeals')
         .doc(userId)
         .collection('shoppingList')
@@ -232,7 +235,18 @@ class MacroManager extends GetxController {
         shoppingList.clear();
       }
     }, onError: (e) {
-      return;
+      debugPrint('Error listening to shopping list: $e');
+      // Show user-friendly error notification
+      try {
+        Get.snackbar(
+          'Connection Error',
+          'Unable to load shopping list. Please check your connection.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      } catch (_) {
+        // Ignore if Get.context is not available
+      }
     });
   }
 
@@ -695,10 +709,25 @@ class MacroManager extends GetxController {
         generatedShoppingList.assignAll(newGeneratedList);
         manualShoppingList.assignAll(newManualList);
       } catch (e) {
+        debugPrint('Error processing shopping list data: $e');
         generatedShoppingList.clear();
         manualShoppingList.clear();
       } finally {
         isShoppingListLoading.value = false;
+      }
+    }, onError: (e) {
+      debugPrint('Error listening to shopping list: $e');
+      isShoppingListLoading.value = false;
+      // Show user-friendly error notification
+      try {
+        Get.snackbar(
+          'Connection Error',
+          'Unable to load shopping list. Please check your connection.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      } catch (_) {
+        // Ignore if Get.context is not available
       }
     });
   }

@@ -42,6 +42,7 @@ class _DineInScreenState extends State<DineInScreen> {
   List<Map<String, dynamic>> _fridgeRecipes = [];
   bool _showFridgeRecipes = false;
   StreamSubscription? _mealUpdateSubscription;
+  List<StreamSubscription> _mealSubscriptions = [];
 
   // Legacy variables (for backward compatibility - can be removed if not needed)
   MacroData? selectedCarb;
@@ -67,6 +68,10 @@ class _DineInScreenState extends State<DineInScreen> {
     _fridgeController.dispose();
     _fridgeFocusNode.dispose();
     _mealUpdateSubscription?.cancel();
+    for (final subscription in _mealSubscriptions) {
+      subscription.cancel();
+    }
+    _mealSubscriptions.clear();
     super.dispose();
   }
 
@@ -76,8 +81,12 @@ class _DineInScreenState extends State<DineInScreen> {
 
   // Set up Firestore listeners to update meals when they're processed off-device
   void _setupMealUpdateListeners() {
-    // Cancel existing subscription if any
+    // Cancel existing subscriptions
     _mealUpdateSubscription?.cancel();
+    for (final subscription in _mealSubscriptions) {
+      subscription.cancel();
+    }
+    _mealSubscriptions.clear();
 
     // Get all meal IDs from current fridge recipes
     final mealIds = _fridgeRecipes
@@ -90,94 +99,108 @@ class _DineInScreenState extends State<DineInScreen> {
       return;
     }
 
-    debugPrint('Setting up Firestore listeners for ${mealIds.length} meals');
+    debugPrint('Setting up real-time Firestore listeners for ${mealIds.length} meals');
 
-    // Listen to updates for all meal IDs from global meals collection
     final firestore = FirebaseFirestore.instance;
 
-    // Create a stream that listens to all meal documents from global meals collection
-    _mealUpdateSubscription =
-        Stream.periodic(const Duration(seconds: 5)).asyncMap((_) async {
-      try {
-        // Batch fetch all meals from global meals collection
-        final meals = await Future.wait(
-          mealIds.map((mealId) async {
-            try {
-              final doc = await firestore.collection('meals').doc(mealId).get();
+    // Firestore whereIn supports max 10 items, so we need to batch if needed
+    const int maxWhereInItems = 10;
+    
+    if (mealIds.length <= maxWhereInItems) {
+      // Single listener for <= 10 meals
+      _setupSingleMealListener(firestore, mealIds);
+    } else {
+      // Multiple listeners for > 10 meals (individual document listeners)
+      _setupBatchedMealListeners(firestore, mealIds);
+    }
+  }
 
-              if (doc.exists) {
-                return {'id': mealId, 'data': doc.data()};
-              }
-              return null;
-            } catch (e) {
-              debugPrint('Error fetching meal $mealId: $e');
-              return null;
-            }
-          }),
-        );
+  void _setupSingleMealListener(
+      FirebaseFirestore firestore, List<String> mealIds) {
+    _mealUpdateSubscription = firestore
+        .collection('meals')
+        .where(FieldPath.documentId, whereIn: mealIds)
+        .snapshots()
+        .listen((snapshot) {
+      _processMealUpdates(snapshot.docs);
+    }, onError: (e) {
+      debugPrint('Error in meal listener: $e');
+    });
+  }
 
-        return meals
-            .where((m) => m != null)
-            .cast<Map<String, dynamic>>()
-            .toList();
-      } catch (e) {
-        debugPrint('Error in meal listener: $e');
-        return <Map<String, dynamic>>[];
-      }
-    }).listen((meals) {
-      if (meals.isEmpty) return;
+  void _setupBatchedMealListeners(
+      FirebaseFirestore firestore, List<String> mealIds) {
+    // For > 10 meals, use individual document listeners
+    // This is more efficient than polling and provides real-time updates
+    for (final mealId in mealIds) {
+      final subscription = firestore
+          .collection('meals')
+          .doc(mealId)
+          .snapshots()
+          .listen((docSnapshot) {
+        if (docSnapshot.exists) {
+          _processMealUpdates([docSnapshot]);
+        }
+      }, onError: (e) {
+        debugPrint('Error listening to meal $mealId: $e');
+      });
+      _mealSubscriptions.add(subscription);
+    }
+  }
 
-      bool hasUpdates = false;
-      final updatedRecipes = List<Map<String, dynamic>>.from(_fridgeRecipes);
+  void _processMealUpdates(List<DocumentSnapshot> docs) {
+    if (docs.isEmpty || !mounted) return;
 
-      for (final mealInfo in meals) {
-        final mealId = mealInfo['id'] as String;
-        final mealData = mealInfo['data'] as Map<String, dynamic>?;
+    bool hasUpdates = false;
+    final updatedRecipes = List<Map<String, dynamic>>.from(_fridgeRecipes);
 
-        if (mealData == null) continue;
+    for (final doc in docs) {
+      final mealId = doc.id;
+      final mealData = doc.data() as Map<String, dynamic>?;
 
-        // Find the recipe with this mealId and update it
-        final recipeIndex = updatedRecipes.indexWhere(
-          (recipe) => recipe['mealId'] == mealId,
-        );
+      if (mealData == null) continue;
 
-        if (recipeIndex != -1) {
-          final existingRecipe = updatedRecipes[recipeIndex];
-          final status = mealData['status']?.toString() ?? 'pending';
+      // Find the recipe with this mealId and update it
+      final recipeIndex = updatedRecipes.indexWhere(
+        (recipe) => recipe['mealId'] == mealId,
+      );
 
-          // Only update if status changed from pending to completed
-          if (status == 'completed' &&
-              existingRecipe['status'] != 'completed') {
-            updatedRecipes[recipeIndex] = {
-              ...existingRecipe,
-              'title': mealData['title']?.toString() ?? existingRecipe['title'],
-              'description': mealData['description']?.toString() ??
-                  existingRecipe['description'],
-              'cookingTime': mealData['cookingTime']?.toString() ??
-                  existingRecipe['cookingTime'],
-              'difficulty': mealData['difficulty']?.toString() ??
-                  existingRecipe['difficulty'],
-              'calories': mealData['calories'] ?? existingRecipe['calories'],
-              'ingredients':
-                  mealData['ingredients'] ?? existingRecipe['ingredients'],
-              'instructions':
-                  mealData['instructions'] ?? existingRecipe['instructions'],
-              'status': status,
-            };
-            hasUpdates = true;
-            debugPrint('Updated meal $mealId: ${mealData['title']}');
-          }
+      if (recipeIndex != -1) {
+        final existingRecipe = updatedRecipes[recipeIndex];
+        final status = mealData['status']?.toString() ?? 'pending';
+
+        // Only update if status changed from pending to completed
+        if (status == 'completed' &&
+            existingRecipe['status'] != 'completed') {
+          updatedRecipes[recipeIndex] = {
+            ...existingRecipe,
+            'title': mealData['title']?.toString() ?? existingRecipe['title'],
+            'description': mealData['description']?.toString() ??
+                existingRecipe['description'],
+            'cookingTime': mealData['cookingTime']?.toString() ??
+                existingRecipe['cookingTime'],
+            'difficulty': mealData['difficulty']?.toString() ??
+                existingRecipe['difficulty'],
+            'calories': mealData['calories'] ?? existingRecipe['calories'],
+            'ingredients':
+                mealData['ingredients'] ?? existingRecipe['ingredients'],
+            'instructions':
+                mealData['instructions'] ?? existingRecipe['instructions'],
+            'status': status,
+          };
+          hasUpdates = true;
+          debugPrint('Updated meal $mealId: ${mealData['title']}');
         }
       }
+    }
 
-      if (hasUpdates && mounted) {
-        setState(() {
-          _fridgeRecipes = updatedRecipes;
-        });
-        // Save updated recipes
-        _saveFridgeRecipesToSharedPreferences();
-      }
-    });
+    if (hasUpdates && mounted) {
+      setState(() {
+        _fridgeRecipes = updatedRecipes;
+      });
+      // Save updated recipes
+      _saveFridgeRecipesToSharedPreferences();
+    }
   }
 
   // Local storage keys

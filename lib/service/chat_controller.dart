@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart' show debugPrint;
@@ -11,10 +12,20 @@ class ChatController extends GetxController {
   var messages = <ChatScreenData>[].obs;
 
   late String chatId;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSubscription;
 
   // Initialize chat and listen for messages
   Future<void> initializeChat(String friendId) async {
-    chatId = await getOrCreateChatId(userService.userId ?? '', friendId);
+    if (friendId.isEmpty) {
+      debugPrint("Cannot initialize chat: friendId is empty");
+      return;
+    }
+    final currentUserId = userService.userId ?? '';
+    if (currentUserId.isEmpty) {
+      debugPrint("Cannot initialize chat: userId is empty");
+      return;
+    }
+    chatId = await getOrCreateChatId(currentUserId, friendId);
     listenToMessages();
   }
 
@@ -29,8 +40,11 @@ class ChatController extends GetxController {
       return;
     }
 
+    // Cancel existing subscription if any
+    _messagesSubscription?.cancel();
+
     try {
-      firestore
+      _messagesSubscription = firestore
           .collection('chats')
           .doc(chatId)
           .collection('messages')
@@ -54,6 +68,17 @@ class ChatController extends GetxController {
         onError: (e) {
           debugPrint("Error listening to messages: $e");
           messages.clear();
+          // Show user-friendly error notification
+          try {
+            Get.snackbar(
+              'Connection Error',
+              'Unable to load messages. Please check your connection and try again.',
+              snackPosition: SnackPosition.BOTTOM,
+              duration: const Duration(seconds: 3),
+            );
+          } catch (_) {
+            // Ignore if Get.context is not available
+          }
         },
       );
     } catch (e) {
@@ -131,24 +156,38 @@ class ChatController extends GetxController {
       }
 
       final userDoc = await firestore.collection('users').doc(userId).get();
-      if (!userDoc.exists || !userDoc.data()!.containsKey('chats')) {
+      final userData = userDoc.data();
+      if (!userDoc.exists || userData == null || !userData.containsKey('chats')) {
         return [];
       }
 
-      final chatIds = List<String>.from(userDoc.data()?['chats'] ?? []);
+      final chatIds = List<String>.from(userData['chats'] ?? []);
       if (chatIds.isEmpty) {
         return [];
       }
 
-      List<Map<String, dynamic>> chats = [];
+      // Filter out empty chat IDs
+      final validChatIds = chatIds.where((id) => id.isNotEmpty).toList();
+      if (validChatIds.isEmpty) {
+        return [];
+      }
 
-      for (var chatId in chatIds) {
-        if (chatId.isEmpty) continue;
+      // Fetch all chat documents in parallel for better performance
+      final chatDocs = await Future.wait(
+        validChatIds.map((chatId) => 
+          firestore.collection('chats').doc(chatId).get()
+        ),
+      );
 
-        final chatDoc = await firestore.collection('chats').doc(chatId).get();
-        if (chatDoc.exists && chatDoc.data() != null) {
-          final chatData = chatDoc.data()!;
-          chats.add({'chatId': chatId, ...chatData});
+      // Process results
+      final List<Map<String, dynamic>> chats = [];
+      for (var i = 0; i < chatDocs.length; i++) {
+        final chatDoc = chatDocs[i];
+        if (chatDoc.exists) {
+          final chatData = chatDoc.data();
+          if (chatData != null) {
+            chats.add({'chatId': validChatIds[i], ...chatData});
+          }
         }
       }
       return chats;
@@ -244,7 +283,8 @@ class ChatController extends GetxController {
 
       if (!messageDoc.exists) return;
 
-      final messageData = messageDoc.data()!;
+      final messageData = messageDoc.data();
+      if (messageData == null) return;
       final shareRequest = messageData['shareRequest'] as Map<String, dynamic>?;
       if (shareRequest == null) return;
 
@@ -356,7 +396,8 @@ class ChatController extends GetxController {
     final messageDoc = await messageRef.get();
     if (!messageDoc.exists) return;
 
-    final data = messageDoc.data()!;
+    final data = messageDoc.data();
+    if (data == null) return;
     final friendRequest = data['friendRequest'] as Map<String, dynamic>?;
     if (friendRequest == null) return;
 
@@ -384,6 +425,13 @@ class ChatController extends GetxController {
 
     await friendController.fetchFollowing(senderId);
     await friendController.fetchFollowing(recipientId);
+  }
+
+  @override
+  void onClose() {
+    _messagesSubscription?.cancel();
+    _messagesSubscription = null;
+    super.onClose();
   }
 }
 

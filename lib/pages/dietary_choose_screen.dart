@@ -72,26 +72,8 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     }
 
     // Only fetch if data is still empty (shouldn't happen if preloaded, but safety fallback)
-    if (cuisineTypes.isEmpty) {
-      helperController.fetchHeaders().then((_) {
-        if (mounted) {
-          setState(() {
-            cuisineTypes =
-                List<Map<String, dynamic>>.from(helperController.headers);
-          });
-        }
-      });
-    }
-    if (dietTypes.isEmpty) {
-      helperController.fetchCategorys().then((_) {
-        if (mounted) {
-          setState(() {
-            dietTypes =
-                List<Map<String, dynamic>>.from(helperController.category);
-          });
-        }
-      });
-    }
+    // Use async helper function since initState cannot be async
+    _fetchMissingData();
 
     // Listen to changes in reactive lists
     ever(helperController.headers, (value) {
@@ -116,6 +98,36 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
     if (!widget.isOnboarding) {
       _checkExistingPreferences();
+    }
+  }
+
+  Future<void> _fetchMissingData() async {
+    // Only fetch if data is still empty (shouldn't happen if preloaded, but safety fallback)
+    if (cuisineTypes.isEmpty) {
+      try {
+        await helperController.fetchHeaders();
+        if (mounted) {
+          setState(() {
+            cuisineTypes =
+                List<Map<String, dynamic>>.from(helperController.headers);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching cuisine types: $e');
+      }
+    }
+    if (dietTypes.isEmpty) {
+      try {
+        await helperController.fetchCategorys();
+        if (mounted) {
+          setState(() {
+            dietTypes =
+                List<Map<String, dynamic>>.from(helperController.category);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching diet types: $e');
+      }
     }
   }
 

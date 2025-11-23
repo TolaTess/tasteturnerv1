@@ -1972,12 +1972,40 @@ exports.processPendingMeals = functions.pubsub
         const mealId = doc.id;
         
         try {
-          // Mark as processing to prevent duplicate processing
-          await doc.ref.update({
-            status: 'processing',
-            lastProcessingAttempt: admin.firestore.FieldValue.serverTimestamp(),
-            processingAttempts: admin.firestore.FieldValue.increment(1)
+          // Use transaction to atomically check and update status to prevent race conditions
+          // Only process if status is still "pending" or "failed"
+          const wasAcquired = await firestore.runTransaction(async (transaction) => {
+            const mealDoc = await transaction.get(doc.ref);
+            
+            if (!mealDoc.exists) {
+              console.log(`Meal ${mealId} no longer exists, skipping`);
+              return false;
+            }
+            
+            const currentData = mealDoc.data();
+            const currentStatus = currentData.status;
+            
+            // Only proceed if status is still "pending" or "failed" (not already being processed)
+            if (currentStatus !== 'pending' && currentStatus !== 'failed') {
+              console.log(`Meal ${mealId} is already being processed (status: ${currentStatus}), skipping`);
+              return false;
+            }
+            
+            // Atomically update to "processing" status
+            transaction.update(doc.ref, {
+              status: 'processing',
+              lastProcessingAttempt: admin.firestore.FieldValue.serverTimestamp(),
+              processingAttempts: admin.firestore.FieldValue.increment(1)
+            });
+            
+            return true;
           });
+          
+          // If transaction failed (another instance got it first), skip this meal
+          if (!wasAcquired) {
+            console.log(`Could not acquire meal ${mealId} for processing (already taken by another instance)`);
+            return;
+          }
           
           console.log(`Processing meal: ${mealData.title} (ID: ${mealId})`);
           
@@ -2004,8 +2032,10 @@ exports.processPendingMeals = functions.pubsub
         } catch (error) {
           console.error(`Error processing meal ${mealData.title}:`, error);
           
-          // Implement exponential backoff with jitter
-          const attempts = (mealData.processingAttempts || 0) + 1;
+          // Get current attempts count from document (may have been updated by transaction)
+          const currentDoc = await doc.ref.get();
+          const currentData = currentDoc.exists ? currentDoc.data() : mealData;
+          const attempts = (currentData.processingAttempts || 0);
           const maxAttempts = 5;
           
           // Calculate backoff delay with jitter
