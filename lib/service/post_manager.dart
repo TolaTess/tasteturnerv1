@@ -7,12 +7,13 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 import '../constants.dart';
 import '../data_models/post_model.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
-import 'battle_service.dart';
+import 'post_service.dart';
 
 class PostController extends GetxController {
   static PostController instance = Get.find();
@@ -28,36 +29,124 @@ class PostController extends GetxController {
     fetchPosts();
   }
 
-  // Fetch posts and listen for real-time updates
+  // Fetch posts using cloud function to avoid N+1 query problem
   void fetchPosts() async {
-    firestore
-        .collection('posts')
-        .orderBy('createdAt',
-            descending: true) // Date stored like: "2025-05-10T20:43:36.462566"
-        .snapshots()
-        .listen((snapshot) async {
+    isLoading.value = true;
+    try {
+      // Use PostService which calls cloud function with batched user data
+      PostService postService;
+      try {
+        postService = PostService.instance;
+      } catch (e) {
+        // PostService not initialized, use fallback
+        debugPrint('PostService not available, using fallback: $e');
+        _fetchPostsFallback();
+        return;
+      }
+
+      final result = await postService.getPostsFeed(
+        category: 'general',
+        limit: 50,
+        includeBattlePosts: true,
+      );
+
+      if (result.isSuccess && result.posts.isNotEmpty) {
+        final fetchedPosts = result.posts.map((postData) {
+          // Convert Map to Post object
+          return Post(
+            id: postData['id'] ?? '',
+            mealId: postData['mealId'],
+            userId: postData['userId'] ?? '',
+            name: postData['username'] ?? postData['name'] ?? 'Unknown',
+            avatar: postData['avatar'] ?? '',
+            username: postData['username'] ?? postData['name'] ?? 'Unknown',
+            isPremium: postData['isPremium'] ?? false,
+            mediaPaths: List<String>.from(postData['mediaPaths'] ?? []),
+            category: postData['category'] ?? 'general',
+            favorites: List<String>.from(postData['favorites'] ?? []),
+            createdAt: postData['createdAt'] != null
+                ? (postData['createdAt'] is String
+                    ? DateTime.tryParse(postData['createdAt'])
+                    : postData['createdAt'] is DateTime
+                        ? postData['createdAt']
+                        : null)
+                : null,
+            isBattle: postData['isBattle'] ?? false,
+            battleId: postData['battleId'] ?? '',
+            isVideo: postData['isVideo'] ?? false,
+          );
+        }).toList();
+
+        posts.assignAll(fetchedPosts);
+        isLoading.value = false;
+      } else {
+        // If cloud function returns empty or error, use fallback
+        _fetchPostsFallback();
+      }
+    } catch (e) {
+      debugPrint('Error fetching posts: $e');
+      // Fallback to direct Firestore query if cloud function fails
+      _fetchPostsFallback();
+    }
+  }
+
+  // Fallback method using direct Firestore query (with batched user fetching)
+  void _fetchPostsFallback() async {
+    try {
+      final snapshot = await firestore
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .get();
+
       final fetchedPosts =
           snapshot.docs.map((doc) => Post.fromFirestore(doc)).toList();
 
-      // Fetch avatar for each post from user collection
-      for (var post in fetchedPosts) {
-        if (post.userId != null && post.userId!.isNotEmpty) {
+      // Batch fetch user data to avoid N+1 queries
+      final userIds = fetchedPosts
+          .where((post) => post.userId.isNotEmpty)
+          .map((post) => post.userId)
+          .toSet()
+          .toList();
+
+      final userDataMap = <String, Map<String, dynamic>>{};
+
+      // Fetch all user data in parallel
+      if (userIds.isNotEmpty) {
+        final userPromises = userIds.map((userId) async {
           try {
             final userDoc =
-                await firestore.collection('users').doc(post.userId).get();
+                await firestore.collection('users').doc(userId).get();
             if (userDoc.exists) {
-              post.avatar = userDoc.data()?['profileImage'] ?? '';
-              post.username = userDoc.data()?['displayName'] ?? '';
-              post.isPremium = userDoc.data()?['isPremium'] ?? false;
+              userDataMap[userId] = userDoc.data()!;
             }
-          } catch (e) {showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
-        }
+          } catch (e) {
+            debugPrint('Error fetching user $userId: $e');
+          }
+        });
+
+        await Future.wait(userPromises);
+      }
+
+      // Attach user data to posts
+      for (var post in fetchedPosts) {
+        if (post.userId.isNotEmpty && userDataMap.containsKey(post.userId)) {
+          final userData = userDataMap[post.userId]!;
+          post.avatar = userData['profileImage'] ?? '';
+          post.username = userData['displayName'] ?? 'Unknown';
+          post.isPremium = userData['isPremium'] ?? false;
         }
       }
 
-      posts.assignAll(fetchedPosts); // Update the reactive list
-    });
+      posts.assignAll(fetchedPosts);
+    } catch (e) {
+      debugPrint('Error in fallback post fetch: $e');
+      if (Get.context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', Get.context!,
+            backgroundColor: kRed);
+      }
+    }
   }
 
   Future<List<Post>> getPostsByIds(List<String> postIds) async {
@@ -281,9 +370,7 @@ class PostController extends GetxController {
           downloadUrls.add(downloadUrl);
         } finally {
           // Ensure cleanup of temporary files
-          await File(compressedPath)
-              .delete()
-              .catchError((e) {});
+          await File(compressedPath).delete().catchError((e) {});
         }
       }
 

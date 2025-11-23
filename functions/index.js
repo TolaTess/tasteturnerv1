@@ -4172,6 +4172,50 @@ function _extractMinimalMealsFromText(text) {
   return results;
 }
 
+// Input validation helper
+function validateInput(data, schema) {
+  const errors = [];
+  
+  for (const [field, rules] of Object.entries(schema)) {
+    const value = data[field];
+    
+    if (rules.required && (value === undefined || value === null || value === '')) {
+      errors.push(`${field} is required`);
+      continue;
+    }
+    
+    if (value !== undefined && value !== null) {
+      if (rules.type && typeof value !== rules.type) {
+        errors.push(`${field} must be of type ${rules.type}`);
+      }
+      
+      if (rules.min !== undefined && value < rules.min) {
+        errors.push(`${field} must be at least ${rules.min}`);
+      }
+      
+      if (rules.max !== undefined && value > rules.max) {
+        errors.push(`${field} must be at most ${rules.max}`);
+      }
+      
+      if (rules.enum && !rules.enum.includes(value)) {
+        errors.push(`${field} must be one of: ${rules.enum.join(', ')}`);
+      }
+      
+      if (rules.array && !Array.isArray(value)) {
+        errors.push(`${field} must be an array`);
+      }
+      
+      if (rules.stringMaxLength && typeof value === 'string' && value.length > rules.stringMaxLength) {
+        errors.push(`${field} must be at most ${rules.stringMaxLength} characters`);
+      }
+    }
+  }
+  
+  if (errors.length > 0) {
+    throw new functions.https.HttpsError('invalid-argument', `Validation failed: ${errors.join('; ')}`);
+  }
+}
+
 exports.generateMealsWithAI = functions
   .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
@@ -4179,12 +4223,24 @@ exports.generateMealsWithAI = functions
     console.log('=== generateMealsWithAI Cloud Function Started ===');
     
     try {
-      // Validate input
-      const { prompt, context: userContext, cuisine, mealCount, distribution, isIngredientBased, partOfWeeklyMeal } = data;
-      
-      if (!prompt) {
-        throw new functions.https.HttpsError('invalid-argument', 'Prompt is required');
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
       }
+      
+      // Validate input with schema
+      validateInput(data, {
+        prompt: { required: true, type: 'string', stringMaxLength: 10000 },
+        context: { required: false, type: 'string', stringMaxLength: 5000 },
+        cuisine: { required: false, type: 'string', stringMaxLength: 100 },
+        mealCount: { required: false, type: 'number', min: 1, max: 50 },
+        distribution: { required: false, type: 'object' },
+        isIngredientBased: { required: false, type: 'boolean' },
+        partOfWeeklyMeal: { required: false, type: 'boolean' },
+        weeklyPlanContext: { required: false, type: 'string', stringMaxLength: 2000 },
+      });
+      
+      const { prompt, context: userContext, cuisine, mealCount, distribution, isIngredientBased, partOfWeeklyMeal, weeklyPlanContext } = data;
       
       console.log(`Generating ${mealCount || 'default'} meals for cuisine: ${cuisine || 'general'}`);
       
@@ -4309,6 +4365,7 @@ Important guidelines:
           processingPriority: Date.now(), // FIFO processing
           needsProcessing: true, // Flag for Firebase Functions
           partOfWeeklyMeal: partOfWeeklyMeal || false, // Flag for weekly meal plan context
+          weeklyPlanContext: weeklyPlanContext || '', // Context about the weekly meal plan
         };
         
         console.log(`Saving new meal with minimal data: ${meal.title} with ID: ${mealId}`);
@@ -4465,6 +4522,16 @@ Important guidelines:
 exports.analyzeFoodImage = functions
   .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
+    // Validate authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+    
+    // Validate input
+    validateInput(data, {
+      imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
+      imageFormat: { required: false, type: 'string', enum: ['jpeg', 'jpg', 'png', 'webp'] },
+    });
     const startTime = Date.now();
     console.log('=== analyzeFoodImage Cloud Function Started ===');
     
@@ -4717,6 +4784,16 @@ Important guidelines:
 exports.analyzeFridgeImage = functions
   .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
+    // Validate authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+    
+    // Validate input
+    validateInput(data, {
+      imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
+      dietaryRestrictions: { required: false, array: true },
+    });
     const startTime = Date.now();
     console.log('=== analyzeFridgeImage Cloud Function Started ===');
     
@@ -5169,81 +5246,96 @@ exports.generateDailyHealthJournal = onSchedule(
       }
 
       const model = await _getGeminiModel();
-      const processingPromises = [];
+      
+      // Process users in batches to avoid timeout and rate limiting
+      const BATCH_SIZE = 50;
+      const allDocs = summarySnapshot.docs;
+      const totalBatches = Math.ceil(allDocs.length / BATCH_SIZE);
+      
+      console.log(`Processing ${allDocs.length} users in ${totalBatches} batches of ${BATCH_SIZE}`);
 
-      for (const doc of summarySnapshot.docs) {
-        // Extract userId from path: users/{userId}/daily_summary/{date}
-        const pathParts = doc.ref.path.split('/');
-        const userId = pathParts[1];
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const batchStart = batchIndex * BATCH_SIZE;
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, allDocs.length);
+        const batchDocs = allDocs.slice(batchStart, batchEnd);
+        
+        console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (users ${batchStart + 1}-${batchEnd})`);
 
-        processingPromises.push(
-          (async () => {
-            try {
-              console.log(`Processing journal for user: ${userId}`);
+        const batchPromises = batchDocs.map(async (doc) => {
+          // Extract userId from path: users/{userId}/daily_summary/{date}
+          const pathParts = doc.ref.path.split('/');
+          const userId = pathParts[1];
 
-              // Fetch all daily data
-              const dailyData = await _fetchUserDailyData(userId, yesterday);
+          try {
+            console.log(`Processing journal for user: ${userId}`);
 
-              // Fetch buddy chat messages
-              const userNotes = await _fetchBuddyChatMessagesForDate(userId, yesterday);
+            // Fetch all daily data
+            const dailyData = await _fetchUserDailyData(userId, yesterday);
 
-              // Get user name
-              const userDoc = await firestore.collection('users').doc(userId).get();
-              const userData = userDoc.exists ? userDoc.data() : {};
-              const userName = userData.displayName || 'there';
+            // Fetch buddy chat messages
+            const userNotes = await _fetchBuddyChatMessagesForDate(userId, yesterday);
 
-              // Generate prompt
-              const prompt = _generateJournalPrompt(
-                dailyData,
-                userNotes,
-                dailyData.goals,
-                userName,
-                dateStr
-              );
+            // Get user name
+            const userDoc = await firestore.collection('users').doc(userId).get();
+            const userData = userDoc.exists ? userDoc.data() : {};
+            const userName = userData.displayName || 'there';
 
-              // Generate journal entry with Gemini
-              const result = await model.generateContent({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  maxOutputTokens: 12000, // Complex structured output with narrative
-                },
-              });
+            // Generate prompt
+            const prompt = _generateJournalPrompt(
+              dailyData,
+              userNotes,
+              dailyData.goals,
+              userName,
+              dateStr
+            );
 
-              const response = result.response.text();
-              console.log(`Raw AI response for ${userId}:`, response.substring(0, Math.min(response.length, 500)) + '...');
+            // Generate journal entry with Gemini
+            const result = await model.generateContent({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                maxOutputTokens: 12000, // Complex structured output with narrative
+              },
+            });
 
-              // Parse JSON response
-              const journalData = await processAIResponse(response, 'health_journal');
+            const response = result.response.text();
+            console.log(`Raw AI response for ${userId}:`, response.substring(0, Math.min(response.length, 500)) + '...');
 
-              // Validate required fields
-              if (!journalData.summary || !journalData.data) {
-                throw new Error('Missing essential journal fields in AI response');
-              }
+            // Parse JSON response
+            const journalData = await processAIResponse(response, 'health_journal');
 
-              // Save journal entry
-              const journalRef = firestore
-                .collection('users')
-                .doc(userId)
-                .collection('health_journal')
-                .doc(dateStr);
-
-              await journalRef.set({
-                ...journalData,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                generatedBy: 'cloud_function',
-              }, { merge: true });
-
-              console.log(`Successfully generated journal entry for user ${userId} on ${dateStr}`);
-            } catch (error) {
-              console.error(`Error generating journal for user ${userId}:`, error);
-              // Continue with other users even if one fails
+            // Validate required fields
+            if (!journalData.summary || !journalData.data) {
+              throw new Error('Missing essential journal fields in AI response');
             }
-          })()
-        );
-      }
 
-      // Process all users in parallel (with reasonable concurrency)
-      await Promise.all(processingPromises);
+            // Save journal entry
+            const journalRef = firestore
+              .collection('users')
+              .doc(userId)
+              .collection('health_journal')
+              .doc(dateStr);
+
+            await journalRef.set({
+              ...journalData,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              generatedBy: 'cloud_function',
+            }, { merge: true });
+
+            console.log(`Successfully generated journal entry for user ${userId} on ${dateStr}`);
+          } catch (error) {
+            console.error(`Error generating journal for user ${userId}:`, error);
+            // Continue with other users even if one fails
+          }
+        });
+
+        // Wait for current batch to complete before starting next
+        await Promise.all(batchPromises);
+        
+        // Small delay between batches to avoid rate limiting
+        if (batchIndex < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        }
+      }
 
       const executionTime = Date.now() - startTime;
       console.log(`=== generateDailyHealthJournal Completed in ${executionTime}ms ===`);
@@ -5254,234 +5346,6 @@ exports.generateDailyHealthJournal = onSchedule(
     }
   }
 );
-
-/**
- * Helper function to fetch buddy chat messages for a specific date
- */
-async function _fetchBuddyChatMessagesForDate(userId, date) {
-  try {
-    const buddyChatId = userId; // Buddy chat ID is typically the user's ID
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const messagesSnapshot = await firestore
-      .collection('chats')
-      .doc(buddyChatId)
-      .collection('messages')
-      .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(startOfDay))
-      .where('timestamp', '<=', admin.firestore.Timestamp.fromDate(endOfDay))
-      .where('senderId', '==', userId) // Only user messages, not buddy responses
-      .orderBy('timestamp', 'asc')
-      .get();
-
-    const userMessages = [];
-    messagesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      const messageContent = data.messageContent || '';
-      if (messageContent.trim().length > 0) {
-        userMessages.push(messageContent.trim());
-      }
-    });
-
-    return userMessages;
-  } catch (error) {
-    console.error(`Error fetching buddy chat messages for ${userId} on ${date}:`, error);
-    return [];
-  }
-}
-
-/**
- * Helper function to fetch all daily data for a user
- */
-async function _fetchUserDailyData(userId, date) {
-  try {
-    const dateStr = format(date, 'yyyy-MM-dd');
-
-    // Fetch daily summary
-    const summaryDoc = await firestore
-      .collection('users')
-      .doc(userId)
-      .collection('daily_summary')
-      .doc(dateStr)
-      .get();
-
-    const summaryData = summaryDoc.exists ? summaryDoc.data() : {};
-
-    // Fetch meals
-    const mealsDoc = await firestore
-      .collection('userMeals')
-      .doc(userId)
-      .collection('meals')
-      .doc(dateStr)
-      .get();
-
-    const mealsData = mealsDoc.exists ? mealsDoc.data() : {};
-    const mealsMap = mealsData.meals || {};
-
-    // Extract meal names by type
-    const mealsByType = {
-      breakfast: [],
-      lunch: [],
-      dinner: [],
-      snacks: [],
-    };
-
-    for (const [mealType, mealList] of Object.entries(mealsMap)) {
-      if (Array.isArray(mealList)) {
-        mealList.forEach((meal) => {
-          if (meal && meal.name) {
-            const normalizedType = mealType.toLowerCase();
-            if (normalizedType.includes('breakfast')) {
-              mealsByType.breakfast.push(meal.name);
-            } else if (normalizedType.includes('lunch')) {
-              mealsByType.lunch.push(meal.name);
-            } else if (normalizedType.includes('dinner')) {
-              mealsByType.dinner.push(meal.name);
-            } else if (normalizedType.includes('snack')) {
-              mealsByType.snacks.push(meal.name);
-            }
-          }
-        });
-      }
-    }
-
-    // Fetch user goals
-    const userDoc = await firestore.collection('users').doc(userId).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
-    const goals = userData.goals || {};
-    const settings = userData.settings || {};
-
-    // Get calorie goal from settings or goals
-    const calorieGoal = goals.calories || settings.calorieGoal || 2000;
-    const proteinGoal = goals.protein || settings.proteinGoal || 150;
-    const carbsGoal = goals.carbs || settings.carbsGoal || 200;
-    const fatGoal = goals.fat || settings.fatGoal || 65;
-
-    return {
-      summary: summaryData,
-      meals: mealsByType,
-      goals: {
-        calories: calorieGoal,
-        protein: proteinGoal,
-        carbs: carbsGoal,
-        fat: fatGoal,
-      },
-      water: summaryData.water || 0,
-      steps: summaryData.steps || 0,
-      routineCompletion: summaryData.routineCompletionPercentage || 0,
-    };
-  } catch (error) {
-    console.error(`Error fetching daily data for ${userId} on ${date}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Helper function to generate journal prompt for Gemini
- */
-function _generateJournalPrompt(dailyData, userNotes, userGoals, userName, dateStr) {
-  const summary = dailyData.summary;
-  const meals = dailyData.meals;
-  const calories = summary.calories || 0;
-  const protein = summary.protein || 0;
-  const carbs = summary.carbs || 0;
-  const fat = summary.fat || 0;
-  const water = dailyData.water || 0;
-  const steps = dailyData.steps || 0;
-  const routineCompletion = dailyData.routineCompletion || 0;
-
-  const calorieProgress = userGoals.calories > 0 ? (calories / userGoals.calories * 100) : 0;
-  const proteinProgress = userGoals.protein > 0 ? (protein / userGoals.protein * 100) : 0;
-  const carbsProgress = userGoals.carbs > 0 ? (carbs / userGoals.carbs * 100) : 0;
-  const fatProgress = userGoals.fat > 0 ? (fat / userGoals.fat * 100) : 0;
-
-  const breakfastList = meals.breakfast.length > 0 ? meals.breakfast.join(', ') : 'None';
-  const lunchList = meals.lunch.length > 0 ? meals.lunch.join(', ') : 'None';
-  const dinnerList = meals.dinner.length > 0 ? meals.dinner.join(', ') : 'None';
-  const snacksList = meals.snacks.length > 0 ? meals.snacks.join(', ') : 'None';
-
-  const userNotesText = userNotes.length > 0 
-    ? userNotes.join('\n') 
-    : 'No notes from user today.';
-
-  return `You are creating a daily food health journal entry for ${userName} on ${dateStr}.
-
-DAILY NUTRITION DATA:
-- Calories: ${calories} / ${userGoals.calories} (${calorieProgress.toFixed(1)}% of goal)
-- Protein: ${protein}g / ${userGoals.protein}g (${proteinProgress.toFixed(1)}% of goal)
-- Carbs: ${carbs}g / ${userGoals.carbs}g (${carbsProgress.toFixed(1)}% of goal)
-- Fat: ${fat}g / ${userGoals.fat}g (${fatProgress.toFixed(1)}% of goal)
-- Water: ${water} / 2000 (default goal)
-- Steps: ${steps} / 10000 (default goal)
-- Routine completion: ${routineCompletion.toFixed(1)}%
-
-MEALS EATEN TODAY:
-Breakfast: ${breakfastList}
-Lunch: ${lunchList}
-Dinner: ${dinnerList}
-Snacks: ${snacksList}
-
-USER NOTES FROM CHAT:
-${userNotesText}
-
-GOAL PROGRESS:
-- Calorie goal: ${calorieProgress.toFixed(1)}%
-- Protein goal: ${proteinProgress.toFixed(1)}%
-- Carbs goal: ${carbsProgress.toFixed(1)}%
-- Fat goal: ${fatProgress.toFixed(1)}%
-
-Create a comprehensive daily food health journal entry in this format:
-
-{
-  "date": "${dateStr}",
-  "summary": {
-    "narrative": "A warm, encouraging 2-3 paragraph narrative summary of the day's food journey, highlighting achievements, patterns, and gentle suggestions for improvement.",
-    "highlights": [
-      "Key achievement 1",
-      "Key achievement 2",
-      "Notable pattern or insight"
-    ],
-    "insights": [
-      "Nutritional insight 1",
-      "Nutritional insight 2"
-    ],
-    "suggestions": [
-      "Gentle suggestion for tomorrow 1",
-      "Gentle suggestion for tomorrow 2"
-    ]
-  },
-  "data": {
-    "nutrition": {
-      "calories": {"consumed": ${calories}, "goal": ${userGoals.calories}, "progress": ${calorieProgress.toFixed(1)}},
-      "protein": {"consumed": ${protein}, "goal": ${userGoals.protein}, "progress": ${proteinProgress.toFixed(1)}},
-      "carbs": {"consumed": ${carbs}, "goal": ${userGoals.carbs}, "progress": ${carbsProgress.toFixed(1)}},
-      "fat": {"consumed": ${fat}, "goal": ${userGoals.fat}, "progress": ${fatProgress.toFixed(1)}}
-    },
-    "activity": {
-      "water": {"consumed": ${water}, "goal": 2000, "progress": ${(water / 2000 * 100).toFixed(1)}},
-      "steps": {"consumed": ${steps}, "goal": 10000, "progress": ${(steps / 10000 * 100).toFixed(1)}},
-      "routineCompletion": ${routineCompletion}
-    },
-    "meals": {
-      "breakfast": ${JSON.stringify(meals.breakfast)},
-      "lunch": ${JSON.stringify(meals.lunch)},
-      "dinner": ${JSON.stringify(meals.dinner)},
-      "snacks": ${JSON.stringify(meals.snacks)}
-    },
-    "goals": {
-      "calories": {"goal": ${userGoals.calories}, "progress": ${calorieProgress.toFixed(1)}},
-      "protein": {"goal": ${userGoals.protein}, "progress": ${proteinProgress.toFixed(1)}},
-      "carbs": {"goal": ${userGoals.carbs}, "progress": ${carbsProgress.toFixed(1)}},
-      "fat": {"goal": ${userGoals.fat}, "progress": ${fatProgress.toFixed(1)}}
-    }
-  },
-  "userNotes": ${JSON.stringify(userNotes)}
-}
-
-The narrative should be warm, encouraging, and personalized. Focus on positive achievements while gently noting areas for improvement. Return ONLY valid JSON, no markdown or code blocks.`;
-}
 
 // ============================================================================
 // RECEIPT VALIDATION FOR IN-APP PURCHASES

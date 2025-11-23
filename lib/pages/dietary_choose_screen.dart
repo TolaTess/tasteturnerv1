@@ -629,9 +629,10 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
 
       // Prepare prompt and generate meal plan
       final prompt = _buildGeminiPrompt();
+      final weeklyPlanContext = customMealPlanController.text.trim();
       final mealPlan = await geminiService.generateMealsIntelligently(
           prompt, mealPlanContext, cuisine,
-          partOfWeeklyMeal: true);
+          partOfWeeklyMeal: true, weeklyPlanContext: weeklyPlanContext);
 
       debugPrint('mealPlan: $mealPlan');
 

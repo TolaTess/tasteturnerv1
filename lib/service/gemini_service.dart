@@ -4134,7 +4134,7 @@ Generate $mealCount meals. Return JSON only:
   /// then save basic data for Firebase Functions processing
   Future<Map<String, dynamic>> generateMealsIntelligently(
       String prompt, String contextInformation, String cuisine,
-      {bool partOfWeeklyMeal = false}) async {
+      {bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
     try {
       // Try cloud function first for better performance
       try {
@@ -4155,6 +4155,7 @@ Generate $mealCount meals. Return JSON only:
             },
             'isIngredientBased': false,
             'partOfWeeklyMeal': partOfWeeklyMeal,
+            'weeklyPlanContext': weeklyPlanContext,
           },
           operation: 'generate meals intelligently',
         );
@@ -4262,7 +4263,7 @@ Generate $mealCount meals. Return JSON only:
       Map<String, dynamic> saveResult = {};
       if (missingMeals.isNotEmpty) {
         saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine,
-            partOfWeeklyMeal: partOfWeeklyMeal);
+            partOfWeeklyMeal: partOfWeeklyMeal, weeklyPlanContext: weeklyPlanContext);
         debugPrint(
             'Saved ${missingMeals.length} basic meals to Firestore with pending status');
       }
@@ -6379,7 +6380,7 @@ Generate completely new and different meal ideas using the same ingredients.
   /// Save basic meals to Firestore with minimal data for Firebase Functions processing
   Future<Map<String, dynamic>> saveBasicMealsToFirestore(
       List<Map<String, dynamic>> newMeals, String cuisine,
-      {bool partOfWeeklyMeal = false}) async {
+      {bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
     try {
       final userId = userService.userId ?? '';
       if (userId.isEmpty) {
@@ -6413,6 +6414,7 @@ Generate completely new and different meal ideas using the same ingredients.
               DateTime.now().millisecondsSinceEpoch, // FIFO processing
           'needsProcessing': true, // Flag for Firebase Functions
           'partOfWeeklyMeal': partOfWeeklyMeal, // Flag for weekly meal plan context
+          'weeklyPlanContext': weeklyPlanContext, // Context about the weekly meal plan
         };
 
         // Debug logging to check ingredients and calories

@@ -1,0 +1,234 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user is premium
+    function isPremium(userId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(userId)).data.isPremium == true;
+    }
+    
+    // ============================================================================
+    // USERS COLLECTION
+    // ============================================================================
+    match /users/{userId} {
+      // Users can read their own profile and public profiles
+      allow read: if isAuthenticated();
+      
+      // Users can only create/update their own profile
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+      
+      // User subcollections
+      match /daily_summary/{date} {
+        // Users can only access their own daily summaries
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /health_journal/{date} {
+        // Users can only access their own health journal entries
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /token_usage/{usageId} {
+        // Users can only access their own token usage data
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /token_usage_daily/{date} {
+        // Users can only access their own daily token usage aggregates
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /ai_cache/{cacheKey} {
+        // Users can only access their own AI cache entries
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /badges/{badgeId} {
+        // Users can read their own badges
+        allow read: if isOwner(userId);
+        // Only cloud functions can write badges
+        allow write: if false;
+      }
+    }
+    
+    // ============================================================================
+    // POSTS COLLECTION
+    // ============================================================================
+    match /posts/{postId} {
+      // Anyone authenticated can read posts
+      allow read: if isAuthenticated();
+      
+      // Users can create posts (must set their userId)
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own posts
+      allow update, delete: if isAuthenticated() && 
+                               resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================================================
+    // MEALS COLLECTION
+    // ============================================================================
+    match /meals/{mealId} {
+      // Anyone authenticated can read meals
+      allow read: if isAuthenticated();
+      
+      // Users can create meals (must set their userId)
+      allow create: if isAuthenticated() && 
+                       (request.resource.data.userId == request.auth.uid ||
+                        request.resource.data.userId == null); // Allow cloud functions
+      
+      // Users can update their own meals, or cloud functions can update any
+      allow update: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid ||
+                       request.resource.data.userId == null); // Cloud function
+      
+      // Users can delete their own meals
+      allow delete: if isAuthenticated() && 
+                      resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================================================
+    // INGREDIENTS COLLECTION
+    // ============================================================================
+    match /ingredients/{ingredientId} {
+      // Anyone authenticated can read ingredients
+      allow read: if isAuthenticated();
+      
+      // Only cloud functions can create/update ingredients
+      allow create, update: if false; // Cloud functions use admin SDK
+      allow delete: if false;
+    }
+    
+    // ============================================================================
+    // USER MEALS COLLECTION (Daily meal tracking)
+    // ============================================================================
+    match /userMeals/{userId} {
+      // Users can only access their own meal data
+      allow read, write: if isOwner(userId);
+      
+      match /meals/{date} {
+        // Users can only access their own daily meals
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /shoppingList/{weekId} {
+        // Users can only access their own shopping lists
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================================================
+    // MEAL PLANS COLLECTION
+    // ============================================================================
+    match /mealPlans/{userId} {
+      // Users can only access their own meal plans
+      allow read, write: if isOwner(userId);
+      
+      match /buddy/{date} {
+        // Users can only access their own buddy meal plans (proposals)
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /date/{date} {
+        // Users can only access their own committed meal plans
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================================================
+    // CHATS COLLECTION
+    // ============================================================================
+    match /chats/{chatId} {
+      // Users can read chats they're part of (check if chatId matches their userId or buddyChatId)
+      allow read: if isAuthenticated() && 
+                     (chatId == request.auth.uid ||
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+      
+      // Users can create/update chats they're part of
+      allow create, update: if isAuthenticated() && 
+                              (chatId == request.auth.uid ||
+                               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+      
+      // Users can delete their own chats
+      allow delete: if isAuthenticated() && chatId == request.auth.uid;
+      
+      match /messages/{messageId} {
+        // Users can read messages in chats they're part of
+        allow read: if isAuthenticated() && 
+                       (chatId == request.auth.uid ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId);
+        
+        // Users can create messages in chats they're part of
+        allow create: if isAuthenticated() && 
+                        (chatId == request.auth.uid ||
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.buddyChatId == chatId) &&
+                        request.resource.data.senderId == request.auth.uid;
+        
+        // Users can update/delete their own messages
+        allow update, delete: if isAuthenticated() && 
+                                 resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // ============================================================================
+    // USER POSTS COLLECTION (Post references)
+    // ============================================================================
+    match /usersPosts/{userId} {
+      // Users can read their own post references
+      allow read: if isOwner(userId);
+      
+      // Only cloud functions should write to this (via batch operations)
+      allow write: if false; // Handled by cloud functions or batch operations
+    }
+    
+    // ============================================================================
+    // POINTS COLLECTION
+    // ============================================================================
+    match /points/{userId} {
+      // Users can read their own points
+      allow read: if isOwner(userId);
+      
+      // Only cloud functions can update points (badge rewards)
+      allow write: if false; // Handled by cloud functions
+    }
+    
+    // ============================================================================
+    // USER BADGE PROGRESS COLLECTION
+    // ============================================================================
+    match /user_badge_progress/{userId} {
+      // Users can read their own badge progress
+      allow read: if isOwner(userId);
+      
+      match /badges/{badgeId} {
+        // Users can read their own badges
+        allow read: if isOwner(userId);
+        // Only cloud functions can write badges
+        allow write: if false; // Handled by cloud functions
+      }
+    }
+    
+    // ============================================================================
+    // DEFAULT DENY
+    // ============================================================================
+    // Any collection not explicitly matched above will be denied
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

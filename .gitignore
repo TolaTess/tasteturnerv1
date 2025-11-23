@@ -12,9 +12,15 @@
 /macos/
 /linux/
 /windows/
-firebase.json
+# firebase.json - REMOVED: Should be committed (project configuration needed for deployment)
 
 /functions/build/
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+.firebase/
+*.cache
 
 
 # IDE files

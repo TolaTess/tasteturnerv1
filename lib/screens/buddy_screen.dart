@@ -38,6 +38,9 @@ class _TastyScreenState extends State<TastyScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   String _recognizedText = '';
+  
+  // Food Health Journey mode
+  bool _isHealthJourneyMode = false;
 
   // List of welcome messages
   final List<String> _welcomeMessages = [
@@ -422,6 +425,84 @@ class _TastyScreenState extends State<TastyScreen> {
                                       "Get personalized recommendations for your meal",
                                       themeProvider.isDarkMode,
                                       textTheme),
+                                  Divider(
+                                    height: getPercentageHeight(2, context),
+                                    color: themeProvider.isDarkMode
+                                        ? kLightGrey.withValues(alpha: 0.3)
+                                        : kDarkGrey.withValues(alpha: 0.3),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: getPercentageWidth(3, context),
+                                      vertical: getPercentageHeight(1, context),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    "🌱 Food Health Journey",
+                                                    style: textTheme.titleMedium?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: themeProvider.isDarkMode
+                                                          ? kWhite
+                                                          : kDarkGrey,
+                                                    ),
+                                                  ),
+                                                  if (_isHealthJourneyMode)
+                                                    Container(
+                                                      margin: EdgeInsets.only(
+                                                        left: getPercentageWidth(2, context),
+                                                      ),
+                                                      padding: EdgeInsets.symmetric(
+                                                        horizontal: getPercentageWidth(2, context),
+                                                        vertical: getPercentageHeight(0.5, context),
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: kAccent.withValues(alpha: 0.2),
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                      child: Text(
+                                                        "Active",
+                                                        style: textTheme.bodySmall?.copyWith(
+                                                          color: kAccent,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              SizedBox(
+                                                height: getPercentageHeight(0.5, context),
+                                              ),
+                                              Text(
+                                                "Track your nutrition journey with personalized guidance",
+                                                style: textTheme.bodySmall?.copyWith(
+                                                  color: themeProvider.isDarkMode
+                                                      ? kLightGrey
+                                                      : kDarkGrey,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Switch(
+                                          value: _isHealthJourneyMode,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _isHealthJourneyMode = value;
+                                            });
+                                          },
+                                          activeColor: kAccent,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -431,6 +512,60 @@ class _TastyScreenState extends State<TastyScreen> {
                   ],
                 ),
 
+                // Food Health Journey mode banner
+                if (_isHealthJourneyMode)
+                  Container(
+                    width: double.infinity,
+                    margin: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context),
+                      vertical: getPercentageHeight(1, context),
+                    ),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3, context),
+                      vertical: getPercentageHeight(1.5, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: kAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: kAccent.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.eco,
+                          color: kAccent,
+                          size: getIconScale(6, context),
+                        ),
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Food Health Journey Mode Active",
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: kAccent,
+                                ),
+                              ),
+                              SizedBox(height: getPercentageHeight(0.3, context)),
+                              Text(
+                                "Tasty will provide personalized nutrition guidance and track your progress",
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: themeProvider.isDarkMode
+                                      ? kWhite.withValues(alpha: 0.8)
+                                      : kDarkGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: Obx(() {
                     final messages = chatController.messages;
@@ -1153,7 +1288,17 @@ Give 3-4 practical tips. Be encouraging!
               "Is there anything else you'd like to know about what we just discussed? I'm here to help!";
         } else {
           final username = userService.currentUser.value?.displayName;
-          final prompt = "${userInput}, user name is ${username ?? ''}".trim();
+          String prompt = "${userInput}, user name is ${username ?? ''}".trim();
+          
+          // Add Food Health Journey context if mode is active
+          if (_isHealthJourneyMode) {
+            prompt = """[Food Health Journey Mode - Track and guide the user's nutrition journey]
+
+$prompt
+
+IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutrition guidance, track progress, offer encouragement, and help the user achieve their health goals. Be supportive and focus on long-term wellness.""";
+          }
+          
           response = await geminiService.getResponse(
             prompt,
             maxTokens: 512,
