@@ -100,12 +100,50 @@ service cloud.firestore {
     // INGREDIENTS COLLECTION
     // ============================================================================
     match /ingredients/{ingredientId} {
-      // Anyone authenticated can read ingredients
-      allow read: if isAuthenticated();
+      // Anyone (including non-registered users) can read ingredients
+      // Needed for app to load and function properly
+      allow read: if true;
       
       // Only cloud functions can create/update ingredients
       allow create, update: if false; // Cloud functions use admin SDK
       allow delete: if false;
+    }
+    
+    // ============================================================================
+    // GENERAL COLLECTION (App configuration and public data)
+    // ============================================================================
+    match /general/{documentId} {
+      // Anyone (including non-registered users) can read general data
+      // This includes app configuration, excluded ingredients, etc.
+      // Needed for app to load properly before user authentication
+      allow read: if true;
+      
+      // Only cloud functions can write general data
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
+    // HEADERS COLLECTION (Dietary headers for meal generation)
+    // ============================================================================
+    match /headers/{headerId} {
+      // Anyone (including non-registered users) can read headers
+      // Needed for meal generation UI to function properly
+      allow read: if true;
+      
+      // Only cloud functions can write headers
+      allow write: if false; // Cloud functions use admin SDK
+    }
+    
+    // ============================================================================
+    // CATEGORY COLLECTION (Meal categories)
+    // ============================================================================
+    match /category/{categoryId} {
+      // Anyone (including non-registered users) can read categories
+      // Needed for meal generation UI to function properly
+      allow read: if true;
+      
+      // Only cloud functions can write categories
+      allow write: if false; // Cloud functions use admin SDK
     }
     
     // ============================================================================
