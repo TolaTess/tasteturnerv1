@@ -58,13 +58,13 @@ class AuthController extends GetxController {
         // Extract display name from provider data if user.displayName is null
         String? displayName = user.displayName;
         String? authProvider;
-        
+
         // Determine auth provider from user's provider data
         if (user.providerData.isNotEmpty) {
           authProvider = user.providerData.first.providerId;
           debugPrint("Auth provider detected: $authProvider");
         }
-        
+
         if (displayName == null || displayName.isEmpty) {
           for (final providerData in user.providerData) {
             if (providerData.displayName != null &&
@@ -77,7 +77,7 @@ class AuthController extends GetxController {
         }
 
         Get.offAll(() => OnboardingScreen(
-            userId: user.uid, 
+            userId: user.uid,
             displayName: displayName,
             authProvider: authProvider));
       } else {
@@ -90,7 +90,7 @@ class AuthController extends GetxController {
           await BadgeService.instance.assignUserNumberToExistingUser(user.uid);
 
           await _setLoggedIn(true);
-            // Extract display name from provider data if user.displayName is null
+          // Extract display name from provider data if user.displayName is null
           if (user.uid == tastyId3) {
             // Determine auth provider for existing user too
             String? authProvider;
@@ -98,7 +98,7 @@ class AuthController extends GetxController {
               authProvider = user.providerData.first.providerId;
             }
             Get.offAll(() => OnboardingScreen(
-                userId: user.uid, 
+                userId: user.uid,
                 displayName: user.displayName,
                 authProvider: authProvider));
           } else {
@@ -152,13 +152,18 @@ class AuthController extends GetxController {
           final userDataMap = doc.data()!;
 
           List<String> following = [];
-          final followingSnapshot =
-              await firestore.collection('friends').doc(userId).get();
+          try {
+            final followingSnapshot =
+                await firestore.collection('friends').doc(userId).get();
 
-          if (followingSnapshot.exists) {
-            final data = followingSnapshot.data()!;
-            final followingData = data['following'] as List<dynamic>? ?? [];
-            following = followingData.map((id) => id.toString()).toList();
+            if (followingSnapshot.exists) {
+              final data = followingSnapshot.data()!;
+              final followingData = data['following'] as List<dynamic>? ?? [];
+              following = followingData.map((id) => id.toString()).toList();
+            }
+          } catch (e) {
+            debugPrint('Error fetching friends data in listenToUserData: $e');
+            // Continue without following data - don't block user data loading
           }
 
           DateTime? createdAt;
@@ -256,7 +261,7 @@ class AuthController extends GetxController {
         String userId = cred.user!.uid;
         await _setLoggedIn(true);
         Get.offAll(() => OnboardingScreen(
-            userId: userId, 
+            userId: userId,
             displayName: null,
             authProvider: 'password')); // Email/password sign up
       } else {
@@ -299,7 +304,6 @@ class AuthController extends GetxController {
       // Sign in to Firebase with Google credentials
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
-
 
       // Extract display name from Google UserCredential
       String? extractedDisplayName;
@@ -574,10 +578,12 @@ class AuthController extends GetxController {
         throw Exception("User ID is invalid or empty.");
       }
 
-      debugPrint("Verifying purchase with server for product: $productId, plan: $plan");
+      debugPrint(
+          "Verifying purchase with server for product: $productId, plan: $plan");
 
       // Call the cloud function to verify the receipt
-      final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('verifyPurchase');
       final result = await callable.call({
         'receiptData': receiptData,
         'productId': productId,
@@ -585,7 +591,7 @@ class AuthController extends GetxController {
       }).timeout(const Duration(seconds: 30));
 
       final response = result.data as Map<String, dynamic>;
-      
+
       if (response['success'] == true) {
         debugPrint("Purchase verified successfully on server");
         // The cloud function already updated the premium status in Firestore

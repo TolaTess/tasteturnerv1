@@ -499,7 +499,9 @@ class _BuddyTabState extends State<BuddyTab> {
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
-                              "Crafting the perfect plan for a fitter you \n\nYour free trial ended on ${DateFormat('MMM d, yyyy').format(freeTrialDate!)}",
+                              freeTrialDate != null
+                                  ? "Crafting the perfect plan for a fitter you \n\nYour free trial ended on ${DateFormat('MMM d, yyyy').format(freeTrialDate)}"
+                                  : "Crafting the perfect plan for a fitter you",
                               textAlign: TextAlign.center,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: isDarkMode
@@ -703,6 +705,12 @@ class _BuddyTabState extends State<BuddyTab> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                       child: CircularProgressIndicator(color: kAccent));
+                }
+
+                // Handle errors gracefully
+                if (snapshot.hasError) {
+                  debugPrint('Error loading buddy data: ${snapshot.error}');
+                  return _buildDefaultView(context, false);
                 }
 
                 final docs = snapshot.data?.docs ?? [];

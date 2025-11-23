@@ -823,11 +823,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Obx(() {
       final currentUser = userService.currentUser.value;
 
-      if (currentUser == null) {
-        // Show a loading state if user data isn't available yet
+      // Check if user is authenticated but data hasn't loaded yet
+      final isAuthenticated = firebaseAuth.currentUser != null;
+      if (currentUser == null && isAuthenticated) {
+        // User is authenticated but data hasn't loaded - wait a bit longer
+        // This handles the case where auth state is ready but Firestore data is still loading
         return const Scaffold(
           body: Center(
             child: CircularProgressIndicator(color: kAccent),
+          ),
+        );
+      }
+
+      // If user is not authenticated at all, show splash/login screen
+      if (!isAuthenticated) {
+        // Redirect to splash/login - this should be handled by auth flow
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(color: kAccent),
+          ),
+        );
+      }
+
+      // If authenticated but currentUser is still null after reasonable time,
+      // there might be a permission issue - show error or default state
+      if (currentUser == null) {
+        debugPrint(
+            'Warning: User authenticated but currentUser is null - possible permission issue');
+        // Show default/empty state instead of infinite loading
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: kAccent),
+                const SizedBox(height: 16),
+                Text(
+                  'Unable to load user data',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please try logging out and back in',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
           ),
         );
       }
