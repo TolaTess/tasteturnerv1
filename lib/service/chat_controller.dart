@@ -15,6 +15,20 @@ class ChatController extends GetxController {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
       _messagesSubscription;
 
+  // Mode-based chat state
+  final RxString currentMode = 'tasty'.obs; // 'tasty', 'planner', 'meal'
+  final Map<String, List<ChatScreenData>> modeMessages = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _modeMessagesSubscription;
+
+  // Planning mode state
+  final RxBool isPlanningMode = false.obs;
+  final RxList<ChatScreenData> planningConversation = <ChatScreenData>[].obs;
+  final RxBool isReadyToGenerate = false.obs;
+  final Rx<Map<String, dynamic>?> planningFormData = Rx<Map<String, dynamic>?>(null);
+  final RxBool isFormSubmitted = false.obs;
+  final RxBool showForm = false.obs;
+
   // Initialize chat and listen for messages
   Future<void> initializeChat(String friendId) async {
     if (friendId.isEmpty) {
@@ -27,33 +41,139 @@ class ChatController extends GetxController {
       return;
     }
     chatId = await getOrCreateChatId(currentUserId, friendId);
-    listenToMessages();
+    
+    // Set up mode subcollections and migrate if needed
+    await _setupModeSubcollections();
+    
+    // Load current mode from chat document or default to 'tasty'
+    await _loadCurrentMode();
+    
+    // Listen to messages for current mode
+    listenToModeMessages(currentMode.value);
   }
-
-  void listenToMessages() {
-    _listenToMessages();
+  
+  // Set up mode subcollections and migrate existing messages if needed
+  Future<void> _setupModeSubcollections() async {
+    if (chatId.isEmpty) return;
+    
+    try {
+      // Check if old messages collection exists and has messages
+      final oldMessagesQuery = await firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .limit(1)
+          .get();
+      
+      // Check if mode subcollections already exist
+      final tastyMessagesQuery = await firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('tasty_messages')
+          .limit(1)
+          .get();
+      
+      // Migrate old messages to tasty_messages if needed
+      if (oldMessagesQuery.docs.isNotEmpty && tastyMessagesQuery.docs.isEmpty) {
+        debugPrint('Migrating old messages to tasty_messages subcollection');
+        final allOldMessages = await firestore
+            .collection('chats')
+            .doc(chatId)
+            .collection('messages')
+            .get();
+        
+        final batch = firestore.batch();
+        for (var doc in allOldMessages.docs) {
+          final newRef = firestore
+              .collection('chats')
+              .doc(chatId)
+              .collection('tasty_messages')
+              .doc(doc.id);
+          batch.set(newRef, doc.data());
+        }
+        await batch.commit();
+        debugPrint('Migrated ${allOldMessages.docs.length} messages to tasty_messages');
+      }
+    } catch (e) {
+      debugPrint('Error setting up mode subcollections: $e');
+    }
   }
-
-  // Listen for new messages in the chat
-  void _listenToMessages() {
+  
+  // Load current mode from chat document
+  Future<void> _loadCurrentMode() async {
+    if (chatId.isEmpty) return;
+    
+    try {
+      final chatDoc = await firestore.collection('chats').doc(chatId).get();
+      if (chatDoc.exists) {
+        final data = chatDoc.data();
+        final mode = data?['currentMode'] as String?;
+        if (mode != null && ['tasty', 'planner', 'meal'].contains(mode)) {
+          currentMode.value = mode;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading current mode: $e');
+    }
+  }
+  
+  // Switch to a different mode
+  Future<void> switchMode(String mode) async {
+    if (!['tasty', 'planner', 'meal'].contains(mode)) {
+      debugPrint('Invalid mode: $mode');
+      return;
+    }
+    
+    if (currentMode.value == mode) return;
+    
+    // Cancel current subscription
+    _modeMessagesSubscription?.cancel();
+    
+    // Update current mode
+    currentMode.value = mode;
+    
+    // Update chat document with current mode
+    if (chatId.isNotEmpty) {
+      try {
+        await firestore.collection('chats').doc(chatId).update({
+          'currentMode': mode,
+          'lastModeSwitch': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Error updating current mode: $e');
+      }
+    }
+    
+    // Listen to messages for new mode
+    listenToModeMessages(mode);
+  }
+  
+  // Get mode subcollection name
+  String _getModeSubcollection(String mode) {
+    return '${mode}_messages';
+  }
+  
+  // Listen to messages for a specific mode
+  void listenToModeMessages(String mode) {
     if (chatId.isEmpty) {
       debugPrint("Chat ID is empty");
       return;
     }
 
     // Cancel existing subscription if any
-    _messagesSubscription?.cancel();
+    _modeMessagesSubscription?.cancel();
 
     try {
-      _messagesSubscription = firestore
+      final subcollectionName = _getModeSubcollection(mode);
+      _modeMessagesSubscription = firestore
           .collection('chats')
           .doc(chatId)
-          .collection('messages')
+          .collection(subcollectionName)
           .orderBy('timestamp', descending: false)
           .snapshots()
           .listen(
         (querySnapshot) {
-          messages.value = querySnapshot.docs
+          final modeMessagesList = querySnapshot.docs
               .map((doc) {
                 try {
                   return ChatScreenData.fromFirestore(doc.data(),
@@ -65,11 +185,47 @@ class ChatController extends GetxController {
               })
               .whereType<ChatScreenData>()
               .toList();
+          
+          // Cache messages for this mode
+          modeMessages[mode] = modeMessagesList;
+          
+          // Update observable messages if this is the current mode
+          if (currentMode.value == mode) {
+            // Merge with existing messages to avoid losing locally added messages
+            // that haven't been picked up by Firestore yet
+            final existingMessages = List<ChatScreenData>.from(messages);
+            final mergedMessages = <ChatScreenData>[];
+            
+            // First add all Firestore messages
+            for (final msg in modeMessagesList) {
+              mergedMessages.add(msg);
+            }
+            
+            // Then add any local messages that don't have IDs yet (pending save)
+            // These are messages added locally but not yet in Firestore
+            for (final msg in existingMessages) {
+              if (msg.messageId.isEmpty && 
+                  !mergedMessages.any((m) => 
+                    m.messageContent == msg.messageContent &&
+                    m.senderId == msg.senderId &&
+                    (m.timestamp.toDate().difference(msg.timestamp.toDate()).inSeconds.abs() < 5)
+                  )) {
+                mergedMessages.add(msg);
+              }
+            }
+            
+            // Sort by timestamp
+            mergedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            
+            messages.value = mergedMessages;
+          }
         },
         onError: (e) {
-          debugPrint("Error listening to messages: $e");
-          messages.clear();
-          // Show user-friendly error notification
+          debugPrint("Error listening to mode messages: $e");
+          modeMessages[mode] = [];
+          if (currentMode.value == mode) {
+            messages.clear();
+          }
           try {
             Get.snackbar(
               'Connection Error',
@@ -83,9 +239,107 @@ class ChatController extends GetxController {
         },
       );
     } catch (e) {
-      debugPrint("Error setting up message listener: $e");
-      messages.clear();
+      debugPrint("Error setting up mode message listener: $e");
+      modeMessages[mode] = [];
+      if (currentMode.value == mode) {
+        messages.clear();
+      }
     }
+  }
+  
+  // Get cached messages for a specific mode
+  List<ChatScreenData> getModeMessages(String mode) {
+    return modeMessages[mode] ?? [];
+  }
+  
+  // Save message to a specific mode subcollection
+  Future<void> saveMessageToMode({
+    required String mode,
+    required String content,
+    required String senderId,
+    List<String>? imageUrls,
+    Map<String, dynamic>? actionButtons,
+  }) async {
+    if (chatId.isEmpty) return;
+    
+    try {
+      final subcollectionName = _getModeSubcollection(mode);
+      final messageRef = firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection(subcollectionName)
+          .doc();
+      
+      final timestamp = FieldValue.serverTimestamp();
+      
+      final messageData = {
+        'messageContent': content,
+        'senderId': senderId,
+        'timestamp': timestamp,
+        'imageUrls': imageUrls ?? [],
+      };
+      
+      if (actionButtons != null) {
+        // Ensure actionButtons only contains Firestore-serializable types
+        messageData['actionButtons'] = _sanitizeForFirestore(actionButtons);
+      }
+      
+      await firestore.runTransaction((transaction) async {
+        transaction.set(messageRef, messageData);
+        
+        // Update chat summary with mode information
+        transaction.update(
+          firestore.collection('chats').doc(chatId),
+          {
+            'lastMessage': content,
+            'lastMessageTime': timestamp,
+            'lastMessageSender': senderId,
+            'lastMessageMode': mode,
+            'currentMode': mode,
+          },
+        );
+      });
+    } catch (e, stackTrace) {
+      debugPrint("Error saving message to mode: $e");
+      debugPrint("Stack trace: $stackTrace");
+      debugPrint("Message content: $content");
+      debugPrint("Action buttons: $actionButtons");
+      // Re-throw to let caller handle it
+      rethrow;
+    }
+  }
+
+  void listenToMessages() {
+    // Use mode-based listening
+    listenToModeMessages(currentMode.value);
+  }
+
+  // Sanitize data for Firestore - ensure all values are serializable
+  Map<String, dynamic> _sanitizeForFirestore(Map<String, dynamic> data) {
+    final sanitized = <String, dynamic>{};
+    for (final entry in data.entries) {
+      final value = entry.value;
+      if (value == null) {
+        sanitized[entry.key] = null;
+      } else if (value is String || value is int || value is double || value is bool) {
+        sanitized[entry.key] = value;
+      } else if (value is List) {
+        sanitized[entry.key] = value.map((item) {
+          if (item is String || item is int || item is double || item is bool) {
+            return item;
+          } else if (item is Map) {
+            return _sanitizeForFirestore(item as Map<String, dynamic>);
+          }
+          return item.toString();
+        }).toList();
+      } else if (value is Map) {
+        sanitized[entry.key] = _sanitizeForFirestore(value as Map<String, dynamic>);
+      } else {
+        // Convert any other type to string
+        sanitized[entry.key] = value.toString();
+      }
+    }
+    return sanitized;
   }
 
   // Load chats the user is part of
@@ -452,10 +706,66 @@ class ChatController extends GetxController {
     await friendController.fetchFollowing(recipientId);
   }
 
+  // Planning mode methods
+  void enterPlanningMode() {
+    isPlanningMode.value = true;
+    planningConversation.clear();
+    isReadyToGenerate.value = false;
+  }
+
+  void exitPlanningMode() {
+    isPlanningMode.value = false;
+    isReadyToGenerate.value = false;
+    planningFormData.value = null;
+    isFormSubmitted.value = false;
+    showForm.value = false;
+    planningConversation.clear();
+  }
+
+  void setPlanningFormData(Map<String, dynamic> data) {
+    planningFormData.value = data;
+    isFormSubmitted.value = true;
+  }
+
+  void addPlanningMessage(ChatScreenData message) {
+    if (isPlanningMode.value) {
+      planningConversation.add(message);
+      // Check if ready to generate (simple heuristic: at least 4 exchanges)
+      if (planningConversation.length >= 8) {
+        // Check if AI has asked key questions
+        final hasGoals = planningConversation.any((msg) =>
+            msg.messageContent.toLowerCase().contains('goal') &&
+            msg.senderId == 'buddy');
+        final hasDuration = planningConversation.any((msg) =>
+            msg.messageContent.toLowerCase().contains('duration') &&
+            msg.senderId == 'buddy');
+        if (hasGoals && hasDuration) {
+          isReadyToGenerate.value = true;
+        }
+      }
+    }
+  }
+
+  void checkReadyToGenerate() {
+    // More sophisticated check: look for AI suggesting to generate
+    final lastMessage = planningConversation.isNotEmpty
+        ? planningConversation.last
+        : null;
+    if (lastMessage != null &&
+        lastMessage.senderId == 'buddy' &&
+        (lastMessage.messageContent.toLowerCase().contains('ready to generate') ||
+            lastMessage.messageContent.toLowerCase().contains('create your plan') ||
+            lastMessage.messageContent.toLowerCase().contains('generate the plan'))) {
+      isReadyToGenerate.value = true;
+    }
+  }
+
   @override
   void onClose() {
     _messagesSubscription?.cancel();
     _messagesSubscription = null;
+    _modeMessagesSubscription?.cancel();
+    _modeMessagesSubscription = null;
     super.onClose();
   }
 }
@@ -468,6 +778,7 @@ class ChatScreenData {
   final Timestamp timestamp;
   final Map<String, dynamic>? shareRequest;
   final Map<String, dynamic>? friendRequest;
+  final Map<String, dynamic>? actionButtons;
   final String messageId;
 
   ChatScreenData({
@@ -477,6 +788,7 @@ class ChatScreenData {
     required this.timestamp,
     this.shareRequest,
     this.friendRequest,
+    this.actionButtons,
     required this.messageId,
   });
 
@@ -489,6 +801,7 @@ class ChatScreenData {
       'messageId': messageId,
       if (shareRequest != null) 'shareRequest': shareRequest,
       if (friendRequest != null) 'friendRequest': friendRequest,
+      if (actionButtons != null) 'actionButtons': actionButtons,
     };
   }
 
@@ -501,6 +814,7 @@ class ChatScreenData {
       timestamp: data['timestamp'] ?? Timestamp.now(),
       shareRequest: data['shareRequest'] as Map<String, dynamic>?,
       friendRequest: data['friendRequest'] as Map<String, dynamic>?,
+      actionButtons: data['actionButtons'] as Map<String, dynamic>?,
       messageId: messageId ?? '',
     );
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
@@ -9,6 +10,7 @@ import '../detail_screen/recipe_detail.dart';
 import '../helper/helper_files.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../screens/buddy_screen.dart';
 import '../widgets/info_icon_widget.dart';
 import '../widgets/premium_widget.dart';
 import '../helper/helper_functions.dart';
@@ -22,7 +24,7 @@ class BuddyTab extends StatefulWidget {
 }
 
 class _BuddyTabState extends State<BuddyTab> {
-  Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
+  Future<QuerySnapshot<Map<String, dynamic>>?>? _buddyDataFuture;
 
   // State for meal type filtering
   final ValueNotifier<Set<String>> selectedMealTypesNotifier =
@@ -150,13 +152,10 @@ class _BuddyTabState extends State<BuddyTab> {
 
   void _initializeBuddyData() {
     final currentUser = userService.currentUser.value;
-    if (currentUser == null) return;
-
-    final now = DateTime.now();
-    final thirtyDaysAgo = now.subtract(const Duration(days: 31));
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final lowerBound = dateFormat.format(thirtyDaysAgo);
-    final upperBound = dateFormat.format(now);
+    if (currentUser == null) {
+      _buddyDataFuture = Future.value(null);
+      return;
+    }
 
     // Determine which user's data to fetch
     String targetUserId = currentUser.userId ?? '';
@@ -166,30 +165,44 @@ class _BuddyTabState extends State<BuddyTab> {
       targetUserId = currentUser.userId ?? '';
     }
 
-    _buddyDataFuture = firestore
-        .collection('mealPlans')
-        .doc(targetUserId)
-        .collection('buddy')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: lowerBound)
-        .where(FieldPath.documentId, isLessThanOrEqualTo: upperBound)
-        .orderBy(FieldPath.documentId, descending: true)
-        .limit(1)
-        .get();
-  }
-
-  Future<dynamic> _navigateToChooseDietWithUser(BuildContext context) async {
-    final currentUser = userService.currentUser.value;
-    if (currentUser == null) {
-      navigateToChooseDiet(context);
-      return null;
+    if (targetUserId.isEmpty) {
+      _buddyDataFuture = Future.value(null);
+      return;
     }
 
-    // Get the selected family member name
+    // Simplified query: just get the most recent document by ordering descending
+    // Document IDs are dates in 'yyyy-MM-dd' format, so ordering descending gives most recent
+    // This avoids needing a composite index for range queries
+    _buddyDataFuture = _fetchBuddyData(targetUserId);
+  }
+
+  // Separate async method to properly handle errors and return null on failure
+  Future<QuerySnapshot<Map<String, dynamic>>?> _fetchBuddyData(
+      String userId) async {
+    try {
+      return await firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('buddy')
+          .orderBy(FieldPath.documentId, descending: true)
+          .limit(1)
+          .get();
+    } catch (e) {
+      debugPrint('Error loading buddy data: $e');
+      return null;
+    }
+  }
+
+  Future<dynamic> _navigateToMealPlanChat(BuildContext context) async {
+    final currentUser = userService.currentUser.value;
+
+    // Get the selected family member info
     String? familyMemberName;
     String? familyMemberKcal;
     String? familyMemberGoal;
     String? familyMemberType;
-    if (familyMode && selectedUserIndex > 0) {
+
+    if (currentUser != null && familyMode && selectedUserIndex > 0) {
       final familyMembers = currentUser.familyMembers ?? [];
       if (selectedUserIndex - 1 < familyMembers.length) {
         familyMemberName = familyMembers[selectedUserIndex - 1].name;
@@ -199,12 +212,17 @@ class _BuddyTabState extends State<BuddyTab> {
       }
     }
 
-    // Navigate to choose diet screen with family member name
-    navigateToChooseDiet(context,
-        familyMemberName: familyMemberName,
-        familyMemberKcal: familyMemberKcal,
-        familyMemberGoal: familyMemberGoal,
-        familyMemberType: familyMemberType);
+    // Navigate to meal plan chat mode in BuddyScreen
+    Get.to(
+      () => const TastyScreen(screen: 'buddy'),
+      arguments: {
+        'mealPlanMode': true,
+        'familyMemberName': familyMemberName,
+        'familyMemberKcal': familyMemberKcal,
+        'familyMemberGoal': familyMemberGoal,
+        'familyMemberType': familyMemberType,
+      },
+    );
     return null;
   }
 
@@ -218,27 +236,56 @@ class _BuddyTabState extends State<BuddyTab> {
         if (mealId is String && mealId.contains('/')) {
           final parts = mealId.split('/');
           final id = parts[0];
-          final mealType = parts.length > 1 ? parts[1] : '';
+          String mealType = parts.length > 1 ? parts[1] : '';
+          String familyMember = parts.length > 2 ? parts[2] : '';
 
-          // Handle empty meal types
-          final effectiveMealType = mealType.isEmpty ? 'general' : mealType;
+          // Defensive parsing: Handle edge case where format is mealId/familyMemberName (2 parts)
+          // Check if second part is a known suffix (bf, lh, dn, sn) or a family member name
+          if (parts.length == 2) {
+            final secondPart = parts[1].toLowerCase();
+            final knownSuffixes = [
+              'bf',
+              'lh',
+              'dn',
+              'sn',
+              'breakfast',
+              'lunch',
+              'dinner',
+              'snack'
+            ];
+            if (!knownSuffixes.contains(secondPart)) {
+              // Second part is likely a family member name, not a suffix
+              // Default to 'bf' (breakfast) as per user comment
+              mealType = 'bf';
+              familyMember = parts[1];
+            } else {
+              // Second part is a suffix
+              mealType = secondPart;
+              familyMember = '';
+            }
+          } else if (mealType.isEmpty) {
+            // If mealType is empty, default to 'bf' (breakfast) as per user comment
+            mealType = 'bf';
+          }
 
           final meal = await mealManager.getMealbyMealID(id);
           if (meal != null) {
             mealWithTypes.add(MealWithType(
               meal: meal,
-              mealType: effectiveMealType,
-              familyMember: parts.length > 2 ? parts[2] : '',
+              mealType: mealType,
+              familyMember: familyMember,
               fullMealId: mealId,
             ));
           }
         } else if (mealId is String) {
           // Handle mealIds without meal type (just the meal ID)
+          // Default to 'bf' (breakfast) when suffix is missing as per user comment
           final meal = await mealManager.getMealbyMealID(mealId);
           if (meal != null) {
             mealWithTypes.add(MealWithType(
               meal: meal,
-              mealType: 'general',
+              mealType:
+                  'bf', // Default to 'bf' (breakfast) when suffix is missing
               familyMember: '',
               fullMealId: mealId,
             ));
@@ -545,7 +592,7 @@ class _BuddyTabState extends State<BuddyTab> {
                         borderRadius: BorderRadius.circular(15),
                         onTap: () async {
                           if (canUseAI()) {
-                            await _navigateToChooseDietWithUser(context);
+                            await _navigateToMealPlanChat(context);
                           } else {
                             showPremiumRequiredDialog(context, isDarkMode);
                           }
@@ -699,7 +746,7 @@ class _BuddyTabState extends State<BuddyTab> {
           ],
 
           Expanded(
-            child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>?>(
               future: _buddyDataFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -710,6 +757,11 @@ class _BuddyTabState extends State<BuddyTab> {
                 // Handle errors gracefully
                 if (snapshot.hasError) {
                   debugPrint('Error loading buddy data: ${snapshot.error}');
+                  return _buildDefaultView(context, false);
+                }
+
+                // Handle null data (from catchError) or empty docs
+                if (snapshot.data == null) {
                   return _buildDefaultView(context, false);
                 }
 
@@ -865,8 +917,7 @@ class _BuddyTabState extends State<BuddyTab> {
                                 ),
                                 onPressed: () async {
                                   if (canUseAI()) {
-                                    await _navigateToChooseDietWithUser(
-                                        context);
+                                    await _navigateToMealPlanChat(context);
                                   } else {
                                     showPremiumRequiredDialog(
                                         context, isDarkMode);

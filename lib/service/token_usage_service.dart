@@ -33,10 +33,15 @@ class TokenUsageService extends GetxController {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      // Apply 1.5x multiplier for planning mode operations
+      final multiplier = (metadata?['mode'] == 'planning') ? 1.5 : 1.0;
+      final adjustedInputTokens = (inputTokens * multiplier).round();
+      final adjustedOutputTokens = (outputTokens * multiplier).round();
+      
       final usage = TokenUsage(
         operation: operation,
-        inputTokens: inputTokens,
-        outputTokens: outputTokens,
+        inputTokens: adjustedInputTokens,
+        outputTokens: adjustedOutputTokens,
         provider: provider,
         timestamp: DateTime.now(),
         metadata: metadata ?? {},

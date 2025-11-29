@@ -11,7 +11,18 @@ import '../helper/utils.dart';
 import '../service/meal_api_service.dart';
 
 class MealManager extends GetxController {
-  static MealManager instance = Get.find();
+  static MealManager get instance {
+    try {
+      return Get.find<MealManager>();
+    } catch (e) {
+      // If not found, put it first (Get.put will return existing if already registered)
+      if (!Get.isRegistered<MealManager>()) {
+        return Get.put(MealManager());
+      }
+      // If registered but not found, try finding again
+      return Get.find<MealManager>();
+    }
+  }
   final RxList<Meal> _meals = <Meal>[].obs;
   List<Meal> get meals => _meals;
 

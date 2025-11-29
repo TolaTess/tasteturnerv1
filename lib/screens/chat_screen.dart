@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -10,10 +11,13 @@ import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
+import '../pages/program_progress_screen.dart';
 import '../pages/safe_text_field.dart';
 import '../service/chat_controller.dart';
+import '../service/meal_manager.dart';
 
 import '../widgets/icon_widget.dart';
+import '../widgets/bottom_nav.dart';
 import 'user_profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -408,6 +412,7 @@ class ChatItem extends StatelessWidget {
   final bool isMe;
   final ChatController chatController;
   final String chatId;
+  final VoidCallback? onPlanSubmit;
 
   const ChatItem({
     super.key,
@@ -415,6 +420,7 @@ class ChatItem extends StatelessWidget {
     required this.isMe,
     required this.chatController,
     required this.chatId,
+    this.onPlanSubmit,
   });
 
   @override
@@ -525,11 +531,26 @@ class ChatItem extends StatelessWidget {
 
               // Show Text if Available
               if (dataSrc.messageContent.isNotEmpty)
-                Text(
-                  getTextBeforeSlash(
-                      dataSrc.messageContent.replaceAll('00:00:00.000 ', '')),
-                  style: textTheme.bodyMedium?.copyWith(),
+                Padding(
+                  padding: EdgeInsets.only(bottom: dataSrc.actionButtons != null && dataSrc.actionButtons!.isNotEmpty 
+                      ? getPercentageHeight(0.5, context) 
+                      : 0),
+                  child: Text(
+                    // Only use getTextBeforeSlash for special formatted messages (with navigation)
+                    // For regular messages with action buttons, show full content
+                    dataSrc.actionButtons != null && dataSrc.actionButtons!.isNotEmpty
+                        ? dataSrc.messageContent.replaceAll('00:00:00.000 ', '')
+                        : getTextBeforeSlash(
+                            dataSrc.messageContent.replaceAll('00:00:00.000 ', '')),
+                    style: textTheme.bodyMedium?.copyWith(),
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
+                  ),
                 ),
+
+              // Show Action Buttons if available
+              if (dataSrc.actionButtons != null)
+                _buildActionButtons(context, dataSrc.actionButtons!, isDarkMode),
 
               // Show Calendar Share Request if available
               if (dataSrc.shareRequest != null)
@@ -736,6 +757,255 @@ class ChatItem extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> actionButtons, bool isDarkMode) {
+    return Container(
+      margin: EdgeInsets.only(top: getPercentageHeight(1, context)),
+      child: Wrap(
+        spacing: getPercentageWidth(2, context),
+        runSpacing: getPercentageHeight(0.8, context),
+        children: [
+          if (actionButtons['viewPlan'] != null)
+            ElevatedButton.icon(
+                onPressed: () {
+                  final programId = actionButtons['viewPlan'] as String;
+                  Get.to(() => ProgramProgressScreen(
+                    programId: programId,
+                  ));
+                },
+                icon: const Icon(Icons.fitness_center, size: 16),
+                label: const Text('View Plan'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  foregroundColor: kWhite,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(3, context),
+                    vertical: getPercentageHeight(0.8, context),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+          if (actionButtons['viewMealPlan'] != null)
+            ElevatedButton.icon(
+              onPressed: () {
+                try {
+                  // Navigate to MealDesignScreen (index 4) and switch to buddy tab (tab index 1)
+                  Get.offAll(() => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
+                } catch (e) {
+                  debugPrint('Error navigating to meal plan: $e');
+                  // Fallback: navigate to meal design screen without specifying tab
+                  try {
+                    Get.offAll(() => const BottomNavSec(selectedIndex: 4));
+                  } catch (e2) {
+                    debugPrint('Error with fallback navigation: $e2');
+                    Get.snackbar(
+                      'Navigation Error',
+                      'Unable to open meal plan. Please navigate manually.',
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.restaurant_menu, size: 16),
+              label: const Text('View Meal Plan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccentLight,
+                foregroundColor: kWhite,
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(3, context),
+                  vertical: getPercentageHeight(0.8, context),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          if (actionButtons['openForm'] != null)
+            Obx(() {
+                final controller = Get.find<ChatController>();
+                final isFormOpen = controller.showForm.value;
+                return ElevatedButton.icon(
+                  onPressed: () {
+                    // Toggle the planning form
+                    try {
+                      final currentShowForm = controller.showForm.value;
+                      controller.showForm.value = !currentShowForm;
+                      
+                      // If opening form for amending, reset form submission state
+                      if (!currentShowForm && controller.isFormSubmitted.value) {
+                        controller.isFormSubmitted.value = false;
+                        controller.planningFormData.value = null;
+                      }
+                      
+                      debugPrint('Form button clicked - showForm toggled to: ${controller.showForm.value}');
+                    } catch (e) {
+                      debugPrint('Error accessing ChatController: $e');
+                    }
+                  },
+                  icon: Icon(
+                    isFormOpen ? Icons.close : Icons.edit_note, 
+                    size: 16
+                  ),
+                  label: Text(
+                    isFormOpen 
+                        ? 'Close Form' 
+                        : (actionButtons['openForm'] as String)
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccent,
+                    foregroundColor: kWhite,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3, context),
+                      vertical: getPercentageHeight(0.8, context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                );
+              }),
+          if (actionButtons['amendForm'] != null)
+            ElevatedButton.icon(
+                onPressed: () {
+                  // Open form for amending - keep existing form data for editing
+                  try {
+                    final controller = Get.find<ChatController>();
+                    controller.isFormSubmitted.value = false;
+                    // Keep planningFormData.value so form can be pre-filled
+                    controller.showForm.value = true;
+                    debugPrint('Amend form button clicked - form opened for editing');
+                  } catch (e) {
+                    debugPrint('Error accessing ChatController: $e');
+                  }
+                },
+                icon: const Icon(Icons.edit, size: 16),
+                label: Text(actionButtons['amendForm'] as String),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccentLight,
+                  foregroundColor: kWhite,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(3, context),
+                    vertical: getPercentageHeight(0.8, context),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+          if (actionButtons['submitPlan'] != null)
+            ElevatedButton.icon(
+              onPressed: () async {
+                // Trigger plan generation directly without sending "yes" message
+                try {
+                  debugPrint('Submit plan button clicked - generating plan');
+                  
+                  // Call the callback to trigger plan generation if provided
+                  if (onPlanSubmit != null) {
+                    onPlanSubmit!();
+                  }
+                } catch (e) {
+                  debugPrint('Error submitting plan: $e');
+                }
+              },
+              icon: const Icon(Icons.check_circle, size: 16),
+              label: Text(actionButtons['submitPlan'] as String),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+                foregroundColor: kWhite,
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(3, context),
+                  vertical: getPercentageHeight(0.8, context),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          // Debug: Log actionButtons to see what we're getting
+          if (actionButtons['viewMeals'] == true || actionButtons['viewMeals'] == 'true')
+            Builder(
+              builder: (context) {
+                debugPrint('View Meals button should show. actionButtons: $actionButtons');
+                debugPrint('viewMeals value: ${actionButtons['viewMeals']}, type: ${actionButtons['viewMeals'].runtimeType}');
+                
+                // Check if we have mealIds and if it's a single meal
+                final mealIds = actionButtons['mealIds'] as List<dynamic>?;
+                final isSingleMeal = mealIds != null && mealIds.length == 1;
+                
+                return ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      if (isSingleMeal) {
+                        // Single meal: Navigate to recipe detail screen
+                        final mealId = mealIds[0].toString();
+                        // Extract meal ID if it has suffix (e.g., "mealId/bf" -> "mealId")
+                        final cleanMealId = mealId.split('/').first;
+                        
+                        // Get meal data
+                        final meal = await MealManager.instance.getMealbyMealID(cleanMealId);
+                        if (meal != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipeDetailScreen(
+                                mealData: meal,
+                              ),
+                            ),
+                          );
+                        } else {
+                          Get.snackbar(
+                            'Error',
+                            'Meal not found. Please try again.',
+                            backgroundColor: Colors.red,
+                            colorText: Colors.white,
+                          );
+                        }
+                      } else {
+                        // Multiple meals: Navigate to buddy tab (index 4 in bottom nav, tab index 1 for buddy tab)
+                        Get.offAll(() => const BottomNavSec(
+                              selectedIndex: 4,
+                              foodScreenTabIndex: 1,
+                            ));
+                      }
+                    } catch (e) {
+                      debugPrint('Error navigating: $e');
+                      // Fallback: navigate to meal design screen without specifying tab
+                      try {
+                        Get.offAll(() => const BottomNavSec(selectedIndex: 4));
+                      } catch (e2) {
+                        debugPrint('Error with fallback navigation: $e2');
+                        Get.snackbar(
+                          'Navigation Error',
+                          'Unable to open meal. Please navigate manually.',
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                      }
+                    }
+                  },
+                  icon: Icon(isSingleMeal ? Icons.restaurant : Icons.restaurant_menu, size: 16),
+                  label: Text(isSingleMeal ? 'View Recipe' : 'View Meals'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccent,
+                    foregroundColor: kWhite,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(3, context),
+                      vertical: getPercentageHeight(0.8, context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 }

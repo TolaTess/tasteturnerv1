@@ -24,9 +24,8 @@ class ProgramScreen extends StatefulWidget {
   State<ProgramScreen> createState() => _ProgramScreenState();
 }
 
-class _ProgramScreenState extends State<ProgramScreen>
-    with SingleTickerProviderStateMixin {
-  final ProgramService _programService = Get.put(ProgramService());
+class _ProgramScreenState extends State<ProgramScreen> {
+  late final ProgramService _programService;
   String selectedDiet =
       userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
   String selectedGoal =
@@ -39,29 +38,31 @@ class _ProgramScreenState extends State<ProgramScreen>
   final GlobalKey _addFeaturedButtonKey = GlobalKey();
   final GlobalKey _addTastyAIButtonKey = GlobalKey();
   final GlobalKey _addProgramButtonKey = GlobalKey();
-  late final AnimationController _rotationController;
   bool _showDietaryPrompt = false;
+  Map<String, int> _programUserCounts = {};
 
   @override
   void initState() {
     super.initState();
-    _rotationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-
-    _rotationController.forward().then((_) {
-      _rotationController.reset();
-    });
+    
+    // Initialize ProgramService using Get.find() with try-catch fallback
+    try {
+      _programService = Get.find<ProgramService>();
+    } catch (e) {
+      // If not found, put it
+      _programService = Get.put(ProgramService());
+    }
 
     _loadProgramTypes();
     // Load user's enrolled programs
     _programService.loadUserPrograms();
     _checkDietaryPrompt();
     loadShowCaloriesPref().then((value) {
-      setState(() {
-        showCaloriesAndGoal = value;
-      });
+      if (mounted) {
+        setState(() {
+          showCaloriesAndGoal = value;
+        });
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
@@ -112,7 +113,6 @@ class _ProgramScreenState extends State<ProgramScreen>
 
   @override
   void dispose() {
-    _rotationController.dispose();
     super.dispose();
   }
 
@@ -140,84 +140,166 @@ class _ProgramScreenState extends State<ProgramScreen>
         };
       }).toList();
 
-      programTypes.value = types;
+      if (mounted) {
+        programTypes.value = types;
+        // Load user counts for all programs in batch
+        _loadProgramUserCounts(types);
+      }
     } catch (e) {
       debugPrint('Error loading program types: $e');
-      // Fallback to default programs if loading fails
-      programTypes.value = [
-        {
-          'type': 'vitality',
-          'name': 'Vitality',
-          'image': 'salad',
-          'description': 'A program focused on longevity and healthy eating',
-          'options': ['beginner', 'intermediate', 'advanced'],
-        },
-        {
-          'type': 'Days Challenge',
-          'name': '7 Days Challenge',
-          'image': 'herbs',
-          'description': 'A program focused on longevity and healthy eating',
-          'options': ['beginner', 'intermediate', 'advanced'],
-        },
-      ];
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to load programs. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: kWhite,
+        );
+        // Fallback to default programs if loading fails
+        programTypes.value = [
+          {
+            'type': 'vitality',
+            'name': 'Vitality',
+            'image': 'salad',
+            'description': 'A program focused on longevity and healthy eating',
+            'options': ['beginner', 'intermediate', 'advanced'],
+          },
+          {
+            'type': 'Days Challenge',
+            'name': '7 Days Challenge',
+            'image': 'herbs',
+            'description': 'A program focused on longevity and healthy eating',
+            'options': ['beginner', 'intermediate', 'advanced'],
+          },
+        ];
+      }
+    }
+  }
+
+  Future<void> _loadProgramUserCounts(List<Map<String, dynamic>> programs) async {
+    try {
+      final Map<String, int> counts = {};
+      await Future.wait(
+        programs.map((program) async {
+          final programId = program['programId'] as String?;
+          if (programId != null && programId.isNotEmpty) {
+            try {
+              final users = await _programService.getProgramUsers(programId);
+              counts[programId] = users.length;
+            } catch (e) {
+              debugPrint('Error loading user count for program $programId: $e');
+              counts[programId] = 0;
+            }
+          }
+        }),
+      );
+      if (mounted) {
+        setState(() {
+          _programUserCounts = counts;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading program user counts: $e');
     }
   }
 
   Future<void> _showProgramQuestionnaire(
       String programType, bool isDarkMode) async {
-    final programData = programTypes.firstWhere(
-      (program) => program['type'] == programType,
-      orElse: () => throw Exception('Program type not found'),
-    );
-
-    // Check if user is already enrolled in this program
-    final isEnrolled = _programService.userPrograms.any(
-      (program) => program.programId == programData['programId'],
-    );
-
-    if (isEnrolled) {
-      // User is already enrolled, show enrolled status or redirect to progress
-      final enrolledProgram = _programService.userPrograms.firstWhere(
-        (program) => program.programId == programData['programId'],
+    try {
+      final programData = programTypes.firstWhereOrNull(
+        (program) => program['type'] == programType,
       );
 
-      Get.to(() => ProgramProgressScreen(
-            programId: enrolledProgram.programId,
-            programName: enrolledProgram.name,
-            programDescription: enrolledProgram.description,
-            benefits: enrolledProgram.benefits,
-            duration: enrolledProgram.duration,
-          ));
-      return;
-    }
+      if (programData == null) {
+        if (mounted) {
+          Get.snackbar(
+            'Error',
+            'Program not found. Please try again.',
+            backgroundColor: Colors.red,
+            colorText: kWhite,
+          );
+        }
+        return;
+      }
 
-    final result = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => ProgramDetailWidget(
-        program: programData,
-        isEnrolled: isEnrolled,
-      ),
-    );
+      final programId = programData['programId'] as String?;
+      if (programId == null || programId.isEmpty) {
+        if (mounted) {
+          Get.snackbar(
+            'Error',
+            'Invalid program data. Please try again.',
+            backgroundColor: Colors.red,
+            colorText: kWhite,
+          );
+        }
+        return;
+      }
 
-    if (result == 'joined') {
-      setState(() => isLoading = true);
-      try {
-        // Join the program with default option since no options are available
-        await _programService.joinProgram(programData['programId'], 'default');
+      // Check if user is already enrolled in this program
+      final isEnrolled = _programService.userPrograms.any(
+        (program) => program.programId == programId,
+      );
 
-        setState(() => isLoading = false);
-        Get.snackbar(
-          'Success',
-          'You\'ve successfully joined the ${programData['name']} program!',
-          backgroundColor: kAccentLight,
-          colorText: kWhite,
+      if (isEnrolled) {
+        // User is already enrolled, show enrolled status or redirect to progress
+        final enrolledProgram = _programService.userPrograms.firstWhere(
+          (program) => program.programId == programId,
         );
-      } catch (e) {
-        setState(() => isLoading = false);
+
+        Get.to(() => ProgramProgressScreen(
+              programId: enrolledProgram.programId,
+              programName: enrolledProgram.name,
+              programDescription: enrolledProgram.description,
+              benefits: enrolledProgram.benefits,
+              duration: enrolledProgram.duration,
+            ));
+        return;
+      }
+
+      final result = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ProgramDetailWidget(
+          program: programData,
+          isEnrolled: isEnrolled,
+        ),
+      );
+
+      if (result == 'joined' && mounted) {
+        setState(() => isLoading = true);
+        try {
+          // Join the program with default option since no options are available
+          await _programService.joinProgram(programId, 'default');
+
+          if (mounted) {
+            setState(() => isLoading = false);
+            Get.snackbar(
+              'Success',
+              'You\'ve successfully joined the ${programData['name'] ?? 'program'} program!',
+              backgroundColor: kAccentLight,
+              colorText: kWhite,
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() => isLoading = false);
+            final errorMessage = e.toString().contains('already enrolled')
+                ? 'You are already enrolled in this program'
+                : 'Failed to join program. Please try again.';
+            Get.snackbar(
+              'Error',
+              errorMessage,
+              backgroundColor: Colors.red,
+              colorText: kWhite,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in _showProgramQuestionnaire: $e');
+      if (mounted) {
         Get.snackbar(
           'Error',
-          'Failed to join program. Please try again.',
+          'An error occurred. Please try again.',
           backgroundColor: Colors.red,
           colorText: kWhite,
         );
@@ -232,31 +314,65 @@ class _ProgramScreenState extends State<ProgramScreen>
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
+      aiCoachResponse = '';
     });
-    final userName = userService.currentUser.value?.displayName;
-    final prompt =
-        'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
-    final response =
-        await geminiService.getResponse(prompt, maxTokens: 1024, role: buddyAiRole);
-    setState(() {
-      aiCoachResponse = response;
-      isLoading = false;
-    });
-    // Save both question and response to buddy chat
-    final chatId = userService.buddyId;
-    final userId = userService.userId ?? '';
-    if (chatId != null && chatId.isNotEmpty) {
-      await ChatController.saveMessageToFirestore(
-        chatId: chatId,
-        content: prompt,
-        senderId: userId,
+
+    try {
+      final userName = userService.currentUser.value?.displayName ?? 'User';
+      final prompt =
+          'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
+      
+      final response = await geminiService.getResponse(
+        prompt,
+        maxTokens: 1024,
+        role: buddyAiRole,
       );
-      await ChatController.saveMessageToFirestore(
-        chatId: chatId,
-        content: response,
-        senderId: 'buddy',
+
+      if (!mounted) return;
+
+      setState(() {
+        aiCoachResponse = response;
+        isLoading = false;
+      });
+
+      // Save both question and response to buddy chat
+      final chatId = userService.buddyId;
+      final userId = userService.userId ?? '';
+      if (chatId != null && chatId.isNotEmpty && userId.isNotEmpty) {
+        try {
+          await ChatController.saveMessageToFirestore(
+            chatId: chatId,
+            content: prompt,
+            senderId: userId,
+          );
+          await ChatController.saveMessageToFirestore(
+            chatId: chatId,
+            content: response,
+            senderId: 'buddy',
+          );
+        } catch (e) {
+          debugPrint('Error saving chat messages: $e');
+          // Don't show error to user as the main functionality worked
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in askAICoach: $e');
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+        aiCoachResponse = 'Sorry, I encountered an error. Please try again later.';
+      });
+
+      Get.snackbar(
+        'Error',
+        'Failed to get AI coach response. Please try again.',
+        backgroundColor: Colors.red,
+        colorText: kWhite,
       );
     }
   }
@@ -282,12 +398,9 @@ class _ProgramScreenState extends State<ProgramScreen>
           SizedBox(height: getPercentageHeight(2, context)),
           ...List.generate(_programService.userPrograms.length, (index) {
             final program = _programService.userPrograms[index];
-            return FutureBuilder<List<String>>(
-              future: _programService.getProgramUsers(program.programId),
-              builder: (context, snapshot) {
-                final userCount = snapshot.data?.length ?? 0;
+            final userCount = _programUserCounts[program.programId] ?? 0;
 
-                return GestureDetector(
+            return GestureDetector(
                   onTap: () async {
                     // Find complete program data from Firestore
                     try {
@@ -502,8 +615,6 @@ class _ProgramScreenState extends State<ProgramScreen>
                     ),
                   ),
                 );
-              },
-            );
           }),
           SizedBox(height: getPercentageHeight(2, context)),
         ],
@@ -809,6 +920,34 @@ class _ProgramScreenState extends State<ProgramScreen>
                 ),
               ],
               SizedBox(height: getPercentageHeight(2.5, context)),
+
+              // Create Custom Plan Button
+              ElevatedButton.icon(
+                icon: const Icon(Icons.auto_awesome, color: kWhite),
+                label: Text(
+                  'Create Custom Plan with AI',
+                  style: textTheme.labelLarge?.copyWith(color: kWhite),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(5, context),
+                    vertical: getPercentageHeight(1.5, context),
+                  ),
+                ),
+                onPressed: () {
+                  if (!canUseAI()) {
+                    showPremiumRequiredDialog(context, isDarkMode);
+                    return;
+                  }
+                  Get.to(() => const TastyScreen(screen: 'message'),
+                      arguments: {'planningMode': true});
+                },
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
 
               // Current enrolled programs section
               _buildEnrolledProgramsSection(context, textTheme, isDarkMode),

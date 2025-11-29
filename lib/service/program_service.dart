@@ -38,7 +38,7 @@ class ProgramService extends GetxController {
     if (userId == null) return;
 
     try {
-      // Get all programs
+      // Get all programs (both public and private)
       final programsSnapshot = await _firestore.collection('programs').get();
       final allPrograms = programsSnapshot.docs
           .map((doc) => Program.fromJson({
@@ -57,8 +57,11 @@ class ProgramService extends GetxController {
       final enrolledProgramIds =
           userProgramsSnapshot.docs.map((doc) => doc.id).toSet();
 
+      // Include enrolled programs AND private programs owned by user
       userPrograms.value = allPrograms
-          .where((program) => enrolledProgramIds.contains(program.programId))
+          .where((program) => 
+              enrolledProgramIds.contains(program.programId) ||
+              (program.isPrivate && program.userId == userId))
           .toList();
 
       // Set current active program
@@ -76,42 +79,82 @@ class ProgramService extends GetxController {
 
     final programId = const Uuid().v4();
     final now = DateTime.now();
+    final isPrivate = programData['isPrivate'] ?? false;
+    final planningConversationId = programData['planningConversationId'] as String?;
 
     final program = Program(
       programId: programId,
-      type: programData['type'],
+      type: programData['type'] ?? 'custom',
       name: programData['name'],
       description: programData['description'],
       duration: programData['duration'],
       weeklyPlans: (programData['weeklyPlans'] as List)
           .map((plan) => WeeklyPlan.fromJson(plan))
           .toList(),
-      requirements: List<String>.from(programData['requirements']),
-      recommendations: List<String>.from(programData['recommendations']),
+      requirements: programData['requirements'] is List
+          ? List<String>.from(programData['requirements'].map((item) => item.toString()))
+          : [],
+      recommendations: programData['recommendations'] is List
+          ? List<String>.from(programData['recommendations'].map((item) => item.toString()))
+          : [],
       userId: userId,
       createdAt: now,
       startDate: now,
-      benefits: List<String>.from(programData['benefits']),
-      notAllowed: List<String>.from(programData['notAllowed']),
-      programDetails: List<String>.from(programData['programDetails']),
-      portionDetails: Map<String, dynamic>.from(programData['portionDetails']),
+      benefits: programData['benefits'] is List
+          ? List<String>.from(programData['benefits'].map((item) => item.toString()))
+          : [],
+      notAllowed: programData['notAllowed'] is List
+          ? List<String>.from(programData['notAllowed'].map((item) => item.toString()))
+          : [],
+      programDetails: programData['programDetails'] is List
+          ? List<String>.from(programData['programDetails'].map((item) => item.toString()))
+          : [],
+      portionDetails: programData['portionDetails'] is Map
+          ? Map<String, dynamic>.from(programData['portionDetails'])
+          : {},
+      isPrivate: isPrivate,
+      planningConversationId: planningConversationId,
     );
 
     try {
-      // Save program
+      // Save program - include routine and other fields that may not be in Program model
+      final programJson = program.toJson();
+      // Add routine field if present in programData (for program_progress_screen)
+      if (programData['routine'] != null) {
+        programJson['routine'] = programData['routine'];
+      }
+      // Add goals field if present (used in some contexts)
+      if (programData['goals'] != null) {
+        programJson['goals'] = programData['goals'];
+      }
+      
       await _firestore
           .collection('programs')
           .doc(programId)
-          .set(program.toJson());
+          .set(programJson);
 
-      // Note: userProgram document will be created when first user joins
+      // Auto-enroll user in private programs
+      if (isPrivate) {
+        await joinProgram(programId, 'default');
+      } else {
+        // Note: userProgram document will be created when first user joins
+        await loadUserPrograms();
+      }
 
-      await loadUserPrograms();
       return program;
     } catch (e) {
       debugPrint('Error creating program: $e');
       throw Exception('Failed to create program');
     }
+  }
+
+  // Create a private program (convenience method)
+  Future<Program> createPrivateProgram(Map<String, dynamic> programData, {String? planningConversationId}) async {
+    return createProgram({
+      ...programData,
+      'isPrivate': true,
+      if (planningConversationId != null) 'planningConversationId': planningConversationId,
+    });
   }
 
   // Check if user is already enrolled in a program

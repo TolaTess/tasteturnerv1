@@ -174,13 +174,7 @@ class GeminiService {
     int retryCount = 0,
     bool useFallback = true,
   }) async {
-    // Always start with OpenAI for client-side fallback (since cloud functions handle primary AI)
-    if (_currentProvider == AIProvider.gemini && retryCount == 0) {
-      debugPrint('Client-side fallback: Starting with OpenAI provider');
-      _currentProvider = AIProvider.openai;
-    }
-
-    // Try current provider first
+    // Try current provider first (Gemini by default)
     try {
       return await _makeApiCallToCurrentProvider(
         endpoint: endpoint,
@@ -189,6 +183,56 @@ class GeminiService {
         retryCount: retryCount,
       );
     } catch (e) {
+      // If we're using Gemini and it fails, retry with Gemini first
+      if (_currentProvider == AIProvider.gemini && retryCount < _maxRetries) {
+        debugPrint(
+            'Gemini failed, retrying with Gemini (attempt ${retryCount + 1}): $e');
+        return await _makeApiCallWithRetry(
+          endpoint: endpoint,
+          body: body,
+          operation: operation,
+          retryCount: retryCount + 1,
+          useFallback: useFallback,
+        );
+      }
+
+      // If Gemini has been retried and still fails, then try OpenAI fallback, then OpenRouter
+      if (useFallback &&
+          _currentProvider == AIProvider.gemini &&
+          retryCount >= _maxRetries) {
+        // Try OpenAI
+        try {
+          debugPrint(
+              'Gemini failed after ${_maxRetries} retries, switching to OpenAI: $e');
+          _currentProvider = AIProvider.openai;
+          final openaiResult = await _makeApiCallToCurrentProvider(
+            endpoint: endpoint,
+            body: body,
+            operation: operation,
+            retryCount: 0,
+          );
+          _currentProvider = AIProvider.gemini; // reset after success
+          debugPrint('Reset back to Gemini provider for next request');
+          return openaiResult;
+        } catch (openaiErr) {
+          debugPrint('OpenAI fallback failed: $openaiErr');
+          // Try OpenRouter if allowed
+          if (_useOpenRouterFallback) {
+            debugPrint('Switching to OpenRouter fallback...');
+            _currentProvider = AIProvider.openrouter;
+            final orResult = await _makeApiCallToCurrentProvider(
+              endpoint: endpoint,
+              body: body,
+              operation: operation,
+              retryCount: 0,
+            );
+            _currentProvider = AIProvider.gemini; // reset
+            debugPrint('Reset back to Gemini provider for next request');
+            return orResult;
+          }
+        }
+      }
+
       // If we're using OpenAI and it fails, retry with OpenAI first
       if (_currentProvider == AIProvider.openai && retryCount < _maxRetries) {
         debugPrint(
@@ -200,43 +244,6 @@ class GeminiService {
           retryCount: retryCount + 1,
           useFallback: useFallback,
         );
-      }
-
-      // If OpenAI has been retried and still fails, then try Gemini fallback, then OpenRouter
-      if (useFallback &&
-          _currentProvider == AIProvider.openai &&
-          retryCount >= _maxRetries) {
-        // Try Gemini
-        try {
-          debugPrint(
-              'OpenAI failed after ${_maxRetries} retries, switching to Gemini: $e');
-          _currentProvider = AIProvider.gemini;
-          final geminiResult = await _makeApiCallToCurrentProvider(
-            endpoint: endpoint,
-            body: body,
-            operation: operation,
-            retryCount: 0,
-          );
-          _currentProvider = AIProvider.openai; // reset after success
-          debugPrint('Reset back to OpenAI provider for next request');
-          return geminiResult;
-        } catch (geminiErr) {
-          debugPrint('Gemini fallback failed: $geminiErr');
-          // Try OpenRouter if allowed
-          if (_useOpenRouterFallback) {
-            debugPrint('Switching to OpenRouter fallback...');
-            _currentProvider = AIProvider.openrouter;
-            final orResult = await _makeApiCallToCurrentProvider(
-              endpoint: endpoint,
-              body: body,
-              operation: operation,
-              retryCount: 0,
-            );
-            _currentProvider = AIProvider.openai; // reset
-            debugPrint('Reset back to OpenAI provider for next request');
-            return orResult;
-          }
-        }
       }
 
       // If we're already using OpenRouter or fallback is disabled, throw the error
@@ -2921,14 +2928,21 @@ class GeminiService {
   }
 
   /// Build streamlined context string for AI prompts (reduced token usage)
-  Future<String> _buildAIContext() async {
+  Future<String> _buildAIContext({bool includeDiet = true, bool includeProgramContext = true}) async {
     final userContext = await _getUserContext();
 
-    String context = 'Diet: ${userContext['dietPreference']}';
+    String context = '';
+    if (includeDiet) {
+      context = 'Diet: ${userContext['dietPreference']}';
+    }
 
-    if (userContext['hasProgram'] == true) {
+    if (includeProgramContext && userContext['hasProgram'] == true) {
       final program = userContext['currentProgram'] as Map<String, dynamic>;
-      context += ', Program: ${program['name']} (${program['dietType']})';
+      if (context.isNotEmpty) {
+        context += ', Program: ${program['name']} (${program['dietType']})';
+      } else {
+        context = 'Program: ${program['name']} (${program['dietType']})';
+      }
     }
 
     return context;
@@ -2963,7 +2977,10 @@ class GeminiService {
   }
 
   Future<String> getResponse(String prompt,
-      {int maxTokens = 8000, String? role}) async {
+      {int maxTokens = 8000,
+      String? role,
+      bool includeDietContext = true,
+      bool includeProgramContext = true}) async {
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
@@ -2972,15 +2989,18 @@ class GeminiService {
       }
     }
 
-    // Get comprehensive user context
-    final aiContext = await _buildAIContext();
+    // Get comprehensive user context (optionally exclude diet and program for planning mode)
+    final aiContext = await _buildAIContext(
+      includeDiet: includeDietContext,
+      includeProgramContext: includeProgramContext,
+    );
 
     // Add brevity instruction and context to the role/prompt
     final briefingInstruction =
         "Please provide brief, concise responses in 2-4 sentences maximum. ";
     final modifiedPrompt = role != null
-        ? '$briefingInstruction\n$aiContext\n$role\nUser: $prompt'
-        : '$briefingInstruction\n$aiContext\nUser: $prompt';
+        ? '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}$role\nUser: $prompt'
+        : '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}User: $prompt';
 
     try {
       final response = await _makeApiCallWithRetry(
@@ -3010,15 +3030,17 @@ class GeminiService {
         final candidate = response['candidates'][0];
 
         if (candidate.containsKey('content') && candidate['content'] is Map) {
-          final content = candidate['content'];
+          final content = candidate['content'] as Map<String, dynamic>;
+          final finishReason = candidate['finishReason'] as String?;
 
           if (content.containsKey('parts') &&
               content['parts'] is List &&
-              content['parts'].isNotEmpty) {
-            final part = content['parts'][0];
+              (content['parts'] as List).isNotEmpty) {
+            final parts = content['parts'] as List;
+            final part = parts[0] as Map<String, dynamic>;
 
             if (part.containsKey('text')) {
-              final text = part['text'];
+              final text = part['text'] as String?;
 
               // Clean up any remaining newlines or extra spaces
               final cleanedText = (text ?? "I couldn't understand that.")
@@ -3028,12 +3050,25 @@ class GeminiService {
 
               return cleanedText;
             } else {
+              // Check if it's a MAX_TOKENS finish reason
+              if (finishReason == 'MAX_TOKENS') {
+                return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+              }
               return 'Error: No text content in API response';
             }
           } else {
+            // Check if it's a MAX_TOKENS finish reason - this means we hit token limit
+            if (finishReason == 'MAX_TOKENS') {
+              return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+            }
             return 'Error: No content parts in API response';
           }
         } else {
+          // Check finish reason even if no content
+          final finishReason = candidate['finishReason'] as String?;
+          if (finishReason == 'MAX_TOKENS') {
+            return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+          }
           return 'Error: No content in API response';
         }
       } else {
@@ -4062,25 +4097,51 @@ Generate $mealCount meals. Return JSON only:
   /// then save basic data for Firebase Functions processing
   Future<Map<String, dynamic>> generateMealsIntelligently(
       String prompt, String contextInformation, String cuisine,
-      {bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
+      {int mealCount = 10, bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
     try {
       // Try cloud function first for better performance
       try {
         debugPrint(
             '[Cloud Function] Attempting meal generation via cloud function');
+        
+        // Calculate distribution based on mealCount
+        Map<String, int> distribution;
+        if (mealCount == 1) {
+          // Single meal - default to breakfast
+          distribution = {'breakfast': 1, 'lunch': 0, 'dinner': 0, 'snack': 0};
+        } else if (mealCount <= 3) {
+          // Few meals - distribute evenly
+          final perType = (mealCount / 3).ceil();
+          distribution = {
+            'breakfast': perType,
+            'lunch': perType,
+            'dinner': perType,
+            'snack': 0
+          };
+        } else {
+          // Default distribution for multiple meals
+          distribution = {
+            'breakfast': (mealCount * 0.2).round(),
+            'lunch': (mealCount * 0.3).round(),
+            'dinner': (mealCount * 0.3).round(),
+            'snack': (mealCount * 0.2).round()
+          };
+          // Ensure total matches mealCount
+          final total = distribution.values.reduce((a, b) => a + b);
+          if (total != mealCount) {
+            final diff = mealCount - total;
+            distribution['lunch'] = (distribution['lunch'] ?? 0) + diff;
+          }
+        }
+        
         final cloudResult = await _callCloudFunction(
           functionName: 'generateMealsWithAI',
           data: {
             'prompt': prompt,
             'context': contextInformation,
             'cuisine': cuisine,
-            'mealCount': 10, // Default meal count
-            'distribution': {
-              'breakfast': 2,
-              'lunch': 3,
-              'dinner': 3,
-              'snack': 2
-            },
+            'mealCount': mealCount,
+            'distribution': distribution,
             'isIngredientBased': false,
             'partOfWeeklyMeal': partOfWeeklyMeal,
             'weeklyPlanContext': weeklyPlanContext,
@@ -4091,7 +4152,7 @@ Generate $mealCount meals. Return JSON only:
         // Convert cloud function response to expected format
         final meals = cloudResult['meals'] as List<dynamic>? ?? [];
         final mealPlan = meals; // Use meals as mealPlan for compatibility
-        final distribution =
+        final responseDistribution =
             cloudResult['distribution'] as Map<String, dynamic>? ??
                 {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2};
 
@@ -4110,7 +4171,7 @@ Generate $mealCount meals. Return JSON only:
           'meals': meals,
           'mealPlan': mealPlan,
           'mealTitles': mealTitles,
-          'distribution': distribution,
+          'distribution': responseDistribution,
           'source': 'cloud_function',
           'executionTime': cloudResult['executionTime'],
           'mealCount': meals.length,
@@ -4127,8 +4188,38 @@ Generate $mealCount meals. Return JSON only:
       }
 
       // Step 1: Generate meal titles, types, and basic ingredients (fallback)
-      final mealData =
-          await generateMealTitlesAndIngredients(prompt, contextInformation);
+      // Calculate distribution based on mealCount for fallback
+      Map<String, int> fallbackDistribution;
+      if (mealCount == 1) {
+        fallbackDistribution = {'breakfast': 1, 'lunch': 0, 'dinner': 0, 'snack': 0};
+      } else if (mealCount <= 3) {
+        final perType = (mealCount / 3).ceil();
+        fallbackDistribution = {
+          'breakfast': perType,
+          'lunch': perType,
+          'dinner': perType,
+          'snack': 0
+        };
+      } else {
+        fallbackDistribution = {
+          'breakfast': (mealCount * 0.2).round(),
+          'lunch': (mealCount * 0.3).round(),
+          'dinner': (mealCount * 0.3).round(),
+          'snack': (mealCount * 0.2).round()
+        };
+        final total = fallbackDistribution.values.reduce((a, b) => a + b);
+        if (total != mealCount) {
+          final diff = mealCount - total;
+          fallbackDistribution['lunch'] = (fallbackDistribution['lunch'] ?? 0) + diff;
+        }
+      }
+      
+      final mealData = await generateMealTitlesAndIngredients(
+        prompt,
+        contextInformation,
+        mealCount: mealCount,
+        customDistribution: fallbackDistribution,
+      );
       final mealTitles = List<String>.from(
           (mealData['mealTitles'] as List?) ?? const <String>[]);
       debugPrint('Generated meal titles: ${mealTitles}');

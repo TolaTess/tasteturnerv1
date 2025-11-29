@@ -135,8 +135,10 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           .where('userIds', arrayContains: currentUserId)
           .get();
 
+      userPrograms = [];
+      
+      // Load enrolled programs
       if (userProgramsQuery.docs.isNotEmpty) {
-        userPrograms = [];
         for (var doc in userProgramsQuery.docs) {
           final programId = doc.id; // Document ID is the programId
 
@@ -151,22 +153,32 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             });
           }
         }
-
-        if (userPrograms.isNotEmpty) {
-          currentProgramIndex = 0;
-          currentProgramId = userPrograms[0]['programId'];
-          await _loadSpecificProgram(currentProgramId!);
-        } else {
-          setState(() {
-            isLoading = false;
+      }
+      
+      // Also load private programs owned by user
+      final privateProgramsQuery = await firestore
+          .collection('programs')
+          .where('userId', isEqualTo: currentUserId)
+          .where('isPrivate', isEqualTo: true)
+          .get();
+      
+      for (var doc in privateProgramsQuery.docs) {
+        final programId = doc.id;
+        final programData = doc.data();
+        
+        // Check if not already added
+        if (!userPrograms.any((p) => p['programId'] == programId)) {
+          userPrograms.add({
+            'programId': programId,
+            ...programData,
           });
-          Get.snackbar(
-            'No Programs',
-            'You are not enrolled in any programs yet',
-            backgroundColor: kAccent,
-            colorText: Colors.white,
-          );
         }
+      }
+
+      if (userPrograms.isNotEmpty) {
+        currentProgramIndex = 0;
+        currentProgramId = userPrograms[0]['programId'];
+        await _loadSpecificProgram(currentProgramId!);
       } else {
         setState(() {
           isLoading = false;

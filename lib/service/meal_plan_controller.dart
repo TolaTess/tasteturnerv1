@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../constants.dart';
 import '../data_models/meal_model.dart';
-import '../helper/utils.dart';
 import 'meal_manager.dart';
 
 class MealPlanController extends GetxController {
@@ -34,11 +33,23 @@ class MealPlanController extends GetxController {
   StreamSubscription? _mealPlansSubscription;
   StreamSubscription? _sharedCalendarSubscription;
 
-  final MealManager mealManager = Get.find<MealManager>();
+  late final MealManager mealManager;
 
   @override
   void onInit() {
     super.onInit();
+    // Safely get MealManager - create if not found
+    try {
+      mealManager = Get.find<MealManager>();
+    } catch (e) {
+      // If not found, put it first (Get.put will return existing if already registered)
+      if (!Get.isRegistered<MealManager>()) {
+        mealManager = Get.put(MealManager());
+      } else {
+        // If registered but not found, try finding again
+        mealManager = Get.find<MealManager>();
+      }
+    }
     // Initialize with current user if available
     if (userService.userId != null) {
       startListening();
@@ -161,8 +172,29 @@ class MealPlanController extends GetxController {
             if (item is String && item.contains('/')) {
               final parts = item.split('/');
               final mealId = parts[0];
-              final mealType = parts.length > 1 ? parts[1] : '';
-              final mealMember = parts.length > 2 ? parts[2] : '';
+              String mealType = parts.length > 1 ? parts[1] : '';
+              String mealMember = parts.length > 2 ? parts[2] : '';
+              
+              // Defensive parsing: Handle edge case where format is mealId/familyMemberName (2 parts)
+              // Check if second part is a known suffix (bf, lh, dn, sn) or a family member name
+              if (parts.length == 2) {
+                final secondPart = parts[1].toLowerCase();
+                final knownSuffixes = ['bf', 'lh', 'dn', 'sn', 'breakfast', 'lunch', 'dinner', 'snack'];
+                if (!knownSuffixes.contains(secondPart)) {
+                  // Second part is likely a family member name, not a suffix
+                  // Default to 'bf' (breakfast) as per user comment
+                  mealType = 'bf';
+                  mealMember = parts[1];
+                } else {
+                  // Second part is a suffix
+                  mealType = secondPart;
+                  mealMember = '';
+                }
+              } else if (mealType.isEmpty) {
+                // If mealType is empty, default to 'bf' (breakfast) as per user comment
+                mealType = 'bf';
+              }
+              
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
@@ -178,7 +210,7 @@ class MealPlanController extends GetxController {
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
                   meal: meal,
-                  mealType: 'default',
+                  mealType: 'bf', // Default to 'bf' (breakfast) when suffix is missing
                   familyMember:
                       userService.currentUser.value?.displayName ?? '',
                   fullMealId: mealId,
