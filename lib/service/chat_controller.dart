@@ -48,6 +48,9 @@ class ChatController extends GetxController {
   final RxnString familyMemberGoal = RxnString();
   final RxnString familyMemberType = RxnString();
 
+  // Pantry Ingredients (for Meal Plan mode)
+  final RxList<String> pantryIngredients = <String>[].obs;
+
   // Welcome Messages
   final List<String> tastyWelcomeMessages = [
     "Hey there! I'm Tasty, your personal food buddy. 🍎 What's on your mind?",
@@ -1585,6 +1588,8 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         familyMemberKcal: familyMemberKcal,
         familyMemberGoal: familyMemberGoal,
         familyMemberType: familyMemberType,
+        pantryIngredients:
+            pantryIngredients.isNotEmpty ? pantryIngredients.toList() : null,
       );
 
       if (result['success'] == true) {

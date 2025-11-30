@@ -81,6 +81,16 @@ class _TastyScreenState extends State<TastyScreen>
             args['familyMemberGoal'] as String?;
         chatController.familyMemberType.value =
             args['familyMemberType'] as String?;
+        
+        // Store pantry ingredients if provided
+        if (args['pantryIngredients'] != null) {
+          final pantryList = args['pantryIngredients'] as List<dynamic>?;
+          if (pantryList != null) {
+            chatController.pantryIngredients.value = 
+                pantryList.map((e) => e.toString()).toList();
+          }
+        }
+        
         _pendingMealPlanMode = true;
       } else if (args['planningMode'] == true) {
         _pendingPlanningMode = true;

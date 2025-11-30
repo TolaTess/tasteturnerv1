@@ -19,6 +19,7 @@ import '../service/gemini_service.dart' as gemini;
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
 import '../detail_screen/recipe_detail.dart';
+import '../screens/buddy_screen.dart';
 
 class DineInScreen extends StatefulWidget {
   const DineInScreen({super.key});
@@ -41,6 +42,9 @@ class _DineInScreenState extends State<DineInScreen> {
   bool _showFridgeRecipes = false;
   StreamSubscription? _mealUpdateSubscription;
   List<StreamSubscription> _mealSubscriptions = [];
+  
+  // Pantry mode
+  bool isPantryMode = false;
 
   // Legacy variables (for backward compatibility - can be removed if not needed)
   MacroData? selectedCarb;
@@ -563,6 +567,11 @@ class _DineInScreenState extends State<DineInScreen> {
         debugPrint('Updated fridgeIngredients: $fridgeIngredients');
 
         await _saveFridgeData();
+        
+        // If pantry mode is enabled, save to Firestore
+        if (isPantryMode) {
+          await _saveIngredientsToPantry();
+        }
 
         // If we have suggested meals from the analysis, use them directly
         if (analysisResult['suggestedMeals'] != null) {
@@ -783,6 +792,11 @@ class _DineInScreenState extends State<DineInScreen> {
     });
 
     await _saveFridgeData();
+    
+    // If pantry mode is enabled, save to Firestore
+    if (isPantryMode) {
+      await _saveIngredientsToPantry();
+    }
     // await _generateFridgeRecipes();
   }
 
@@ -909,6 +923,108 @@ class _DineInScreenState extends State<DineInScreen> {
     });
     _saveFridgeData();
     _clearFridgeRecipesFromSharedPreferences(); // Also clear from SharedPreferences
+  }
+
+  /// Save ingredients to Firestore pantry collection
+  Future<void> _saveIngredientsToPantry() async {
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) {
+        debugPrint('Cannot save to pantry: userId is empty');
+        return;
+      }
+
+      if (fridgeIngredients.isEmpty) {
+        debugPrint('No ingredients to save to pantry');
+        return;
+      }
+
+      final pantryRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('pantry');
+
+      // Save each ingredient to pantry
+      for (var ingredientName in fridgeIngredients) {
+        if (ingredientName.trim().isEmpty) continue;
+
+        // Create a document ID from ingredient name (sanitized)
+        final ingredientId = ingredientName
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+            .replaceAll(RegExp(r'_+'), '_');
+
+        // Check if ingredient already exists
+        final existingDoc = await pantryRef.doc(ingredientId).get();
+        
+        if (existingDoc.exists) {
+          // Update existing ingredient
+          await pantryRef.doc(ingredientId).update({
+            'name': ingredientName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Create new ingredient entry
+          // Note: We don't have full nutrition data from image analysis,
+          // so we'll store basic info and let user fill in details later
+          await pantryRef.doc(ingredientId).set({
+            'name': ingredientName,
+            'type': 'ingredient', // Could be enhanced to detect type
+            'calories': 0, // To be filled by user or enhanced analysis
+            'protein': 0.0,
+            'carbs': 0.0,
+            'fat': 0.0,
+            'addedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+            'source': 'fridge_analysis',
+          });
+        }
+      }
+
+      debugPrint('Saved ${fridgeIngredients.length} ingredients to pantry');
+      
+      if (mounted) {
+        showTastySnackbar(
+          'Pantry Updated',
+          'Ingredients saved to your pantry',
+          context,
+          backgroundColor: kAccent,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving ingredients to pantry: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to save ingredients to pantry',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  /// Navigate to meal planning with pantry context
+  void _navigateToMealPlanningWithPantry() {
+    if (fridgeIngredients.isEmpty) {
+      showTastySnackbar(
+        'No Ingredients',
+        'Add ingredients to your pantry first',
+        context,
+        backgroundColor: kRed,
+      );
+      return;
+    }
+
+    // Navigate to buddy screen meal mode with pantry context
+    Get.to(
+      () => const TastyScreen(screen: 'buddy'),
+      arguments: {
+        'mealPlanMode': true,
+        'pantryIngredients': fridgeIngredients,
+        'pantryMode': true,
+      },
+    );
   }
 
   // Save a recipe from fridge analysis to the database using saveBasicMealsToFirestore
@@ -1257,12 +1373,40 @@ class _DineInScreenState extends State<DineInScreen> {
                 children: [
                   Icon(Icons.kitchen, color: kAccent),
                   SizedBox(width: getPercentageWidth(2, context)),
-                  Text(
-                    'Add Ingredients',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: kAccent,
+                  Expanded(
+                    child: Text(
+                      isPantryMode ? 'Pantry Mode' : 'Add Ingredients',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: kAccent,
+                      ),
                     ),
+                  ),
+                  // Pantry Mode Toggle
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Pantry',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                        ),
+                      ),
+                      SizedBox(width: getPercentageWidth(1, context)),
+                      Switch(
+                        value: isPantryMode,
+                        onChanged: (value) {
+                          setState(() {
+                            isPantryMode = value;
+                          });
+                          if (value && fridgeIngredients.isNotEmpty) {
+                            // Save existing ingredients to pantry when enabling
+                            _saveIngredientsToPantry();
+                          }
+                        },
+                        activeColor: kAccent,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1344,10 +1488,40 @@ class _DineInScreenState extends State<DineInScreen> {
 
         SizedBox(height: getPercentageHeight(1, context)),
 
+        // Use in Meal Plan button (when pantry mode is enabled)
+        if (isPantryMode && fridgeIngredients.isNotEmpty) ...[
+          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _navigateToMealPlanningWithPantry,
+              icon: Icon(Icons.restaurant_menu, color: kWhite),
+              label: Text(
+                'Use in Meal Plan',
+                style: textTheme.titleMedium?.copyWith(
+                  color: kWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+                padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(1.5, context),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+
         // Current ingredients list
         if (fridgeIngredients.isNotEmpty) ...[
           Text(
-            'Your Fridge Ingredients (${fridgeIngredients.length})',
+            isPantryMode
+                ? 'Your Pantry (${fridgeIngredients.length})'
+                : 'Your Fridge Ingredients (${fridgeIngredients.length})',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: kAccent,
@@ -1592,15 +1766,18 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
-            const InfoIconWidget(
+            InfoIconWidget(
               title: 'Dine In',
-              description: 'Cook with what you have in your fridge',
+              description: isPantryMode
+                  ? 'Cook with what you have in your pantry'
+                  : 'Cook with what you have in your fridge',
               details: [
                 {
                   'icon': Icons.kitchen,
-                  'title': 'Fridge Ingredients',
-                  'description':
-                      'Add ingredients from your fridge or take a photo',
+                  'title': isPantryMode ? 'Pantry' : 'Fridge Ingredients',
+                  'description': isPantryMode
+                      ? 'Add ingredients to your pantry or take a photo'
+                      : 'Add ingredients from your fridge or take a photo',
                   'color': kBlue,
                 },
                 {
@@ -1654,7 +1831,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     // Header text
                     Center(
                       child: Text(
-                        'What\'s in Your Fridge?',
+                        isPantryMode ? 'What\'s in Your Pantry?' : 'What\'s in Your Fridge?',
                         textAlign: TextAlign.center,
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -1666,7 +1843,9 @@ class _DineInScreenState extends State<DineInScreen> {
                     SizedBox(height: getPercentageHeight(1, context)),
                     Center(
                       child: Text(
-                        'Add ingredients from your fridge and get personalized recipes!',
+                        isPantryMode
+                            ? 'Add ingredients to your pantry and get personalized recipes!'
+                            : 'Add ingredients from your fridge and get personalized recipes!',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
                           color: isDarkMode ? kLightGrey : kDarkGrey,

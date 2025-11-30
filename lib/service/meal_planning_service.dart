@@ -22,10 +22,18 @@ class MealPlanningService {
     Map<String, int>? distribution,
     bool partOfWeeklyMeal = false,
     String weeklyPlanContext = '',
+    List<String>? pantryIngredients,
   }) async {
     try {
+      // Enhance prompt with pantry ingredients if provided
+      String enhancedPrompt = prompt;
+      if (pantryIngredients != null && pantryIngredients.isNotEmpty) {
+        final pantryList = pantryIngredients.join(', ');
+        enhancedPrompt = '$prompt\n\nAvailable pantry ingredients: $pantryList\nPlease prioritize using these ingredients in the meal suggestions.';
+      }
+      
       final result = await geminiService.generateMealsIntelligently(
-        prompt,
+        enhancedPrompt,
         contextInformation,
         cuisine,
         mealCount: mealCount,
@@ -248,6 +256,7 @@ class MealPlanningService {
     String? familyMemberKcal,
     String? familyMemberGoal,
     String? familyMemberType,
+    List<String>? pantryIngredients,
   }) async {
     try {
       // Get user context (use family member context if provided)
@@ -314,6 +323,7 @@ ${familyMemberType != null ? 'Age Group: $familyMemberType' : 'Goal Weight: ${us
         contextInfo,
         cuisine: cuisine ?? 'general',
         mealCount: mealCount ?? 10,
+        pantryIngredients: pantryIngredients,
       );
 
       // Add family member name to result for storage

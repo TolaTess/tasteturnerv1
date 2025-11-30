@@ -14,6 +14,8 @@ import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../service/calorie_adjustment_service.dart';
+import '../service/auth_controller.dart';
+import '../service/reverse_pantry_search_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/meal_detail_widget.dart';
@@ -73,6 +75,56 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   // Track when meals were last modified to ensure accurate calorie calculations
   final Map<String, DateTime> _lastMealModification = {};
+
+  // Hide calories feature
+  bool showCaloriesAndGoal = true;
+
+  // Helper function to safely convert settings value to bool
+  bool _safeBoolFromSettings(dynamic value, {bool defaultValue = false}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true';
+    }
+    if (value is int) {
+      return value != 0;
+    }
+    return defaultValue;
+  }
+
+  // Handle health journal toggle
+  Future<void> _handleHealthJournalToggle(bool value) async {
+    final authController = Get.find<AuthController>();
+
+    try {
+      await authController.updateUserData({
+        'settings.healthJournalEnabled': value,
+      });
+
+      if (mounted) {
+        showTastySnackbar(
+          value ? 'Health Journal Enabled' : 'Health Journal Disabled',
+          value
+              ? 'You can now track symptoms and how you feel after eating'
+              : 'Health journal tracking is now disabled',
+          context,
+          backgroundColor: value ? kAccent : kLightGrey,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating health journal preference: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to update health journal settings',
+          context,
+          backgroundColor: kRed,
+        );
+        // Force UI update to revert toggle on error
+        setState(() {});
+      }
+    }
+  }
 
   // Track pending items modifications for debugging
   void _addPendingItem(UserMeal item) {
@@ -160,6 +212,15 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   @override
   void initState() {
     super.initState();
+
+    // Load show calories preference
+    loadShowCaloriesPref().then((value) {
+      if (mounted) {
+        setState(() {
+          showCaloriesAndGoal = value;
+        });
+      }
+    });
 
     // Defer the data loading until after the first frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -444,7 +505,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 ),
                                 SizedBox(width: getPercentageWidth(1, context)),
                                 Text(
-                                  'Pending: ${_getTotalPendingCalories()} kcal (${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'})',
+                                  showCaloriesAndGoal
+                                      ? 'Pending: ${_getTotalPendingCalories()} kcal (${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'})'
+                                      : 'Pending: ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
@@ -471,7 +534,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        '${index + 1}. ${item.name} (${item.calories} kcal)',
+                                        showCaloriesAndGoal
+                                            ? '${index + 1}. ${item.name} (${item.calories} kcal)'
+                                            : '${index + 1}. ${item.name}',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall
@@ -693,6 +758,817 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
+  void _showFillRemainingMacrosDialog(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    // Get current totals and goals
+    final settings = userService.currentUser.value?.settings ?? {};
+    final targetCalories =
+        double.tryParse(settings['foodGoal']?.toString() ?? '0') ?? 0.0;
+    final targetProtein =
+        double.tryParse(settings['proteinGoal']?.toString() ?? '0') ?? 0.0;
+    final targetCarbs =
+        double.tryParse(settings['carbsGoal']?.toString() ?? '0') ?? 0.0;
+    final targetFat =
+        double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0;
+
+    final currentCalories = dailyDataController.totalCalories.value;
+    final currentProtein = 0.0; // TODO: Get from daily summary
+    final currentCarbs = 0.0; // TODO: Get from daily summary
+    final currentFat = 0.0; // TODO: Get from daily summary
+
+    // Calculate remaining macros
+    final remainingCalories = (targetCalories - currentCalories).round();
+    final remainingProtein = targetProtein - currentProtein;
+    final remainingCarbs = targetCarbs - currentCarbs;
+    final remainingFat = targetFat - currentFat;
+
+    final caloriesController = TextEditingController(
+      text: remainingCalories > 0 ? remainingCalories.toString() : '0',
+    );
+    final proteinController = TextEditingController(
+      text: remainingProtein > 0 ? remainingProtein.toStringAsFixed(1) : '0',
+    );
+    final carbsController = TextEditingController(
+      text: remainingCarbs > 0 ? remainingCarbs.toStringAsFixed(1) : '0',
+    );
+    final fatController = TextEditingController(
+      text: remainingFat > 0 ? remainingFat.toStringAsFixed(1) : '0',
+    );
+
+    bool isLoading = false;
+    List<Map<String, dynamic>> suggestions = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Fill Remaining Macros',
+            style: TextStyle(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter your remaining macros:',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Calories input
+                  TextField(
+                    controller: caloriesController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Remaining Calories (kcal)',
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                  ),
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+
+                  // Protein input
+                  TextField(
+                    controller: proteinController,
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Remaining Protein (g)',
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                  ),
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+
+                  // Carbs input
+                  TextField(
+                    controller: carbsController,
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Remaining Carbs (g)',
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                  ),
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+
+                  // Fat input
+                  TextField(
+                    controller: fatController,
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Remaining Fat (g)',
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: TextStyle(color: isDarkMode ? kWhite : kBlack),
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+
+                  // Search button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              setDialogState(() {
+                                isLoading = true;
+                                suggestions = [];
+                              });
+
+                              try {
+                                final remainingCal =
+                                    int.tryParse(caloriesController.text) ?? 0;
+                                final remainingProt =
+                                    double.tryParse(proteinController.text) ??
+                                        0.0;
+                                final remainingCarb =
+                                    double.tryParse(carbsController.text) ??
+                                        0.0;
+                                final remainingFatVal =
+                                    double.tryParse(fatController.text) ?? 0.0;
+
+                                final results = await ReversePantrySearchService
+                                    .instance
+                                    .searchByRemainingMacros(
+                                  remainingCalories: remainingCal,
+                                  remainingProtein: remainingProt,
+                                  remainingCarbs: remainingCarb,
+                                  remainingFat: remainingFatVal,
+                                );
+
+                                setDialogState(() {
+                                  isLoading = false;
+                                  suggestions = results;
+                                });
+                              } catch (e) {
+                                setDialogState(() {
+                                  isLoading = false;
+                                });
+                                if (mounted) {
+                                  showTastySnackbar(
+                                    'Error',
+                                    'Failed to search: $e',
+                                    context,
+                                    backgroundColor: kRed,
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kAccent,
+                        padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1.5, context),
+                        ),
+                      ),
+                      child: isLoading
+                          ? SizedBox(
+                              height: getIconScale(4, context),
+                              width: getIconScale(4, context),
+                              child: CircularProgressIndicator(
+                                color: kWhite,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Search',
+                              style: TextStyle(
+                                color: kWhite,
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  // Suggestions list
+                  if (suggestions.isNotEmpty) ...[
+                    SizedBox(height: getPercentageHeight(2, context)),
+                    Text(
+                      'Suggestions:',
+                      style: TextStyle(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(4, context),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.3,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: suggestions.length,
+                        itemBuilder: (context, index) {
+                          final item = suggestions[index];
+                          return ListTile(
+                            title: Text(
+                              item['name'] ?? 'Unknown',
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${item['calories']} kcal • P: ${item['protein']?.toStringAsFixed(1) ?? '0'}g • C: ${item['carbs']?.toStringAsFixed(1) ?? '0'}g • F: ${item['fat']?.toStringAsFixed(1) ?? '0'}g',
+                              style: TextStyle(
+                                color: isDarkMode ? kLightGrey : kDarkGrey,
+                              ),
+                            ),
+                            trailing: Icon(
+                              Icons.add_circle_outline,
+                              color: kAccent,
+                            ),
+                            onTap: () {
+                              // Add this item to the current meal type
+                              Navigator.pop(dialogContext);
+                              // TODO: Navigate to add this meal
+                              _addSuggestedMeal(item);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: Text(
+                'Close',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addSuggestedMeal(Map<String, dynamic> item) async {
+    // TODO: Implement adding suggested meal to current meal type
+    // For now, show a message
+    if (mounted) {
+      showTastySnackbar(
+        'Meal Selected',
+        '${item['name']} - Add this meal from the search results',
+        context,
+      );
+    }
+  }
+
+  /// Show dialog to copy meals from another date
+  Future<void> _showCopyFromDateDialog(BuildContext context) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final currentDate = widget.date ?? DateTime.now();
+    final dateFormat = DateFormat('yyyy-MM-dd');
+
+    // First, fetch recent dates with meals (last 30 days)
+    try {
+      final recentDates = <Map<String, dynamic>>[];
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: EdgeInsets.all(getPercentageWidth(5, context)),
+            decoration: BoxDecoration(
+              color: isDarkMode ? kDarkGrey : kWhite,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: kAccent),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Text(
+                  'Loading recent meals...',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Fetch last 30 days
+      for (int i = 1; i <= 30; i++) {
+        final checkDate = currentDate.subtract(Duration(days: i));
+        final dateStr = dateFormat.format(checkDate);
+
+        try {
+          final mealsDoc = await firestore
+              .collection('userMeals')
+              .doc(userId)
+              .collection('meals')
+              .doc(dateStr)
+              .get();
+
+          if (mealsDoc.exists) {
+            final mealsData =
+                mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
+            int totalMeals = 0;
+            for (var mealType in ['Breakfast', 'Lunch', 'Dinner', 'Fruits']) {
+              final mealList = mealsData[mealType] as List<dynamic>? ?? [];
+              totalMeals += mealList.length;
+            }
+
+            if (totalMeals > 0) {
+              recentDates.add({
+                'date': checkDate,
+                'dateStr': dateStr,
+                'mealCount': totalMeals,
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error checking date $dateStr: $e');
+        }
+      }
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (recentDates.isEmpty) {
+        if (mounted) {
+          showTastySnackbar(
+            'No Previous Meals',
+            'No meals found in the last 30 days',
+            context,
+            backgroundColor: Colors.orange,
+          );
+        }
+        return;
+      }
+
+      // Show date selection dialog with recent dates
+      if (mounted) {
+        _showRecentDatesDialog(context, recentDates, currentDate);
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) Navigator.pop(context);
+      debugPrint('Error fetching recent dates: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to load recent meals: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  /// Show dialog with recent dates that have meals
+  void _showRecentDatesDialog(
+    BuildContext context,
+    List<Map<String, dynamic>> recentDates,
+    DateTime currentDate,
+  ) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Copy Meals from Previous Days',
+          style: TextStyle(
+            color: isDarkMode ? kWhite : kBlack,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select a date to view meals:',
+                style: TextStyle(
+                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getTextScale(3, context),
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: recentDates.length,
+                  itemBuilder: (context, index) {
+                    final dateInfo = recentDates[index];
+                    final date = dateInfo['date'] as DateTime;
+                    final mealCount = dateInfo['mealCount'] as int;
+
+                    return ListTile(
+                      leading: Icon(
+                        Icons.calendar_today,
+                        color: kAccent,
+                        size: getIconScale(5, context),
+                      ),
+                      title: Text(
+                        DateFormat('EEEE, MMM dd, yyyy').format(date),
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '$mealCount ${mealCount == 1 ? 'meal' : 'meals'}',
+                        style: TextStyle(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        color: kAccent,
+                        size: getIconScale(4, context),
+                      ),
+                      onTap: () {
+                        Navigator.pop(dialogContext);
+                        _loadAndShowMealsForDate(context, date);
+                      },
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+              Divider(color: isDarkMode ? kLightGrey : kDarkGrey),
+              SizedBox(height: getPercentageHeight(1, context)),
+              TextButton.icon(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  // Show date picker for older dates
+                  final selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: currentDate.subtract(const Duration(days: 1)),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365)),
+                    lastDate: currentDate.subtract(const Duration(days: 1)),
+                    helpText: 'Select date to copy meals from',
+                  );
+                  if (selectedDate != null) {
+                    _loadAndShowMealsForDate(context, selectedDate);
+                  }
+                },
+                icon: Icon(Icons.calendar_month, color: kAccent),
+                label: Text(
+                  'Choose Another Date',
+                  style: TextStyle(color: kAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Load meals for a specific date and show selection dialog
+  Future<void> _loadAndShowMealsForDate(
+    BuildContext context,
+    DateTime selectedDate,
+  ) async {
+    try {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final dateStr = dateFormat.format(selectedDate);
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: EdgeInsets.all(getPercentageWidth(5, context)),
+            decoration: BoxDecoration(
+              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: kAccent),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Text(
+                  'Loading meals...',
+                  style: TextStyle(
+                    color:
+                        getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final mealsDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .doc(dateStr)
+          .get();
+
+      // Close loading
+      if (mounted) Navigator.pop(context);
+
+      if (!mealsDoc.exists) {
+        if (mounted) {
+          showTastySnackbar(
+            'No Meals Found',
+            'No meals found for the selected date',
+            context,
+            backgroundColor: Colors.orange,
+          );
+        }
+        return;
+      }
+
+      final mealsData =
+          mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
+      final allMeals = <String, List<UserMeal>>{};
+
+      // Parse meals from all meal types
+      for (var mealType in ['Breakfast', 'Lunch', 'Dinner', 'Fruits']) {
+        final mealList = mealsData[mealType] as List<dynamic>? ?? [];
+        allMeals[mealType] = mealList
+            .map((meal) => UserMeal.fromMap(meal as Map<String, dynamic>))
+            .toList();
+      }
+
+      // Show meal selection dialog
+      if (mounted) {
+        _showMealSelectionDialog(context, allMeals, selectedDate);
+      }
+    } catch (e) {
+      // Close loading if still open
+      if (mounted) Navigator.pop(context);
+      debugPrint('Error fetching meals from date: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to fetch meals: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  /// Show dialog to select meals to copy
+  void _showMealSelectionDialog(
+    BuildContext context,
+    Map<String, List<UserMeal>> allMeals,
+    DateTime sourceDate,
+  ) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final selectedMeals = <UserMeal>[];
+    final selectedMealTypes = <String, List<UserMeal>>{};
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Copy Meals from ${DateFormat('MMM dd, yyyy').format(sourceDate)}',
+            style: TextStyle(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select meals to copy:',
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  ...allMeals.entries.map((entry) {
+                    if (entry.value.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.key,
+                          style: TextStyle(
+                            color: kAccent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: getTextScale(4, context),
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        ...entry.value.map((meal) {
+                          final isSelected = selectedMeals.contains(meal);
+                          return CheckboxListTile(
+                            title: Text(
+                              meal.name,
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                              ),
+                            ),
+                            subtitle: showCaloriesAndGoal
+                                ? Text(
+                                    '${meal.calories} kcal',
+                                    style: TextStyle(
+                                      color:
+                                          isDarkMode ? kLightGrey : kDarkGrey,
+                                    ),
+                                  )
+                                : null,
+                            value: isSelected,
+                            onChanged: (value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  selectedMeals.add(meal);
+                                  selectedMealTypes
+                                      .putIfAbsent(entry.key, () => [])
+                                      .add(meal);
+                                } else {
+                                  selectedMeals.remove(meal);
+                                  selectedMealTypes[entry.key]?.remove(meal);
+                                }
+                              });
+                            },
+                            activeColor: kAccent,
+                          );
+                        }),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: selectedMeals.isEmpty
+                  ? null
+                  : () async {
+                      await _copyMealsToCurrentDate(
+                          selectedMeals, selectedMealTypes);
+                      Navigator.pop(dialogContext);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+              ),
+              child: Text(
+                'Copy ${selectedMeals.length} ${selectedMeals.length == 1 ? 'Meal' : 'Meals'}',
+                style: const TextStyle(color: kWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Copy selected meals to current date as new instances
+  Future<void> _copyMealsToCurrentDate(
+    List<UserMeal> mealsToCopy,
+    Map<String, List<UserMeal>> mealTypes,
+  ) async {
+    try {
+      final currentDate = widget.date ?? DateTime.now();
+
+      for (var entry in mealTypes.entries) {
+        final mealType = entry.key;
+        final meals = entry.value;
+
+        for (var meal in meals) {
+          // Create new instance with originalMealId
+          final newInstance = meal.copyWith({
+            'originalMealId': meal.mealId,
+            'isInstance': true,
+            'loggedAt': DateTime.now(),
+          });
+
+          await dailyDataController.addUserMeal(
+            userId,
+            mealType,
+            newInstance,
+            currentDate,
+          );
+        }
+      }
+
+      if (mounted) {
+        showTastySnackbar(
+          'Success',
+          'Copied ${mealsToCopy.length} ${mealsToCopy.length == 1 ? 'meal' : 'meals'} to today',
+          context,
+        );
+      }
+
+      // Refresh data
+      await _loadData();
+    } catch (e) {
+      debugPrint('Error copying meals: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to copy meals: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
   void _showMealDetailModal(
     BuildContext context,
     String mealType,
@@ -709,6 +1585,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         currentCalories: currentCalories,
         recommendedCalories: recommendedCalories,
         icon: icon,
+        showCalories: showCaloriesAndGoal,
         onAddMeal: () {
           setState(() {
             foodType = mealType;
@@ -722,6 +1599,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   void _showDetailPopup(dynamic result, String? userId, String mealType) {
     int selectedNumber = 0;
     int selectedUnit = 0;
+    String? selectedContext; // Track selected eating context
 
     if (result is Meal) {
     } else if (result is MacroData) {
@@ -850,7 +1728,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     }
 
     // Helper function to create UserMeal from any type
-    UserMeal createUserMeal() {
+    // Supports creating instances when copying from past dates
+    UserMeal createUserMeal({
+      String? originalMealId,
+      bool isInstance = false,
+    }) {
       // Calculate adjusted nutrition (calories and macros)
       final nutrition = calculateAdjustedNutrition();
       final adjustedCalories = nutrition['calories'] as int;
@@ -864,26 +1746,40 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           calories: result.calories,
           mealId: result.mealId,
           macros: adjustedMacros,
+          eatingContext: selectedContext,
+          originalMealId: originalMealId ?? (isInstance ? result.mealId : null),
+          loggedAt: isInstance ? DateTime.now() : null,
+          isInstance: isInstance,
         );
         return meal;
       } else if (result is MacroData) {
+        final mealId = result.id ?? result.title;
         final meal = UserMeal(
           name: result.title,
           quantity: '$selectedNumber',
           servings: '${unitOptions[selectedUnit]}',
           calories: adjustedCalories,
-          mealId: result.id ?? result.title,
+          mealId: mealId,
           macros: adjustedMacros,
+          eatingContext: selectedContext,
+          originalMealId: originalMealId ?? (isInstance ? mealId : null),
+          loggedAt: isInstance ? DateTime.now() : null,
+          isInstance: isInstance,
         );
         return meal;
       } else if (result is IngredientData) {
+        final mealId = result.title;
         final meal = UserMeal(
           name: result.title,
           quantity: '$selectedNumber',
           servings: '${unitOptions[selectedUnit]}',
           calories: adjustedCalories,
-          mealId: result.title,
+          mealId: mealId,
           macros: adjustedMacros,
+          eatingContext: selectedContext,
+          originalMealId: originalMealId ?? (isInstance ? mealId : null),
+          loggedAt: isInstance ? DateTime.now() : null,
+          isInstance: isInstance,
         );
         return meal;
       } else {
@@ -911,9 +1807,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               content: SingleChildScrollView(
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.97,
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.45,
-                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -944,17 +1837,33 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 fontSize: getTextScale(3, context),
                               ),
                             ),
-                            SizedBox(height: getPercentageHeight(0.5, context)),
-                            Text(
-                              '${_getCurrentCaloriesForMealType(mealType)} kcal from ${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.grey[400]
-                                    : Colors.grey[600],
-                                fontSize: getTextScale(2.5, context),
+                            if (showCaloriesAndGoal) ...[
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                '${_getCurrentCaloriesForMealType(mealType)} kcal from ${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                  fontSize: getTextScale(2.5, context),
+                                ),
                               ),
-                            ),
-                            if (_pendingMacroItems.isNotEmpty) ...[
+                            ] else ...[
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                '${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              ),
+                            ],
+                            if (_pendingMacroItems.isNotEmpty &&
+                                showCaloriesAndGoal) ...[
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
@@ -965,30 +1874,44 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   fontSize: getTextScale(2.5, context),
                                 ),
                               ),
-                            ],
-                            SizedBox(height: getPercentageHeight(0.5, context)),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(2, context),
-                                vertical: getPercentageHeight(0.5, context),
-                              ),
-                              decoration: BoxDecoration(
-                                color: kAccent.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: kAccent.withValues(alpha: 0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                'Projected Total: ${_getCurrentCaloriesForMealType(mealType) + _getTotalPendingCalories()} kcal',
+                            ] else if (_pendingMacroItems.isNotEmpty) ...[
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                'Pending: ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'}',
                                 style: TextStyle(
                                   color: kAccent,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w500,
                                   fontSize: getTextScale(2.5, context),
                                 ),
                               ),
-                            ),
+                            ],
+                            if (showCaloriesAndGoal) ...[
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context),
+                                  vertical: getPercentageHeight(0.5, context),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: kAccent.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Projected Total: ${_getCurrentCaloriesForMealType(mealType) + _getTotalPendingCalories()} kcal',
+                                  style: TextStyle(
+                                    color: kAccent,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: getTextScale(2.5, context),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1028,6 +1951,100 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   unitOptions,
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Eating Context Selection
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Why did you eat this? (Optional)',
+                              style: TextStyle(
+                                color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w600,
+                                fontSize: getTextScale(3, context),
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                            Wrap(
+                              spacing: getPercentageWidth(1.5, context),
+                              runSpacing: getPercentageHeight(0.5, context),
+                              children: [
+                                _buildContextButton(
+                                  context,
+                                  'Meal',
+                                  '🍽️',
+                                  selectedContext == 'meal',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'meal'
+                                          ? null
+                                          : 'meal'),
+                                  isDarkMode,
+                                ),
+                                _buildContextButton(
+                                  context,
+                                  'Hunger',
+                                  '🍽️',
+                                  selectedContext == 'hunger',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'hunger'
+                                          ? null
+                                          : 'hunger'),
+                                  isDarkMode,
+                                ),
+                                _buildContextButton(
+                                  context,
+                                  'Boredom',
+                                  '😴',
+                                  selectedContext == 'boredom',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'boredom'
+                                          ? null
+                                          : 'boredom'),
+                                  isDarkMode,
+                                ),
+                                _buildContextButton(
+                                  context,
+                                  'Stress',
+                                  '😰',
+                                  selectedContext == 'stress',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'stress'
+                                          ? null
+                                          : 'stress'),
+                                  isDarkMode,
+                                ),
+                                _buildContextButton(
+                                  context,
+                                  'Social',
+                                  '👥',
+                                  selectedContext == 'social',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'social'
+                                          ? null
+                                          : 'social'),
+                                  isDarkMode,
+                                ),
+                                _buildContextButton(
+                                  context,
+                                  'Planned',
+                                  '✅',
+                                  selectedContext == 'planned',
+                                  () => setModalState(() => selectedContext =
+                                      selectedContext == 'planned'
+                                          ? null
+                                          : 'planned'),
+                                  isDarkMode,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1185,17 +2202,15 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         backgroundColor: kAccent,
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
+          title: Text(
               widget.title,
               style: textTheme.displaySmall?.copyWith(
                 fontSize: getTextScale(7, context),
               ),
             ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            InfoIconWidget(
+        actions: [
+
+                     InfoIconWidget(
               title: 'Food Diary',
               description: 'Track your daily meals and nutrition',
               details: const [
@@ -1217,7 +2232,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   'description': 'See your eating patterns over time',
                   'color': kAccent,
                 },
-                 {
+                {
                   'icon': Icons.calendar_month,
                   'title': 'Plan Ahead',
                   'description': 'View Today or Next day action items',
@@ -1233,8 +2248,92 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               iconColor: isDarkMode ? kWhite : kDarkGrey,
               tooltip: 'Food Diary Information',
             ),
-          ],
-        ),
+          // Health Journal Toggle
+          Obx(() {
+            final user = userService.currentUser.value;
+            final isHealthJournalEnabled = user != null
+                ? _safeBoolFromSettings(user.settings['healthJournalEnabled'],
+                    defaultValue: false)
+                : false;
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  _handleHealthJournalToggle(!isHealthJournalEnabled);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  margin: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(1, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAccent.withValues(alpha: 0.13),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isHealthJournalEnabled
+                        ? Icons.health_and_safety
+                        : Icons.health_and_safety_outlined,
+                    color: isDarkMode ? kWhite : kDarkGrey,
+                    size: getIconScale(5, context),
+                  ),
+                ),
+              ),
+            );
+          }),
+          // Hide Calories Toggle
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                setState(() {
+                  showCaloriesAndGoal = !showCaloriesAndGoal;
+                });
+                saveShowCaloriesPref(showCaloriesAndGoal);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                ),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.13),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  showCaloriesAndGoal ? Icons.visibility_off : Icons.visibility,
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                  size: getIconScale(5, context),
+                ),
+              ),
+            ),
+          ),
+          // Copy from Date Button
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _showCopyFromDateDialog(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                ),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.13),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.copy_all,
+                  color: isDarkMode ? kWhite : kDarkGrey,
+                  size: getIconScale(5, context),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -1249,7 +2348,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 // Daily Routine Section
                 if (!allDisabled && isToday)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Quick Update',
@@ -1374,6 +2473,68 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 SizedBox(height: getPercentageHeight(2, context)),
 
+                // Fill Remaining Macros Button
+                if (isToday)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context)),
+                    child: GestureDetector(
+                      onTap: () => _showFillRemainingMacrosDialog(context),
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kAccent.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search,
+                              color: kAccent,
+                              size: getIconScale(5, context),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Fill Remaining Macros',
+                                    style: textTheme.titleMedium?.copyWith(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                      height:
+                                          getPercentageHeight(0.3, context)),
+                                  Text(
+                                    'Find foods that fit your remaining macros',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: kAccent.withValues(alpha: 0.7),
+                                      fontSize: getTextScale(2.5, context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: kAccent,
+                              size: getIconScale(4, context),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (isToday) SizedBox(height: getPercentageHeight(2, context)),
+
                 // Daily Summary Link
                 if (isToday || widget.isShowSummary)
                   Padding(
@@ -1396,7 +2557,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           ),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Icon(
                               Icons.insights,
@@ -1782,6 +2943,55 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
+  Widget _buildContextButton(
+    BuildContext context,
+    String label,
+    String emoji,
+    bool isSelected,
+    VoidCallback onTap,
+    bool isDarkMode,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(2.5, context),
+          vertical: getPercentageHeight(0.8, context),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kAccent.withValues(alpha: 0.2)
+              : (isDarkMode ? kDarkGrey : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? kAccent
+                : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              emoji,
+              style: TextStyle(fontSize: getTextScale(3.5, context)),
+            ),
+            SizedBox(width: getPercentageWidth(0.8, context)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? kAccent : (isDarkMode ? kWhite : kBlack),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: getTextScale(2.8, context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDailyRoutineCard(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -2026,9 +3236,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 ),
                             ],
                           ),
-                          if (currentCalories > 0)
+                          if (currentCalories > 0 && showCaloriesAndGoal)
                             SizedBox(height: getPercentageHeight(1, context)),
-                          if (currentCalories > 0)
+                          if (currentCalories > 0 && showCaloriesAndGoal)
                             Text(
                               'Added: $currentCalories kcal (${meals.length} ${meals.length == 1 ? 'meal' : 'meals'})',
                               style: textTheme.bodyMedium?.copyWith(
@@ -2066,7 +3276,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                       ),
                                       child: index < 1
                                           ? Text(
-                                              '${index + 1}. ${meal.name} (${meal.calories} kcal)',
+                                              showCaloriesAndGoal
+                                                  ? '${index + 1}. ${meal.name} (${meal.calories} kcal)'
+                                                  : '${index + 1}. ${meal.name}',
                                               style:
                                                   textTheme.bodySmall?.copyWith(
                                                 color: isDarkMode

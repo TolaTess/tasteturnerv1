@@ -12,6 +12,7 @@ class MealDetailWidget extends StatefulWidget {
   final String recommendedCalories;
   final IconData icon;
   final VoidCallback onAddMeal;
+  final bool showCalories;
 
   const MealDetailWidget({
     super.key,
@@ -21,6 +22,7 @@ class MealDetailWidget extends StatefulWidget {
     required this.recommendedCalories,
     required this.icon,
     required this.onAddMeal,
+    this.showCalories = true,
   });
 
   @override
@@ -140,6 +142,10 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
 
   Widget _buildCaloriesSection(
       BuildContext context, TextTheme textTheme, bool isDarkMode) {
+    if (!widget.showCalories) {
+      return const SizedBox.shrink();
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -285,7 +291,9 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                               SizedBox(
                                   height: getPercentageHeight(0.3, context)),
                               Text(
-                                '${meal.quantity} ${meal.servings} • ${meal.calories} kcal',
+                                widget.showCalories
+                                    ? '${meal.quantity} ${meal.servings} • ${meal.calories} kcal'
+                                    : '${meal.quantity} ${meal.servings}',
                                 style: textTheme.bodySmall?.copyWith(
                                   color: isDarkMode
                                       ? Colors.grey[400]
