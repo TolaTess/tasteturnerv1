@@ -24,8 +24,9 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'all';
   bool showChallengePosts = false;
+  bool filterByRecipe = false;
 
-    loadExcludedIngredients() async {
+  loadExcludedIngredients() async {
     await firebaseService.fetchGeneralData();
     final excludedIngredients =
         firebaseService.generalData['excludeIngredients'].toString().split(',');
@@ -132,7 +133,8 @@ class _InspirationScreenState extends State<InspirationScreen> {
               children: [
                 Text(
                   "What's on Your Plate?",
-                  style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.8, context)),
+                  style: textTheme.displayMedium
+                      ?.copyWith(fontSize: getTextScale(5.8, context)),
                 ),
                 SizedBox(width: getPercentageWidth(2, context)),
                 InfoIconWidget(
@@ -189,6 +191,33 @@ class _InspirationScreenState extends State<InspirationScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              filterByRecipe
+                  ? Icons.restaurant_menu
+                  : Icons.restaurant_menu_outlined,
+              color: filterByRecipe ? kWhite : kWhite.withOpacity(0.7),
+            ),
+            tooltip: 'Show posts with recipes only',
+            onPressed: () {
+              setState(() {
+                filterByRecipe = !filterByRecipe;
+              });
+
+              // Show feedback
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(filterByRecipe
+                      ? 'Showing posts with recipes only'
+                      : 'Showing all posts'),
+                  duration: const Duration(seconds: 1),
+                  backgroundColor: kAccent,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       floatingActionButtonLocation: CustomFloatingActionButtonLocation(
         verticalOffset: getPercentageHeight(5, context),
@@ -223,6 +252,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
                 screenLength: 24, // Show more images on this dedicated screen
                 listType: 'post',
                 selectedCategory: selectedGoal,
+                filterByRecipe: filterByRecipe,
               ),
             ],
           ),

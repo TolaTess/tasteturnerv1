@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -63,6 +64,10 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
   DateTime? programStartDate;
   DateTime? programEndDate;
 
+  // Enrichment tracking
+  StreamSubscription? _programEnrichmentSubscription;
+  bool isWaitingForEnrichment = false;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +82,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
   @override
   void dispose() {
+    // Cancel enrichment listener
+    _programEnrichmentSubscription?.cancel();
     // Dispose all animation controllers
     for (var controller in _flipControllers.values) {
       controller.dispose();
@@ -226,7 +233,19 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (programDoc.exists) {
         programData = programDoc.data();
-        _buildProgramComponents();
+        final routine = programData!['routine'] as List<dynamic>? ?? [];
+        final isEnriched = programData!['isEnriched'] as bool? ?? false;
+
+        // Check if program needs enrichment
+        if (routine.isEmpty && !isEnriched) {
+          debugPrint('Program not enriched yet, waiting for enrichment...');
+          setState(() {
+            isWaitingForEnrichment = true;
+          });
+          _waitForEnrichment();
+        } else {
+          _buildProgramComponents();
+        }
         await _loadProgressData();
       } else {
         setState(() {
@@ -259,10 +278,32 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (programDoc.exists) {
         programData = programDoc.data();
-        _buildProgramComponents();
-        setState(() {
-          // Components and completion status are now ready
-        });
+        
+        // Debug: Log program structure to help diagnose differences
+        debugPrint('Program loaded - Type: ${programData!['type']}, '
+            'Has routine: ${programData!.containsKey('routine')}, '
+            'Has benefits: ${programData!.containsKey('benefits')}, '
+            'Has requirements: ${programData!.containsKey('requirements')}, '
+            'Has recommendations: ${programData!.containsKey('recommendations')}, '
+            'Is enriched: ${programData!['isEnriched'] ?? false}');
+        
+        final routine = programData!['routine'] as List<dynamic>? ?? [];
+        final isEnriched = programData!['isEnriched'] as bool? ?? false;
+
+        // Check if program needs enrichment
+        if (routine.isEmpty && !isEnriched) {
+          debugPrint('Program not enriched yet, waiting for enrichment...');
+          setState(() {
+            isWaitingForEnrichment = true;
+          });
+          _waitForEnrichment();
+        } else {
+          _buildProgramComponents();
+          setState(() {
+            isWaitingForEnrichment = false;
+            // Components and completion status are now ready
+          });
+        }
       }
     } catch (e) {
       Get.snackbar(
@@ -272,6 +313,68 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         colorText: Colors.white,
       );
     }
+  }
+
+  /// Listen to program document and wait for enrichment to complete
+  void _waitForEnrichment() {
+    _programEnrichmentSubscription?.cancel();
+
+    _programEnrichmentSubscription = firestore
+        .collection('programs')
+        .doc(currentProgramId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) return;
+
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        final routine = data['routine'] as List<dynamic>? ?? [];
+        final isEnriched = data['isEnriched'] as bool? ?? false;
+
+        // If enrichment completed and routine is populated
+        if (isEnriched && routine.isNotEmpty) {
+          debugPrint('Program enrichment completed with ${routine.length} routine items');
+          _programEnrichmentSubscription?.cancel();
+          programData = data;
+          _buildProgramComponents();
+          setState(() {
+            isWaitingForEnrichment = false;
+          });
+        } else if (isEnriched && routine.isEmpty) {
+          // Enrichment completed but routine is still empty (shouldn't happen but handle it)
+          debugPrint('WARNING: Program marked as enriched but routine is empty');
+          _programEnrichmentSubscription?.cancel();
+          programData = data;
+          _buildProgramComponents();
+          setState(() {
+            isWaitingForEnrichment = false;
+          });
+        }
+        // Otherwise, keep waiting (enrichment in progress)
+      }
+    }, onError: (e) {
+      debugPrint('Error listening for program enrichment: $e');
+      if (mounted) {
+        setState(() {
+          isWaitingForEnrichment = false;
+        });
+        // Still build components even if listener fails
+        _buildProgramComponents();
+      }
+    });
+
+    // Timeout after 2 minutes - enrichment should complete by then
+    Future.delayed(const Duration(minutes: 2), () {
+      if (_programEnrichmentSubscription != null && mounted) {
+        debugPrint('Enrichment timeout - stopping listener');
+        _programEnrichmentSubscription?.cancel();
+        setState(() {
+          isWaitingForEnrichment = false;
+        });
+        // Build components with whatever data we have
+        _buildProgramComponents();
+      }
+    });
   }
 
   Future<void> _loadProgressData() async {
@@ -373,6 +476,19 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     if (programData == null) return;
 
     final routine = programData!['routine'] as List<dynamic>? ?? [];
+
+    // Debug: Log routine details
+    debugPrint('Building program components - Routine items: ${routine.length}');
+    if (routine.isNotEmpty) {
+      debugPrint('Routine items: ${routine.map((r) => (r as Map?)?['title'] ?? 'unknown').join(', ')}');
+    }
+
+    // Defensive check: if routine is missing or empty, show warning but don't crash
+    if (routine.isEmpty) {
+      debugPrint('WARNING: Program has no routine items. Program may still be enriching.');
+      // Don't return - allow program to display with empty components
+      // User can still see other program details
+    }
 
     programComponents = [];
 
@@ -1466,7 +1582,22 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
   Widget _buildBenefits(
       BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    final benefits = List<String>.from(widget.benefits ?? []);
+    // Get benefits from programData first (for custom programs), then widget, then userPrograms
+    List<String> benefits = [];
+    if (programData != null && programData!['benefits'] != null) {
+      benefits = List<String>.from(
+        (programData!['benefits'] as List).map((item) => item.toString()),
+      );
+    } else if (widget.benefits != null && widget.benefits!.isNotEmpty) {
+      benefits = List<String>.from(widget.benefits!);
+    } else if (userPrograms.isNotEmpty &&
+        userPrograms[currentProgramIndex]['benefits'] != null) {
+      benefits = List<String>.from(
+        (userPrograms[currentProgramIndex]['benefits'] as List)
+            .map((item) => item.toString()),
+      );
+    }
+    
     if (benefits.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1893,16 +2024,23 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.assignment,
-                              size: getIconScale(12, context),
-                              color: isDarkMode
-                                  ? kWhite.withValues(alpha: 0.5)
-                                  : kDarkGrey.withValues(alpha: 0.5),
-                            ),
+                            if (isWaitingForEnrichment)
+                              CircularProgressIndicator(
+                                color: kAccent,
+                              )
+                            else
+                              Icon(
+                                Icons.assignment,
+                                size: getIconScale(12, context),
+                                color: isDarkMode
+                                    ? kWhite.withValues(alpha: 0.5)
+                                    : kDarkGrey.withValues(alpha: 0.5),
+                              ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
-                              'No program components available',
+                              isWaitingForEnrichment
+                                  ? 'Generating program details...\nThis may take a moment'
+                                  : 'No program components available',
                               style: textTheme.bodyLarge?.copyWith(
                                 color: isDarkMode
                                     ? kWhite.withValues(alpha: 0.7)

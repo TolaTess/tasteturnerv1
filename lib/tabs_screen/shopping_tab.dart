@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -26,7 +27,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
   String? _selectedDay;
   bool _is54321View = false;
   bool _isLoading54321 = false;
+  bool _isGenerating = false;
   Map<String, dynamic>? _shoppingList54321;
+  final RxInt _newItemsCount = 0.obs;
+  StreamSubscription? _mealPlansSubscription;
 
   final List<String> _daysOfWeek = [
     'Monday',
@@ -47,6 +51,60 @@ class _ShoppingTabState extends State<ShoppingTab> {
     _loadViewPreference();
     _macroManager.fetchIngredients();
     _load54321ShoppingList();
+    _checkForNewItems();
+    _setupMealPlansListener();
+  }
+
+  @override
+  void dispose() {
+    _mealPlansSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupMealPlansListener() {
+    final userId = userService.userId;
+    if (userId == null) return;
+
+    _mealPlansSubscription?.cancel();
+
+    // Get current week's start and end dates
+    final now = DateTime.now();
+    final weekStart = _getWeekStart(now);
+    final weekEnd = weekStart.add(const Duration(days: 6));
+
+    // Format dates as YYYY-MM-DD
+    final formatDate = (DateTime date) {
+      final y = date.year;
+      final m = date.month.toString().padLeft(2, '0');
+      final d = date.day.toString().padLeft(2, '0');
+      return '$y-$m-$d';
+    };
+
+    final startDateStr = formatDate(weekStart);
+    final endDateStr = formatDate(weekEnd);
+
+    // Listen to meal plans for the current week
+    _mealPlansSubscription = firestore
+        .collection('mealPlans')
+        .doc(userId)
+        .collection('date')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: startDateStr)
+        .where(FieldPath.documentId, isLessThanOrEqualTo: endDateStr)
+        .snapshots()
+        .listen((snapshot) {
+      // When meal plans change, update the count
+      if (mounted) {
+        _checkForNewItems();
+      }
+    }, onError: (e) {
+      debugPrint('Error listening to meal plans: $e');
+    });
+  }
+
+  DateTime _getWeekStart(DateTime date) {
+    final daysFromMonday = date.weekday - 1; // Monday = 1, so subtract 1
+    return DateTime(date.year, date.month, date.day)
+        .subtract(Duration(days: daysFromMonday));
   }
 
   Future<void> _loadSelectedDay() async {
@@ -143,6 +201,27 @@ class _ShoppingTabState extends State<ShoppingTab> {
         setState(() {
           _shoppingList54321 = null;
         });
+      }
+    }
+  }
+
+  Future<void> _checkForNewItems() async {
+    final userId = userService.userId;
+    if (userId == null) return;
+
+    try {
+      final weekId = getCurrentWeek();
+      final newItemsCount =
+          await _macroManager.checkForNewMealPlanItems(userId, weekId);
+      // Only update if mounted to prevent disappearing count
+      if (mounted) {
+        _newItemsCount.value = newItemsCount;
+        debugPrint('New meals count: $newItemsCount');
+      }
+    } catch (e) {
+      debugPrint('Error checking for new items: $e');
+      if (mounted) {
+        _newItemsCount.value = 0;
       }
     }
   }
@@ -387,7 +466,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   'description': 'Manually add items to your shopping list',
                   'color': kAccentLight,
                 },
-                 {
+                {
                   'icon': Icons.add_shopping_cart,
                   'title': 'Shopping Day',
                   'description': 'Set your shopping day and get reminders',
@@ -525,6 +604,152 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 List<Widget> listWidgets = [];
 
                 if (hasItems) {
+                  // Add Generate Button at the top
+                  listWidgets.add(
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(2, context),
+                        horizontal: getPercentageWidth(4, context),
+                      ),
+                      child: Obx(() => Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _isGenerating
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      _isGenerating = true;
+                                    });
+                                    try {
+                                      final status = await _macroManager
+                                          .generateAndFetchShoppingList();
+
+                                      if (mounted) {
+                                        if (status == 'success') {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Shopping list updated from meal plan!'),
+                                              backgroundColor: kGreen,
+                                            ),
+                                          );
+                                          // Refresh the shopping list to update UI
+                                          final userId = userService.userId;
+                                          if (userId != null) {
+                                            await Future.delayed(const Duration(milliseconds: 500));
+                                            await _macroManager.refreshShoppingLists(userId, getCurrentWeek());
+                                            // Wait a bit more for the listener to update, then check for new items
+                                            await Future.delayed(const Duration(milliseconds: 1000));
+                                            await _checkForNewItems();
+                                          }
+                                        } else if (status == 'no_meals') {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'No meals found in this week\'s plan.'),
+                                              backgroundColor: kOrange,
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Failed to generate list. Please try again.'),
+                                              backgroundColor: kRed,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Failed to generate list: $e')),
+                                        );
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isGenerating = false;
+                                        });
+                                      }
+                                    }
+                                  },
+                            icon: _isGenerating
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: kWhite,
+                                    ),
+                                  )
+                                : Icon(
+                                    _newItemsCount.value > 0
+                                        ? Icons.update
+                                        : Icons.refresh,
+                                    color: kWhite,
+                                  ),
+                            label: Text(
+                              _isGenerating
+                                  ? 'Generating...'
+                                  : (_newItemsCount.value > 0
+                                      ? 'Update Shopping List from Meal Plan'
+                                      : 'Generate from Meal Plan'),
+                              style: const TextStyle(color: kWhite),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kAccent,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(6, context),
+                                vertical: getPercentageHeight(1.5, context),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                          ),
+                          if (_newItemsCount.value > 0 && !_isGenerating)
+                            Positioned(
+                              right: -8,
+                              top: -8,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: kRed,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDarkMode ? kDarkGrey : kWhite,
+                                    width: 2,
+                                  ),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 24,
+                                  minHeight: 24,
+                                ),
+                                child: Text(
+                                  _newItemsCount.value > 99
+                                      ? '99+'
+                                      : _newItemsCount.value.toString(),
+                                  style: const TextStyle(
+                                    color: kWhite,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      )),
+                    ),
+                  );
+
                   if (manualItems.isNotEmpty) {
                     listWidgets.add(_buildSectionHeader(
                         'Added Manually', textTheme, context,
@@ -543,14 +768,173 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         isManual: false));
                   }
                 } else {
-                  // Show empty state in the list
+                  // Show empty state with manual generation button
                   listWidgets.add(
-                    noItemTastyWidget(
-                      'Your shopping list is empty!',
-                      'Click to spin the wheel and generate a list.',
-                      context,
-                      true,
-                      'spin',
+                    Padding(
+                      padding: EdgeInsets.only(
+                          top: getPercentageHeight(10, context)),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_cart_outlined,
+                              size: getPercentageWidth(20, context),
+                              color: isDarkMode
+                                  ? kWhite.withOpacity(0.5)
+                                  : kBlack.withOpacity(0.5),
+                            ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            Text(
+                              'Your shopping list is empty!',
+                              style: textTheme.titleMedium,
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              'Generate a list from your meal plan',
+                              style: textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey),
+                            ),
+                            SizedBox(height: getPercentageHeight(3, context)),
+                            Obx(() => Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _isGenerating
+                                      ? null
+                                      : () async {
+                                          setState(() {
+                                            _isGenerating = true;
+                                          });
+                                          try {
+                                            final status = await _macroManager
+                                                .generateAndFetchShoppingList();
+
+                                            if (mounted) {
+                                              if (status == 'success') {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'Shopping list updated from meal plan!'),
+                                                    backgroundColor: kGreen,
+                                                  ),
+                                                );
+                                                // Refresh the shopping list to update UI
+                                                final userId = userService.userId;
+                                                if (userId != null) {
+                                                  await Future.delayed(const Duration(milliseconds: 500));
+                                                  await _macroManager.refreshShoppingLists(userId, getCurrentWeek());
+                                                  // Check for new items after refresh
+                                                  await _checkForNewItems();
+                                                }
+                                              } else if (status == 'no_meals') {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'No meals found in this week\'s plan.'),
+                                                    backgroundColor: kOrange,
+                                                  ),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'Failed to generate list. Please try again.'),
+                                                    backgroundColor: kRed,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                    content: Text(
+                                                        'Failed to generate list: $e')),
+                                              );
+                                            }
+                                          } finally {
+                                            if (mounted) {
+                                              setState(() {
+                                                _isGenerating = false;
+                                              });
+                                            }
+                                          }
+                                        },
+                                  icon: _isGenerating
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: kWhite,
+                                          ),
+                                        )
+                                      : Icon(
+                                          _newItemsCount.value > 0
+                                              ? Icons.update
+                                              : Icons.refresh,
+                                          color: kWhite,
+                                        ),
+                                  label: Text(
+                                    _isGenerating
+                                        ? 'Generating...'
+                                        : (_newItemsCount.value > 0
+                                            ? 'Update Shopping List from Meal Plan'
+                                            : 'Generate from Meal Plan'),
+                                    style: const TextStyle(color: kWhite),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: kAccent,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: getPercentageWidth(6, context),
+                                      vertical: getPercentageHeight(1.5, context),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                ),
+                                if (_newItemsCount.value > 0 && !_isGenerating)
+                                  Positioned(
+                                    right: -8,
+                                    top: -8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: kRed,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isDarkMode ? kDarkGrey : kWhite,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 24,
+                                        minHeight: 24,
+                                      ),
+                                      child: Text(
+                                        _newItemsCount.value > 99
+                                            ? '99+'
+                                            : _newItemsCount.value.toString(),
+                                        style: const TextStyle(
+                                          color: kWhite,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            )),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 }
@@ -572,7 +956,11 @@ class _ShoppingTabState extends State<ShoppingTab> {
     if (category == 'fruits') {
       return count < 4 ? 'less fruits on ${dietPreference}' : '';
     } else if (category == 'proteins') {
-      return count < 3 ? 'less protein on ${dietPreference}' : count > 3 ? 'more protein on ${dietPreference}' : '';
+      return count < 3
+          ? 'less protein on ${dietPreference}'
+          : count > 3
+              ? 'more protein on ${dietPreference}'
+              : '';
     } else if (category == 'vegetables') {
       return count < 5 ? 'less vegetable on ${dietPreference}' : '';
     } else if (category == 'sauces') {

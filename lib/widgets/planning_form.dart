@@ -5,12 +5,14 @@ import '../pages/safe_text_field.dart';
 
 class PlanningForm extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
+  final VoidCallback? onClose;
   final bool isDarkMode;
   final Map<String, dynamic>? initialData;
 
   const PlanningForm({
     Key? key,
     required this.onSubmit,
+    this.onClose,
     required this.isDarkMode,
     this.initialData,
   }) : super(key: key);
@@ -232,20 +234,36 @@ class _PlanningFormState extends State<PlanningForm> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  Icons.edit_note,
-                  color: kAccent,
-                  size: getIconScale(6, context),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.edit_note,
+                      color: kAccent,
+                      size: getIconScale(6, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Text(
+                      'Program Details',
+                      style: textTheme.titleMedium?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: getPercentageWidth(2, context)),
-                Text(
-                  'Program Details',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: kAccent,
-                    fontWeight: FontWeight.w600,
+                if (widget.onClose != null)
+                  IconButton(
+                    onPressed: widget.onClose,
+                    icon: Icon(
+                      Icons.close,
+                      color: widget.isDarkMode ? kWhite : Colors.grey,
+                      size: getIconScale(5, context),
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                ),
               ],
             ),
             SizedBox(height: getPercentageHeight(2, context)),

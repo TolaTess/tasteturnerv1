@@ -23,12 +23,14 @@ class SearchContentGrid extends StatefulWidget {
     required this.listType,
     this.postId = '',
     this.selectedCategory = '',
+    this.filterByRecipe = false,
   });
 
   final int screenLength;
   final String listType;
   final String postId;
   final String selectedCategory;
+  final bool filterByRecipe;
 
   @override
   SearchContentGridState createState() => SearchContentGridState();
@@ -52,7 +54,9 @@ class SearchContentGridState extends State<SearchContentGrid> {
   void didUpdateWidget(SearchContentGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Refetch content when category changes
-    if (oldWidget.selectedCategory != widget.selectedCategory) {
+    // Refetch content when category or filter changes
+    if (oldWidget.selectedCategory != widget.selectedCategory ||
+        oldWidget.filterByRecipe != widget.filterByRecipe) {
       fetchContent();
     }
   }
@@ -102,8 +106,18 @@ class SearchContentGridState extends State<SearchContentGrid> {
         );
 
         if (result.isSuccess && mounted) {
+          var posts = result.posts;
+
+          // Apply recipe filter if enabled
+          if (widget.filterByRecipe) {
+            posts = posts.where((post) {
+              final recipe = post['recipe'];
+              return recipe != null && recipe is Map && recipe.isNotEmpty;
+            }).toList();
+          }
+
           setState(() {
-            searchContentDatas = result.posts;
+            searchContentDatas = posts;
             lastPostId = result.lastPostId;
             hasMorePosts = result.hasMore;
             isLoading = false;
@@ -161,7 +175,6 @@ class SearchContentGridState extends State<SearchContentGrid> {
       debugPrint('Error loading more posts: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -468,10 +481,10 @@ class _ChallengePostsHorizontalListState
   void initState() {
     super.initState();
     // Battle feature removed - widget no longer loads posts
-        setState(() {
-          challengePosts = [];
-          isLoading = false;
-        });
+    setState(() {
+      challengePosts = [];
+      isLoading = false;
+    });
   }
 
   @override

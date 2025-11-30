@@ -51,17 +51,17 @@ async function _getBestGeminiModel() {
     const modelsResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1/models?key=${process.env.GEMINI_API_KEY}`
     );
-    
+
     if (modelsResponse.ok) {
       const data = await modelsResponse.json();
       const availableModels = data.models || [];
-      
+
       console.log(`Found ${availableModels.length} Gemini models`);
-      
+
       // Try preferred models first
       for (const preferredModel of preferredModels) {
-        const found = availableModels.find(m => 
-          m.name.endsWith(preferredModel) && 
+        const found = availableModels.find(m =>
+          m.name.endsWith(preferredModel) &&
           m.supportedGenerationMethods?.includes('generateContent')
         );
         if (found) {
@@ -70,11 +70,11 @@ async function _getBestGeminiModel() {
           return modelName;
         }
       }
-      
+
       // If no preferred model found, use any available model (excluding embedding models)
       for (const model of availableModels) {
-        if (!model.name.includes('embedding') && 
-            model.supportedGenerationMethods?.includes('generateContent')) {
+        if (!model.name.includes('embedding') &&
+          model.supportedGenerationMethods?.includes('generateContent')) {
           const modelName = model.name.split('/').pop();
           console.log(`✅ Using fallback Gemini model: ${modelName}`);
           return modelName;
@@ -84,7 +84,7 @@ async function _getBestGeminiModel() {
   } catch (error) {
     console.warn('Failed to fetch Gemini models list:', error.message);
   }
-  
+
   // Ultimate fallback
   console.log('⚠️ Could not determine best model, using gemini-2.0-flash as fallback');
   return 'gemini-2.0-flash';
@@ -121,7 +121,7 @@ exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data,
 
     // Get the ingredient challenge list from general collection
     const generalDoc = await firestore.collection('general').doc('general').get();
-    
+
     if (!generalDoc.exists) {
       throw new functions.https.HttpsError(
         'not-found',
@@ -131,7 +131,7 @@ exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data,
 
     const generalData = generalDoc.data();
     const ingredientChallengeString = generalData.ingredientChallenge || '';
-    
+
     if (!ingredientChallengeString) {
       throw new functions.https.HttpsError(
         'not-found',
@@ -143,14 +143,14 @@ exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data,
     const allIngredients = ingredientChallengeString.split(',').map(ing => ing.trim()).filter(ing => ing);
     const proteins = allIngredients.filter(ing => ing.endsWith('-p'));
     const vegetables = allIngredients.filter(ing => ing.endsWith('-v'));
-    
+
     if (proteins.length < 2) {
       throw new functions.https.HttpsError(
         'failed-precondition',
         `Not enough protein ingredients. Found ${proteins.length}, need at least 2.`
       );
     }
-    
+
     if (vegetables.length < 2) {
       throw new functions.https.HttpsError(
         'failed-precondition',
@@ -161,7 +161,7 @@ exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data,
     // Get 2 random proteins and 2 random vegetables
     const shuffledProteins = [...proteins].sort(() => 0.5 - Math.random());
     const shuffledVegetables = [...vegetables].sort(() => 0.5 - Math.random());
-    
+
     const selectedProteins = shuffledProteins.slice(0, 2);
     const selectedVegetables = shuffledVegetables.slice(0, 2);
     const selectedIngredients = [...selectedProteins, ...selectedVegetables];
@@ -193,11 +193,11 @@ exports.generateWeeklyChallengeIngredients = functions.https.onCall(async (data,
 
   } catch (error) {
     console.error('Error generating weekly challenge ingredients:', error);
-    
+
     if (error instanceof functions.https.HttpsError) {
       throw error;
     }
-    
+
     throw new functions.https.HttpsError(
       'internal',
       'An error occurred while generating challenge ingredients'
@@ -245,7 +245,7 @@ exports.calculateDailyNutrition = functions.firestore
         .doc(userId)
         .collection("meals")
         .doc(date);
-      
+
       const userMealsDoc = await userMealsDocRef.get();
       if (userMealsDoc.exists) {
         const userMealsData = userMealsDoc.data();
@@ -413,22 +413,22 @@ exports.updateDailySummaryOnActivityChange = functions.firestore
     // Check if Water or Steps fields were modified
     const beforeData = change.before.exists ? change.before.data() : {};
     const afterData = change.after.exists ? change.after.data() : {};
-    
+
     const waterChanged = beforeData.Water !== afterData.Water;
     const stepsChanged = beforeData.Steps !== afterData.Steps;
-    
+
     // Only proceed if water or steps changed, and meals didn't change
     // (meals are handled by the calculateDailyNutrition function)
     if (!waterChanged && !stepsChanged) {
       console.log("No water or steps data changed, skipping update");
       return null;
     }
-    
+
     // Check if meals data also changed - if so, let the calculateDailyNutrition function handle it
     const beforeMeals = beforeData.meals || {};
     const afterMeals = afterData.meals || {};
     const mealsChanged = JSON.stringify(beforeMeals) !== JSON.stringify(afterMeals);
-    
+
     if (mealsChanged) {
       console.log("Meals data also changed, letting calculateDailyNutrition handle the update");
       return null;
@@ -443,16 +443,16 @@ exports.updateDailySummaryOnActivityChange = functions.firestore
         .doc(userId)
         .collection("daily_summary")
         .doc(date);
-      
+
       const summaryDoc = await summaryDocRef.get();
-      
+
       if (!summaryDoc.exists) {
         console.log("No daily summary exists for this date, skipping update");
         return null;
       }
 
       const currentSummary = summaryDoc.data();
-      
+
       // Update only the water and steps fields
       const updatedSummary = {
         ...currentSummary,
@@ -468,7 +468,7 @@ exports.updateDailySummaryOnActivityChange = functions.firestore
       );
       console.log(`Updated water: ${afterData.Water}, steps: ${afterData.Steps}`);
       console.log("--- Function updateDailySummaryOnActivityChange finished ---");
-      
+
       return null;
     } catch (error) {
       console.error(
@@ -487,27 +487,51 @@ exports.updateDailySummaryOnActivityChange = functions.firestore
  */
 exports.generateAndSaveWeeklyShoppingList = functions
   .runWith({ timeoutSeconds: 540, memory: '512MB' })
-  .firestore
-  .document("mealPlans/{userId}/date/{date}")
-  .onWrite(async (change, context) => {
-    const { userId, date } = context.params;
+  .https.onCall(async (data, context) => {
+    // Check authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+
+    const { userId, date } = data;
+
+    // Validate inputs
+    if (!userId || !date) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'The function must be called with "userId" and "date" arguments.'
+      );
+    }
+
     console.log(
       `--- Running Shopping List Generation for user: ${userId} on date: ${date} ---`
     );
 
     try {
       // 1. Determine the week for the changed meal using the same logic as the test function
-      const mealDate = new Date(date);
+      // Parse date string as UTC to avoid timezone shifts
+      const mealDate = new Date(date + 'T12:00:00Z');
       const year = mealDate.getUTCFullYear();
       const week = _getWeek(mealDate);
       const weekId = `week_${year}-${String(week).padStart(2, "0")}`;
 
       // 2. Fetch all meal plan documents for the entire week
-      const weekStart = startOfWeek(mealDate, { weekStartsOn: 0 }); // Sunday
-      const weekEnd = endOfWeek(mealDate, { weekStartsOn: 0 });
+      const weekStart = startOfWeek(mealDate, { weekStartsOn: 1 }); // Monday
+      const weekEnd = endOfWeek(mealDate, { weekStartsOn: 1 });
 
-      const startDateStr = format(weekStart, "yyyy-MM-dd");
-      const endDateStr = format(weekEnd, "yyyy-MM-dd");
+      // Format dates manually to ensure YYYY-MM-DD format without timezone interference
+      const formatDate = (d) => {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      const startDateStr = formatDate(weekStart);
+      const endDateStr = formatDate(weekEnd);
 
       console.log(
         `Querying for meal plans between: ${startDateStr} and ${endDateStr}`
@@ -573,78 +597,36 @@ exports.generateAndSaveWeeklyShoppingList = functions
         }
       }
 
-      // 4. Find existing ingredients or create new ones, then build the map
-      // Process in batches to avoid timeout and optimize performance
-      const ingredientNames = Object.keys(weeklyIngredients);
-      const requiredItems = {};
-      const BATCH_SIZE = 5; // Process 5 ingredients in parallel at a time
-      
-      console.log(`Processing ${ingredientNames.length} ingredients in batches of ${BATCH_SIZE}`);
-      
-      for (let i = 0; i < ingredientNames.length; i += BATCH_SIZE) {
-        const batch = ingredientNames.slice(i, i + BATCH_SIZE);
-        console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(ingredientNames.length / BATCH_SIZE)}: ${batch.join(', ')}`);
-        
-        // Process batch in parallel
-        const batchPromises = batch.map(async (name) => {
-          const { quantity, unit } = weeklyIngredients[name];
-          let ingredientId = null;
+      // 4. Consolidate ingredients directly (No AI generation)
+      const generatedItems = {};
 
-          try {
-            // Clean the ingredient name first (remove parentheses, preparation notes)
-            const cleanedName = _cleanIngredientName(name);
-            
-            // Try to find existing ingredient with cleaned name first
-            ingredientId = await _findExistingIngredient(cleanedName);
-            
-            // If not found with cleaned name, try original name as fallback
-            if (!ingredientId) {
-              ingredientId = await _findExistingIngredient(name);
-            }
+      // Helper to capitalize first letter of each word
+      const toTitleCase = (str) => {
+        return str.replace(
+          /\w\S*/g,
+          text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+        );
+      };
 
-            if (!ingredientId) {
-              // Use cleaned name for generation to avoid creating duplicates
-              console.log(`Ingredient "${cleanedName}" (cleaned from "${name}") not found. Generating...`);
-              ingredientId = await _generateAndSaveIngredient(cleanedName);
-            }
+      for (const [name, data] of Object.entries(weeklyIngredients)) {
+        // Use the ingredient name (Title Cased) as the ID
+        // This ensures "parsley" and "Parsley" are treated as the same item
+        const cleanName = _cleanIngredientName(name);
+        const ingredientId = toTitleCase(cleanName || name);
 
-            if (ingredientId) {
-              const key = `${ingredientId}/${quantity}${unit}`;
-              return { key, success: true };
-            } else {
-              console.warn(`Failed to get ingredient ID for "${name}"`);
-              return { key: null, success: false, name };
-            }
-          } catch (error) {
-            console.error(`Error processing ingredient "${name}": ${error.message}`);
-            return { key: null, success: false, name, error: error.message };
-          }
-        });
+        // Format the quantity and unit
+        const quantity = parseFloat(data.quantity.toFixed(2)); // Limit to 2 decimal places
+        const unit = data.unit ? ` ${data.unit}` : '';
+        const amount = `${quantity}${unit}`;
 
-        // Wait for batch to complete
-        const batchResults = await Promise.all(batchPromises);
-        
-        // Add successful items to requiredItems
-        for (const result of batchResults) {
-          if (result.success && result.key) {
-            requiredItems[result.key] = false; // Default to false
-          } else {
-            console.warn(`Skipping ingredient "${result.name}" - failed to process`);
-          }
-        }
-        
-        // Small delay between batches to avoid overwhelming the API
-        if (i + BATCH_SIZE < ingredientNames.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        // Construct the key: "IngredientName/Amount"
+        // The app will parse this: ID = IngredientName, Amount = Amount
+        const key = `${ingredientId}/${amount}`;
+
+        generatedItems[key] = false; // Default to not purchased
       }
-      
-      console.log(`Successfully processed ${Object.keys(requiredItems).length} of ${ingredientNames.length} ingredients`);
 
-      console.log(`=== SHOPPING LIST GENERATION ===`);
-      console.log(`Week ID: ${weekId}`);
-      console.log(`Total ingredients found: ${Object.keys(requiredItems).length}`);
-      console.log(`Required items keys: ${Object.keys(requiredItems).slice(0, 10).join(', ')}${Object.keys(requiredItems).length > 10 ? '...' : ''}`);
+      console.log(`Generated ${Object.keys(generatedItems).length} items for shopping list.`);
 
       // 5. Use a transaction to safely merge the new list with the existing one
       const listRef = firestore
@@ -656,25 +638,41 @@ exports.generateAndSaveWeeklyShoppingList = functions
       try {
         await firestore.runTransaction(async (transaction) => {
           const doc = await transaction.get(listRef);
-          const existingData = doc.data();
-          const existingGeneratedItems = existingData?.generatedItems || {};
-          const existingManualItems = existingData?.manualItems || {};
+          const existingData = doc.data() || {};
+          const existingGeneratedItems = existingData.generatedItems || {};
+          const existingManualItems = existingData.manualItems || {};
           const newGeneratedItems = {};
 
           console.log(`Existing generatedItems count: ${Object.keys(existingGeneratedItems).length}`);
-          console.log(`Existing manualItems count: ${Object.keys(existingManualItems).length}`);
 
-          // Preserve the status of existing items.
-          // Add new items with a default status of 'false'.
-          // Items no longer in the plan are implicitly removed.
-          for (const key in requiredItems) {
-            newGeneratedItems[key] = existingGeneratedItems[key] !== undefined ? existingGeneratedItems[key] : false;
+          // Smart Merge: Preserve checked state even if amount changes
+          for (const newKey of Object.keys(generatedItems)) {
+            // 1. Check for exact match first
+            if (existingGeneratedItems[newKey] !== undefined) {
+              newGeneratedItems[newKey] = existingGeneratedItems[newKey];
+              continue;
+            }
+
+            // 2. Check for partial match (same ingredient name, different amount)
+            // Key format: "Name/Amount"
+            const newName = newKey.split('/')[0];
+            let isChecked = false;
+
+            // Look for any existing key that starts with the same name
+            for (const [oldKey, oldStatus] of Object.entries(existingGeneratedItems)) {
+              const oldName = oldKey.split('/')[0];
+              if (oldName === newName && oldStatus === true) {
+                isChecked = true;
+                break; // Found a match that was checked, preserve it
+              }
+            }
+
+            newGeneratedItems[newKey] = isChecked;
           }
 
           console.log(`New generatedItems count: ${Object.keys(newGeneratedItems).length}`);
-          console.log(`New generatedItems sample: ${JSON.stringify(Object.fromEntries(Object.entries(newGeneratedItems).slice(0, 3)))}`);
 
-          // Prepare the update document - preserve manualItems
+          // Prepare the update document
           const updateData = {
             generatedItems: newGeneratedItems,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -686,38 +684,25 @@ exports.generateAndSaveWeeklyShoppingList = functions
           }
 
           transaction.set(listRef, updateData, { merge: true });
-
-          console.log(`Transaction prepared: generatedItems=${Object.keys(newGeneratedItems).length}, manualItems preserved=${existingManualItems && Object.keys(existingManualItems).length > 0}`);
         });
 
-        // Verify the save by reading back the document
-        const verifyDoc = await listRef.get();
-        if (verifyDoc.exists) {
-          const verifyData = verifyDoc.data();
-          const verifyGenerated = verifyData?.generatedItems || {};
-          const verifyManual = verifyData?.manualItems || {};
-          console.log(`=== VERIFICATION AFTER SAVE ===`);
-          console.log(`Document exists: ${verifyDoc.exists}`);
-          console.log(`Generated items count in Firestore: ${Object.keys(verifyGenerated).length}`);
-          console.log(`Manual items count in Firestore: ${Object.keys(verifyManual).length}`);
-          console.log(`Sample generated items in Firestore: ${JSON.stringify(Object.fromEntries(Object.entries(verifyGenerated).slice(0, 3)))}`);
-        } else {
-          console.error(`ERROR: Document does not exist after transaction!`);
-        }
+        console.log(
+          `Successfully updated shopping list for user ${userId}, week ${weekId}`
+        );
+        console.log(`=== END SHOPPING LIST GENERATION ===`);
+        return { success: true, weekId };
+
       } catch (transactionError) {
         console.error(`Transaction error: ${transactionError.message}`);
-        console.error(`Transaction stack: ${transactionError.stack}`);
         throw transactionError;
       }
-
-      console.log(
-        `Successfully updated shopping list for user ${userId}, week ${weekId}`
-      );
-      console.log(`=== END SHOPPING LIST GENERATION ===`);
-      return null;
     } catch (error) {
       console.error("Error generating shopping list:", error);
-      return null;
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while generating the shopping list.',
+        error.message
+      );
     }
   });
 
@@ -730,43 +715,43 @@ async function _findExistingIngredient(ingredientName) {
   try {
     const ingredientsRef = firestore.collection("ingredients");
     const normalizedName = _normalizeIngredientName(ingredientName);
-    
+
     // 1. Try exact match first
     let snapshot = await ingredientsRef
       .where("title", "==", ingredientName.toLowerCase())
       .limit(1)
       .get();
-    
+
     if (!snapshot.empty) {
       return snapshot.docs[0].id;
     }
-    
+
     // 2. Try normalized name match
     snapshot = await ingredientsRef
       .where("title", "==", normalizedName)
       .limit(1)
       .get();
-    
+
     if (!snapshot.empty) {
       return snapshot.docs[0].id;
     }
-    
+
     // 3. Try normalized matching (remove spaces, hyphens, underscores)
     const normalizedInputName = _normalizeIngredientName(ingredientName);
-    
+
     // Get all ingredients and check for normalized matches
     const allIngredientsSnapshot = await ingredientsRef.get();
-    
+
     for (const doc of allIngredientsSnapshot.docs) {
       const ingredientData = doc.data();
       const dbTitle = ingredientData.title || '';
       const normalizedDbTitle = _normalizeIngredientName(dbTitle);
-      
+
       if (normalizedInputName === normalizedDbTitle) {
         return doc.id;
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error(`Error finding existing ingredient "${ingredientName}":`, error);
@@ -782,33 +767,42 @@ async function _findExistingIngredient(ingredientName) {
  */
 function _cleanIngredientName(ingredientName) {
   if (!ingredientName) return '';
-  
+
   let cleaned = ingredientName.trim();
-  
-  // Remove everything in parentheses (including nested parentheses)
+
+  // 1. Replace underscores with spaces
+  cleaned = cleaned.replace(/_/g, ' ');
+
+  // 2. Handle "Or" / "/" alternatives: Take the first part
+  // e.g., "Parsley or Chives" -> "Parsley", "Milk/Cream" -> "Milk"
+  cleaned = cleaned.split(/\s+or\s+|\//i)[0].trim();
+
+  // 3. Remove everything in parentheses (including nested parentheses)
   cleaned = cleaned.replace(/\([^)]*\)/g, '').trim();
-  
-  // Remove trailing commas and common preparation words
+
+  // 4. Remove trailing commas and common preparation words
   // Words like: chopped, minced, sliced, diced, grated, crushed, smashed, peeled, deveined, etc.
   const preparationWords = [
     'chopped', 'minced', 'sliced', 'diced', 'grated', 'crushed', 'smashed',
-    'peeled', 'deveined', 'uncooked', 'cooked', 'fresh', 'dried', 'optional',
+    'peeled', 'deveined', 'uncooked', 'cooked', 'dried', 'optional',
     'for garnish', 'for dressing', 'for sauce', 'for roasting', 'for frying',
-    'for boiling', 'skin-on', 'boneless', 'skinless'
+    'for boiling', 'skin-on', 'boneless', 'skinless',
+    // Suffixes to remove
+    'sprigs', 'leaves', 'stalks', 'bulbs', 'cloves', 'heads', 'bunch', 'bunches'
   ];
-  
+
   // Remove trailing commas and spaces
   cleaned = cleaned.replace(/,\s*$/, '').trim();
-  
+
   // Remove preparation words at the end (case insensitive)
   for (const word of preparationWords) {
     const regex = new RegExp(`,\\s*${word}\\s*$|\\s+${word}\\s*$`, 'i');
     cleaned = cleaned.replace(regex, '').trim();
   }
-  
+
   // Clean up multiple spaces
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  
+
   return cleaned;
 }
 
@@ -902,7 +896,7 @@ async function _generateAndSaveIngredient(ingredientName) {
     ingredientData.createdAt = admin.firestore.FieldValue.serverTimestamp();
 
     const newIngredientRef = await firestore.collection("ingredients").add(ingredientData);
-    
+
     console.log(`Successfully generated and saved new ingredient: ${ingredientData.title} (ID: ${newIngredientRef.id}) with type: ${ingredientData.type}`);
     return newIngredientRef.id;
 
@@ -1029,13 +1023,13 @@ exports.getPostsFeed = functions.https.onCall(async (data, context) => {
     query = query.limit(limit);
 
     const snapshot = await query.get();
-    
+
     const posts = [];
     const batchPromises = [];
 
     snapshot.docs.forEach(doc => {
       const data = doc.data();
-      
+
       // Skip excluded post
       if (excludePostId && doc.id === excludePostId) {
         return;
@@ -1073,7 +1067,7 @@ exports.getPostsFeed = functions.https.onCall(async (data, context) => {
     // Fetch user data in batch
     const userDocs = await Promise.all(batchPromises);
     const userMap = {};
-    
+
     userDocs.forEach(userDoc => {
       if (userDoc.exists) {
         const userData = userDoc.data();
@@ -1165,7 +1159,7 @@ exports.getUserPosts = functions.https.onCall(async (data, context) => {
 
     snapshot.docs.forEach(doc => {
       const data = doc.data();
-      
+
       const optimizedPost = {
         id: doc.id,
         mealId: data.mealId || '', // Add mealId for proper meal-post association
@@ -1229,7 +1223,7 @@ exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) 
     // Convert ISO strings to Firestore timestamps
     const startDate = new Date(weekStart);
     const endDate = new Date(weekEnd);
-    
+
     console.log('Date range for battle posts:', {
       weekStart,
       weekEnd,
@@ -1246,13 +1240,13 @@ exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) 
 
     const snapshot = await query.get();
     console.log(`Found ${snapshot.docs.length} battle posts total`);
-    
+
     const posts = [];
     const batchPromises = [];
 
     snapshot.docs.forEach(doc => {
       const data = doc.data();
-      
+
       // Skip private posts
       if (data.battleId === 'private') {
         return;
@@ -1301,7 +1295,7 @@ exports.getChallengePostsForWeek = functions.https.onCall(async (data, context) 
     // Fetch user data in batch
     const userDocs = await Promise.all(batchPromises);
     const userMap = {};
-    
+
     userDocs.forEach(userDoc => {
       if (userDoc.exists) {
         const userData = userDoc.data();
@@ -1374,10 +1368,10 @@ async function awardChallengeWinners() {
     const today = new Date();
     const lastSunday = addDays(today, -7); // Previous Sunday
     const lastMonday = addDays(lastSunday, -6); // Previous Monday
-    
+
     const weekStart = format(lastMonday, 'yyyy-MM-dd');
     const weekEnd = format(lastSunday, 'yyyy-MM-dd');
-    
+
     console.log(`Awarding winners for week: ${weekStart} to ${weekEnd}`);
 
     // Get all challenge posts from the previous week
@@ -1389,7 +1383,7 @@ async function awardChallengeWinners() {
       .orderBy('createdAt', 'desc');
 
     const snapshot = await challengePostsQuery.get();
-    
+
     if (snapshot.empty) {
       console.log('No challenge posts found for the previous week');
       return;
@@ -1399,11 +1393,11 @@ async function awardChallengeWinners() {
 
     // Calculate scores for each post (based on favorites count)
     const postsWithScores = [];
-    
+
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       const favoritesCount = data.favorites ? data.favorites.length : 0;
-      
+
       postsWithScores.push({
         id: doc.id,
         userId: data.userId,
@@ -1424,26 +1418,26 @@ async function awardChallengeWinners() {
 
     // Determine winners (top 3, or all if less than 3 posts)
     const winners = postsWithScores.slice(0, Math.min(3, postsWithScores.length));
-    
+
     if (winners.length === 0) {
       console.log('No winners to award');
       return;
     }
 
-    console.log(`Awarding ${winners.length} winners:`, winners.map(w => ({ 
-      userId: w.userId, 
-      name: w.name, 
-      favorites: w.favoritesCount 
+    console.log(`Awarding ${winners.length} winners:`, winners.map(w => ({
+      userId: w.userId,
+      name: w.name,
+      favorites: w.favoritesCount
     })));
 
     // Award prizes to winners
     const winnerAwards = [];
-    
+
     for (let i = 0; i < winners.length; i++) {
       const winner = winners[i];
       const position = i + 1;
       let prize = '';
-      
+
       // Define prizes based on position
       switch (position) {
         case 1:
@@ -1485,10 +1479,10 @@ async function awardChallengeWinners() {
       };
 
       await firestore.collection('challengeAwards').add(awardRecord);
-      
+
       // Send notification to winner
       await sendWinnerNotification(winner.userId, winner.name, position, prize, getPointsForPosition(position));
-      
+
       winnerAwards.push(awardRecord);
     }
 
@@ -1520,7 +1514,7 @@ async function generateNewChallengeIngredients() {
 
     // Get the ingredient challenge list from general collection
     const generalDoc = await firestore.collection('general').doc('general').get();
-    
+
     if (!generalDoc.exists) {
       console.error('General collection document not found');
       return;
@@ -1528,7 +1522,7 @@ async function generateNewChallengeIngredients() {
 
     const generalData = generalDoc.data();
     const ingredientChallengeString = generalData.ingredientsChallenge || '';
-    
+
     if (!ingredientChallengeString) {
       console.error('ingredientsChallenge string not found in general collection');
       return;
@@ -1538,12 +1532,12 @@ async function generateNewChallengeIngredients() {
     const allIngredients = ingredientChallengeString.split(',').map(ing => ing.trim()).filter(ing => ing);
     const proteins = allIngredients.filter(ing => ing.endsWith('-p'));
     const vegetables = allIngredients.filter(ing => ing.endsWith('-v'));
-    
+
     if (proteins.length < 2) {
       console.error(`Not enough protein ingredients. Found ${proteins.length}, need at least 2.`);
       return;
     }
-    
+
     if (vegetables.length < 2) {
       console.error(`Not enough vegetable ingredients. Found ${vegetables.length}, need at least 2.`);
       return;
@@ -1552,7 +1546,7 @@ async function generateNewChallengeIngredients() {
     // Get 2 random proteins and 2 random vegetables
     const shuffledProteins = [...proteins].sort(() => 0.5 - Math.random());
     const shuffledVegetables = [...vegetables].sort(() => 0.5 - Math.random());
-    
+
     const selectedProteins = shuffledProteins.slice(0, 2);
     const selectedVegetables = shuffledVegetables.slice(0, 2);
     const selectedIngredients = [...selectedProteins, ...selectedVegetables];
@@ -1597,18 +1591,18 @@ function getPointsForPosition(position) {
 async function sendWinnerNotification(userId, userName, position, prize, points) {
   try {
     console.log(`Sending winner notification to user ${userId} for position ${position}`);
-    
+
     // Get user's FCM token
     const userDoc = await firestore.collection('users').doc(userId).get();
     const userData = userDoc.data();
-    
+
     if (!userData || !userData.fcmToken) {
       console.log(`No FCM token found for user ${userId}`);
       return;
     }
 
     const fcmToken = userData.fcmToken;
-    
+
     // Create notification payload
     const message = {
       token: fcmToken,
@@ -1646,7 +1640,7 @@ async function sendWinnerNotification(userId, userName, position, prize, points)
     // Send notification
     const response = await admin.messaging().send(message);
     console.log(`Successfully sent winner notification: ${response}`);
-    
+
     // Store notification in database for history
     await firestore.collection('notifications').add({
       userId: userId,
@@ -1691,116 +1685,116 @@ function getOrdinalSuffix(position) {
 exports.getChallengeResults = functions.https.onCall(async (data, context) => {
   try {
     console.log('--- Getting challenge results ---');
-    
+
     // Set a timeout for the entire function
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Function timeout')), 5000); // 5 second timeout
     });
-    
+
     const functionPromise = (async () => {
 
-    // Get current challenge details
-    const generalDoc = await firestore.collection('general').doc('general').get();
-    const generalData = generalDoc.data() || {};
-    
-    const challengeDetails = generalData.challenge_details || '';
-    const lastChallengeResults = generalData.lastChallengeResults || null;
+      // Get current challenge details
+      const generalDoc = await firestore.collection('general').doc('general').get();
+      const generalData = generalDoc.data() || {};
 
-    // Get current week's leaderboard data
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - now.getDay() + 1); // Monday of current week
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6); // Sunday of current week
+      const challengeDetails = generalData.challenge_details || '';
+      const lastChallengeResults = generalData.lastChallengeResults || null;
 
-    const weekStart = format(monday, 'yyyy-MM-dd');
-    const weekEnd = format(sunday, 'yyyy-MM-dd');
+      // Get current week's leaderboard data
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - now.getDay() + 1); // Monday of current week
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6); // Sunday of current week
 
-    // Get current week's challenge posts with limit to reduce execution time
-    const challengePostsQuery = admin.firestore()
-      .collection('posts')
-      .where('isBattle', '==', true)
-      .where('createdAt', '>=', weekStart)
-      .where('createdAt', '<=', weekEnd + 'T23:59:59.999Z')
-      .orderBy('createdAt', 'desc')
-      .limit(100); // Limit to 100 posts to reduce execution time
+      const weekStart = format(monday, 'yyyy-MM-dd');
+      const weekEnd = format(sunday, 'yyyy-MM-dd');
 
-    const snapshot = await challengePostsQuery.get();
-    
-    // Calculate current leaderboard
-    const userLikesMap = {};
-    
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const postUserId = data.userId;
-      const favorites = data.favorites || [];
-      const likesCount = favorites.length;
+      // Get current week's challenge posts with limit to reduce execution time
+      const challengePostsQuery = admin.firestore()
+        .collection('posts')
+        .where('isBattle', '==', true)
+        .where('createdAt', '>=', weekStart)
+        .where('createdAt', '<=', weekEnd + 'T23:59:59.999Z')
+        .orderBy('createdAt', 'desc')
+        .limit(100); // Limit to 100 posts to reduce execution time
 
-      if (postUserId && likesCount > 0) {
-        if (userLikesMap[postUserId]) {
-          userLikesMap[postUserId].totalLikes += likesCount;
-          userLikesMap[postUserId].postCount += 1;
-        } else {
-          userLikesMap[postUserId] = {
-            userId: postUserId,
-            totalLikes: likesCount,
-            postCount: 1,
-          };
+      const snapshot = await challengePostsQuery.get();
+
+      // Calculate current leaderboard
+      const userLikesMap = {};
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const postUserId = data.userId;
+        const favorites = data.favorites || [];
+        const likesCount = favorites.length;
+
+        if (postUserId && likesCount > 0) {
+          if (userLikesMap[postUserId]) {
+            userLikesMap[postUserId].totalLikes += likesCount;
+            userLikesMap[postUserId].postCount += 1;
+          } else {
+            userLikesMap[postUserId] = {
+              userId: postUserId,
+              totalLikes: likesCount,
+              postCount: 1,
+            };
+          }
         }
-      }
-    });
-
-    // Sort by total likes
-    const currentLeaderboard = Object.values(userLikesMap)
-      .sort((a, b) => b.totalLikes - a.totalLikes)
-      .slice(0, 10); // Top 10
-
-    // Get user details for leaderboard in batches to reduce execution time
-    const leaderboardWithDetails = [];
-    const batchSize = 10; // Process users in batches
-    
-    for (let i = 0; i < currentLeaderboard.length; i += batchSize) {
-      const batch = currentLeaderboard.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (userData, batchIndex) => {
-        const userDoc = await firestore.collection('users').doc(userData.userId).get();
-        const userDetails = userDoc.data() || {};
-        
-        return {
-          userId: userData.userId,
-          displayName: userDetails.displayName || 'Unknown',
-          profileImage: userDetails.profileImage || '',
-          totalLikes: userData.totalLikes,
-          postCount: userData.postCount,
-          rank: i + batchIndex + 1,
-        };
       });
-      
-      const batchResults = await Promise.all(batchPromises);
-      leaderboardWithDetails.push(...batchResults);
-    }
 
-    // Parse challenge ingredients with type information
-    let parsedIngredients = [];
-    let ingredientNames = [];
-    
-    if (challengeDetails) {
-      const parts = challengeDetails.split(',');
-      if (parts.length >= 5) {
-        const ingredientParts = parts.slice(1); // Skip the date
-        parsedIngredients = ingredientParts.map(ingredient => {
-          const cleanName = ingredient.replace(/-[vp]$/, '');
-          const type = ingredient.endsWith('-v') ? 'vegetable' : 
-                      ingredient.endsWith('-p') ? 'protein' : 'unknown';
-          
+      // Sort by total likes
+      const currentLeaderboard = Object.values(userLikesMap)
+        .sort((a, b) => b.totalLikes - a.totalLikes)
+        .slice(0, 10); // Top 10
+
+      // Get user details for leaderboard in batches to reduce execution time
+      const leaderboardWithDetails = [];
+      const batchSize = 10; // Process users in batches
+
+      for (let i = 0; i < currentLeaderboard.length; i += batchSize) {
+        const batch = currentLeaderboard.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (userData, batchIndex) => {
+          const userDoc = await firestore.collection('users').doc(userData.userId).get();
+          const userDetails = userDoc.data() || {};
+
           return {
-            name: cleanName,
-            type: type,
-            fullName: ingredient,
+            userId: userData.userId,
+            displayName: userDetails.displayName || 'Unknown',
+            profileImage: userDetails.profileImage || '',
+            totalLikes: userData.totalLikes,
+            postCount: userData.postCount,
+            rank: i + batchIndex + 1,
           };
         });
-        ingredientNames = parsedIngredients.map(i => i.name);
+
+        const batchResults = await Promise.all(batchPromises);
+        leaderboardWithDetails.push(...batchResults);
       }
-    }
+
+      // Parse challenge ingredients with type information
+      let parsedIngredients = [];
+      let ingredientNames = [];
+
+      if (challengeDetails) {
+        const parts = challengeDetails.split(',');
+        if (parts.length >= 5) {
+          const ingredientParts = parts.slice(1); // Skip the date
+          parsedIngredients = ingredientParts.map(ingredient => {
+            const cleanName = ingredient.replace(/-[vp]$/, '');
+            const type = ingredient.endsWith('-v') ? 'vegetable' :
+              ingredient.endsWith('-p') ? 'protein' : 'unknown';
+
+            return {
+              name: cleanName,
+              type: type,
+              fullName: ingredient,
+            };
+          });
+          ingredientNames = parsedIngredients.map(i => i.name);
+        }
+      }
 
       return {
         success: true,
@@ -1816,7 +1810,7 @@ exports.getChallengeResults = functions.https.onCall(async (data, context) => {
         lastResults: lastChallengeResults,
       };
     })();
-    
+
     // Race between function execution and timeout
     return await Promise.race([functionPromise, timeoutPromise]);
 
@@ -1902,7 +1896,7 @@ exports.markNotificationAsRead = functions.https.onCall(async (data, context) =>
     }
 
     const userId = context.auth.uid;
-    
+
     // Verify the notification belongs to the user
     const notificationDoc = await firestore.collection('notifications').doc(notificationId).get();
     if (!notificationDoc.exists) {
@@ -1949,7 +1943,7 @@ exports.processPendingMeals = functions.pubsub
   .onRun(async (context) => {
     try {
       console.log('--- Starting meal processing job ---');
-      
+
       // Get all meals that need processing
       const pendingMealsQuery = admin.firestore()
         .collection('meals')
@@ -1957,58 +1951,58 @@ exports.processPendingMeals = functions.pubsub
         .where('status', 'in', ['pending', 'failed'])
         .orderBy('processingPriority', 'asc')
         .limit(10); // Process 10 meals at a time to avoid timeouts
-      
+
       const pendingMealsSnapshot = await pendingMealsQuery.get();
-      
+
       if (pendingMealsSnapshot.empty) {
         console.log('No pending meals to process');
         return null;
       }
-      
+
       console.log(`Found ${pendingMealsSnapshot.docs.length} pending meals to process`);
-      
+
       const processingPromises = pendingMealsSnapshot.docs.map(async (doc) => {
         const mealData = doc.data();
         const mealId = doc.id;
-        
+
         try {
           // Use transaction to atomically check and update status to prevent race conditions
           // Only process if status is still "pending" or "failed"
           const wasAcquired = await firestore.runTransaction(async (transaction) => {
             const mealDoc = await transaction.get(doc.ref);
-            
+
             if (!mealDoc.exists) {
               console.log(`Meal ${mealId} no longer exists, skipping`);
               return false;
             }
-            
+
             const currentData = mealDoc.data();
             const currentStatus = currentData.status;
-            
+
             // Only proceed if status is still "pending" or "failed" (not already being processed)
             if (currentStatus !== 'pending' && currentStatus !== 'failed') {
               console.log(`Meal ${mealId} is already being processed (status: ${currentStatus}), skipping`);
               return false;
             }
-            
+
             // Atomically update to "processing" status
             transaction.update(doc.ref, {
               status: 'processing',
               lastProcessingAttempt: admin.firestore.FieldValue.serverTimestamp(),
               processingAttempts: admin.firestore.FieldValue.increment(1)
             });
-            
+
             return true;
           });
-          
+
           // If transaction failed (another instance got it first), skip this meal
           if (!wasAcquired) {
             console.log(`Could not acquire meal ${mealId} for processing (already taken by another instance)`);
             return;
           }
-          
+
           console.log(`Processing meal: ${mealData.title} (ID: ${mealId})`);
-          
+
           // Generate full meal details using AI
           const fullMealDetails = await generateFullMealDetails(
             mealData.title,
@@ -2017,7 +2011,7 @@ exports.processPendingMeals = functions.pubsub
             mealData.partOfWeeklyMeal || false,
             mealData.weeklyPlanContext || ''
           );
-          
+
           // Update meal with complete details
           await doc.ref.update({
             ...fullMealDetails,
@@ -2026,23 +2020,23 @@ exports.processPendingMeals = functions.pubsub
             completedAt: admin.firestore.FieldValue.serverTimestamp(),
             version: 'complete'
           });
-          
+
           console.log(`Successfully completed meal: ${mealData.title}`);
-          
+
         } catch (error) {
           console.error(`Error processing meal ${mealData.title}:`, error);
-          
+
           // Get current attempts count from document (may have been updated by transaction)
           const currentDoc = await doc.ref.get();
           const currentData = currentDoc.exists ? currentDoc.data() : mealData;
           const attempts = (currentData.processingAttempts || 0);
           const maxAttempts = 5;
-          
+
           // Calculate backoff delay with jitter
           const baseDelay = Math.pow(2, attempts) * 1000; // Base delay in ms
           const jitter = Math.random() * 1000; // Random jitter up to 1 second
           const totalDelay = baseDelay + jitter;
-          
+
           if (attempts < maxAttempts) {
             // Schedule retry by updating priority (lower priority = processed later)
             const retryTime = Date.now() + totalDelay;
@@ -2053,8 +2047,8 @@ exports.processPendingMeals = functions.pubsub
               lastError: error.message,
               processingAttempts: attempts
             });
-            
-            console.log(`Scheduled retry for meal ${mealData.title} in ${Math.round(totalDelay/1000)}s (attempt ${attempts})`);
+
+            console.log(`Scheduled retry for meal ${mealData.title} in ${Math.round(totalDelay / 1000)}s (attempt ${attempts})`);
           } else {
             // Mark as failed after max attempts - ONLY update status, preserve existing meal data
             await doc.ref.update({
@@ -2068,13 +2062,13 @@ exports.processPendingMeals = functions.pubsub
           }
         }
       });
-      
+
       // Wait for all meals to be processed
       await Promise.all(processingPromises);
-      
+
       console.log('--- Meal processing job completed ---');
       return null;
-      
+
     } catch (error) {
       console.error('Error in meal processing job:', error);
       return null;
@@ -2093,7 +2087,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
     } else if (partOfWeeklyMeal) {
       contextNote = `\n\nIMPORTANT: This meal is part of a weekly meal plan. Ensure the meal details are cohesive with the overall weekly plan.`;
     }
-    
+
     // Use Gemini API to generate complete meal details
     const prompt = `Generate complete meal details for: ${title}
     
@@ -2132,7 +2126,7 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
       "cuisine": "Italian, Mexican, etc.",
       "description": "A detailed description of the meal (2-3 sentences)"
     }`;
-    
+
     const model = await _getGeminiModel();
     const result = await model.generateContent({
       contents: [{ parts: [{ text: prompt }] }],
@@ -2140,20 +2134,20 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
         maxOutputTokens: 12000, // Complex detailed output for meal details
       },
     });
-    
+
     const response = result.response.text();
-    
+
     console.log(`Raw AI response for ${title}:`, response.substring(0, Math.min(response.length, 500)) + '...');
-    
+
     // Parse JSON response with robust error handling and extraction
     try {
       const mealDetails = await processAIResponse(response, 'meal_generation');
-      
+
       // Validate that we have the essential fields
       if (!mealDetails.ingredients || !mealDetails.instructions || !mealDetails.nutritionalInfo) {
         throw new Error('Missing essential meal fields in AI response');
       }
-      
+
       // Return validated meal data
       return {
         ingredients: mealDetails.ingredients,
@@ -2170,13 +2164,13 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
         aiGenerated: true,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
       };
-      
+
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
       // Don't return fallback data - let the retry logic handle this
       throw new Error(`Failed to parse AI response: ${parseError.message}`);
     }
-    
+
   } catch (error) {
     console.error('Error generating meal details:', error);
     // Don't return fallback data - let the retry logic handle this
@@ -2203,21 +2197,29 @@ async function processAIResponse(text, operation) {
       return result;
     }
 
+    // Use standard JSON extraction for program enrichment
+    if (operation === 'program_enrichment') {
+      console.log('Processing program enrichment response...');
+      const jsonData = extractJsonObject(text);
+      console.log('Successfully extracted enrichment data:', Object.keys(jsonData));
+      return jsonData;
+    }
+
     const jsonData = extractJsonObject(text);
-    
+
     // Validate required fields based on operation
     validateResponseStructure(jsonData, operation);
-    
+
     // Ensure all numeric values are properly converted to numbers
     const normalizedData = normalizeNumericValues(jsonData, operation);
-    
+
     console.log('=== FINAL RESPONSE DATA ===');
     console.log('Operation:', operation);
     console.log('Data type:', typeof normalizedData);
     console.log('Data keys:', Object.keys(normalizedData));
     console.log('Full response:', JSON.stringify(normalizedData, null, 2));
     console.log('=== END RESPONSE DATA ===');
-    
+
     return normalizedData;
   } catch (e) {
     // Try to extract partial JSON if possible
@@ -2225,32 +2227,32 @@ async function processAIResponse(text, operation) {
       const partialJson = extractPartialJson(text, operation);
       if (partialJson && Object.keys(partialJson).length > 0) {
         const normalizedPartial = normalizeNumericValues(partialJson, operation);
-        
+
         console.log('=== PARTIAL EXTRACTION RESPONSE DATA ===');
         console.log('Operation:', operation);
         console.log('Data type:', typeof normalizedPartial);
         console.log('Data keys:', Object.keys(normalizedPartial));
         console.log('Full response:', JSON.stringify(normalizedPartial, null, 2));
         console.log('=== END PARTIAL RESPONSE DATA ===');
-        
+
         return normalizedPartial;
       }
     } catch (partialError) {
       console.log('Partial JSON recovery failed:', partialError);
     }
 
-         // Return a fallback structure based on operation type
-     console.log(`Creating fallback response for ${operation} due to error:`, e.toString());
-     const fallbackData = createFallbackResponse(operation, e.toString());
-     
-     console.log('=== FALLBACK RESPONSE DATA ===');
-     console.log('Operation:', operation);
-     console.log('Data type:', typeof fallbackData);
-     console.log('Data keys:', Object.keys(fallbackData));
-     console.log('Full response:', JSON.stringify(fallbackData, null, 2));
-     console.log('=== END FALLBACK RESPONSE DATA ===');
-     
-     return fallbackData;
+    // Return a fallback structure based on operation type
+    console.log(`Creating fallback response for ${operation} due to error:`, e.toString());
+    const fallbackData = createFallbackResponse(operation, e.toString());
+
+    console.log('=== FALLBACK RESPONSE DATA ===');
+    console.log('Operation:', operation);
+    console.log('Data type:', typeof fallbackData);
+    console.log('Data keys:', Object.keys(fallbackData));
+    console.log('Full response:', JSON.stringify(fallbackData, null, 2));
+    console.log('=== END FALLBACK RESPONSE DATA ===');
+
+    return fallbackData;
   }
 }
 
@@ -2287,52 +2289,52 @@ function normalizeNumericValues(data, operation) {
         // Filter out malformed meals that only have field names as titles
         if (!meal || typeof meal !== 'object') return false;
         const title = (meal.title || '').trim();
-        
+
         // Skip empty titles
         if (!title) return false;
-        
+
         // Skip titles that are just field names
         if (title === 'title' || title === 'cookingTime' || title === 'difficulty' || title === 'calories') {
           return false;
         }
-        
+
         // Skip titles that are just time values (e.g., "30 minutes", "45 mins")
         if (/^\d+\s*(minutes?|mins?|hours?|hrs?)$/i.test(title)) {
           return false;
         }
-        
+
         // Skip titles that are just difficulty levels
         if (title === 'easy' || title === 'medium' || title === 'hard') {
           return false;
         }
-        
+
         // Skip titles that are just numbers or numbers with colons (e.g., ": 700", "700")
         if (/^:?\s*\d+$/.test(title)) {
           return false;
         }
-        
+
         // Skip titles that are just separators or punctuation
         if (/^[,:\s\{\}]+$/.test(title)) {
           return false;
         }
-        
+
         // Skip titles that contain JSON-like syntax
         if (title.includes('}: {') || title.includes('}, {')) {
           return false;
         }
-        
+
         // Title must be at least 5 characters to be a valid recipe name
         if (title.length < 5) {
           return false;
         }
-        
+
         return true;
       }).map(meal => ({
         title: meal.title || 'Untitled Recipe',
         cookingTime: meal.cookingTime || 'Unknown',
         difficulty: meal.difficulty || 'medium',
-        calories: typeof meal.calories === 'number' ? meal.calories : 
-                  (typeof meal.calories === 'string' && !isNaN(meal.calories) ? parseInt(meal.calories) : 0)
+        calories: typeof meal.calories === 'number' ? meal.calories :
+          (typeof meal.calories === 'string' && !isNaN(meal.calories) ? parseInt(meal.calories) : 0)
       }));
     }
   } else if (operation === 'tasty_analysis' || operation === 'food_analysis') {
@@ -2612,7 +2614,7 @@ function extractPartialDataFromMalformedJson(malformedJson) {
     const foodItemMatches = malformedJson.match(/"name":\s*"([^"]+)"/g) || [];
     const weightMatches = malformedJson.match(/"estimatedWeight":\s*"([^"]+)"/g) || [];
     const confidenceMatches = malformedJson.match(/"confidence":\s*"([^"]+)"/g) || [];
-    
+
     // Extract nutritional values more comprehensively
     const caloriesMatches = malformedJson.match(/"calories":\s*"?(\d+)"?/g) || [];
     const proteinMatches = malformedJson.match(/"protein":\s*"?(\d+(?:\.\d+)?)"?/g) || [];
@@ -2629,24 +2631,24 @@ function extractPartialDataFromMalformedJson(malformedJson) {
       for (let i = 0; i < maxItems; i++) {
         const foodItem = {
           name: foodItemMatches[i].match(/"name":\s*"([^"]+)"/)[1] || `Food Item ${i + 1}`,
-          estimatedWeight: weightMatches[i] ? 
+          estimatedWeight: weightMatches[i] ?
             weightMatches[i].match(/"estimatedWeight":\s*"([^"]+)"/)[1] : '100g',
-          confidence: confidenceMatches[i] ? 
+          confidence: confidenceMatches[i] ?
             confidenceMatches[i].match(/"confidence":\s*"([^"]+)"/)[1] : 'medium',
           nutritionalInfo: {
-            calories: caloriesMatches[i] ? 
+            calories: caloriesMatches[i] ?
               parseInt(caloriesMatches[i].match(/"calories":\s*"?(\d+)"?/)[1]) : 100,
-            protein: proteinMatches[i] ? 
+            protein: proteinMatches[i] ?
               parseFloat(proteinMatches[i].match(/"protein":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
-            carbs: carbsMatches[i] ? 
+            carbs: carbsMatches[i] ?
               parseFloat(carbsMatches[i].match(/"carbs":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
-            fat: fatMatches[i] ? 
+            fat: fatMatches[i] ?
               parseFloat(fatMatches[i].match(/"fat":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
-            fiber: fiberMatches[i] ? 
+            fiber: fiberMatches[i] ?
               parseFloat(fiberMatches[i].match(/"fiber":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
-            sugar: sugarMatches[i] ? 
+            sugar: sugarMatches[i] ?
               parseFloat(sugarMatches[i].match(/"sugar":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0,
-            sodium: sodiumMatches[i] ? 
+            sodium: sodiumMatches[i] ?
               parseFloat(sodiumMatches[i].match(/"sodium":\s*"?(\d+(?:\.\d+)?)"?/)[1]) : 0
           }
         };
@@ -2690,12 +2692,12 @@ function extractPartialDataFromMalformedJson(malformedJson) {
         meal.type = typeMatch ? typeMatch[1] : 'protein';
       }
 
-        if (i < mealCaloriesMatches.length) {
-          const caloriesMatch = mealCaloriesMatches[i].match(/"calories":\s*"?(\d+)"?/);
-          meal.calories = caloriesMatch ? parseInt(caloriesMatch[1]) || 300 : 300;
-        } else {
-          meal.calories = 300; // Default calories
-        }
+      if (i < mealCaloriesMatches.length) {
+        const caloriesMatch = mealCaloriesMatches[i].match(/"calories":\s*"?(\d+)"?/);
+        meal.calories = caloriesMatch ? parseInt(caloriesMatch[1]) || 300 : 300;
+      } else {
+        meal.calories = 300; // Default calories
+      }
 
       // Extract ingredients for this meal if available
       if (i < ingredientsMatches.length) {
@@ -2779,8 +2781,8 @@ function extractPartialDataFromMalformedJson(malformedJson) {
     }
 
     // If no usable data was extracted, mark as complete failure
-    if (Object.keys(extractedData).length === 0 || 
-        (!extractedData.foodItems && !extractedData.mealPlan && !extractedData.ingredients)) {
+    if (Object.keys(extractedData).length === 0 ||
+      (!extractedData.foodItems && !extractedData.mealPlan && !extractedData.ingredients)) {
       extractedData.source = true; // Mark as complete failure - no usable data
       extractedData.error = 'No usable data could be extracted from malformed JSON';
     }
@@ -3088,12 +3090,12 @@ function extractPartialJson(text, operation) {
   } catch (e) {
     console.log('Robust partial extraction failed:', e);
   }
-  
+
   // Fallback to simple extraction
   try {
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
-    
+
     if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
       const extractedJson = text.substring(jsonStart, jsonEnd + 1);
       return JSON.parse(extractedJson);
@@ -3101,7 +3103,7 @@ function extractPartialJson(text, operation) {
   } catch (e) {
     console.log('Simple partial extraction failed:', e);
   }
-  
+
   return {};
 }
 
@@ -3205,34 +3207,34 @@ exports.sendScheduledNotifications = functions.pubsub
   .onRun(async (context) => {
     try {
       console.log('--- Running scheduled notification check ---');
-      
+
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
+
       console.log(`Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')} UTC`);
-      
+
       // Check for meal plan reminders (21:00 UTC = 9 PM)
       if (currentHour === 21 && currentMinute < 5) {
         console.log('Checking for meal plan reminders...');
         await sendMealPlanReminders();
       }
-      
+
       // Check for water reminders (11:00 UTC = 11 AM)
       if (currentHour === 11 && currentMinute < 5) {
         console.log('Checking for water reminders...');
         await sendWaterReminders();
       }
-      
+
       // Check for evening reviews (21:00 UTC = 9 PM)
       if (currentHour === 21 && currentMinute < 5) {
         console.log('Checking for evening reviews...');
         await sendEveningReviews();
       }
-      
+
       console.log('--- Scheduled notification check completed ---');
       return null;
-      
+
     } catch (error) {
       console.error('Error in scheduled notification check:', error);
       return null;
@@ -3247,21 +3249,21 @@ async function sendMealPlanReminders() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-    
+
     console.log(`Checking meal plans for tomorrow: ${tomorrowStr}`);
-    
+
     // Get users who have meal plan reminders enabled
     const usersSnapshot = await firestore
       .collection('users')
       .where('notificationPreferences.mealPlanReminder.enabled', '==', true)
       .get();
-    
+
     console.log(`Found ${usersSnapshot.size} users with meal plan reminders enabled`);
-    
+
     for (const userDoc of usersSnapshot.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
-      
+
       try {
         // Check if user has meal plan for tomorrow
         const mealPlanDoc = await firestore
@@ -3270,16 +3272,16 @@ async function sendMealPlanReminders() {
           .collection('date')
           .doc(tomorrowStr)
           .get();
-        
-        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals && 
-                           Object.keys(mealPlanDoc.data().meals).length > 0;
-        
+
+        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals &&
+          Object.keys(mealPlanDoc.data().meals).length > 0;
+
         if (!hasMealPlan) {
           // Get today's summary data for context
           const today = new Date();
           const todayStr = format(today, 'yyyy-MM-dd');
           let todaySummary = {};
-          
+
           try {
             const summaryDoc = await firestore
               .collection('users')
@@ -3287,14 +3289,14 @@ async function sendMealPlanReminders() {
               .collection('daily_summary')
               .doc(todayStr)
               .get();
-            
+
             if (summaryDoc.exists) {
               todaySummary = summaryDoc.data();
             }
           } catch (e) {
             console.log(`Error fetching today's summary for user ${userId}:`, e);
           }
-          
+
           // Send meal plan reminder notification
           await sendNotification(userId, {
             title: 'Meal Plan Reminder 🍽️',
@@ -3307,17 +3309,17 @@ async function sendMealPlanReminders() {
               action: 'navigate_to_meal_planning'
             }
           });
-          
+
           console.log(`Sent meal plan reminder to user ${userId}`);
         } else {
           console.log(`User ${userId} already has meal plan for tomorrow`);
         }
-        
+
       } catch (userError) {
         console.error(`Error processing user ${userId} for meal plan reminder:`, userError);
       }
     }
-    
+
   } catch (error) {
     console.error('Error in sendMealPlanReminders:', error);
   }
@@ -3329,19 +3331,19 @@ async function sendMealPlanReminders() {
 async function sendWaterReminders() {
   try {
     console.log('Sending water reminders...');
-    
+
     // Get users who have water reminders enabled
     const usersSnapshot = await firestore
       .collection('users')
       .where('notificationPreferences.waterReminder.enabled', '==', true)
       .get();
-    
+
     console.log(`Found ${usersSnapshot.size} users with water reminders enabled`);
-    
+
     for (const userDoc of usersSnapshot.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
-      
+
       try {
         // Send water reminder notification
         await sendNotification(userId, {
@@ -3352,14 +3354,14 @@ async function sendWaterReminders() {
             action: 'navigate_to_water_tracking'
           }
         });
-        
+
         console.log(`Sent water reminder to user ${userId}`);
-        
+
       } catch (userError) {
         console.error(`Error sending water reminder to user ${userId}:`, userError);
       }
     }
-    
+
   } catch (error) {
     console.error('Error in sendWaterReminders:', error);
   }
@@ -3373,21 +3375,21 @@ async function sendEveningReviews() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-    
+
     console.log(`Checking evening reviews for tomorrow: ${tomorrowStr}`);
-    
+
     // Get users who have evening review notifications enabled
     const usersSnapshot = await firestore
       .collection('users')
       .where('notificationPreferences.eveningReview.enabled', '==', true)
       .get();
-    
+
     console.log(`Found ${usersSnapshot.size} users with evening review enabled`);
-    
+
     for (const userDoc of usersSnapshot.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
-      
+
       try {
         // Check if user has meal plan for tomorrow
         const mealPlanDoc = await firestore
@@ -3396,16 +3398,16 @@ async function sendEveningReviews() {
           .collection('date')
           .doc(tomorrowStr)
           .get();
-        
-        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals && 
-                           Object.keys(mealPlanDoc.data().meals).length > 0;
-        
+
+        const hasMealPlan = mealPlanDoc.exists && mealPlanDoc.data().meals &&
+          Object.keys(mealPlanDoc.data().meals).length > 0;
+
         if (hasMealPlan) {
           // Get today's summary data for context
           const today = new Date();
           const todayStr = format(today, 'yyyy-MM-dd');
           let todaySummary = {};
-          
+
           try {
             const summaryDoc = await firestore
               .collection('users')
@@ -3413,14 +3415,14 @@ async function sendEveningReviews() {
               .collection('daily_summary')
               .doc(todayStr)
               .get();
-            
+
             if (summaryDoc.exists) {
               todaySummary = summaryDoc.data();
             }
           } catch (e) {
             console.log(`Error fetching today's summary for user ${userId}:`, e);
           }
-          
+
           // Send evening review notification
           await sendNotification(userId, {
             title: 'Evening Review 🌙',
@@ -3433,17 +3435,17 @@ async function sendEveningReviews() {
               action: 'navigate_to_evening_review'
             }
           });
-          
+
           console.log(`Sent evening review to user ${userId}`);
         } else {
           console.log(`User ${userId} doesn't have meal plan for tomorrow, skipping evening review`);
         }
-        
+
       } catch (userError) {
         console.error(`Error processing user ${userId} for evening review:`, userError);
       }
     }
-    
+
   } catch (error) {
     console.error('Error in sendEveningReviews:', error);
   }
@@ -3456,17 +3458,17 @@ async function sendNotification(userId, notification) {
   try {
     const userDoc = await firestore.collection('users').doc(userId).get();
     const userData = userDoc.data();
-    
+
     if (!userData || !userData.fcmToken) {
       console.log(`No FCM token for user ${userId}`);
       return;
     }
-    
+
     // Check if notification was already sent today
     const today = new Date();
     const todayStr = format(today, 'yyyy-MM-dd');
     const notificationType = notification.data.type;
-    
+
     const existingNotification = await firestore
       .collection('notifications')
       .where('userId', '==', userId)
@@ -3474,12 +3476,12 @@ async function sendNotification(userId, notification) {
       .where('date', '==', todayStr)
       .limit(1)
       .get();
-    
+
     if (!existingNotification.empty) {
       console.log(`Notification ${notificationType} already sent to user ${userId} today`);
       return;
     }
-    
+
     const message = {
       token: userData.fcmToken,
       notification: {
@@ -3512,10 +3514,10 @@ async function sendNotification(userId, notification) {
         }
       }
     };
-    
+
     const response = await admin.messaging().send(message);
     console.log(`Notification sent to user ${userId}: ${response}`);
-    
+
     // Store notification in database for history and deduplication
     await firestore.collection('notifications').add({
       userId: userId,
@@ -3528,10 +3530,10 @@ async function sendNotification(userId, notification) {
       status: 'sent',
       fcmMessageId: response
     });
-    
+
   } catch (error) {
     console.error(`Error sending notification to user ${userId}:`, error);
-    
+
     // Store failed notification for debugging
     await firestore.collection('notifications').add({
       userId: userId,
@@ -3558,28 +3560,28 @@ exports.updateFCMToken = functions.https.onCall(async (data, context) => {
         'The function must be called while authenticated.'
       );
     }
-    
+
     const { fcmToken, platform } = data;
     const userId = context.auth.uid;
-    
+
     if (!fcmToken) {
       throw new functions.https.HttpsError(
         'invalid-argument',
         'FCM token is required'
       );
     }
-    
+
     // Update user's FCM token
     await firestore.collection('users').doc(userId).update({
       fcmToken: fcmToken,
       fcmTokenPlatform: platform || 'unknown',
       fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     console.log(`Updated FCM token for user ${userId}`);
-    
+
     return { success: true };
-    
+
   } catch (error) {
     console.error('Error updating FCM token:', error);
     if (error instanceof functions.https.HttpsError) {
@@ -3603,27 +3605,27 @@ exports.updateNotificationPreferences = functions.https.onCall(async (data, cont
         'The function must be called while authenticated.'
       );
     }
-    
+
     const { preferences } = data;
     const userId = context.auth.uid;
-    
+
     if (!preferences) {
       throw new functions.https.HttpsError(
         'invalid-argument',
         'Notification preferences are required'
       );
     }
-    
+
     // Update user's notification preferences
     await firestore.collection('users').doc(userId).update({
       notificationPreferences: preferences,
       notificationPreferencesUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     console.log(`Updated notification preferences for user ${userId}`);
-    
+
     return { success: true };
-    
+
   } catch (error) {
     console.error('Error updating notification preferences:', error);
     if (error instanceof functions.https.HttpsError) {
@@ -3647,9 +3649,9 @@ exports.sendTestNotification = functions.https.onCall(async (data, context) => {
         'The function must be called while authenticated.'
       );
     }
-    
+
     const userId = context.auth.uid;
-    
+
     // Send a test notification
     await sendNotification(userId, {
       title: 'Test Notification 🧪',
@@ -3660,9 +3662,9 @@ exports.sendTestNotification = functions.https.onCall(async (data, context) => {
         timestamp: Date.now().toString()
       }
     });
-    
+
     return { success: true, message: 'Test notification sent successfully' };
-    
+
   } catch (error) {
     console.error('Error sending test notification:', error);
     if (error instanceof functions.https.HttpsError) {
@@ -3686,37 +3688,37 @@ exports.getNotificationHistory = functions.https.onCall(async (data, context) =>
         'The function must be called while authenticated.'
       );
     }
-    
+
     const userId = context.auth.uid;
     const { limit = 20, lastNotificationId = null } = data;
-    
+
     let query = firestore
       .collection('notifications')
       .where('userId', '==', userId)
       .orderBy('sentAt', 'desc')
       .limit(limit);
-    
+
     if (lastNotificationId) {
       const lastDoc = await firestore.collection('notifications').doc(lastNotificationId).get();
       if (lastDoc.exists) {
         query = query.startAfter(lastDoc);
       }
     }
-    
+
     const snapshot = await query.get();
     const notifications = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       sentAt: doc.data().sentAt?.toDate?.()?.toISOString() || doc.data().sentAt
     }));
-    
+
     return {
       success: true,
       notifications: notifications,
       hasMore: snapshot.docs.length === limit,
       lastNotificationId: snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
     };
-    
+
   } catch (error) {
     console.error('Error getting notification history:', error);
     return {
@@ -3738,7 +3740,7 @@ exports.getNotificationHistory = functions.https.onCall(async (data, context) =>
 exports.appStoreServerNotifications = functions.https.onRequest(async (req, res) => {
   try {
     console.log('Received App Store Server Notification (Production)');
-    
+
     // Verify the notification signature
     const isValid = await verifyAppStoreNotification(req);
     if (!isValid) {
@@ -3748,7 +3750,7 @@ exports.appStoreServerNotifications = functions.https.onRequest(async (req, res)
 
     // Process the notification
     await processAppStoreNotification(req.body, 'production');
-    
+
     res.status(200).send('OK');
   } catch (error) {
     console.error('Error processing App Store notification:', error);
@@ -3763,7 +3765,7 @@ exports.appStoreServerNotifications = functions.https.onRequest(async (req, res)
 exports.appStoreServerNotificationsSandbox = functions.https.onRequest(async (req, res) => {
   try {
     console.log('Received App Store Server Notification (Sandbox)');
-    
+
     // Verify the notification signature
     const isValid = await verifyAppStoreNotification(req);
     if (!isValid) {
@@ -3773,7 +3775,7 @@ exports.appStoreServerNotificationsSandbox = functions.https.onRequest(async (re
 
     // Process the notification
     await processAppStoreNotification(req.body, 'sandbox');
-    
+
     res.status(200).send('OK');
   } catch (error) {
     console.error('Error processing App Store notification:', error);
@@ -3789,7 +3791,7 @@ async function verifyAppStoreNotification(req) {
     // Get the signature from headers
     const signature = req.get('x-apple-signature');
     const certificate = req.get('x-apple-certificate');
-    
+
     if (!signature || !certificate) {
       console.error('Missing signature or certificate headers');
       return false;
@@ -3811,9 +3813,9 @@ async function verifyAppStoreNotification(req) {
 async function processAppStoreNotification(notificationBody, environment) {
   try {
     console.log(`Processing ${environment} notification:`, JSON.stringify(notificationBody, null, 2));
-    
+
     const { notificationType, subtype, data } = notificationBody;
-    
+
     // Handle different notification types
     switch (notificationType) {
       case 'SUBSCRIBED':
@@ -3856,9 +3858,9 @@ async function handleSubscriptionCreated(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken; // Assuming you pass userId as appAccountToken
-    
+
     console.log(`Subscription created for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       isPremium: true,
@@ -3869,7 +3871,7 @@ async function handleSubscriptionCreated(data, environment) {
       premiumActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'SUBSCRIBED'
     });
-    
+
     console.log(`Updated user ${userId} premium status to active`);
   } catch (error) {
     console.error('Error handling subscription created:', error);
@@ -3884,9 +3886,9 @@ async function handleSubscriptionRenewed(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Subscription renewed for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       isPremium: true,
@@ -3894,7 +3896,7 @@ async function handleSubscriptionRenewed(data, environment) {
       lastRenewalAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'DID_RENEW'
     });
-    
+
     console.log(`Updated user ${userId} subscription renewal`);
   } catch (error) {
     console.error('Error handling subscription renewed:', error);
@@ -3909,16 +3911,16 @@ async function handleSubscriptionFailedToRenew(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Subscription failed to renew for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       subscriptionStatus: 'failed_to_renew',
       lastFailedRenewalAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'DID_FAIL_TO_RENEW'
     });
-    
+
     console.log(`Updated user ${userId} subscription failure status`);
   } catch (error) {
     console.error('Error handling subscription failed to renew:', error);
@@ -3933,15 +3935,15 @@ async function handleRenewalStatusChanged(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Renewal status changed for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       lastNotificationType: 'DID_CHANGE_RENEWAL_STATUS',
       lastRenewalStatusChangeAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     console.log(`Updated user ${userId} renewal status change`);
   } catch (error) {
     console.error('Error handling renewal status changed:', error);
@@ -3956,15 +3958,15 @@ async function handleRenewalPreferenceChanged(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Renewal preference changed for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       lastNotificationType: 'DID_CHANGE_RENEWAL_PREF',
       lastRenewalPreferenceChangeAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     console.log(`Updated user ${userId} renewal preference change`);
   } catch (error) {
     console.error('Error handling renewal preference changed:', error);
@@ -3979,9 +3981,9 @@ async function handleSubscriptionExpired(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Subscription expired for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       isPremium: false,
@@ -3989,7 +3991,7 @@ async function handleSubscriptionExpired(data, environment) {
       premiumExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'EXPIRED'
     });
-    
+
     console.log(`Updated user ${userId} premium status to expired`);
   } catch (error) {
     console.error('Error handling subscription expired:', error);
@@ -4004,9 +4006,9 @@ async function handleSubscriptionRevoked(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Subscription revoked for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       isPremium: false,
@@ -4014,7 +4016,7 @@ async function handleSubscriptionRevoked(data, environment) {
       premiumRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'REVOKE'
     });
-    
+
     console.log(`Updated user ${userId} premium status to revoked`);
   } catch (error) {
     console.error('Error handling subscription revoked:', error);
@@ -4029,9 +4031,9 @@ async function handleSubscriptionRefunded(data, environment) {
   try {
     const { appAccountToken, originalTransactionId } = data;
     const userId = appAccountToken;
-    
+
     console.log(`Subscription refunded for user ${userId} in ${environment}`);
-    
+
     // Update user's premium status
     await firestore.collection('users').doc(userId).update({
       isPremium: false,
@@ -4039,7 +4041,7 @@ async function handleSubscriptionRefunded(data, environment) {
       premiumRefundedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastNotificationType: 'REFUND'
     });
-    
+
     console.log(`Updated user ${userId} premium status to refunded`);
   } catch (error) {
     console.error('Error handling subscription refunded:', error);
@@ -4054,11 +4056,11 @@ async function handleSubscriptionRefunded(data, environment) {
 async function checkExistingMealsByTitles(mealTitles) {
   try {
     const existingMeals = {};
-    
+
     // Get all meals from Firestore
     const mealsSnapshot = await firestore.collection('meals').get();
     const allMeals = [];
-    
+
     mealsSnapshot.forEach(doc => {
       const mealData = doc.data();
       allMeals.push({
@@ -4071,14 +4073,14 @@ async function checkExistingMealsByTitles(mealTitles) {
         instructions: mealData.instructions || [],
       });
     });
-    
+
     console.log(`Checking ${mealTitles.length} titles against ${allMeals.length} existing meals`);
-    
+
     // Check each title for similarity
     for (const title of mealTitles) {
       let bestMatch = null;
       let bestScore = 0.0;
-      
+
       for (const meal of allMeals) {
         const score = calculateTitleSimilarity(title.toLowerCase(), meal.title.toLowerCase());
         if (score > bestScore && score > 0.6) { // Threshold for similarity
@@ -4086,13 +4088,13 @@ async function checkExistingMealsByTitles(mealTitles) {
           bestMatch = meal;
         }
       }
-      
+
       if (bestMatch) {
         existingMeals[title] = bestMatch;
         console.log(`Found existing meal: "${title}" -> "${bestMatch.title}" (score: ${bestScore.toFixed(2)})`);
       }
     }
-    
+
     return existingMeals;
   } catch (error) {
     console.error('Error checking existing meals:', error);
@@ -4108,7 +4110,7 @@ function calculateTitleSimilarity(title1, title2) {
   // Simple word-based similarity
   const words1 = title1.split(/\s+/);
   const words2 = title2.split(/\s+/);
-  
+
   let matches = 0;
   for (const word1 of words1) {
     for (const word2 of words2) {
@@ -4118,7 +4120,7 @@ function calculateTitleSimilarity(title1, title2) {
       }
     }
   }
-  
+
   // Calculate similarity score (0-1)
   const maxWords = Math.max(words1.length, words2.length);
   return maxWords > 0 ? matches / maxWords : 0;
@@ -4131,18 +4133,18 @@ function calculateTitleSimilarity(title1, title2) {
 async function processImageForAI(imageBuffer) {
   try {
     console.log(`Original image size: ${imageBuffer.length} bytes (${(imageBuffer.length / 1024).toFixed(2)} KB)`);
-    
+
     // If image is already small enough, return as-is
     if (imageBuffer.length <= 500 * 1024) {
       console.log('Image already optimized, skipping compression');
       return imageBuffer;
     }
-    
+
     console.log('Compressing large image using Jimp...');
-    
+
     // Use Jimp for image processing (pure JavaScript, no external dependencies)
     const image = await Jimp.read(imageBuffer);
-    
+
     // Resize to max 1024px on longest side
     if (image.getWidth() > image.getHeight()) {
       if (image.getWidth() > 1024) {
@@ -4155,15 +4157,15 @@ async function processImageForAI(imageBuffer) {
         console.log('Resized image height to 1024px');
       }
     }
-    
+
     // Compress with quality 85
     image.quality(85);
-    
+
     // Convert to buffer
     const processedBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-    
+
     console.log(`Compressed image size: ${processedBuffer.length} bytes (${(processedBuffer.length / 1024).toFixed(2)} KB)`);
-    
+
     return processedBuffer;
   } catch (error) {
     console.error('Error processing image with Jimp:', error);
@@ -4205,42 +4207,42 @@ function _extractMinimalMealsFromText(text) {
 // Input validation helper
 function validateInput(data, schema) {
   const errors = [];
-  
+
   for (const [field, rules] of Object.entries(schema)) {
     const value = data[field];
-    
+
     if (rules.required && (value === undefined || value === null || value === '')) {
       errors.push(`${field} is required`);
       continue;
     }
-    
+
     if (value !== undefined && value !== null) {
       if (rules.type && typeof value !== rules.type) {
         errors.push(`${field} must be of type ${rules.type}`);
       }
-      
+
       if (rules.min !== undefined && value < rules.min) {
         errors.push(`${field} must be at least ${rules.min}`);
       }
-      
+
       if (rules.max !== undefined && value > rules.max) {
         errors.push(`${field} must be at most ${rules.max}`);
       }
-      
+
       if (rules.enum && !rules.enum.includes(value)) {
         errors.push(`${field} must be one of: ${rules.enum.join(', ')}`);
       }
-      
+
       if (rules.array && !Array.isArray(value)) {
         errors.push(`${field} must be an array`);
       }
-      
+
       if (rules.stringMaxLength && typeof value === 'string' && value.length > rules.stringMaxLength) {
         errors.push(`${field} must be at most ${rules.stringMaxLength} characters`);
       }
     }
   }
-  
+
   if (errors.length > 0) {
     throw new functions.https.HttpsError('invalid-argument', `Validation failed: ${errors.join('; ')}`);
   }
@@ -4251,13 +4253,13 @@ exports.generateMealsWithAI = functions
   .https.onCall(async (data, context) => {
     const startTime = Date.now();
     console.log('=== generateMealsWithAI Cloud Function Started ===');
-    
+
     try {
       // Validate authentication
       if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
       }
-      
+
       // Validate input with schema
       validateInput(data, {
         prompt: { required: true, type: 'string', stringMaxLength: 10000 },
@@ -4269,14 +4271,14 @@ exports.generateMealsWithAI = functions
         partOfWeeklyMeal: { required: false, type: 'boolean' },
         weeklyPlanContext: { required: false, type: 'string', stringMaxLength: 2000 },
       });
-      
+
       const { prompt, context: userContext, cuisine, mealCount, distribution, isIngredientBased, partOfWeeklyMeal, weeklyPlanContext } = data;
-      
+
       console.log(`Generating ${mealCount || 'default'} meals for cuisine: ${cuisine || 'general'}`);
-      
+
       // Get the best Gemini model
       const model = await _getGeminiModel();
-      
+
       // Build comprehensive prompt with user context (matching original gemini_service structure)
       const fullPrompt = `You are a professional nutritionist and meal planner.
 
@@ -4316,9 +4318,9 @@ Important guidelines:
         },
       });
       const response = result.response.text();
-      
+
       console.log(`Raw AI response length: ${response.length} characters`);
-      
+
       // Process AI response with robust parsing
       const mealData = await processAIResponse(response, 'meal_generation');
 
@@ -4349,32 +4351,32 @@ Important guidelines:
       // Extract meal titles for existing meal check
       const mealTitles = planArray.map(meal => meal.title).filter(title => title);
       console.log(`Checking for existing meals with titles: ${mealTitles.join(', ')}`);
-      
+
       // Check for existing meals server-side
       const existingMeals = await checkExistingMealsByTitles(mealTitles);
       console.log(`Found ${Object.keys(existingMeals).length} existing meals`);
-      
+
       // Identify missing meals that need to be generated
       const missingMeals = [];
       const existingMealTitles = Object.keys(existingMeals);
-      
+
       for (const meal of planArray) {
         const title = meal.title;
         if (!existingMealTitles.includes(title)) {
           missingMeals.push(meal);
         }
       }
-      
+
       console.log(`Need to generate ${missingMeals.length} new meals`);
-      
+
       // Save only missing meals individually to meals collection
       const mealIds = [];
       const batch = firestore.batch();
-      
+
       for (const meal of missingMeals) {
         const mealRef = firestore.collection('meals').doc();
         const mealId = mealRef.id;
-        
+
         // Create meal document with minimal data - Firebase Functions will fill out details
         const basicMealData = {
           title: meal.title || 'Untitled Meal',
@@ -4397,19 +4399,19 @@ Important guidelines:
           partOfWeeklyMeal: partOfWeeklyMeal || false, // Flag for weekly meal plan context
           weeklyPlanContext: weeklyPlanContext || '', // Context about the weekly meal plan
         };
-        
+
         console.log(`Saving new meal with minimal data: ${meal.title} with ID: ${mealId}`);
         console.log(`Minimal meal data (Firebase Functions will fill out details):`, JSON.stringify(basicMealData, null, 2));
         batch.set(mealRef, basicMealData);
         mealIds.push(mealId);
       }
-      
+
       // Commit all new meals in a single batch
       if (missingMeals.length > 0) {
         await batch.commit();
         console.log(`Saved ${mealIds.length} new meals to Firestore with pending status`);
       }
-      
+
       // Build minimal response only (ids, title, mealType, status)
       const minimalMeals = [];
       const existingMealIds = [];
@@ -4432,7 +4434,7 @@ Important guidelines:
           status: 'pending',
         });
       }
-      
+
       // Save meal plan to mealPlans/{userId}/buddy/{date} collection
       const userId = context.auth?.uid || 'anonymous';
       const today = new Date();
@@ -4442,7 +4444,7 @@ Important guidelines:
         .doc(userId)
         .collection('buddy')
         .doc(dateStr);
-      
+
       // Helper function to append meal type suffix (matching client-side appendMealType)
       const appendMealType = (mealId, mealType) => {
         const type = (mealType || '').toLowerCase();
@@ -4457,7 +4459,7 @@ Important guidelines:
         }
         return mealId; // Return as-is if type doesn't match
       };
-      
+
       // Fetch existing document to preserve generations
       let existingGenerations = [];
       try {
@@ -4477,22 +4479,22 @@ Important guidelines:
       } catch (error) {
         console.log(`Error fetching existing meal plan: ${error.message}`);
       }
-      
+
       // Format meal IDs with meal type suffixes (matching client-side behavior)
       // If mealType is missing, assign based on position (cycling through breakfast, lunch, dinner, snack)
       const defaultMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
       const formattedMealIds = minimalMeals.map((meal, index) => {
         const mealId = meal.id;
         let mealType = meal.mealType || '';
-        
+
         // If no mealType is specified, assign based on position (matching client behavior)
         if (!mealType || mealType === 'main' || mealType === '') {
           mealType = defaultMealTypes[index % defaultMealTypes.length];
         }
-        
+
         return appendMealType(mealId, mealType);
       });
-      
+
       // Create new generation object matching client-side structure
       const newGeneration = {
         mealIds: formattedMealIds, // Meal IDs with meal type suffixes (e.g., "mealId/bf", "mealId/lh")
@@ -4502,18 +4504,18 @@ Important guidelines:
         nutritionalSummary: null,
         tips: null,
       };
-      
+
       // Add the new generation to the list
       existingGenerations.push(newGeneration);
-      
+
       // Save meal plan data with generations array
       const mealPlanData = {
         date: dateStr,
         generations: existingGenerations,
       };
-      
+
       await mealPlanRef.set(mealPlanData);
-      
+
       console.log(`=== SAVED MEAL PLAN TO FIRESTORE ===`);
       console.log(`Meal Plan Path: mealPlans/${userId}/buddy/${dateStr}`);
       console.log(`Total meals: ${minimalMeals.length} (${Object.keys(existingMeals).length} existing, ${missingMeals.length} new with minimal data)`);
@@ -4533,14 +4535,208 @@ Important guidelines:
         newMealCount: missingMeals.length,
         existingMealCount: Object.keys(existingMeals).length,
       };
-      
+
     } catch (error) {
       const executionTime = Date.now() - startTime;
       console.error(`=== generateMealsWithAI failed after ${executionTime}ms ===`, error);
-      
+
       throw new functions.https.HttpsError(
         'internal',
         `Failed to generate meals: ${error.message}`
+      );
+    }
+  });
+
+/**
+ * Enrich program with additional details (routine, benefits, requirements, etc.)
+ * Client creates basic program, server enriches it with comprehensive details
+ */
+exports.enrichProgramWithAI = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== enrichProgramWithAI Cloud Function Started ===');
+
+    try {
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      }
+
+      // Validate input with schema
+      validateInput(data, {
+        programId: { required: true, type: 'string', stringMaxLength: 200 },
+        basicProgram: { required: true, type: 'object' },
+        formData: { required: false, type: 'object' },
+        conversationContext: { required: false, type: 'string', stringMaxLength: 5000 },
+      });
+
+      const { programId, basicProgram, formData, conversationContext } = data;
+
+      console.log(`Enriching program ${programId} with AI-generated details`);
+
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+
+      // Build enrichment prompt based on basic program data
+      const programName = basicProgram.name || 'Nutrition Program';
+      const programDescription = basicProgram.description || '';
+      const programDuration = basicProgram.duration || '7 days';
+      const programType = basicProgram.type || 'custom';
+      const weeklyPlans = basicProgram.weeklyPlans || [];
+
+      // Build form data context
+      let formDataSection = '';
+      if (formData) {
+        formDataSection = `
+Form Data:
+- Duration: ${formData.duration || 'N/A'}
+- Goal: ${formData.goal || 'N/A'}
+- Diet Type: ${formData.dietType || 'general'}
+- Activity Level: ${formData.activityLevel || 'N/A'}
+${formData.additionalDetails ? `- Additional Details: ${formData.additionalDetails}` : ''}
+`;
+      }
+
+      // Build enrichment prompt
+      const enrichmentPrompt = `You are a professional nutritionist and program developer.
+
+Based on the following basic nutrition program, enrich it with comprehensive details:
+
+Program Name: ${programName}
+Program Description: ${programDescription}
+Program Duration: ${programDuration}
+Program Type: ${programType}
+${formDataSection}
+${conversationContext ? `Conversation Context:\n${conversationContext}\n` : ''}
+
+The program has ${weeklyPlans.length} week(s) of meal plans.
+
+Please generate and return ONLY a JSON object with the following structure to enrich this program:
+
+{
+  "goals": ["goal1", "goal2", "goal3"],
+  "requirements": ["requirement1", "requirement2", "requirement3"],
+  "benefits": ["benefit1", "benefit2", "benefit3", "benefit4"],
+  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
+  "programDetails": ["detail1", "detail2", "detail3"],
+  "notAllowed": ["item1", "item2", "item3"],
+  "routine": [
+    {
+      "title": "Routine item name (e.g., 'Morning Hydration', 'Meal Planning', 'Exercise')",
+      "duration": "e.g., '15 minutes', '30 minutes', '1 hour'",
+      "description": "Detailed description of what this routine item involves and how to complete it"
+    }
+  ],
+  "portionDetails": {
+    "breakfast": "portion guidance",
+    "lunch": "portion guidance",
+    "dinner": "portion guidance"
+  }
+}
+
+IMPORTANT REQUIREMENTS:
+- Include at least 3-5 routine items that are relevant to the program (e.g., meal planning, hydration, exercise, meal prep, etc.)
+- All arrays (goals, requirements, benefits, recommendations, programDetails, notAllowed) must have at least 2-3 items each
+- The routine array should contain actionable daily/weekly tasks for the user
+- All fields are required - do not omit any fields
+- Return ONLY valid JSON, no additional text or markdown code blocks`;
+
+      // Generate content with optimized settings
+      const result = await model.generateContent({
+        contents: [{ parts: [{ text: enrichmentPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: 4096,
+        },
+      });
+      const response = result.response.text();
+
+      console.log(`Raw AI enrichment response length: ${response.length} characters`);
+
+      // Process AI response with robust parsing
+      const enrichmentData = await processAIResponse(response, 'program_enrichment');
+
+      // Validate enrichment data structure
+      if (!enrichmentData || typeof enrichmentData !== 'object') {
+        throw new Error('Invalid enrichment data structure in AI response');
+      }
+
+      // Ensure all required fields exist with defaults
+      const validatedEnrichment = {
+        goals: Array.isArray(enrichmentData.goals) ? enrichmentData.goals : [],
+        requirements: Array.isArray(enrichmentData.requirements) ? enrichmentData.requirements : [],
+        benefits: Array.isArray(enrichmentData.benefits) ? enrichmentData.benefits : [],
+        recommendations: Array.isArray(enrichmentData.recommendations) ? enrichmentData.recommendations : [],
+        programDetails: Array.isArray(enrichmentData.programDetails) ? enrichmentData.programDetails : [],
+        notAllowed: Array.isArray(enrichmentData.notAllowed) ? enrichmentData.notAllowed : [],
+        routine: Array.isArray(enrichmentData.routine) ? enrichmentData.routine : [],
+        portionDetails: enrichmentData.portionDetails && typeof enrichmentData.portionDetails === 'object'
+          ? enrichmentData.portionDetails
+          : {},
+      };
+
+      // Validate and ensure routine items have required structure (title, duration, description)
+      validatedEnrichment.routine = validatedEnrichment.routine
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          title: item.title || 'Routine Item',
+          duration: item.duration || '30 minutes',
+          description: item.description || 'Complete this routine item as part of your program'
+        }));
+
+      // Ensure routine has at least 3 items (critical for display)
+      if (validatedEnrichment.routine.length < 3) {
+        console.log(`WARNING: Routine has only ${validatedEnrichment.routine.length} items, adding defaults`);
+        const defaultRoutines = [
+          { title: 'Morning Hydration', duration: '15 minutes', description: 'Drink 2 glasses of water upon waking' },
+          { title: 'Meal Planning', duration: '30 minutes', description: 'Plan meals for the week ahead' },
+          { title: 'Regular Exercise', duration: '1 hour', description: 'Engage in physical activity' },
+        ];
+        validatedEnrichment.routine = [
+          ...validatedEnrichment.routine,
+          ...defaultRoutines.slice(validatedEnrichment.routine.length)
+        ];
+      }
+
+      // Final validation: ensure all routine items have required fields
+      validatedEnrichment.routine = validatedEnrichment.routine.map((item, index) => {
+        if (!item.title || !item.duration || !item.description) {
+          console.log(`WARNING: Routine item ${index} missing required fields, using defaults`);
+          return {
+            title: item.title || `Routine ${index + 1}`,
+            duration: item.duration || '30 minutes',
+            description: item.description || 'Complete this routine item as part of your program'
+          };
+        }
+        return item;
+      });
+
+      console.log(`Enrichment completed: ${validatedEnrichment.routine.length} routine items, ${validatedEnrichment.benefits.length} benefits`);
+
+      // Update program in Firestore
+      const programRef = firestore.collection('programs').doc(programId);
+      await programRef.update({
+        ...validatedEnrichment,
+        enrichedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isEnriched: true,
+      });
+
+      const executionTime = Date.now() - startTime;
+      console.log(`=== enrichProgramWithAI completed in ${executionTime}ms ===`);
+
+      return {
+        success: true,
+        enrichment: validatedEnrichment,
+        programId: programId,
+      };
+
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error(`=== enrichProgramWithAI failed after ${executionTime}ms ===`, error);
+
+      throw new functions.https.HttpsError(
+        'internal',
+        `Failed to enrich program: ${error.message}`
       );
     }
   });
@@ -4556,7 +4752,7 @@ exports.analyzeFoodImage = functions
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    
+
     // Validate input
     validateInput(data, {
       imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
@@ -4564,36 +4760,36 @@ exports.analyzeFoodImage = functions
     });
     const startTime = Date.now();
     console.log('=== analyzeFoodImage Cloud Function Started ===');
-    
+
     try {
       // Validate input
       const { base64Image, mealType, dietaryRestrictions } = data;
-      
+
       if (!base64Image) {
         throw new functions.https.HttpsError('invalid-argument', 'Base64 image is required');
       }
-      
+
       console.log(`Analyzing food image for meal type: ${mealType || 'general'}`);
-      
+
       // Convert base64 to buffer and process image
       const imageBuffer = Buffer.from(base64Image, 'base64');
       const processedBuffer = await processImageForAI(imageBuffer);
       const processedBase64 = processedBuffer.toString('base64');
-      
+
       // Get the best Gemini model
       const model = await _getGeminiModel();
-      
+
       // Build contextual prompt
       let contextualPrompt = 'Analyze this food and provide nutritional info.';
-      
+
       if (mealType) {
         contextualPrompt += ` Type: ${mealType}.`;
       }
-      
+
       if (dietaryRestrictions && dietaryRestrictions.length > 0) {
         contextualPrompt += ` Diet: ${dietaryRestrictions.join(', ')}.`;
       }
-      
+
       const prompt = `${contextualPrompt}
 
 Return ONLY this JSON structure (no markdown, no explanations):
@@ -4663,22 +4859,22 @@ Important guidelines:
           maxOutputTokens: 8192, // Food image analysis
         },
       });
-      
+
       const aiResponse = result.response.text();
       console.log(`Raw AI response length: ${aiResponse.length} characters`);
       console.log('=== RAW AI RESPONSE ===');
       console.log(aiResponse);
       console.log('=== END RAW AI RESPONSE ===');
-      
+
       // Process AI response
       const foodData = await processAIResponse(aiResponse, 'tasty_analysis');
-      
+
       // Debug suggestions and provide fallback if missing
       console.log('=== SUGGESTIONS DEBUG ===');
       console.log('Raw suggestions:', foodData.suggestions);
       console.log('Suggestions type:', typeof foodData.suggestions);
       console.log('Suggestions keys:', foodData.suggestions ? Object.keys(foodData.suggestions) : 'null');
-      
+
       // Provide fallback suggestions if AI didn't generate them
       if (!foodData.suggestions || typeof foodData.suggestions !== 'object') {
         console.log('AI did not provide suggestions, using fallback...');
@@ -4688,18 +4884,18 @@ Important guidelines:
           additions: ["Add a side salad", "Include fresh herbs for garnish"]
         };
       }
-      
+
       console.log('Final suggestions:', foodData.suggestions);
       console.log('=== END SUGGESTIONS DEBUG ===');
-      
+
       // Validate response structure (expecting comprehensive food analysis structure)
       if (!foodData.foodItems || !Array.isArray(foodData.foodItems)) {
         throw new Error('Invalid food data structure in AI response - expected foodItems array');
       }
-      
+
       const executionTime = Date.now() - startTime;
       console.log(`=== analyzeFoodImage completed in ${executionTime}ms ===`);
-      
+
       // Save food analysis data to Firestore
       const analysisData = {
         foodItems: foodData.foodItems,
@@ -4716,18 +4912,18 @@ Important guidelines:
 
       // Save analysis to Firestore
       const analysisRef = await firestore.collection('tastyanalysis').add(analysisData);
-      
-      
+
+
       // Create a basic meal from the food analysis data and save to meals collection
       const mealIds = [];
       if (foodData.foodItems && foodData.foodItems.length > 0) {
         const mealRef = firestore.collection('meals').doc();
         const mealId = mealRef.id;
-        
+
         // Create a meal title from the food items
         const foodItemNames = foodData.foodItems.map(item => item.name || item.title || 'Unknown').join(', ');
         const mealTitle = foodItemNames.length > 50 ? foodItemNames.substring(0, 47) + '...' : foodItemNames;
-        
+
         // Create meal document with same structure as saveBasicMealsToFirestore
         const basicMealData = {
           title: mealTitle || 'Analyzed Meal',
@@ -4754,17 +4950,17 @@ Important guidelines:
           confidence: foodData.confidence || 'medium',
           suggestions: foodData.suggestions || {},
         };
-        
+
         console.log(`Saving basic meal: ${mealTitle} with ID: ${mealId}`);
         console.log(`Basic meal data:`, JSON.stringify(basicMealData, null, 2));
-        
+
         // Save the basic meal to Firestore
         await mealRef.set(basicMealData);
         mealIds.push(mealId);
-        
+
         console.log(`Saved basic meal to Firestore with pending status`);
       }
-      
+
       console.log(`=== SAVED TO FIRESTORE ===`);
       console.log(`Analysis ID: ${analysisRef.id}`);
       console.log(`Meal IDs: ${mealIds.join(', ')}`);
@@ -4786,20 +4982,20 @@ Important guidelines:
         source: 'cloud_function',
         itemCount: foodData.foodItems.length,
       };
-      
+
       console.log('=== FINAL CLOUD FUNCTION RESPONSE ===');
       console.log('Response type:', typeof response);
       console.log('Response keys:', Object.keys(response));
       console.log('Analysis ID:', response.analysisId);
       console.log('Full response:', JSON.stringify(response, null, 2));
       console.log('=== END CLOUD FUNCTION RESPONSE ===');
-      
+
       return response;
-      
+
     } catch (error) {
       const executionTime = Date.now() - startTime;
       console.error(`=== analyzeFoodImage failed after ${executionTime}ms ===`, error);
-      
+
       throw new functions.https.HttpsError(
         'internal',
         `Failed to analyze food image: ${error.message}`
@@ -4818,7 +5014,7 @@ exports.analyzeFridgeImage = functions
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    
+
     // Validate input
     validateInput(data, {
       imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
@@ -4826,32 +5022,32 @@ exports.analyzeFridgeImage = functions
     });
     const startTime = Date.now();
     console.log('=== analyzeFridgeImage Cloud Function Started ===');
-    
+
     try {
       // Validate input
       const { base64Image, dietaryRestrictions } = data;
-      
+
       if (!base64Image) {
         throw new functions.https.HttpsError('invalid-argument', 'Base64 image is required');
       }
-      
+
       console.log('Analyzing fridge image for ingredients');
-      
+
       // Convert base64 to buffer and process image
       const imageBuffer = Buffer.from(base64Image, 'base64');
       const processedBuffer = await processImageForAI(imageBuffer);
       const processedBase64 = processedBuffer.toString('base64');
-      
+
       // Get the best Gemini model
       const model = await _getGeminiModel();
-      
+
       // Build contextual prompt
       let contextualPrompt = 'Analyze this fridge image to identify raw ingredients that can be used for cooking.';
-      
+
       if (dietaryRestrictions && dietaryRestrictions.length > 0) {
         contextualPrompt += ` Consider dietary restrictions: ${dietaryRestrictions.join(', ')}.`;
       }
-      
+
       const prompt = `${contextualPrompt}
 
 Identify all visible raw ingredients in this fridge that can be used for cooking.
@@ -4901,21 +5097,21 @@ Important guidelines:
           maxOutputTokens: 8192, // Fridge image analysis
         },
       });
-      
+
       const response = result.response.text();
       console.log(`Raw AI response length: ${response.length} characters`);
-      
+
       // Process AI response
       const fridgeData = await processAIResponse(response, 'fridge_analysis');
-      
+
       // Validate response structure
       if (!fridgeData.ingredients || !Array.isArray(fridgeData.ingredients)) {
         throw new Error('Invalid fridge data structure in AI response');
       }
-      
+
       const executionTime = Date.now() - startTime;
       console.log(`=== analyzeFridgeImage completed in ${executionTime}ms ===`);
-      
+
       // Save fridge analysis data to Firestore
       const fridgeAnalysisData = {
         ingredients: fridgeData.ingredients || [],
@@ -4929,40 +5125,40 @@ Important guidelines:
 
       // Save analysis to Firestore (fridge_analysis collection)
       const analysisRef = await firestore.collection('fridge_analysis').add(fridgeAnalysisData);
-      
+
       // Save suggested meals individually to global meals collection
       const mealIds = [];
-      
+
       if (fridgeData.suggestedMeals && Array.isArray(fridgeData.suggestedMeals) && fridgeData.suggestedMeals.length > 0) {
         const batch = firestore.batch();
-        
+
         for (const suggestedMeal of fridgeData.suggestedMeals) {
           // Validate meal has a proper title before saving
           const mealTitle = suggestedMeal.title?.trim() || '';
-          
+
           // Skip meals without valid titles (should have been filtered, but double-check)
-          if (!mealTitle || mealTitle.length < 5 || 
-              mealTitle === 'title' || mealTitle === 'cookingTime' || 
-              mealTitle === 'difficulty' || mealTitle === 'calories' ||
-              /^\d+\s*(minutes?|mins?|hours?|hrs?)$/i.test(mealTitle) ||
-              mealTitle === 'easy' || mealTitle === 'medium' || mealTitle === 'hard' ||
-              /^:?\s*\d+$/.test(mealTitle)) {
+          if (!mealTitle || mealTitle.length < 5 ||
+            mealTitle === 'title' || mealTitle === 'cookingTime' ||
+            mealTitle === 'difficulty' || mealTitle === 'calories' ||
+            /^\d+\s*(minutes?|mins?|hours?|hrs?)$/i.test(mealTitle) ||
+            mealTitle === 'easy' || mealTitle === 'medium' || mealTitle === 'hard' ||
+            /^:?\s*\d+$/.test(mealTitle)) {
             console.log(`Skipping invalid meal with title: "${mealTitle}"`);
             continue;
           }
-          
+
           const mealRef = firestore.collection('meals').doc();
           const mealId = mealRef.id;
-          
+
           // Create meal document with same structure as saveBasicMealsToFirestore
           const basicMealData = {
             title: mealTitle, // Use the validated title
             mealType: suggestedMeal.mealType || 'main',
-            calories: typeof suggestedMeal.calories === 'number' 
-              ? suggestedMeal.calories 
-              : (typeof suggestedMeal.calories === 'string' && !isNaN(suggestedMeal.calories) 
-                  ? parseInt(suggestedMeal.calories) 
-                  : 0),
+            calories: typeof suggestedMeal.calories === 'number'
+              ? suggestedMeal.calories
+              : (typeof suggestedMeal.calories === 'string' && !isNaN(suggestedMeal.calories)
+                ? parseInt(suggestedMeal.calories)
+                : 0),
             categories: ['fridge-suggested'],
             nutritionalInfo: suggestedMeal.nutritionalInfo || {},
             ingredients: suggestedMeal.ingredients || {},
@@ -4981,13 +5177,13 @@ Important guidelines:
             processingPriority: Date.now(), // FIFO processing
             needsProcessing: true, // Flag for Firebase Functions
           };
-          
+
           console.log(`Saving fridge suggested meal: "${mealTitle}" with ID: ${mealId}`);
           console.log(`Fridge suggested meal data:`, JSON.stringify(basicMealData, null, 2));
           batch.set(mealRef, basicMealData);
           mealIds.push(mealId);
         }
-        
+
         if (mealIds.length > 0) {
           // Commit all suggested meals in a single batch
           await batch.commit();
@@ -4996,7 +5192,7 @@ Important guidelines:
           console.log(`No valid meals to save after filtering`);
         }
       }
-      
+
       console.log(`=== SAVED FRIDGE ANALYSIS TO FIRESTORE ===`);
       console.log(`Analysis ID: ${analysisRef.id}`);
       console.log(`Suggested Meal IDs: ${mealIds.join(', ')}`);
@@ -5010,7 +5206,7 @@ Important guidelines:
       );
     }
   }
-);
+  );
 
 /**
  * Helper function to fetch buddy chat messages for a specific date
@@ -5159,8 +5355,8 @@ function _generateJournalPrompt(dailyData, userNotes, userGoals, userName, dateS
   const dinnerList = meals.dinner.length > 0 ? meals.dinner.join(', ') : 'None';
   const snacksList = meals.snacks.length > 0 ? meals.snacks.join(', ') : 'None';
 
-  const userNotesText = userNotes.length > 0 
-    ? userNotes.join('\n') 
+  const userNotesText = userNotes.length > 0
+    ? userNotes.join('\n')
     : 'No notes from user today.';
 
   return `You are creating a daily food health journal entry for ${userName} on ${dateStr}.
@@ -5276,19 +5472,19 @@ exports.generateDailyHealthJournal = onSchedule(
       }
 
       const model = await _getGeminiModel();
-      
+
       // Process users in batches to avoid timeout and rate limiting
       const BATCH_SIZE = 50;
       const allDocs = summarySnapshot.docs;
       const totalBatches = Math.ceil(allDocs.length / BATCH_SIZE);
-      
+
       console.log(`Processing ${allDocs.length} users in ${totalBatches} batches of ${BATCH_SIZE}`);
 
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         const batchStart = batchIndex * BATCH_SIZE;
         const batchEnd = Math.min(batchStart + BATCH_SIZE, allDocs.length);
         const batchDocs = allDocs.slice(batchStart, batchEnd);
-        
+
         console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (users ${batchStart + 1}-${batchEnd})`);
 
         const batchPromises = batchDocs.map(async (doc) => {
@@ -5360,7 +5556,7 @@ exports.generateDailyHealthJournal = onSchedule(
 
         // Wait for current batch to complete before starting next
         await Promise.all(batchPromises);
-        
+
         // Small delay between batches to avoid rate limiting
         if (batchIndex < totalBatches - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
@@ -5466,7 +5662,7 @@ exports.verifyPurchase = functions.https.onCall(async (data, context) => {
     // Verify the transaction is valid
     const purchaseDate = parseInt(transaction.purchase_date_ms, 10);
     const now = Date.now();
-    
+
     // Check if transaction is too old (more than 1 hour old might be a replay attack)
     // But allow up to 24 hours for edge cases
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours

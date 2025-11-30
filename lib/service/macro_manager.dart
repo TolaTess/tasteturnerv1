@@ -203,7 +203,7 @@ class MacroManager extends GetxController {
   void fetchShoppingList(String userId, String currentWeek) {
     // Cancel existing subscription if any
     _shoppingListSubscription?.cancel();
-    
+
     _shoppingListSubscription = firestore
         .collection('userMeals')
         .doc(userId)
@@ -624,14 +624,41 @@ class MacroManager extends GetxController {
   }
 
   // New function to call the Cloud Function and trigger shopping list generation
-  Future<void> generateAndFetchShoppingList() async {
+  Future<String> generateAndFetchShoppingList() async {
     try {
-      final HttpsCallable callable =
-          functions.httpsCallable('generateAndSaveWeeklyShoppingList');
-      final result = await callable.call();
-      // The listener will automatically pick up the new list
+      final userId = userService.userId;
+      if (userId == null) {
+        debugPrint('Cannot generate shopping list: No user ID');
+        return 'error';
+      }
+
+      final now = DateTime.now();
+      final dateStr =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      debugPrint('Generating shopping list for user: $userId, date: $dateStr');
+
+      final HttpsCallable callable = functions.httpsCallable(
+        'generateAndSaveWeeklyShoppingList',
+        options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+      );
+
+      final result = await callable.call({
+        'userId': userId,
+        'date': dateStr,
+      });
+
+      debugPrint('Generation result: ${result.data}');
+
+      // If result.data is null, it means no meals were found
+      if (result.data == null) {
+        return 'no_meals';
+      }
+
+      return 'success';
     } catch (e) {
-      return;
+      debugPrint('Error generating shopping list: $e');
+      return 'error';
     }
   }
 
@@ -672,28 +699,25 @@ class MacroManager extends GetxController {
               final id = parts[0];
               final amount = parts.length > 1 ? parts.sublist(1).join('/') : '';
 
-              final ingredientDoc =
-                  await firestore.collection('ingredients').doc(id).get();
-              if (ingredientDoc.exists) {
-                final data = ingredientDoc.data()!;
-                final image = data['mediaPaths'] != null &&
-                        (data['mediaPaths'] as List).isNotEmpty
-                    ? data['mediaPaths'][0]
-                    : 'assets/images/placeholder.jpg';
+              // No need to fetch from Firestore anymore
+              // The key format is "IngredientName/Amount"
+              // We use the IngredientName as the title directly
 
-                final newItem = MacroData(
-                    id: key,
-                    title: data['title'] ?? 'Unknown Ingredient',
-                    isSelected: isSelected,
-                    macros: {'amount': amount},
-                    image: image,
-                    // These are dummy values as they aren't needed for the shopping list item view
-                    mediaPaths: [],
-                    type: '',
-                    categories: [],
-                    features: {});
-                processedList.add(newItem);
-              }
+              final title = id;
+              const image = intPlaceholderImage;
+
+              final newItem = MacroData(
+                  id: key,
+                  title: title,
+                  isSelected: isSelected,
+                  macros: {'amount': amount},
+                  image: image,
+                  // These are dummy values as they aren't needed for the shopping list item view
+                  mediaPaths: [],
+                  type: '',
+                  categories: [],
+                  features: {});
+              processedList.add(newItem);
             }
             return processedList;
           }
@@ -1915,5 +1939,129 @@ class MacroManager extends GetxController {
       debugPrint('Error getting 54321 shopping list from Firestore: $e');
       return null;
     }
+  }
+
+  /// Check for new meals in meal plans that haven't been added to the shopping list
+  /// Returns the count of meals in the meal plan for the current week
+  Future<int> checkForNewMealPlanItems(String userId, String weekId) async {
+    try {
+      // 1. Get current week's start and end dates
+      final now = DateTime.now();
+      final weekStart = _getWeekStart(now);
+      final weekEnd = weekStart.add(const Duration(days: 6));
+
+      // Format dates as YYYY-MM-DD
+      final formatDate = (DateTime date) {
+        final y = date.year;
+        final m = date.month.toString().padLeft(2, '0');
+        final d = date.day.toString().padLeft(2, '0');
+        return '$y-$m-$d';
+      };
+
+      final startDateStr = formatDate(weekStart);
+      final endDateStr = formatDate(weekEnd);
+
+      debugPrint(
+          'Checking for meals in meal plan between: $startDateStr and $endDateStr');
+
+      // 2. Query meal plans for the current week
+      final mealsSnapshot = await firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('date')
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: startDateStr)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: endDateStr)
+          .get();
+
+      if (mealsSnapshot.docs.isEmpty) {
+        debugPrint('No meal plans found for the current week');
+        return 0;
+      }
+
+      // 3. Count unique meals from all date documents in the week
+      // Count actual meal entries (not unique IDs) from mealPlans/{userId}/date/{date}
+      int totalMealsCount = 0;
+      final dateMealCounts = <String, int>{};
+
+      for (final dayDoc in mealsSnapshot.docs) {
+        final data = dayDoc.data();
+        final mealPaths = data['meals'] as List<dynamic>? ?? [];
+        final mealCount = mealPaths.length;
+        dateMealCounts[dayDoc.id] = mealCount;
+        totalMealsCount += mealCount;
+        debugPrint(
+            'Date ${dayDoc.id}: $mealCount meals (${mealPaths.take(3).map((m) => m.toString().split('/').first).join(', ')}${mealPaths.length > 3 ? '...' : ''})');
+      }
+
+      if (totalMealsCount == 0) {
+        debugPrint('No meals found in meal plans for the week');
+        return 0;
+      }
+
+      debugPrint(
+          'Found $totalMealsCount total meal entries across ${mealsSnapshot.docs.length} dates in meal plans for the week');
+      debugPrint('Date breakdown: $dateMealCounts');
+
+      // 4. Check if shopping list exists and has items
+      final shoppingListRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('shoppingList')
+          .doc(weekId);
+
+      final shoppingListDoc = await shoppingListRef.get();
+      final hasShoppingList = shoppingListDoc.exists &&
+          shoppingListDoc.data() != null &&
+          (shoppingListDoc.data()!['generatedItems'] as Map<String, dynamic>? ??
+                  {})
+              .isNotEmpty;
+
+      // 5. If shopping list is empty or doesn't exist, return meal count
+      if (!hasShoppingList) {
+        debugPrint('Shopping list is empty, showing $totalMealsCount meals');
+        return totalMealsCount;
+      }
+
+      // 6. If shopping list exists, check if meal plans were updated after shopping list
+      final shoppingListTimestamp =
+          shoppingListDoc.data()?['updatedAt'] as Timestamp?;
+      if (shoppingListTimestamp != null) {
+        final shoppingListTime = shoppingListTimestamp.toDate();
+        int newMealsCount = 0;
+
+        // Check each meal plan document to see if it was updated after shopping list
+        for (final dayDoc in mealsSnapshot.docs) {
+          final mealPlanTimestamp = dayDoc.data()['timestamp'] as Timestamp?;
+          if (mealPlanTimestamp != null) {
+            final mealPlanTime = mealPlanTimestamp.toDate();
+            if (mealPlanTime.isAfter(shoppingListTime)) {
+              // This meal plan was updated after shopping list was generated
+              final mealPaths = dayDoc.data()['meals'] as List<dynamic>? ?? [];
+              newMealsCount += mealPaths.length;
+            }
+          }
+        }
+
+        if (newMealsCount > 0) {
+          debugPrint(
+              'Found $newMealsCount new meals added after shopping list was generated');
+          return newMealsCount;
+        }
+      }
+
+      // 7. If we can't determine, return 0 (shopping list exists and seems up to date)
+      debugPrint('Shopping list appears to be up to date');
+      return 0;
+    } catch (e) {
+      debugPrint('Error checking for new meal plan items: $e');
+      return 0;
+    }
+  }
+
+  /// Get the start of the week (Monday) for a given date
+  DateTime _getWeekStart(DateTime date) {
+    final daysFromMonday = date.weekday - 1; // Monday = 1, so subtract 1
+    return DateTime(date.year, date.month, date.day)
+        .subtract(Duration(days: daysFromMonday));
   }
 }

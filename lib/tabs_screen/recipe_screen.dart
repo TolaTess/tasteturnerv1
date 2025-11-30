@@ -33,6 +33,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
+  bool showAllTechniques = false;
 
   @override
   void initState() {
@@ -133,9 +134,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
     // Filter techniques based on user's diet preference
     // Create a copy before shuffling to avoid modifying the original list
-    final filteredTechniques =
-        List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
-    final limitedTechniques = filteredTechniques.take(5).toList();
+    final filteredTechniques = showAllTechniques
+        ? (List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle())
+        : (List<Map<String, dynamic>>.from(_categoryDatasIngredient)
+          ..shuffle());
+
+    final limitedTechniques = showAllTechniques
+        ? filteredTechniques
+        : filteredTechniques.take(5).toList();
 
     return RefreshIndicator(
       color: kAccent,
@@ -250,13 +256,30 @@ class _RecipeScreenState extends State<RecipeScreen> {
                             ),
                           if (dietPreference != 'balanced')
                             SizedBox(height: getPercentageHeight(0.5, context)),
-                          Center(
-                            child: Text(
-                              'Cooking Techniques',
-                              style: textTheme.displaySmall?.copyWith(
-                                color: kAccent,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Cooking Techniques',
+                                style: textTheme.displaySmall?.copyWith(
+                                  color: kAccent,
+                                ),
                               ),
-                            ),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    showAllTechniques = !showAllTechniques;
+                                  });
+                                },
+                                child: Text(
+                                  showAllTechniques ? 'Show Less' : 'Show All',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: kAccent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

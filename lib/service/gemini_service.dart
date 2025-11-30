@@ -335,6 +335,40 @@ class GeminiService {
   }
 
   /// Generic cloud function caller with error handling and fallback
+  /// Enrich a program with AI-generated details (routine, benefits, requirements, etc.)
+  /// This is called after creating a basic program to add comprehensive details
+  Future<Map<String, dynamic>> enrichProgramWithAI({
+    required String programId,
+    required Map<String, dynamic> basicProgram,
+    Map<String, dynamic>? formData,
+    String? conversationContext,
+  }) async {
+    try {
+      debugPrint('[Cloud Function] Enriching program $programId with AI');
+      final startTime = DateTime.now();
+
+      final cloudResult = await _callCloudFunction(
+        functionName: 'enrichProgramWithAI',
+        data: {
+          'programId': programId,
+          'basicProgram': basicProgram,
+          if (formData != null) 'formData': formData,
+          if (conversationContext != null) 'conversationContext': conversationContext,
+        },
+        operation: 'enrich program',
+      );
+
+      final executionTime = DateTime.now().difference(startTime).inMilliseconds;
+      debugPrint(
+          '[Cloud Function] Program enrichment completed in ${executionTime}ms');
+
+      return cloudResult;
+    } catch (e) {
+      debugPrint('[Cloud Function] Error enriching program: $e');
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> _callCloudFunction({
     required String functionName,
     required Map<String, dynamic> data,

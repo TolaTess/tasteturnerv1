@@ -660,6 +660,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             : getPercentageHeight(32, context),
                         child: PageView.builder(
                           controller: _calendarPageController, // Use widget-level controller
+                          onPageChanged: (index) {
+                            final monthOffset = index - 1;
+                            final currentDate = DateTime.now();
+                            final targetDate = DateTime(currentDate.year,
+                                currentDate.month + monthOffset);
+                            _mealPlanController.updateFocusedDate(targetDate);
+                          },
                           itemBuilder: (context, pageIndex) {
                             // Calculate the month offset (-1, 0, 1 for prev, current, next)
                             final monthOffset = pageIndex - 1;

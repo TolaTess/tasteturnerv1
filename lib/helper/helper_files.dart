@@ -163,6 +163,25 @@ Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
 
 Color getMealTypeColor(String type) {
   switch (type.toLowerCase()) {
+    // Meal types (breakfast, lunch, dinner, snacks)
+    case 'bf':
+    case 'breakfast':
+    case 'b':
+      return kAccent.withValues(alpha: 0.5); // Orange for breakfast (morning)
+    case 'lh':
+    case 'lunch':
+    case 'l':
+      return kBlue.withValues(alpha: 0.5); // Blue for lunch (midday)
+    case 'dn':
+    case 'dinner':
+    case 'd':
+      return kAccentLight.withValues(alpha: 0.5); // Purple for dinner (evening)
+    case 'sn':
+    case 'snacks':
+    case 'snack':
+    case 's':
+      return kPink.withValues(alpha: 0.5); // Green for snacks
+    // Food categories (for backward compatibility)
     case 'protein':
       return kAccent.withValues(alpha: 0.5);
     case 'grain':
@@ -192,14 +211,15 @@ String getMealTypeImage(String type) {
 Widget buildAddMealTypeLegend(BuildContext context, String mealType,
     {bool isSelected = false, bool isColored = false}) {
   final textTheme = Theme.of(context).textTheme;
+  final mealTypeColor = getMealTypeColor(mealType);
 
   return Container(
     decoration: BoxDecoration(
       color: isSelected
-          ? kAccentLight.withValues(alpha: 0.3)
-          : kAccent.withValues(alpha: 0.15),
+          ? mealTypeColor.withValues(alpha: 0.3)
+          : mealTypeColor.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(10),
-      border: isSelected ? Border.all(color: kAccentLight, width: 2) : null,
+      border: isSelected ? Border.all(color: mealTypeColor, width: 2) : null,
     ),
     padding: EdgeInsets.symmetric(
       horizontal: getPercentageWidth(2, context),
@@ -208,12 +228,12 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
     child: Column(
       children: [
         Icon(Icons.square_rounded,
-            color: isSelected ? kAccentLight : getMealTypeColor(mealType)),
+            color: isSelected ? mealTypeColor : mealTypeColor),
         SizedBox(width: getPercentageWidth(2, context)),
         Text(
           capitalizeFirstLetter(mealType),
           style: textTheme.bodyMedium?.copyWith(
-            color: isSelected ? kAccentLight : getMealTypeColor(mealType),
+            color: isSelected ? mealTypeColor : mealTypeColor,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),

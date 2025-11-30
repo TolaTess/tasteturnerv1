@@ -9,6 +9,7 @@ class ProgramService extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Rx<Program?> currentProgram = Rx<Program?>(null);
   final RxList<Program> userPrograms = RxList<Program>([]);
+  final RxList<Program> archivedPrograms = RxList<Program>([]);
 
   @override
   void onInit() {
@@ -38,33 +39,136 @@ class ProgramService extends GetxController {
     if (userId == null) return;
 
     try {
-      // Get all programs (both public and private)
-      final programsSnapshot = await _firestore.collection('programs').get();
-      final allPrograms = programsSnapshot.docs
-          .map((doc) => Program.fromJson({
-                ...doc.data(),
-                'programId': doc.id,
-              }))
-          .toList();
-
-      // Get user's program enrollments from userProgram collection
+      // 1. Get user's program enrollments
       final userProgramsSnapshot = await _firestore
           .collection('userProgram')
           .where('userIds', arrayContains: userId)
           .get();
 
-      // Filter programs to only those the user is enrolled in
       final enrolledProgramIds =
           userProgramsSnapshot.docs.map((doc) => doc.id).toSet();
+      
+      // Track IDs we've already checked archive status for
+      final checkedArchiveStatusIds = enrolledProgramIds.toSet();
 
-      // Include enrolled programs AND private programs owned by user
-      userPrograms.value = allPrograms
-          .where((program) => 
-              enrolledProgramIds.contains(program.programId) ||
-              (program.isPrivate && program.userId == userId))
+      // Track archived status
+      final archivedProgramIds = <String>{};
+      for (final doc in userProgramsSnapshot.docs) {
+        try {
+          final data = doc.data();
+          final archivedUsers = List<dynamic>.from(data['archivedUsers'] ?? [])
+              .map((e) => e.toString())
+              .toList();
+          if (archivedUsers.contains(userId)) {
+            archivedProgramIds.add(doc.id);
+          }
+        } catch (e) {
+          debugPrint('Error checking archive status for program ${doc.id}: $e');
+        }
+      }
+
+      // 2. Get private programs owned by user
+      final ownedPrivateProgramsSnapshot = await _firestore
+          .collection('programs')
+          .where('userId', isEqualTo: userId)
+          .where('isPrivate', isEqualTo: true)
+          .get();
+
+      final privateProgramIdsToCheck = <String>[];
+
+      for (final doc in ownedPrivateProgramsSnapshot.docs) {
+        enrolledProgramIds.add(doc.id);
+        if (!checkedArchiveStatusIds.contains(doc.id)) {
+          privateProgramIdsToCheck.add(doc.id);
+        }
+      }
+      
+      // 2.5 Check archive status for private programs that weren't in the enrollment list
+      // This handles cases where user owns a private program but isn't in 'userIds' 
+      // or if the enrollment query missed it for some reason
+      if (privateProgramIdsToCheck.isNotEmpty) {
+        // Batch fetch userProgram docs
+        for (var i = 0; i < privateProgramIdsToCheck.length; i += 10) {
+          final end = (i + 10 < privateProgramIdsToCheck.length) 
+              ? i + 10 
+              : privateProgramIdsToCheck.length;
+          final batchIds = privateProgramIdsToCheck.sublist(i, end);
+          
+          if (batchIds.isEmpty) continue;
+
+          try {
+            final batchSnapshot = await _firestore
+                .collection('userProgram')
+                .where(FieldPath.documentId, whereIn: batchIds)
+                .get();
+            
+            for (final doc in batchSnapshot.docs) {
+              try {
+                final data = doc.data();
+                final archivedUsers = List<dynamic>.from(data['archivedUsers'] ?? [])
+                    .map((e) => e.toString())
+                    .toList();
+                if (archivedUsers.contains(userId)) {
+                  archivedProgramIds.add(doc.id);
+                }
+              } catch (e) {
+                debugPrint('Error checking archive status for private program ${doc.id}: $e');
+              }
+            }
+          } catch (e) {
+            debugPrint('Error fetching userProgram batch: $e');
+          }
+        }
+      }
+
+      if (enrolledProgramIds.isEmpty) {
+        userPrograms.value = [];
+        archivedPrograms.value = [];
+        currentProgram.value = null;
+        return;
+      }
+
+      // 3. Fetch the actual program documents in batches
+      final allUserPrograms = <Program>[];
+      final programIdsList = enrolledProgramIds.toList();
+
+      // Firestore whereIn limit is 10
+      for (var i = 0; i < programIdsList.length; i += 10) {
+        final end =
+            (i + 10 < programIdsList.length) ? i + 10 : programIdsList.length;
+        final batchIds = programIdsList.sublist(i, end);
+
+        if (batchIds.isEmpty) continue;
+
+        try {
+          final batchSnapshot = await _firestore
+              .collection('programs')
+              .where(FieldPath.documentId, whereIn: batchIds)
+              .get();
+
+          final batchPrograms = batchSnapshot.docs
+              .map((doc) => Program.fromJson({
+                    ...doc.data(),
+                    'programId': doc.id,
+                  }))
+              .toList();
+
+          allUserPrograms.addAll(batchPrograms);
+        } catch (e) {
+          debugPrint('Error fetching program batch: $e');
+        }
+      }
+
+      // 4. Filter and sort
+      userPrograms.value = allUserPrograms
+          .where((program) => !archivedProgramIds.contains(program.programId))
           .toList();
 
-      // Set current active program
+      archivedPrograms.value = allUserPrograms
+          .where((program) => archivedProgramIds.contains(program.programId))
+          .toList();
+
+      // Set current active program (only from non-archived)
       currentProgram.value =
           userPrograms.firstWhereOrNull((program) => program.isActive);
     } catch (e) {
@@ -80,7 +184,8 @@ class ProgramService extends GetxController {
     final programId = const Uuid().v4();
     final now = DateTime.now();
     final isPrivate = programData['isPrivate'] ?? false;
-    final planningConversationId = programData['planningConversationId'] as String?;
+    final planningConversationId =
+        programData['planningConversationId'] as String?;
 
     final program = Program(
       programId: programId,
@@ -92,22 +197,27 @@ class ProgramService extends GetxController {
           .map((plan) => WeeklyPlan.fromJson(plan))
           .toList(),
       requirements: programData['requirements'] is List
-          ? List<String>.from(programData['requirements'].map((item) => item.toString()))
+          ? List<String>.from(
+              programData['requirements'].map((item) => item.toString()))
           : [],
       recommendations: programData['recommendations'] is List
-          ? List<String>.from(programData['recommendations'].map((item) => item.toString()))
+          ? List<String>.from(
+              programData['recommendations'].map((item) => item.toString()))
           : [],
       userId: userId,
       createdAt: now,
       startDate: now,
       benefits: programData['benefits'] is List
-          ? List<String>.from(programData['benefits'].map((item) => item.toString()))
+          ? List<String>.from(
+              programData['benefits'].map((item) => item.toString()))
           : [],
       notAllowed: programData['notAllowed'] is List
-          ? List<String>.from(programData['notAllowed'].map((item) => item.toString()))
+          ? List<String>.from(
+              programData['notAllowed'].map((item) => item.toString()))
           : [],
       programDetails: programData['programDetails'] is List
-          ? List<String>.from(programData['programDetails'].map((item) => item.toString()))
+          ? List<String>.from(
+              programData['programDetails'].map((item) => item.toString()))
           : [],
       portionDetails: programData['portionDetails'] is Map
           ? Map<String, dynamic>.from(programData['portionDetails'])
@@ -117,21 +227,45 @@ class ProgramService extends GetxController {
     );
 
     try {
-      // Save program - include routine and other fields that may not be in Program model
+      // Save program - include ALL fields from programData (not just those in Program model)
+      // This ensures enrichment data from cloud function is preserved
       final programJson = program.toJson();
-      // Add routine field if present in programData (for program_progress_screen)
+
+      // Add ALL additional fields from programData (routine, goals, benefits, etc.)
+      // These may come from either client-side generation or server-side enrichment
+      for (final entry in programData.entries) {
+        if (!programJson.containsKey(entry.key)) {
+          programJson[entry.key] = entry.value;
+        }
+      }
+
+      // Explicitly ensure routine, goals, benefits, etc. are included if present
       if (programData['routine'] != null) {
         programJson['routine'] = programData['routine'];
       }
-      // Add goals field if present (used in some contexts)
       if (programData['goals'] != null) {
         programJson['goals'] = programData['goals'];
       }
-      
-      await _firestore
-          .collection('programs')
-          .doc(programId)
-          .set(programJson);
+      if (programData['benefits'] != null) {
+        programJson['benefits'] = programData['benefits'];
+      }
+      if (programData['requirements'] != null) {
+        programJson['requirements'] = programData['requirements'];
+      }
+      if (programData['recommendations'] != null) {
+        programJson['recommendations'] = programData['recommendations'];
+      }
+      if (programData['programDetails'] != null) {
+        programJson['programDetails'] = programData['programDetails'];
+      }
+      if (programData['notAllowed'] != null) {
+        programJson['notAllowed'] = programData['notAllowed'];
+      }
+      if (programData['portionDetails'] != null) {
+        programJson['portionDetails'] = programData['portionDetails'];
+      }
+
+      await _firestore.collection('programs').doc(programId).set(programJson);
 
       // Auto-enroll user in private programs
       if (isPrivate) {
@@ -149,11 +283,13 @@ class ProgramService extends GetxController {
   }
 
   // Create a private program (convenience method)
-  Future<Program> createPrivateProgram(Map<String, dynamic> programData, {String? planningConversationId}) async {
+  Future<Program> createPrivateProgram(Map<String, dynamic> programData,
+      {String? planningConversationId}) async {
     return createProgram({
       ...programData,
       'isPrivate': true,
-      if (planningConversationId != null) 'planningConversationId': planningConversationId,
+      if (planningConversationId != null)
+        'planningConversationId': planningConversationId,
     });
   }
 
@@ -250,6 +386,43 @@ class ProgramService extends GetxController {
     if (userId == null) throw Exception('User not authenticated');
 
     try {
+      // Check if this is a private program owned by the user
+      // Users cannot "leave" their own private programs - they own them
+      final programDoc =
+          await _firestore.collection('programs').doc(programId).get();
+      if (programDoc.exists) {
+        final programData = programDoc.data();
+        final isPrivate = programData?['isPrivate'] ?? false;
+        final programUserId = programData?['userId'] as String?;
+
+        if (isPrivate && programUserId == userId) {
+          throw Exception(
+              'You cannot leave your own private program. You can delete it instead.');
+        }
+      }
+
+      // Check if userProgram document exists and user is enrolled
+      final userProgramDoc =
+          await _firestore.collection('userProgram').doc(programId).get();
+      if (!userProgramDoc.exists) {
+        // Document doesn't exist - user might not be enrolled
+        debugPrint(
+            'UserProgram document does not exist for program $programId');
+        // Still refresh the list in case the program was already removed
+        await loadUserPrograms();
+        return;
+      }
+
+      final userProgramData = userProgramDoc.data();
+      final userIds = userProgramData?['userIds'] as List<dynamic>?;
+
+      if (userIds == null || !userIds.contains(userId)) {
+        // User is not enrolled in this program
+        debugPrint('User is not enrolled in program $programId');
+        await loadUserPrograms();
+        return;
+      }
+
       // Remove user from userProgram document
       await _firestore.collection('userProgram').doc(programId).update({
         'userIds': FieldValue.arrayRemove([userId])
@@ -258,7 +431,11 @@ class ProgramService extends GetxController {
       await loadUserPrograms();
     } catch (e) {
       debugPrint('Error leaving program: $e');
-      throw Exception('Failed to leave program');
+      // Re-throw if it's already a user-friendly exception
+      if (e.toString().contains('cannot leave')) {
+        rethrow;
+      }
+      throw Exception('Failed to leave program: ${e.toString()}');
     }
   }
 
@@ -290,6 +467,85 @@ class ProgramService extends GetxController {
     } catch (e) {
       debugPrint('Error deactivating program: $e');
       throw Exception('Failed to deactivate program');
+    }
+  }
+
+  // Update program with enrichment data
+  Future<void> updateProgram(
+      String programId, Map<String, dynamic> enrichmentData) async {
+    try {
+      // Merge enrichment data with existing program
+      // Ensure all fields are preserved
+      final programRef = _firestore.collection('programs').doc(programId);
+      await programRef.update(enrichmentData);
+
+      // Reload user programs to reflect changes
+      await loadUserPrograms();
+    } catch (e) {
+      debugPrint('Error updating program: $e');
+      throw Exception('Failed to update program');
+    }
+  }
+
+  // Archive a program (hide from main UI but keep enrolled)
+  Future<void> archiveProgram(String programId) async {
+    final userId = userService.userId;
+    if (userId == null) throw Exception('User not authenticated');
+
+    try {
+      // Check if userProgram document exists
+      final userProgramRef =
+          _firestore.collection('userProgram').doc(programId);
+      final userProgramDoc = await userProgramRef.get();
+
+      if (!userProgramDoc.exists) {
+        // Create document if it doesn't exist (for private programs)
+        await userProgramRef.set({
+          'userIds': [userId],
+          'archivedUsers': [userId],
+        });
+      } else {
+        // Add user to archivedUsers array
+        final data = userProgramDoc.data();
+        final archivedUsers = (data?['archivedUsers'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+
+        if (!archivedUsers.contains(userId)) {
+          await userProgramRef.update({
+            'archivedUsers': FieldValue.arrayUnion([userId]),
+          });
+        }
+      }
+
+      await loadUserPrograms();
+    } catch (e) {
+      debugPrint('Error archiving program: $e');
+      throw Exception('Failed to archive program');
+    }
+  }
+
+  // Unarchive a program (show in main UI again)
+  Future<void> unarchiveProgram(String programId) async {
+    final userId = userService.userId;
+    if (userId == null) throw Exception('User not authenticated');
+
+    try {
+      final userProgramRef =
+          _firestore.collection('userProgram').doc(programId);
+      final userProgramDoc = await userProgramRef.get();
+
+      if (userProgramDoc.exists) {
+        // Remove user from archivedUsers array
+        await userProgramRef.update({
+          'archivedUsers': FieldValue.arrayRemove([userId]),
+        });
+      }
+
+      await loadUserPrograms();
+    } catch (e) {
+      debugPrint('Error unarchiving program: $e');
+      throw Exception('Failed to unarchive program');
     }
   }
 }

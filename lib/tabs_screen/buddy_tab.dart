@@ -35,6 +35,10 @@ class _BuddyTabState extends State<BuddyTab> {
   int selectedUserIndex = 0;
   List<Map<String, dynamic>> _familyMemberCategories = [];
 
+  // Generation navigation state
+  int currentGenerationIndex = 0; // 0 = most recent
+  List<Map<String, dynamic>> allAvailableGenerations = [];
+
   // Toggle meal type selection
   void toggleMealTypeSelection(String mealType) {
     final currentSelection = Set<String>.from(selectedMealTypesNotifier.value);
@@ -46,23 +50,34 @@ class _BuddyTabState extends State<BuddyTab> {
     selectedMealTypesNotifier.value = currentSelection;
   }
 
-  // Filter meals based on selected categories
+  // Filter meals based on selected meal types (breakfast, lunch, dinner, snacks)
+  // The mealType comes from parsing the meal ID suffix (bf, lh, dn, sn, etc.)
   List<MealWithType> filterMealsByType(
       List<MealWithType> meals, Set<String> selectedMealTypes) {
     if (selectedMealTypes.isEmpty) return meals; // Show all if none selected
 
-    return meals.where((mealWithType) {
-      final meal = mealWithType.meal;
+    // Map selected meal types to possible mealType values from meal ID suffixes
+    final Map<String, List<String>> mealTypeMapping = {
+      'breakfast': ['bf', 'breakfast', 'b'],
+      'lunch': ['lh', 'lunch', 'l'],
+      'dinner': ['dn', 'dinner', 'd'],
+      'snacks': ['sn', 'snacks', 'snack', 's'],
+    };
 
-      // Check if any selected meal type matches either category OR type
+    return meals.where((mealWithType) {
+      final mealTypeFromId = mealWithType.mealType.toLowerCase();
+
+      // Check if the meal's mealType matches any selected meal type
       bool matches = selectedMealTypes.any((selectedType) {
         final normalizedSelectedType = selectedType.toLowerCase();
-        final mealCategory = meal.category?.toLowerCase() ?? '';
-        final mealType = meal.type?.toLowerCase() ?? '';
+        final possibleValues =
+            mealTypeMapping[normalizedSelectedType] ?? [normalizedSelectedType];
 
-        return mealCategory == normalizedSelectedType ||
-            mealType == normalizedSelectedType;
+        // Check if mealTypeFromId matches any of the possible values for this selected type
+        return possibleValues
+            .any((value) => mealTypeFromId == value.toLowerCase());
       });
+
       return matches;
     }).toList();
   }
@@ -86,6 +101,7 @@ class _BuddyTabState extends State<BuddyTab> {
 
     setState(() {
       selectedUserIndex = index;
+      currentGenerationIndex = 0; // Reset to most recent when switching users
     });
 
     // Refresh buddy data for the selected user
@@ -170,27 +186,81 @@ class _BuddyTabState extends State<BuddyTab> {
       return;
     }
 
-    // Simplified query: just get the most recent document by ordering descending
+    // Reset generation index when refreshing data
+    setState(() {
+      currentGenerationIndex = 0;
+      allAvailableGenerations = [];
+    });
+
+    // Fetch multiple documents to collect enough generations
     // Document IDs are dates in 'yyyy-MM-dd' format, so ordering descending gives most recent
-    // This avoids needing a composite index for range queries
     _buddyDataFuture = _fetchBuddyData(targetUserId);
   }
 
   // Separate async method to properly handle errors and return null on failure
+  // Fetch multiple documents to collect enough generations (up to 3)
   Future<QuerySnapshot<Map<String, dynamic>>?> _fetchBuddyData(
       String userId) async {
     try {
+      // Fetch up to 5 documents (dates) to ensure we have enough generations
       return await firestore
           .collection('mealPlans')
           .doc(userId)
           .collection('buddy')
           .orderBy(FieldPath.documentId, descending: true)
-          .limit(1)
+          .limit(5)
           .get();
     } catch (e) {
       debugPrint('Error loading buddy data: $e');
       return null;
     }
+  }
+
+  // Collect and sort all generations from multiple documents
+  List<Map<String, dynamic>> _collectAllGenerations(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+      bool isFamilyMode,
+      String? familyMemberName) {
+    final allGenerations = <Map<String, dynamic>>[];
+
+    // Collect all generations from all documents
+    for (final doc in docs) {
+      final mealPlan = doc.data();
+      final generations = (mealPlan['generations'] as List<dynamic>?)
+              ?.map((gen) => gen as Map<String, dynamic>)
+              .toList() ??
+          [];
+
+      // Filter by family member if in family mode
+      List<Map<String, dynamic>> filteredGenerations = generations;
+      if (isFamilyMode && familyMemberName != null && familyMemberName.isNotEmpty) {
+        filteredGenerations = generations.where((gen) {
+          final genFamilyName = gen['familyMemberName'] as String?;
+          return genFamilyName == familyMemberName;
+        }).toList();
+      } else {
+        // For main user, show generations without family member name or with null family member name
+        filteredGenerations = generations.where((gen) {
+          final genFamilyName = gen['familyMemberName'] as String?;
+          return genFamilyName == null || genFamilyName.isEmpty;
+        }).toList();
+      }
+
+      allGenerations.addAll(filteredGenerations);
+    }
+
+    // Sort by timestamp (newest first)
+    allGenerations.sort((a, b) {
+      final timestampA = a['timestamp'] as Timestamp?;
+      final timestampB = b['timestamp'] as Timestamp?;
+      if (timestampA == null && timestampB == null) return 0;
+      if (timestampA == null) return 1;
+      if (timestampB == null) return -1;
+      return timestampB.compareTo(timestampA); // Descending (newest first)
+    });
+
+    // Take only first 3 generations (current + 2 previous)
+    return allGenerations.take(3).toList();
   }
 
   Future<dynamic> _navigateToMealPlanChat(BuildContext context) async {
@@ -770,46 +840,33 @@ class _BuddyTabState extends State<BuddyTab> {
                   return _buildDefaultView(context, false);
                 }
 
-                final mealPlan = docs.last.data();
                 final isDarkMode = getThemeProvider(context).isDarkMode;
                 final currentUser = userService.currentUser.value;
 
-                final generations = (mealPlan['generations'] as List<dynamic>?)
-                        ?.map((gen) => gen as Map<String, dynamic>)
-                        .toList() ??
-                    [];
-
-                if (generations.isEmpty) {
-                  return _buildDefaultView(context, false);
-                }
-
-                // Filter generations based on family member name
-                List<Map<String, dynamic>> filteredGenerations = generations;
+                // Get family member name if in family mode
+                String? familyMemberName;
                 if (familyMode && selectedUserIndex > 0) {
                   final familyMembers = currentUser?.familyMembers ?? [];
                   if (selectedUserIndex - 1 < familyMembers.length) {
-                    final selectedMemberName =
-                        familyMembers[selectedUserIndex - 1].name;
-                    // Filter generations for this family member
-                    filteredGenerations = generations.where((gen) {
-                      final genFamilyName = gen['familyMemberName'] as String?;
-                      return genFamilyName == selectedMemberName;
-                    }).toList();
+                    familyMemberName = familyMembers[selectedUserIndex - 1].name;
                   }
-                } else {
-                  // For main user, show generations without family member name or with null family member name
-                  filteredGenerations = generations.where((gen) {
-                    final genFamilyName = gen['familyMemberName'] as String?;
-                    return genFamilyName == null || genFamilyName.isEmpty;
-                  }).toList();
                 }
 
-                if (filteredGenerations.isEmpty) {
+                // Collect all generations from all documents and filter
+                allAvailableGenerations = _collectAllGenerations(
+                    docs, familyMode, familyMemberName);
+
+                if (allAvailableGenerations.isEmpty) {
                   return _buildDefaultView(context, false);
                 }
 
-                final selectedGeneration = filteredGenerations[
-                    filteredGenerations.length - 1]; // Get last generation
+                // Ensure currentGenerationIndex is within bounds
+                if (currentGenerationIndex >= allAvailableGenerations.length) {
+                  currentGenerationIndex = 0;
+                }
+
+                // Get the selected generation based on current index
+                final selectedGeneration = allAvailableGenerations[currentGenerationIndex];
 
                 // Fetch meals regardless of nutritional summary (summary can be calculated client-side)
                 final diet =
@@ -904,6 +961,64 @@ class _BuddyTabState extends State<BuddyTab> {
                             },
                           ),
                           SizedBox(height: getPercentageHeight(2, context)),
+                          // Generation navigation controls
+                          if (allAvailableGenerations.length > 1)
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(4, context)),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Previous button
+                                  IconButton(
+                                    onPressed: currentGenerationIndex <
+                                            allAvailableGenerations.length - 1
+                                        ? () {
+                                            setState(() {
+                                              currentGenerationIndex++;
+                                            });
+                                          }
+                                        : null,
+                                    icon: Icon(
+                                      Icons.arrow_back_ios,
+                                      color: currentGenerationIndex <
+                                              allAvailableGenerations.length - 1
+                                          ? kAccent
+                                          : Colors.grey,
+                                    ),
+                                    tooltip: 'Previous generation',
+                                  ),
+                                  SizedBox(width: getPercentageWidth(2, context)),
+                                  // Generation indicator
+                                  Text(
+                                    'Generation ${currentGenerationIndex + 1} of ${allAvailableGenerations.length}',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: isDarkMode ? kWhite : kDarkGrey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(width: getPercentageWidth(2, context)),
+                                  // Next button
+                                  IconButton(
+                                    onPressed: currentGenerationIndex > 0
+                                        ? () {
+                                            setState(() {
+                                              currentGenerationIndex--;
+                                            });
+                                          }
+                                        : null,
+                                    icon: Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: currentGenerationIndex > 0
+                                          ? kAccent
+                                          : Colors.grey,
+                                    ),
+                                    tooltip: 'Next generation',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          SizedBox(height: getPercentageHeight(1, context)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1076,44 +1191,42 @@ class _BuddyTabState extends State<BuddyTab> {
                                 children: [
                                   GestureDetector(
                                     onTap: () =>
-                                        toggleMealTypeSelection('protein'),
+                                        toggleMealTypeSelection('breakfast'),
                                     child: buildAddMealTypeLegend(
                                       context,
-                                      'protein',
-                                      isSelected:
-                                          selectedMealTypes.contains('protein'),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('grain'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'grain',
-                                      isSelected:
-                                          selectedMealTypes.contains('grain'),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('vegetable'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'vegetable',
+                                      'breakfast',
                                       isSelected: selectedMealTypes
-                                              .contains('vegetable') ||
-                                          selectedMealTypes
-                                              .contains('vegetables'),
+                                          .contains('breakfast'),
                                     ),
                                   ),
                                   GestureDetector(
                                     onTap: () =>
-                                        toggleMealTypeSelection('fruit'),
+                                        toggleMealTypeSelection('lunch'),
                                     child: buildAddMealTypeLegend(
                                       context,
-                                      'fruit',
+                                      'lunch',
                                       isSelected:
-                                          selectedMealTypes.contains('fruit'),
+                                          selectedMealTypes.contains('lunch'),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () =>
+                                        toggleMealTypeSelection('dinner'),
+                                    child: buildAddMealTypeLegend(
+                                      context,
+                                      'dinner',
+                                      isSelected:
+                                          selectedMealTypes.contains('dinner'),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () =>
+                                        toggleMealTypeSelection('snacks'),
+                                    child: buildAddMealTypeLegend(
+                                      context,
+                                      'snacks',
+                                      isSelected:
+                                          selectedMealTypes.contains('snacks'),
                                     ),
                                   ),
                                 ],
@@ -1304,6 +1417,7 @@ class _BuddyTabState extends State<BuddyTab> {
           itemCount: meals.length,
           itemBuilder: (context, index) {
             final mealWithType = meals[index];
+            final mealType = mealWithType.mealType;
             final meal = mealWithType.meal;
             final mealCategory = (meal.category?.isNotEmpty == true)
                 ? meal.category!.toLowerCase()
@@ -1316,7 +1430,7 @@ class _BuddyTabState extends State<BuddyTab> {
                 vertical: getPercentageHeight(1, context),
               ),
               decoration: BoxDecoration(
-                color: getMealTypeColor(mealCategory),
+                color: getMealTypeColor(mealType),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(

@@ -44,7 +44,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize ProgramService using Get.find() with try-catch fallback
     try {
       _programService = Get.find<ProgramService>();
@@ -175,7 +175,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
     }
   }
 
-  Future<void> _loadProgramUserCounts(List<Map<String, dynamic>> programs) async {
+  Future<void> _loadProgramUserCounts(
+      List<Map<String, dynamic>> programs) async {
     try {
       final Map<String, int> counts = {};
       await Future.wait(
@@ -325,7 +326,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final userName = userService.currentUser.value?.displayName ?? 'User';
       final prompt =
           'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
-      
+
       final response = await geminiService.getResponse(
         prompt,
         maxTokens: 1024,
@@ -365,7 +366,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       setState(() {
         isLoading = false;
-        aiCoachResponse = 'Sorry, I encountered an error. Please try again later.';
+        aiCoachResponse =
+            'Sorry, I encountered an error. Please try again later.';
       });
 
       Get.snackbar(
@@ -401,223 +403,412 @@ class _ProgramScreenState extends State<ProgramScreen> {
             final userCount = _programUserCounts[program.programId] ?? 0;
 
             return GestureDetector(
-                  onTap: () async {
-                    // Find complete program data from Firestore
-                    try {
-                      final programDoc = await firestore
-                          .collection('programs')
-                          .doc(program.programId)
-                          .get();
+              onTap: () async {
+                // Find complete program data from Firestore
+                try {
+                  final programDoc = await firestore
+                      .collection('programs')
+                      .doc(program.programId)
+                      .get();
 
-                      if (programDoc.exists) {
-                        final programData = {
-                          'programId': program.programId,
-                          ...programDoc.data()!,
-                        };
-                        Get.to(() => ProgramDetailWidget(
-                              program: programData,
-                              isEnrolled: true,
-                            ));
-                      } else {
-                        // Fallback to basic program data
-                        final programData = {
-                          'programId': program.programId,
-                          'name': program.name,
-                          'description': program.description,
-                          'type': program.type,
-                          'duration': program.duration,
-                          'goals': [],
-                          'guidelines': [],
-                          'tips': [],
-                          'options': [],
-                        };
-                        Get.to(() => ProgramDetailWidget(
-                              program: programData,
-                            ));
-                      }
-                    } catch (e) {
-                      Get.snackbar(
-                        'Error',
-                        'Unable to load program details',
-                        backgroundColor: Colors.red,
-                        colorText: kWhite,
-                      );
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    margin: EdgeInsets.only(
-                        bottom: getPercentageHeight(1, context)),
-                    padding: EdgeInsets.all(getPercentageWidth(4, context)),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? kDarkGrey : kWhite,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: kAccent.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                  if (programDoc.exists) {
+                    final programData = {
+                      'programId': program.programId,
+                      ...programDoc.data()!,
+                    };
+                    Get.to(() => ProgramDetailWidget(
+                          program: programData,
+                          isEnrolled: true,
+                        ));
+                  } else {
+                    // Fallback to basic program data
+                    final programData = {
+                      'programId': program.programId,
+                      'name': program.name,
+                      'description': program.description,
+                      'type': program.type,
+                      'duration': program.duration,
+                      'goals': [],
+                      'guidelines': [],
+                      'tips': [],
+                      'options': [],
+                    };
+                    Get.to(() => ProgramDetailWidget(
+                          program: programData,
+                        ));
+                  }
+                } catch (e) {
+                  Get.snackbar(
+                    'Error',
+                    'Unable to load program details',
+                    backgroundColor: Colors.red,
+                    colorText: kWhite,
+                  );
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                margin:
+                    EdgeInsets.only(bottom: getPercentageHeight(1, context)),
+                padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? kDarkGrey : kWhite,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: kAccent.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Row(
-                      children: [
-                        // Program icon
-                        Container(
-                          padding:
-                              EdgeInsets.all(getPercentageWidth(3, context)),
-                          decoration: BoxDecoration(
-                            color: kAccent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.fitness_center,
-                            color: kAccent,
-                            size: getIconScale(6, context),
-                          ),
-                        ),
-                        SizedBox(width: getPercentageWidth(4, context)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Program icon
+                    Container(
+                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                      decoration: BoxDecoration(
+                        color: kAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.fitness_center,
+                        color: kAccent,
+                        size: getIconScale(6, context),
+                      ),
+                    ),
+                    SizedBox(width: getPercentageWidth(4, context)),
 
-                        // Program details
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    // Program details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            program.name,
+                            style: textTheme.titleMedium?.copyWith(
+                              color: kAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(0.5, context)),
+                          Text(
+                            program.description,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.7)
+                                  : kDarkGrey.withValues(alpha: 0.7),
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: getPercentageHeight(0.8, context)),
+                          Row(
                             children: [
-                              Text(
-                                program.name,
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: kAccent,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Icon(
+                                Icons.people,
+                                color: Colors.green,
+                                size: getIconScale(4, context),
                               ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.5, context)),
+                              SizedBox(width: getPercentageWidth(1, context)),
                               Text(
-                                program.description,
+                                '$userCount members',
                                 style: textTheme.bodySmall?.copyWith(
-                                  color: isDarkMode
-                                      ? kWhite.withValues(alpha: 0.7)
-                                      : kDarkGrey.withValues(alpha: 0.7),
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.8, context)),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.people,
-                                    color: Colors.green,
-                                    size: getIconScale(4, context),
+                              SizedBox(width: getPercentageWidth(3, context)),
+                              Icon(
+                                Icons.schedule,
+                                color: Colors.orange,
+                                size: getIconScale(4, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(1, context)),
+                              Text(
+                                program.duration,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(width: getPercentageWidth(2.5, context)),
+                              GestureDetector(
+                                onTap: () {
+                                  Get.to(() => ProgramProgressScreen(
+                                        programId: program.programId,
+                                        programName: program.name,
+                                        programDescription: program.description,
+                                        benefits: program.benefits,
+                                        duration: program.duration,
+                                      ));
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.all(
+                                      getPercentageWidth(1.5, context)),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purple.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  SizedBox(
-                                      width: getPercentageWidth(1, context)),
-                                  Text(
-                                    '$userCount members',
+                                  child: Text(
+                                    'Tracking',
                                     style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.green,
+                                      color: Colors.purple,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  SizedBox(
-                                      width: getPercentageWidth(3, context)),
-                                  Icon(
-                                    Icons.schedule,
-                                    color: Colors.orange,
-                                    size: getIconScale(4, context),
-                                  ),
-                                  SizedBox(
-                                      width: getPercentageWidth(1, context)),
-                                  Text(
-                                    program.duration,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      width: getPercentageWidth(2.5, context)),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Get.to(() => ProgramProgressScreen(
-                                            programId: program.programId,
-                                            programName: program.name,
-                                            programDescription:
-                                                program.description,
-                                            benefits: program.benefits,
-                                            duration: program.duration,
-                                          ));
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.all(
-                                          getPercentageWidth(1.5, context)),
-                                      decoration: BoxDecoration(
-                                        color: Colors.purple
-                                            .withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'Tracking',
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: Colors.purple,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
 
-                        // Leave program button
-                        GestureDetector(
-                          onTap: () async {
-                            try {
-                              await _programService
-                                  .leaveProgram(program.programId);
-                              Get.snackbar(
-                                'Success',
-                                'You\'ve left the ${program.name} program',
-                                backgroundColor: kAccentLight,
-                                colorText: kWhite,
-                              );
-                            } catch (e) {
-                              Get.snackbar(
-                                'Error',
-                                'Failed to leave program',
-                                backgroundColor: Colors.red,
-                                colorText: kWhite,
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding:
-                                EdgeInsets.all(getPercentageWidth(2, context)),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.exit_to_app,
-                              color: Colors.red,
-                              size: getIconScale(5, context),
-                            ),
+                    // Archive program button
+                    PopupMenuButton<String>(
+                      icon: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.more_vert,
+                          color: Colors.grey,
+                          size: getIconScale(5, context),
+                        ),
+                      ),
+                      onSelected: (value) async {
+                        if (value == 'archive') {
+                          try {
+                            await _programService
+                                .archiveProgram(program.programId);
+                            Get.snackbar(
+                              'Success',
+                              '${program.name} has been archived',
+                              backgroundColor: kAccentLight,
+                              colorText: kWhite,
+                            );
+                          } catch (e) {
+                            Get.snackbar(
+                              'Error',
+                              'Failed to archive program: ${e.toString()}',
+                              backgroundColor: Colors.red,
+                              colorText: kWhite,
+                            );
+                          }
+                        } else if (value == 'leave') {
+                          try {
+                            await _programService
+                                .leaveProgram(program.programId);
+                            Get.snackbar(
+                              'Success',
+                              'You\'ve left the ${program.name} program',
+                              backgroundColor: kAccentLight,
+                              colorText: kWhite,
+                            );
+                          } catch (e) {
+                            Get.snackbar(
+                              'Error',
+                              'Failed to leave program: ${e.toString()}',
+                              backgroundColor: Colors.red,
+                              colorText: kWhite,
+                            );
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Row(
+                            children: [
+                              Icon(Icons.archive, color: Colors.grey),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Text('Archive'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'leave',
+                          child: Row(
+                            children: [
+                              Icon(Icons.exit_to_app, color: Colors.red),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Text('Leave Program',
+                                  style: TextStyle(color: Colors.red)),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                );
+                  ],
+                ),
+              ),
+            );
           }),
           SizedBox(height: getPercentageHeight(2, context)),
         ],
+      );
+    });
+  }
+
+  Widget _buildArchivedProgramsSection(
+      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+    return Obx(() {
+      // Check if user has archived programs
+      if (_programService.archivedPrograms.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text(
+            'Archived Programs',
+            style: textTheme.headlineMedium?.copyWith(
+              color: isDarkMode
+                  ? kWhite.withValues(alpha: 0.7)
+                  : kDarkGrey.withValues(alpha: 0.7),
+            ),
+          ),
+          children: List.generate(_programService.archivedPrograms.length, (index) {
+            final program = _programService.archivedPrograms[index];
+
+            return GestureDetector(
+              onTap: () async {
+                // Find complete program data from Firestore
+                try {
+                  final programDoc = await firestore
+                      .collection('programs')
+                      .doc(program.programId)
+                      .get();
+
+                  if (programDoc.exists) {
+                    final programData = {
+                      'programId': program.programId,
+                      ...programDoc.data()!,
+                    };
+                    Get.to(() => ProgramDetailWidget(
+                          program: programData,
+                          isEnrolled: true,
+                        ));
+                  }
+                } catch (e) {
+                  Get.snackbar(
+                    'Error',
+                    'Unable to load program details',
+                    backgroundColor: Colors.red,
+                    colorText: kWhite,
+                  );
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                margin:
+                    EdgeInsets.only(bottom: getPercentageHeight(1, context)),
+                padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? kDarkGrey.withValues(alpha: 0.5)
+                      : kWhite.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Program icon
+                    Container(
+                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.archive,
+                        color: Colors.grey,
+                        size: getIconScale(6, context),
+                      ),
+                    ),
+                    SizedBox(width: getPercentageWidth(4, context)),
+
+                    // Program details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            program.name,
+                            style: textTheme.titleMedium?.copyWith(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.7)
+                                  : kDarkGrey.withValues(alpha: 0.7),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(0.5, context)),
+                          Text(
+                            program.description,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.5)
+                                  : kDarkGrey.withValues(alpha: 0.5),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Unarchive button
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          await _programService
+                              .unarchiveProgram(program.programId);
+                          Get.snackbar(
+                            'Success',
+                            '${program.name} has been unarchived',
+                            backgroundColor: kAccentLight,
+                            colorText: kWhite,
+                          );
+                        } catch (e) {
+                          Get.snackbar(
+                            'Error',
+                            'Failed to unarchive program: ${e.toString()}',
+                            backgroundColor: Colors.red,
+                            colorText: kWhite,
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.unarchive,
+                          color: kAccent,
+                          size: getIconScale(5, context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
       );
     });
   }
@@ -951,6 +1142,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
               // Current enrolled programs section
               _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
+
+              _buildArchivedProgramsSection(context, textTheme, isDarkMode),
+
+              SizedBox(height: getPercentageHeight(2.5, context)),
 
               Obx(() => Text(
                     _programService.userPrograms.length > 1

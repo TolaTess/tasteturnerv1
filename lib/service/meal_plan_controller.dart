@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -63,12 +64,24 @@ class MealPlanController extends GetxController {
     super.onClose();
   }
 
+  // Focused date for calendar view (defaults to now)
+  final Rx<DateTime> focusedDate = DateTime.now().obs;
+
   void startListening() {
     final userId = userService.userId;
     if (userId == null || userId.isEmpty) return;
 
     _setupMealPlansListener();
     _loadFriendsBirthdays();
+  }
+
+  void updateFocusedDate(DateTime date) {
+    // Only update if the month has changed
+    if (date.year != focusedDate.value.year ||
+        date.month != focusedDate.value.month) {
+      focusedDate.value = date;
+      _setupMealPlansListener();
+    }
   }
 
   void _setupMealPlansListener() {
@@ -80,60 +93,64 @@ class MealPlanController extends GetxController {
 
     isLoading.value = true;
 
-    if (showSharedCalendars.value && selectedSharedCalendarId.value != null) {
-      _listenToSharedCalendar();
-    } else {
-      _listenToPersonalCalendar();
-    }
-  }
-
-  void _listenToPersonalCalendar() {
-    final userId = userService.userId;
-    if (userId == null) return;
-
-    isPersonalCalendar.value = true;
-
-    final now = DateTime.now();
-    final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
+    // Calculate date range: previous month, current month, next month
+    final centerDate = focusedDate.value;
+    final firstDayOfCurrentMonth =
+        DateTime(centerDate.year, centerDate.month, 1);
     final startDate = DateTime(
         firstDayOfCurrentMonth.year, firstDayOfCurrentMonth.month - 1, 1);
     final endDate = DateTime(
         firstDayOfCurrentMonth.year, firstDayOfCurrentMonth.month + 2, 0);
+
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final startStr = dateFormat.format(startDate);
+    final endStr = dateFormat.format(endDate);
+
+    if (showSharedCalendars.value && selectedSharedCalendarId.value != null) {
+      _listenToSharedCalendar(startStr, endStr, startDate, endDate);
+    } else {
+      _listenToPersonalCalendar(userId, startStr, endStr, startDate, endDate);
+    }
+  }
+
+  void _listenToPersonalCalendar(String userId, String startStr, String endStr,
+      DateTime startDate, DateTime endDate) {
+    isPersonalCalendar.value = true;
 
     _mealPlansSubscription = firestore
         .collection('mealPlans')
         .doc(userId)
         .collection('date')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: startStr)
+        .where(FieldPath.documentId, isLessThanOrEqualTo: endStr)
         .snapshots()
         .listen((snapshot) async {
       await _processMealPlansSnapshot(snapshot, startDate, endDate);
     }, onError: (error) {
       isLoading.value = false;
+      debugPrint('Error listening to personal calendar: $error');
     });
   }
 
-  void _listenToSharedCalendar() {
+  void _listenToSharedCalendar(
+      String startStr, String endStr, DateTime startDate, DateTime endDate) {
     final calendarId = selectedSharedCalendarId.value;
     if (calendarId == null) return;
 
     isPersonalCalendar.value = false;
 
-    final now = DateTime.now();
-    final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
-    final startDate = DateTime(
-        firstDayOfCurrentMonth.year, firstDayOfCurrentMonth.month - 1, 1);
-    final endDate = DateTime(
-        firstDayOfCurrentMonth.year, firstDayOfCurrentMonth.month + 2, 0);
-
     _sharedCalendarSubscription = firestore
         .collection('shared_calendars')
         .doc(calendarId)
         .collection('date')
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: startStr)
+        .where(FieldPath.documentId, isLessThanOrEqualTo: endStr)
         .snapshots()
         .listen((snapshot) async {
       await _processMealPlansSnapshot(snapshot, startDate, endDate);
     }, onError: (error) {
       isLoading.value = false;
+      debugPrint('Error listening to shared calendar: $error');
     });
   }
 
@@ -260,47 +277,64 @@ class MealPlanController extends GetxController {
       final userId = userService.userId;
       if (userId == null) return;
 
-      final following = await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('following')
-          .get();
+      // Correctly fetch friends from 'friends' collection
+      final friendsDoc = await firestore.collection('friends').doc(userId).get();
+
+      if (!friendsDoc.exists) return;
+
+      final data = friendsDoc.data();
+      final followingIds = List<String>.from(data?['following'] ?? []);
+
+      if (followingIds.isEmpty) return;
 
       final now = DateTime.now();
       final currentYear = now.year;
       final newFriendsBirthdays = <DateTime, List<Map<String, dynamic>>>{};
 
-      for (var doc in following.docs) {
-        final friendId = doc.id;
+      // Batch fetch friend user documents (limit 10 per batch)
+      for (var i = 0; i < followingIds.length; i += 10) {
+        final end =
+            (i + 10 < followingIds.length) ? i + 10 : followingIds.length;
+        final batchIds = followingIds.sublist(i, end);
+
         try {
-          final friendDoc =
-              await firestore.collection('users').doc(friendId).get();
-          if (friendDoc.exists) {
+          final batchSnapshot = await firestore
+              .collection('users')
+              .where(FieldPath.documentId, whereIn: batchIds)
+              .get();
+
+          for (var friendDoc in batchSnapshot.docs) {
             final friendData = friendDoc.data();
-            final birthdayStr = friendData?['birthday'] as String?;
+            final birthdayStr = friendData['birthday'] as String?;
 
             if (birthdayStr != null && birthdayStr.isNotEmpty) {
-              final birthday = DateTime.parse(birthdayStr);
-              final birthdayThisYear =
-                  DateTime(currentYear, birthday.month, birthday.day);
+              try {
+                final birthday = DateTime.parse(birthdayStr);
+                final birthdayThisYear =
+                    DateTime(currentYear, birthday.month, birthday.day);
 
-              if (!newFriendsBirthdays.containsKey(birthdayThisYear)) {
-                newFriendsBirthdays[birthdayThisYear] = [];
+                if (!newFriendsBirthdays.containsKey(birthdayThisYear)) {
+                  newFriendsBirthdays[birthdayThisYear] = [];
+                }
+
+                newFriendsBirthdays[birthdayThisYear]!.add({
+                  'name': friendData['displayName'] ?? 'Friend',
+                  'profileImage': friendData['profileImage'] ?? '',
+                  'userId': friendDoc.id,
+                });
+              } catch (e) {
+                // Ignore parse errors
               }
-
-              newFriendsBirthdays[birthdayThisYear]!.add({
-                'name': friendData?['displayName'] ?? 'Friend',
-                'profileImage': friendData?['profileImage'] ?? '',
-                'userId': friendId,
-              });
             }
           }
         } catch (e) {
+          debugPrint('Error fetching friend batch: $e');
         }
       }
 
       friendsBirthdays.value = newFriendsBirthdays;
-    } catch (e) { 
+    } catch (e) {
+      debugPrint('Error loading friends birthdays: $e');
     }
   }
 
