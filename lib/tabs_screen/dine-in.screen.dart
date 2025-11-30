@@ -42,9 +42,21 @@ class _DineInScreenState extends State<DineInScreen> {
   bool _showFridgeRecipes = false;
   StreamSubscription? _mealUpdateSubscription;
   List<StreamSubscription> _mealSubscriptions = [];
-  
+
   // Pantry mode
   bool isPantryMode = false;
+
+  // Pantry items
+  List<Map<String, dynamic>> pantryItems = [];
+  bool isLoadingPantry = false;
+
+  // Autocomplete suggestions
+  List<String> ingredientSuggestions = [];
+  final LayerLink _suggestionsLayerLink = LayerLink();
+  OverlayEntry? _suggestionsOverlay;
+
+  // Recently used ingredients
+  List<String> recentlyUsedIngredients = [];
 
   // Legacy variables (for backward compatibility - can be removed if not needed)
   MacroData? selectedCarb;
@@ -62,7 +74,55 @@ class _DineInScreenState extends State<DineInScreen> {
     _loadFridgeData();
     _loadFridgeRecipesFromSharedPreferences();
     loadExcludedIngredients();
+    _fetchPantryItems(); // Load pantry items on init
+    _loadRecentlyUsedIngredients(); // Load recently used ingredients
     debugPrint('Excluded ingredients: ${excludedIngredients.length}');
+  }
+
+  /// Load recently used ingredients from SharedPreferences
+  Future<void> _loadRecentlyUsedIngredients() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = prefs.getStringList('recently_used_ingredients') ?? [];
+      setState(() {
+        recentlyUsedIngredients = recent.take(10).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading recently used ingredients: $e');
+    }
+  }
+
+  /// Save recently used ingredients to SharedPreferences
+  Future<void> _saveRecentlyUsedIngredients(String ingredient) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = List<String>.from(recentlyUsedIngredients);
+
+      // Remove if already exists
+      recent.remove(ingredient.toLowerCase());
+
+      // Add to front
+      recent.insert(0, ingredient.toLowerCase());
+
+      // Keep only last 10
+      final updated = recent.take(10).toList();
+
+      await prefs.setStringList('recently_used_ingredients', updated);
+      setState(() {
+        recentlyUsedIngredients = updated;
+      });
+    } catch (e) {
+      debugPrint('Error saving recently used ingredients: $e');
+    }
+  }
+
+  /// Check if ingredient is in pantry
+  bool _isIngredientInPantry(String ingredientName) {
+    return pantryItems.any(
+      (item) =>
+          (item['name'] as String? ?? '').toLowerCase() ==
+          ingredientName.toLowerCase(),
+    );
   }
 
   @override
@@ -74,7 +134,13 @@ class _DineInScreenState extends State<DineInScreen> {
       subscription.cancel();
     }
     _mealSubscriptions.clear();
+    _removeSuggestionsOverlay();
     super.dispose();
+  }
+
+  void _removeSuggestionsOverlay() {
+    _suggestionsOverlay?.remove();
+    _suggestionsOverlay = null;
   }
 
   void loadExcludedIngredients() {
@@ -567,10 +633,13 @@ class _DineInScreenState extends State<DineInScreen> {
         debugPrint('Updated fridgeIngredients: $fridgeIngredients');
 
         await _saveFridgeData();
-        
+
         // If pantry mode is enabled, save to Firestore
         if (isPantryMode) {
           await _saveIngredientsToPantry();
+        } else {
+          // In fridge mode, prompt user to save to pantry
+          await _promptSaveToPantry(ingredientNames);
         }
 
         // If we have suggested meals from the analysis, use them directly
@@ -791,13 +860,249 @@ class _DineInScreenState extends State<DineInScreen> {
       _fridgeController.clear();
     });
 
+    // Save to recently used
+    for (var ingredient in ingredients) {
+      await _saveRecentlyUsedIngredients(ingredient);
+    }
+
     await _saveFridgeData();
-    
+
     // If pantry mode is enabled, save to Firestore
     if (isPantryMode) {
       await _saveIngredientsToPantry();
+    } else {
+      // In fridge mode, prompt user to save to pantry
+      await _promptSaveToPantry(ingredients);
     }
     // await _generateFridgeRecipes();
+  }
+
+  /// Prompt user to save ingredients to pantry
+  Future<void> _promptSaveToPantry(List<String> newIngredients) async {
+    if (newIngredients.isEmpty) return;
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final Set<String> selectedIngredients = Set.from(newIngredients);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Save to Pantry?',
+            style: TextStyle(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Save these ingredients to your pantry?',
+                  style: TextStyle(
+                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                    fontSize: getTextScale(3, context),
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(1, context)),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: newIngredients.length,
+                    itemBuilder: (context, index) {
+                      final ingredient = newIngredients[index];
+                      final isSelected =
+                          selectedIngredients.contains(ingredient);
+
+                      return CheckboxListTile(
+                        title: Text(
+                          capitalizeFirstLetter(ingredient),
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontSize: getTextScale(3, context),
+                          ),
+                        ),
+                        value: isSelected,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selectedIngredients.add(ingredient);
+                            } else {
+                              selectedIngredients.remove(ingredient);
+                            }
+                          });
+                        },
+                        activeColor: kAccent,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'skip'),
+              child: Text(
+                'Skip',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'select'),
+              child: Text(
+                'Select Items',
+                style: TextStyle(
+                  color: kAccent,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, 'save_all'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+              ),
+              child: Text(
+                'Save All',
+                style: TextStyle(color: kWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == 'save_all') {
+      // Save all ingredients
+      await _saveIngredientsToPantry(newIngredients);
+    } else if (result == 'select') {
+      // Show selection dialog
+      await _showSelectItemsToSaveDialog(newIngredients);
+    }
+    // If 'skip', do nothing
+  }
+
+  /// Show dialog to select specific items to save to pantry
+  Future<void> _showSelectItemsToSaveDialog(List<String> ingredients) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final Set<String> selectedIngredients = Set.from(ingredients);
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Select Items to Save',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              if (ingredients.length > 1)
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      if (selectedIngredients.length == ingredients.length) {
+                        selectedIngredients.clear();
+                      } else {
+                        selectedIngredients.addAll(ingredients);
+                      }
+                    });
+                  },
+                  child: Text(
+                    selectedIngredients.length == ingredients.length
+                        ? 'Deselect All'
+                        : 'Select All',
+                    style: TextStyle(
+                      color: kAccent,
+                      fontSize: getTextScale(3, context),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: ingredients.length,
+              itemBuilder: (context, index) {
+                final ingredient = ingredients[index];
+                final isSelected = selectedIngredients.contains(ingredient);
+
+                return CheckboxListTile(
+                  title: Text(
+                    capitalizeFirstLetter(ingredient),
+                    style: TextStyle(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                  ),
+                  value: isSelected,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      if (value == true) {
+                        selectedIngredients.add(ingredient);
+                      } else {
+                        selectedIngredients.remove(ingredient);
+                      }
+                    });
+                  },
+                  activeColor: kAccent,
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: selectedIngredients.isEmpty
+                  ? null
+                  : () {
+                      Navigator.pop(dialogContext);
+                      _saveIngredientsToPantry(selectedIngredients.toList());
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+              ),
+              child: Text(
+                'Save Selected (${selectedIngredients.length})',
+                style: TextStyle(color: kWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _generateFridgeRecipes() async {
@@ -827,7 +1132,12 @@ class _DineInScreenState extends State<DineInScreen> {
       }
 
       // Create mock MacroData objects for the ingredients
-      final mockIngredients = fridgeIngredients
+      // Use pantry items in pantry mode, fridgeIngredients in fridge mode
+      final ingredientsList = isPantryMode
+          ? pantryItems.map((item) => item['name'] as String).toList()
+          : fridgeIngredients;
+
+      final mockIngredients = ingredientsList
           .map((ingredient) => MacroData(
                 id: 'fridge_${ingredient.toLowerCase().replaceAll(' ', '_')}',
                 title: ingredient,
@@ -914,6 +1224,232 @@ class _DineInScreenState extends State<DineInScreen> {
     _saveFridgeData();
   }
 
+  /// Show ingredient actions menu
+  void _showIngredientActionsMenu(String ingredient, BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isInPantry = _isIngredientInPantry(ingredient);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(getPercentageWidth(4, context)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              capitalizeFirstLetter(ingredient),
+              style: TextStyle(
+                fontSize: getTextScale(4, context),
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            if (!isInPantry)
+              ListTile(
+                leading: Icon(Icons.inventory_2, color: kAccent),
+                title: Text(
+                  'Add to Pantry',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _saveIngredientsToPantry([ingredient]);
+                },
+              ),
+            if (isInPantry)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: Colors.red),
+                title: Text(
+                  'Remove from Pantry',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _removeFromPantry(ingredient);
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.orange),
+              title: Text(
+                'Remove from List',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _removeFridgeIngredient(ingredient);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Remove ingredient from pantry
+  Future<void> _removeFromPantry(String ingredientName) async {
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) return;
+
+      final ingredientId = ingredientName
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+          .replaceAll(RegExp(r'_+'), '_');
+
+      await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('pantry')
+          .doc(ingredientId)
+          .delete();
+
+      // Refresh pantry items
+      await _fetchPantryItems();
+
+      if (mounted) {
+        showTastySnackbar(
+          'Removed',
+          'Removed from pantry',
+          context,
+          backgroundColor: kAccent,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error removing from pantry: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to remove from pantry',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  /// Show pantry management view
+  void _showPantryManagementView() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'My Pantry',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            Text(
+              '${pantryItems.length} items',
+              style: TextStyle(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+                fontSize: getTextScale(3, context),
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+          child: pantryItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: getIconScale(15, context),
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Text(
+                        'Your pantry is empty',
+                        style: TextStyle(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: pantryItems.length,
+                  itemBuilder: (context, index) {
+                    final item = pantryItems[index];
+                    final name = item['name'] as String? ?? 'Unknown';
+                    final calories = item['calories'] as int? ?? 0;
+
+                    return ListTile(
+                      leading: Icon(
+                        Icons.inventory_2,
+                        color: kAccent,
+                      ),
+                      title: Text(
+                        capitalizeFirstLetter(name),
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getTextScale(3.5, context),
+                        ),
+                      ),
+                      subtitle: calories > 0
+                          ? Text(
+                              '${calories} kcal',
+                              style: TextStyle(
+                                color: isDarkMode ? kLightGrey : kDarkGrey,
+                                fontSize: getTextScale(2.5, context),
+                              ),
+                            )
+                          : null,
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () async {
+                          await _removeFromPantry(name);
+                          if (mounted) {
+                            Navigator.pop(dialogContext);
+                            _showPantryManagementView();
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _clearFridge() {
     setState(() {
       fridgeIngredients.clear();
@@ -926,7 +1462,8 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   /// Save ingredients to Firestore pantry collection
-  Future<void> _saveIngredientsToPantry() async {
+  Future<void> _saveIngredientsToPantry(
+      [List<String>? ingredientsToSave]) async {
     try {
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
@@ -934,18 +1471,21 @@ class _DineInScreenState extends State<DineInScreen> {
         return;
       }
 
-      if (fridgeIngredients.isEmpty) {
+      // Use provided list or default to all fridgeIngredients
+      final ingredients = ingredientsToSave ?? fridgeIngredients;
+
+      if (ingredients.isEmpty) {
         debugPrint('No ingredients to save to pantry');
         return;
       }
 
-      final pantryRef = firestore
-          .collection('users')
-          .doc(userId)
-          .collection('pantry');
+      final pantryRef =
+          firestore.collection('users').doc(userId).collection('pantry');
+
+      int savedCount = 0;
 
       // Save each ingredient to pantry
-      for (var ingredientName in fridgeIngredients) {
+      for (var ingredientName in ingredients) {
         if (ingredientName.trim().isEmpty) continue;
 
         // Create a document ID from ingredient name (sanitized)
@@ -956,7 +1496,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
         // Check if ingredient already exists
         final existingDoc = await pantryRef.doc(ingredientId).get();
-        
+
         if (existingDoc.exists) {
           // Update existing ingredient
           await pantryRef.doc(ingredientId).update({
@@ -976,17 +1516,21 @@ class _DineInScreenState extends State<DineInScreen> {
             'fat': 0.0,
             'addedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
-            'source': 'fridge_analysis',
+            'source': isPantryMode ? 'pantry_mode' : 'fridge_analysis',
           });
         }
+        savedCount++;
       }
 
-      debugPrint('Saved ${fridgeIngredients.length} ingredients to pantry');
-      
+      debugPrint('Saved $savedCount ingredients to pantry');
+
+      // Refresh pantry items list
+      await _fetchPantryItems();
+
       if (mounted) {
         showTastySnackbar(
           'Pantry Updated',
-          'Ingredients saved to your pantry',
+          '$savedCount ingredient(s) saved to your pantry',
           context,
           backgroundColor: kAccent,
         );
@@ -1002,6 +1546,382 @@ class _DineInScreenState extends State<DineInScreen> {
         );
       }
     }
+  }
+
+  /// Fetch pantry items from Firestore
+  Future<void> _fetchPantryItems() async {
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
+      setState(() {
+        isLoadingPantry = true;
+      });
+
+      final pantryRef =
+          firestore.collection('users').doc(userId).collection('pantry');
+
+      final snapshot = await pantryRef.get();
+
+      setState(() {
+        pantryItems = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'id': doc.id,
+            'name': data['name'] as String? ?? '',
+            'type': data['type'] as String? ?? 'ingredient',
+            'calories': data['calories'] as int? ?? 0,
+            'protein': (data['protein'] as num?)?.toDouble() ?? 0.0,
+            'carbs': (data['carbs'] as num?)?.toDouble() ?? 0.0,
+            'fat': (data['fat'] as num?)?.toDouble() ?? 0.0,
+            'addedAt': data['addedAt'],
+            'updatedAt': data['updatedAt'],
+          };
+        }).toList();
+        isLoadingPantry = false;
+      });
+
+      debugPrint('Fetched ${pantryItems.length} pantry items');
+    } catch (e) {
+      debugPrint('Error fetching pantry items: $e');
+      setState(() {
+        isLoadingPantry = false;
+      });
+    }
+  }
+
+  /// Show pantry ingredient selector dialog
+  Future<void> _showPantryIngredientSelector() async {
+    if (pantryItems.isEmpty) {
+      showTastySnackbar(
+        'Empty Pantry',
+        'No items in your pantry yet. Add ingredients to pantry mode first.',
+        context,
+        backgroundColor: Colors.orange,
+      );
+      return;
+    }
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final Set<String> selectedIngredientIds = {};
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Add from Pantry',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              if (pantryItems.length > 1)
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      if (selectedIngredientIds.length == pantryItems.length) {
+                        selectedIngredientIds.clear();
+                      } else {
+                        selectedIngredientIds.addAll(
+                          pantryItems.map((item) => item['id'] as String),
+                        );
+                      }
+                    });
+                  },
+                  child: Text(
+                    selectedIngredientIds.length == pantryItems.length
+                        ? 'Deselect All'
+                        : 'Select All',
+                    style: TextStyle(
+                      color: kAccent,
+                      fontSize: getTextScale(3, context),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: pantryItems.isEmpty
+                ? Center(
+                    child: Text(
+                      'No items in pantry',
+                      style: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: pantryItems.length,
+                    itemBuilder: (context, index) {
+                      final item = pantryItems[index];
+                      final itemId = item['id'] as String;
+                      final itemName = item['name'] as String;
+                      final isSelected = selectedIngredientIds.contains(itemId);
+                      final isAlreadyAdded = fridgeIngredients.any(
+                          (ing) => ing.toLowerCase() == itemName.toLowerCase());
+
+                      return CheckboxListTile(
+                        title: Text(
+                          itemName,
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontSize: getTextScale(3.5, context),
+                            decoration: isAlreadyAdded
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        subtitle: item['calories'] != null &&
+                                item['calories'] > 0
+                            ? Text(
+                                '${item['calories']} kcal',
+                                style: TextStyle(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              )
+                            : null,
+                        value: isSelected,
+                        onChanged: isAlreadyAdded
+                            ? null
+                            : (value) {
+                                setDialogState(() {
+                                  if (value == true) {
+                                    selectedIngredientIds.add(itemId);
+                                  } else {
+                                    selectedIngredientIds.remove(itemId);
+                                  }
+                                });
+                              },
+                        secondary: isAlreadyAdded
+                            ? Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: getIconScale(5, context),
+                              )
+                            : Icon(
+                                Icons.inventory_2,
+                                color: kAccent,
+                                size: getIconScale(5, context),
+                              ),
+                        activeColor: kAccent,
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: selectedIngredientIds.isEmpty
+                  ? null
+                  : () {
+                      final selectedItems = pantryItems
+                          .where((item) => selectedIngredientIds
+                              .contains(item['id'] as String))
+                          .map((item) => item['name'] as String)
+                          .toList();
+
+                      // Filter out items already in fridgeIngredients
+                      final newItems = selectedItems
+                          .where((name) => !fridgeIngredients.any(
+                              (ing) => ing.toLowerCase() == name.toLowerCase()))
+                          .toList();
+
+                      if (newItems.isNotEmpty) {
+                        setState(() {
+                          fridgeIngredients.addAll(newItems);
+                        });
+                        _saveFridgeData();
+                        Navigator.pop(dialogContext);
+                        showTastySnackbar(
+                          'Added',
+                          'Added ${newItems.length} ingredient(s) from pantry',
+                          context,
+                          backgroundColor: kAccent,
+                        );
+                      } else {
+                        Navigator.pop(dialogContext);
+                        showTastySnackbar(
+                          'Already Added',
+                          'Selected items are already in your list',
+                          context,
+                          backgroundColor: Colors.orange,
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+              ),
+              child: Text(
+                'Add Selected (${selectedIngredientIds.length})',
+                style: TextStyle(color: kWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Get ingredient suggestions based on query
+  List<String> _getIngredientSuggestions(String query) {
+    if (query.isEmpty) {
+      return [];
+    }
+
+    final queryLower = query.toLowerCase();
+    final suggestions = <String>[];
+
+    // Prioritize pantry items
+    for (var item in pantryItems) {
+      final name = (item['name'] as String? ?? '').toLowerCase();
+      if (name.contains(queryLower)) {
+        suggestions.add(item['name'] as String);
+        if (suggestions.length >= 10) break;
+      }
+    }
+
+    // Sort by relevance: exact match first, then starts with, then contains
+    suggestions.sort((a, b) {
+      final aLower = a.toLowerCase();
+      final bLower = b.toLowerCase();
+
+      if (aLower == queryLower) return -1;
+      if (bLower == queryLower) return 1;
+
+      if (aLower.startsWith(queryLower)) return -1;
+      if (bLower.startsWith(queryLower)) return 1;
+
+      return 0;
+    });
+
+    return suggestions.take(10).toList();
+  }
+
+  /// Show autocomplete suggestions overlay
+  void _showSuggestionsOverlay(List<String> suggestions) {
+    _removeSuggestionsOverlay();
+
+    if (suggestions.isEmpty || !_fridgeFocusNode.hasFocus) {
+      return;
+    }
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    _suggestionsOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        width: renderBox.size.width * 0.9,
+        child: CompositedTransformFollower(
+          link: _suggestionsLayerLink,
+          showWhenUnlinked: false,
+          offset: Offset(0, renderBox.size.height + 4),
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            color: isDarkMode ? kDarkGrey : kWhite,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.3,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: kAccent.withValues(alpha: 0.3),
+                ),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: suggestions.length,
+                itemBuilder: (context, index) {
+                  final suggestion = suggestions[index];
+                  final isPantryItem = pantryItems.any(
+                    (item) =>
+                        (item['name'] as String? ?? '').toLowerCase() ==
+                        suggestion.toLowerCase(),
+                  );
+
+                  return InkWell(
+                    onTap: () {
+                      _selectSuggestion(suggestion);
+                    },
+                    child: ListTile(
+                      leading: Icon(
+                        isPantryItem ? Icons.inventory_2 : Icons.food_bank,
+                        color: isPantryItem ? kAccent : kLightGrey,
+                        size: getIconScale(5, context),
+                      ),
+                      title: Text(
+                        capitalizeFirstLetter(suggestion),
+                        style: TextStyle(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getTextScale(3.5, context),
+                        ),
+                      ),
+                      trailing: isPantryItem
+                          ? Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(2, context),
+                                vertical: getPercentageHeight(0.3, context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: kAccent.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Pantry',
+                                style: TextStyle(
+                                  color: kAccent,
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_suggestionsOverlay!);
+  }
+
+  /// Select a suggestion and add it to ingredients
+  void _selectSuggestion(String suggestion) {
+    _fridgeController.text = suggestion;
+    _fridgeFocusNode.unfocus();
+    _removeSuggestionsOverlay();
+
+    // Optionally auto-add or let user confirm
+    // For now, just populate the field
   }
 
   /// Navigate to meal planning with pantry context
@@ -1382,10 +2302,23 @@ class _DineInScreenState extends State<DineInScreen> {
                       ),
                     ),
                   ),
-                  // Pantry Mode Toggle
+                  // Pantry Mode Toggle and View Pantry Button
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // View Pantry Button
+                      if (pantryItems.isNotEmpty)
+                        IconButton(
+                          icon: Icon(
+                            Icons.inventory_2,
+                            color: kAccent,
+                            size: getIconScale(5, context),
+                          ),
+                          tooltip: 'View Pantry (${pantryItems.length})',
+                          onPressed: () {
+                            _showPantryManagementView();
+                          },
+                        ),
                       Text(
                         'Pantry',
                         style: textTheme.bodySmall?.copyWith(
@@ -1403,6 +2336,10 @@ class _DineInScreenState extends State<DineInScreen> {
                             // Save existing ingredients to pantry when enabling
                             _saveIngredientsToPantry();
                           }
+                          // Refresh pantry items when switching to pantry mode
+                          if (value) {
+                            _fetchPantryItems();
+                          }
                         },
                         activeColor: kAccent,
                       ),
@@ -1412,38 +2349,57 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
               SizedBox(height: getPercentageHeight(1, context)),
 
-              // Text input for manual entry
-              TextField(
-                controller: _fridgeController,
-                focusNode: _fridgeFocusNode,
-                onSubmitted: (value) {
-                  _fridgeFocusNode.unfocus();
-                },
-                decoration: InputDecoration(
-                  hintText:
-                      'Enter ingredients separated by commas (e.g., chicken, rice, broccoli)',
-                  hintStyle: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? kLightGrey : kDarkGrey,
+              // Text input for manual entry with autocomplete
+              CompositedTransformTarget(
+                link: _suggestionsLayerLink,
+                child: TextField(
+                  controller: _fridgeController,
+                  focusNode: _fridgeFocusNode,
+                  onChanged: (value) {
+                    if (value.isNotEmpty) {
+                      final suggestions = _getIngredientSuggestions(value);
+                      _showSuggestionsOverlay(suggestions);
+                    } else {
+                      _removeSuggestionsOverlay();
+                    }
+                  },
+                  onSubmitted: (value) {
+                    _fridgeFocusNode.unfocus();
+                    _removeSuggestionsOverlay();
+                  },
+                  onTap: () {
+                    if (_fridgeController.text.isNotEmpty) {
+                      final suggestions =
+                          _getIngredientSuggestions(_fridgeController.text);
+                      _showSuggestionsOverlay(suggestions);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText:
+                        'Enter ingredients separated by commas (e.g., chicken, rice, broccoli)',
+                    hintStyle: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kLightGrey : kDarkGrey,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: kAccent.withValues(alpha: 0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: kAccent.withValues(alpha: 0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: kAccent),
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        BorderSide(color: kAccent.withValues(alpha: 0.3)),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        BorderSide(color: kAccent.withValues(alpha: 0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: kAccent),
-                  ),
+                  maxLines: 2,
                 ),
-                style: textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-                maxLines: 2,
               ),
               SizedBox(height: getPercentageHeight(1, context)),
 
@@ -1482,6 +2438,35 @@ class _DineInScreenState extends State<DineInScreen> {
                   ),
                 ],
               ),
+              // Add from Pantry button (only in fridge mode)
+              if (!isPantryMode && pantryItems.isNotEmpty) ...[
+                SizedBox(height: getPercentageHeight(1, context)),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoadingPantry
+                        ? null
+                        : () => _showPantryIngredientSelector(),
+                    icon: Icon(
+                      Icons.inventory_2,
+                      color: isLoadingPantry ? kLightGrey : kAccent,
+                    ),
+                    label: Text(
+                      isLoadingPantry
+                          ? 'Loading...'
+                          : 'Add from Pantry (${pantryItems.length})',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isLoadingPantry ? kLightGrey : kAccent,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isLoadingPantry ? kLightGrey : kAccent,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1516,12 +2501,10 @@ class _DineInScreenState extends State<DineInScreen> {
           ),
         ],
 
-        // Current ingredients list
-        if (fridgeIngredients.isNotEmpty) ...[
+        // Recently used ingredients (only in fridge mode)
+        if (!isPantryMode && recentlyUsedIngredients.isNotEmpty) ...[
           Text(
-            isPantryMode
-                ? 'Your Pantry (${fridgeIngredients.length})'
-                : 'Your Fridge Ingredients (${fridgeIngredients.length})',
+            'Recently Used',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: kAccent,
@@ -1531,37 +2514,147 @@ class _DineInScreenState extends State<DineInScreen> {
           Wrap(
             spacing: getPercentageWidth(1, context),
             runSpacing: getPercentageHeight(0.5, context),
-            children: fridgeIngredients.map((ingredient) {
-              return Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(2, context),
-                  vertical: getPercentageHeight(0.5, context),
-                ),
-                decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kAccent.withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      capitalizeFirstLetter(ingredient),
-                      style: textTheme.bodySmall?.copyWith(
-                        color: kAccent,
-                        fontWeight: FontWeight.w500,
-                      ),
+            children: recentlyUsedIngredients
+                .where((ing) => !fridgeIngredients
+                    .any((f) => f.toLowerCase() == ing.toLowerCase()))
+                .take(5)
+                .map((ingredient) {
+              final isInPantry = _isIngredientInPantry(ingredient);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (!fridgeIngredients.any(
+                        (f) => f.toLowerCase() == ingredient.toLowerCase())) {
+                      fridgeIngredients.add(ingredient);
+                      _saveFridgeData();
+                      _saveRecentlyUsedIngredients(ingredient);
+                    }
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(0.5, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: isInPantry
+                        ? kAccent.withValues(alpha: 0.15)
+                        : kLightGrey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isInPantry
+                          ? kAccent.withValues(alpha: 0.5)
+                          : kLightGrey.withValues(alpha: 0.3),
                     ),
-                    SizedBox(width: getPercentageWidth(1, context)),
-                    GestureDetector(
-                      onTap: () => _removeFridgeIngredient(ingredient),
-                      child: Icon(
-                        Icons.close,
-                        size: getIconScale(4, context),
-                        color: kAccent,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isInPantry)
+                        Icon(
+                          Icons.inventory_2,
+                          size: getIconScale(3.5, context),
+                          color: kAccent,
+                        ),
+                      if (isInPantry)
+                        SizedBox(width: getPercentageWidth(0.5, context)),
+                      Text(
+                        capitalizeFirstLetter(ingredient),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isInPantry
+                              ? kAccent
+                              : (isDarkMode ? kWhite : kBlack),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+        ],
+
+        SizedBox(height: getPercentageHeight(2, context)),
+        // Current ingredients list
+        // In pantry mode: show pantry items from Firestore
+        // In fridge mode: show fridgeIngredients (items added from pantry or manually)
+        if ((isPantryMode && pantryItems.isNotEmpty) ||
+            (!isPantryMode && fridgeIngredients.isNotEmpty)) ...[
+          Text(
+            isPantryMode
+                ? 'Your Pantry (${pantryItems.length})'
+                : 'Your Fridge Items (${fridgeIngredients.length})',
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: kAccent,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          Wrap(
+            spacing: getPercentageWidth(1, context),
+            runSpacing: getPercentageHeight(0.5, context),
+            children: (isPantryMode
+                    ? pantryItems.map((item) => item['name'] as String).toList()
+                    : fridgeIngredients)
+                .map((ingredient) {
+              final isInPantry = _isIngredientInPantry(ingredient);
+              return GestureDetector(
+                onLongPress: () =>
+                    _showIngredientActionsMenu(ingredient, context),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2, context),
+                    vertical: getPercentageHeight(0.5, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: isInPantry
+                        ? kAccent.withValues(alpha: 0.2)
+                        : kAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isInPantry
+                          ? kAccent.withValues(alpha: 0.7)
+                          : kAccent.withValues(alpha: 0.5),
+                      width: isInPantry ? 1.5 : 1,
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isInPantry)
+                        Icon(
+                          Icons.inventory_2,
+                          size: getIconScale(3.5, context),
+                          color: kAccent,
+                        ),
+                      if (isInPantry)
+                        SizedBox(width: getPercentageWidth(0.5, context)),
+                      Text(
+                        capitalizeFirstLetter(ingredient),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: kAccent,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(width: getPercentageWidth(1, context)),
+                      GestureDetector(
+                        onTap: () {
+                          if (isPantryMode) {
+                            _removeFromPantry(ingredient);
+                          } else {
+                            _removeFridgeIngredient(ingredient);
+                          }
+                        },
+                        child: Icon(
+                          Icons.close,
+                          size: getIconScale(4, context),
+                          color: kAccent,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -1569,7 +2662,9 @@ class _DineInScreenState extends State<DineInScreen> {
           SizedBox(height: getPercentageHeight(2, context)),
 
           // Generate recipes button
-          if (fridgeIngredients.length >= 3) ...[
+          // Use pantry items count in pantry mode, fridgeIngredients count in fridge mode
+          if ((isPantryMode ? pantryItems.length : fridgeIngredients.length) >=
+              3) ...[
             SizedBox(
               width: double.infinity,
               child: AppButton(
@@ -1773,11 +2868,10 @@ class _DineInScreenState extends State<DineInScreen> {
                   : 'Cook with what you have in your fridge',
               details: [
                 {
-                  'icon': Icons.kitchen,
-                  'title': isPantryMode ? 'Pantry' : 'Fridge Ingredients',
-                  'description': isPantryMode
-                      ? 'Add ingredients to your pantry or take a photo'
-                      : 'Add ingredients from your fridge or take a photo',
+                  'icon': Icons.emoji_events,
+                  'title': 'Fridge Mode',
+                  'description':
+                      'Add ingredients from your fridge or take a photo!',
                   'color': kBlue,
                 },
                 {
@@ -1787,12 +2881,13 @@ class _DineInScreenState extends State<DineInScreen> {
                       'Get personalized recipes using your ingredients',
                   'color': kBlue,
                 },
-                // {
-                //   'icon': Icons.emoji_events,
-                //   'title': 'Weekly Challenge',
-                //   'description': 'Join challenges to win points and rewards',
-                //   'color': kBlue,
-                // },
+                {
+                  'icon': Icons.emoji_events,
+                  'title': 'Pantry Mode',
+                  'description':
+                      'Add ingredients to your pantry and use in meal planning!',
+                  'color': kBlue,
+                },
               ],
               iconColor: kBlue,
               tooltip: 'Dine In Information',
@@ -1831,7 +2926,9 @@ class _DineInScreenState extends State<DineInScreen> {
                     // Header text
                     Center(
                       child: Text(
-                        isPantryMode ? 'What\'s in Your Pantry?' : 'What\'s in Your Fridge?',
+                        isPantryMode
+                            ? 'What\'s in Your Pantry?'
+                            : 'What\'s in Your Fridge?',
                         textAlign: TextAlign.center,
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,

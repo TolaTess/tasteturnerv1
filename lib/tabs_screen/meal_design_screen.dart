@@ -409,45 +409,65 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 ),
               ),
               SizedBox(width: getPercentageWidth(2, context)),
-              const InfoIconWidget(
-                title: 'Meal Planner',
-                description: 'Plan your meals for the week',
-                details: [
-                  {
-                    'icon': Icons.calendar_month,
-                    'title': 'Add Meals',
-                    'description':
-                        'Add your meals or drag and drop meals to copy to other dates',
-                    'color': kAccentLight,
-                  },
-                  {
-                    'icon': Icons.people_outline,
-                    'title': 'Share Calendar',
-                    'description':
-                        'Share your meal plan with friends and family',
-                    'color': kAccentLight,
-                  },
-                  {
-                    'icon': Icons.cake,
-                    'title': 'Special Days',
-                    'description': 'Mark special occasions and celebrations',
-                    'color': kAccentLight,
-                  },
-                  {
-                    'icon': Icons.family_restroom,
-                    'title': 'Family Mode',
-                    'description': 'Plan meals for your entire family',
-                    'color': kAccentLight,
-                  },
-                  {
-                    'icon': Icons.shopping_cart,
-                    'title': 'Shopping List',
-                    'description':
-                        'Add meals to your calender to automatically generate shopping lists',
-                    'color': kAccentLight,
-                  },
-                ],
-                iconColor: kAccentLight,
+              Builder(
+                builder: (context) {
+                  // Get user gender to conditionally show cycle syncing
+                  final userGender = userService
+                      .currentUser.value?.settings['gender'] as String?;
+                  final isMale = userGender?.toLowerCase() == 'male';
+
+                  // Build details list, excluding cycle syncing for males
+                  final details = <Map<String, dynamic>>[
+                    {
+                      'icon': Icons.calendar_month,
+                      'title': 'Add Meals',
+                      'description':
+                          'Add your meals or drag and drop meals to copy to other dates',
+                      'color': kAccentLight,
+                    },
+                    if (!isMale)
+                      {
+                        'icon': Icons.shopping_cart,
+                        'title': 'Cycle Syncing',
+                        'description':
+                            'Adjust macro goals based on your menstrual cycle phase',
+                        'color': kAccentLight,
+                      },
+                    {
+                      'icon': Icons.people_outline,
+                      'title': 'Share Calendar',
+                      'description':
+                          'Share your meal plan with friends and family',
+                      'color': kAccentLight,
+                    },
+                    {
+                      'icon': Icons.cake,
+                      'title': 'Special Days',
+                      'description': 'Mark special occasions and celebrations',
+                      'color': kAccentLight,
+                    },
+                    {
+                      'icon': Icons.family_restroom,
+                      'title': 'Family Mode',
+                      'description': 'Plan meals for your entire family',
+                      'color': kAccentLight,
+                    },
+                    {
+                      'icon': Icons.shopping_cart,
+                      'title': 'Shopping List',
+                      'description':
+                          'Add meals to your calender to automatically generate shopping lists',
+                      'color': kAccentLight,
+                    },
+                  ];
+
+                  return InfoIconWidget(
+                    title: 'Meal Planner',
+                    description: 'Plan your meals for the week',
+                    details: details,
+                    iconColor: kAccentLight,
+                  );
+                },
               ),
             ],
           ),
@@ -922,28 +942,20 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                 ),
                                               ),
                                             // Cycle phase indicator
-                                            if (_shouldShowCycleIndicator(normalizedDate))
+                                            if (_shouldShowCycleIndicator(
+                                                normalizedDate))
                                               Positioned(
                                                 left: 2,
                                                 top: 2,
-                                                child: Container(
-                                                  width: getPercentageWidth(2.5, context),
-                                                  height: getPercentageWidth(2.5, context),
-                                                  decoration: BoxDecoration(
-                                                    color: _getCyclePhaseColor(normalizedDate),
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                      color: isDarkMode ? kWhite : kBlack,
-                                                      width: 0.5,
-                                                    ),
-                                                  ),
-                                                  child: Center(
-                                                    child: Text(
-                                                      _getCyclePhaseEmoji(normalizedDate),
-                                                      style: TextStyle(
-                                                        fontSize: getPercentageWidth(1.8, context),
-                                                      ),
-                                                    ),
+                                                child: Text(
+                                                  _getCyclePhaseEmoji(
+                                                      normalizedDate),
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        getPercentageWidth(
+                                                            2.5, context),
+                                                    color: _getCyclePhaseColor(
+                                                        normalizedDate),
                                                   ),
                                                 ),
                                               ),
@@ -2538,12 +2550,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     final cycleDataRaw = user.settings['cycleTracking'];
     if (cycleDataRaw == null) return null;
-    
+
     // Handle both Map and String types safely
     if (cycleDataRaw is Map) {
       return Map<String, dynamic>.from(cycleDataRaw);
     }
-    
+
     return null; // If it's not a Map, we can't process it
   }
 
@@ -2559,7 +2571,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
     if (lastPeriodStart == null) return false;
-    
+
     // Only show indicator for current month dates
     final now = DateTime.now();
     if (date.month != now.month || date.year != now.year) return false;
@@ -2578,8 +2590,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (lastPeriodStart == null) return Colors.transparent;
 
     final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
-    final phase = cycleAdjustmentService.getCurrentPhase(lastPeriodStart, cycleLength);
-    
+    // Pass the specific date to calculate phase for that date, not today
+    final phase = cycleAdjustmentService.getCurrentPhase(
+        lastPeriodStart, cycleLength, date);
+
     return cycleAdjustmentService.getPhaseColor(phase);
   }
 
@@ -2594,8 +2608,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     if (lastPeriodStart == null) return '';
 
     final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
-    final phase = cycleAdjustmentService.getCurrentPhase(lastPeriodStart, cycleLength);
-    
+    // Pass the specific date to calculate phase for that date, not today
+    final phase = cycleAdjustmentService.getCurrentPhase(
+        lastPeriodStart, cycleLength, date);
+
     return cycleAdjustmentService.getPhaseEmoji(phase);
   }
 }

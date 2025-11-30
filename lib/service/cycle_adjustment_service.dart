@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import '../constants.dart';
 import '../data_models/cycle_tracking_model.dart';
 
 class CycleAdjustmentService extends GetxController {
@@ -14,15 +12,33 @@ class CycleAdjustmentService extends GetxController {
   }
 
   /// Get current cycle phase based on last period start and cycle length
-  CyclePhase getCurrentPhase(DateTime? lastPeriodStart, int cycleLength) {
+  /// [targetDate] defaults to now if not provided
+  CyclePhase getCurrentPhase(DateTime? lastPeriodStart, int cycleLength, [DateTime? targetDate]) {
     if (lastPeriodStart == null) {
       return CyclePhase.follicular; // Default if not set
     }
 
-    final now = DateTime.now();
-    final daysSincePeriod = now.difference(lastPeriodStart).inDays;
+    final dateToCheck = targetDate ?? DateTime.now();
+    // Normalize both dates to midnight for accurate day calculation
+    final lastPeriodStartNormalized = DateTime(lastPeriodStart.year, lastPeriodStart.month, lastPeriodStart.day);
+    final targetDateNormalized = DateTime(dateToCheck.year, dateToCheck.month, dateToCheck.day);
+    
+    final daysSincePeriod = targetDateNormalized.difference(lastPeriodStartNormalized).inDays;
+    
+    // Handle negative days (if target date is before last period start)
+    if (daysSincePeriod < 0) {
+      // Calculate from previous cycle
+      final daysInPreviousCycle = daysSincePeriod % cycleLength;
+      final dayInCycle = daysInPreviousCycle + cycleLength + 1;
+      return _getPhaseForDay(dayInCycle, cycleLength);
+    }
+    
     final dayInCycle = (daysSincePeriod % cycleLength) + 1;
-
+    return _getPhaseForDay(dayInCycle, cycleLength);
+  }
+  
+  /// Helper method to get phase for a specific day in cycle
+  CyclePhase _getPhaseForDay(int dayInCycle, int cycleLength) {
     if (dayInCycle >= 1 && dayInCycle <= 5) {
       return CyclePhase.menstrual;
     } else if (dayInCycle >= 6 && dayInCycle <= 13) {
@@ -30,7 +46,7 @@ class CycleAdjustmentService extends GetxController {
     } else if (dayInCycle >= 14 && dayInCycle <= 16) {
       return CyclePhase.ovulation;
     } else {
-      // Days 17-28
+      // Days 17 to cycleLength
       return CyclePhase.luteal;
     }
   }

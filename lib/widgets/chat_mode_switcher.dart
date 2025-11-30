@@ -4,11 +4,13 @@ import 'package:tasteturner/constants.dart';
 class ChatModeSwitcher extends StatefulWidget {
   final TabController controller;
   final List<ChatModeTab> tabs;
+  final bool? isDarkMode;
 
   const ChatModeSwitcher({
     super.key,
     required this.controller,
     required this.tabs,
+    this.isDarkMode,
   });
 
   @override
@@ -35,7 +37,8 @@ class _ChatModeSwitcherState extends State<ChatModeSwitcher> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+    final isDarkMode =
+        widget.isDarkMode ?? (theme.brightness == Brightness.dark);
 
     return Container(
       height: 48,

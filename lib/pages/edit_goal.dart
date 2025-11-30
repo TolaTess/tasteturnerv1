@@ -96,6 +96,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
       // Initialize cycle tracking from settings
       final cycleDataRaw = user.settings['cycleTracking'];
+      debugPrint('Loading cycle tracking data: $cycleDataRaw (type: ${cycleDataRaw.runtimeType})');
+      
       if (cycleDataRaw != null && cycleDataRaw is Map) {
         final cycleData = Map<String, dynamic>.from(cycleDataRaw);
         isCycleTrackingEnabled = cycleData['isEnabled'] as bool? ?? false;
@@ -110,9 +112,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
             lastPeriodStart = lastPeriodStartValue.toDate();
           }
         }
+        
+        debugPrint('Cycle tracking loaded: isEnabled=$isCycleTrackingEnabled, '
+            'lastPeriodStart=$lastPeriodStart, cycleLength=${cycleLengthController.text}');
       } else {
         cycleLengthController.text = '28'; // Default
         isCycleTrackingEnabled = false;
+        debugPrint('Cycle tracking not found or invalid, using defaults');
       }
     }
   }
@@ -162,6 +168,10 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         // Update both settings and familyMode
         await authController.updateUserData(
             {'settings': updatedSettings, 'familyMode': isFamilyModeEnabled});
+        
+        debugPrint('Cycle tracking saved: isEnabled=$isCycleTrackingEnabled, '
+            'lastPeriodStart=${lastPeriodStart?.toIso8601String()}, '
+            'cycleLength=${cycleLengthController.text}');
 
         Get.snackbar('Success', 'Settings updated successfully!',
             snackPosition: SnackPosition.BOTTOM);

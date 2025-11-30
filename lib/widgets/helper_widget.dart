@@ -108,11 +108,11 @@ class SearchContentGridState extends State<SearchContentGrid> {
         if (result.isSuccess && mounted) {
           var posts = result.posts;
 
-          // Apply recipe filter if enabled
+          // Apply recipe filter if enabled - show only posts with mealId
           if (widget.filterByRecipe) {
             posts = posts.where((post) {
-              final recipe = post['recipe'];
-              return recipe != null && recipe is Map && recipe.isNotEmpty;
+              final mealId = post['mealId'];
+              return mealId != null && mealId.toString().isNotEmpty;
             }).toList();
           }
 

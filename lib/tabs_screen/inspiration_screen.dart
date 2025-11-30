@@ -150,6 +150,13 @@ class _InspirationScreenState extends State<InspirationScreen> {
                       'color': kAccent,
                     },
                     {
+                      'icon': Icons.auto_awesome,
+                      'title': 'Filter by Recipe',
+                      'description':
+                          'Filter posts by recipes only',
+                      'color': kAccent,
+                    },
+                    {
                       'icon': Icons.people,
                       'title': 'Community Posts',
                       'description': 'See what others are cooking and eating',
@@ -173,6 +180,33 @@ class _InspirationScreenState extends State<InspirationScreen> {
                   iconColor: isDarkMode ? kWhite : kDarkGrey,
                   tooltip: 'Inspiration Information',
                 ),
+                IconButton(
+                  icon: Icon(
+                    filterByRecipe
+                        ? Icons.restaurant_menu
+                        : Icons.restaurant_menu_outlined,
+                    color: filterByRecipe
+                        ? kAccentLight.withValues(alpha: 0.7)
+                        : kWhite.withOpacity(0.7),
+                  ),
+                  tooltip: 'Show posts with recipes only',
+                  onPressed: () {
+                    setState(() {
+                      filterByRecipe = !filterByRecipe;
+                    });
+
+                    // Show feedback
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(filterByRecipe
+                            ? 'Showing posts with recipes only'
+                            : 'Showing all posts'),
+                        duration: const Duration(seconds: 1),
+                        backgroundColor: kAccent,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             Row(
@@ -191,33 +225,6 @@ class _InspirationScreenState extends State<InspirationScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              filterByRecipe
-                  ? Icons.restaurant_menu
-                  : Icons.restaurant_menu_outlined,
-              color: filterByRecipe ? kWhite : kWhite.withOpacity(0.7),
-            ),
-            tooltip: 'Show posts with recipes only',
-            onPressed: () {
-              setState(() {
-                filterByRecipe = !filterByRecipe;
-              });
-
-              // Show feedback
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(filterByRecipe
-                      ? 'Showing posts with recipes only'
-                      : 'Showing all posts'),
-                  duration: const Duration(seconds: 1),
-                  backgroundColor: kAccent,
-                ),
-              );
-            },
-          ),
-        ],
       ),
       floatingActionButtonLocation: CustomFloatingActionButtonLocation(
         verticalOffset: getPercentageHeight(5, context),

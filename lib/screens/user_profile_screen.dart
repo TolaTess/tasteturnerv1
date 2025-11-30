@@ -17,6 +17,9 @@ import '../service/badge_service.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'badges_screen.dart';
 import 'chat_screen.dart';
+import '../data_models/meal_model.dart';
+import '../detail_screen/recipe_detail.dart';
+import '../widgets/optimized_image.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -30,7 +33,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool lastStatus = true;
   bool showAll = false;
   List<Map<String, dynamic>> searchContentDatas = [];
-  bool isLoading = true;
+  bool isPostsLoading = true;
+  bool isMealsLoading = false;
+  bool showMeals = false; // Toggle between posts and meals
+  List<Meal> userMeals = [];
 
   late ScrollController _scrollController;
 
@@ -68,7 +74,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> _fetchContent(String userId) async {
     if (mounted) {
       setState(() {
-        isLoading = true;
+        isPostsLoading = true;
         searchContentDatas = [];
       });
     }
@@ -85,12 +91,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (result.isSuccess && mounted) {
         setState(() {
           searchContentDatas = result.posts;
-          isLoading = false;
+          isPostsLoading = false;
         });
       } else if (mounted) {
         setState(() {
           searchContentDatas = [];
-          isLoading = false;
+          isPostsLoading = false;
         });
         if (result.error != null) {
           debugPrint('Error fetching user posts: ${result.error}');
@@ -101,7 +107,54 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (mounted) {
         setState(() {
           searchContentDatas = [];
-          isLoading = false;
+          isPostsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchUserMeals(String userId) async {
+    if (mounted) {
+      setState(() {
+        isMealsLoading = true;
+        userMeals = [];
+      });
+    }
+
+    try {
+      // Fetch meals created by this user
+      final snapshot = await firestore
+          .collection('meals')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .get();
+
+      if (mounted) {
+        final meals = snapshot.docs
+            .map((doc) {
+              try {
+                final data = doc.data();
+                return Meal.fromJson(doc.id, data);
+              } catch (e) {
+                debugPrint('Error parsing meal ${doc.id}: $e');
+                return null;
+              }
+            })
+            .whereType<Meal>()
+            .toList();
+
+        setState(() {
+          userMeals = meals;
+          isMealsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching user meals: $e');
+      if (mounted) {
+        setState(() {
+          userMeals = [];
+          isMealsLoading = false;
         });
       }
     }
@@ -382,145 +435,334 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                         ),
                       SizedBox(height: getPercentageHeight(1, context)),
-                      // Search Content Section
+                      // Toggle between Posts and Meals
+                      Container(
+                        margin: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(3, context),
+                          vertical: getPercentageHeight(1, context),
+                        ),
+                        decoration: BoxDecoration(
+                          color: themeProvider.isDarkMode
+                              ? kDarkGrey
+                              : kLightGrey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    showMeals = false;
+                                    showAll = false;
+                                  });
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1.2, context),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        !showMeals ? kAccent : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Posts',
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: !showMeals
+                                            ? kWhite
+                                            : (themeProvider.isDarkMode
+                                                ? kWhite
+                                                : kBlack),
+                                        fontWeight: !showMeals
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    showMeals = true;
+                                    showAll = false;
+                                  });
+                                  if (userMeals.isEmpty) {
+                                    _fetchUserMeals(widget.userId);
+                                  }
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1.2, context),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        showMeals ? kAccent : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Meals',
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: showMeals
+                                            ? kWhite
+                                            : (themeProvider.isDarkMode
+                                                ? kWhite
+                                                : kBlack),
+                                        fontWeight: showMeals
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Search Content Section (Posts or Meals)
                       Builder(
                         builder: (context) {
-                          final itemCount = showAll
-                              ? searchContentDatas.length
-                              : (searchContentDatas.length > 9
-                                  ? 9
-                                  : searchContentDatas.length);
+                          if (showMeals) {
+                            // Show meals
+                            final itemCount = showAll
+                                ? userMeals.length
+                                : (userMeals.length > 9
+                                    ? 9
+                                    : userMeals.length);
 
-                          return Column(
-                            children: [
-                              if (isLoading)
-                                Container(
-                                  height: getPercentageHeight(30, context),
-                                  child: Center(
+                            return Column(
+                              children: [
+                                if (isMealsLoading)
+                                  Container(
+                                    height: getPercentageHeight(20, context),
                                     child: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
                                       children: [
-                                        const CircularProgressIndicator(
-                                          color: kAccent,
-                                          strokeWidth: 3,
-                                        ),
+                                        CircularProgressIndicator(
+                                            color: kAccent),
                                         SizedBox(
                                             height: getPercentageHeight(
                                                 2, context)),
                                         Text(
-                                          'Loading posts...',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: Colors.grey,
-                                              ),
+                                          'Loading meals...',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: themeProvider.isDarkMode
+                                                ? kWhite.withValues(alpha: 0.7)
+                                                : kDarkGrey
+                                                    .withValues(alpha: 0.7),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                )
-                              else if (searchContentDatas.isEmpty)
-                                Container(
-                                  height: getPercentageHeight(20, context),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.photo_library_outlined,
-                                          size: getIconScale(12, context),
-                                          color: Colors.grey
-                                              .withValues(alpha: 0.5),
-                                        ),
-                                        SizedBox(
-                                            height: getPercentageHeight(
-                                                1, context)),
-                                        Text(
-                                          "No Posts yet.",
-                                          style: TextStyle(
-                                            fontSize: getTextScale(4, context),
-                                            color: Colors.grey,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
+                                  )
+                                else if (userMeals.isEmpty)
+                                  Padding(
+                                    padding: EdgeInsets.all(
+                                        getPercentageWidth(4, context)),
+                                    child: Text(
+                                      "No Meals yet.",
+                                      style: textTheme.bodyLarge?.copyWith(
+                                        color: Colors.grey,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
-                                )
-                              else
-                                GridView.builder(
-                                  key: ValueKey(
-                                      'posts_grid_${widget.userId}_${searchContentDatas.length}'),
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  shrinkWrap: true,
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    mainAxisSpacing:
-                                        getPercentageWidth(0.5, context),
-                                    crossAxisSpacing:
-                                        getPercentageWidth(0.5, context),
-                                  ),
-                                  padding: EdgeInsets.only(
-                                      top: getPercentageHeight(1, context),
-                                      bottom: getPercentageHeight(1, context)),
-                                  itemCount: itemCount,
-                                  itemBuilder: (BuildContext ctx, index) {
-                                    final data = searchContentDatas[index];
-                                    // Convert Map to Post for SearchContentPost
-                                    final post =
-                                        Post.fromMap(data, data['id'] ?? '');
-                                    return SearchContentPost(
-                                      key: ValueKey(
-                                          'post_${data['id'] ?? index}'),
-                                      dataSrc: post,
-                                      press: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ChallengeDetailScreen(
-                                              dataSrc:
-                                                  data, // Use Map directly for ChallengeDetailScreen
-                                              screen: 'myPost',
-                                              allPosts: searchContentDatas,
-                                              initialIndex: index,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              if (searchContentDatas.isNotEmpty &&
-                                  searchContentDatas.length > 9)
-                                GestureDetector(
-                                  key: ValueKey(
-                                      'show_all_toggle_${widget.userId}'),
-                                  onTap: () {
-                                    setState(() {
-                                      showAll = !showAll;
-                                    });
-                                  },
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        vertical:
+                                  )
+                                else
+                                  GridView.builder(
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      mainAxisSpacing:
+                                          getPercentageWidth(0.5, context),
+                                      crossAxisSpacing:
+                                          getPercentageWidth(0.5, context),
+                                    ),
+                                    padding: EdgeInsets.only(
+                                        top: getPercentageHeight(1, context),
+                                        bottom:
                                             getPercentageHeight(1, context)),
-                                    child: Icon(
-                                      showAll
-                                          ? Icons.keyboard_arrow_up
-                                          : Icons.keyboard_arrow_down,
-                                      size: getPercentageWidth(9, context),
-                                      color: Colors.grey,
+                                    itemCount: itemCount,
+                                    itemBuilder: (BuildContext ctx, index) {
+                                      final meal = userMeals[index];
+                                      return _buildMealCard(meal, context);
+                                    },
+                                  ),
+                                if (userMeals.isNotEmpty &&
+                                    userMeals.length > 9)
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        showAll = !showAll;
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: getPercentageHeight(
+                                              1, context)),
+                                      child: Icon(
+                                        showAll
+                                            ? Icons.keyboard_arrow_up
+                                            : Icons.keyboard_arrow_down,
+                                        size: getPercentageWidth(9, context),
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
-                          );
+                              ],
+                            );
+                          } else {
+                            // Show posts (existing code)
+                            final itemCount = showAll
+                                ? searchContentDatas.length
+                                : (searchContentDatas.length > 9
+                                    ? 9
+                                    : searchContentDatas.length);
+
+                            return Column(
+                              children: [
+                                if (isPostsLoading)
+                                  Container(
+                                    height: getPercentageHeight(30, context),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const CircularProgressIndicator(
+                                            color: kAccent,
+                                            strokeWidth: 3,
+                                          ),
+                                          SizedBox(
+                                              height: getPercentageHeight(
+                                                  2, context)),
+                                          Text(
+                                            'Loading posts...',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Colors.grey,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else if (searchContentDatas.isEmpty)
+                                  Container(
+                                    height: getPercentageHeight(20, context),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.photo_library_outlined,
+                                            size: getIconScale(12, context),
+                                            color: Colors.grey
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                          SizedBox(
+                                              height: getPercentageHeight(
+                                                  1, context)),
+                                          Text(
+                                            "No Posts yet.",
+                                            style: TextStyle(
+                                              fontSize:
+                                                  getTextScale(4, context),
+                                              color: Colors.grey,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  GridView.builder(
+                                    key: ValueKey(
+                                        'posts_grid_${widget.userId}_${searchContentDatas.length}'),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      mainAxisSpacing:
+                                          getPercentageWidth(0.5, context),
+                                      crossAxisSpacing:
+                                          getPercentageWidth(0.5, context),
+                                    ),
+                                    padding: EdgeInsets.only(
+                                        top: getPercentageHeight(1, context),
+                                        bottom:
+                                            getPercentageHeight(1, context)),
+                                    itemCount: itemCount,
+                                    itemBuilder: (BuildContext ctx, index) {
+                                      final data = searchContentDatas[index];
+                                      // Convert Map to Post for SearchContentPost
+                                      final post =
+                                          Post.fromMap(data, data['id'] ?? '');
+                                      return SearchContentPost(
+                                        key: ValueKey(
+                                            'post_${data['id'] ?? index}'),
+                                        dataSrc: post,
+                                        press: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ChallengeDetailScreen(
+                                                dataSrc:
+                                                    data, // Use Map directly for ChallengeDetailScreen
+                                                screen: 'myPost',
+                                                allPosts: searchContentDatas,
+                                                initialIndex: index,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                if (searchContentDatas.isNotEmpty &&
+                                    searchContentDatas.length > 9)
+                                  GestureDetector(
+                                    key: ValueKey(
+                                        'show_all_toggle_${widget.userId}'),
+                                    onTap: () {
+                                      setState(() {
+                                        showAll = !showAll;
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: getPercentageHeight(
+                                              1, context)),
+                                      child: Icon(
+                                        showAll
+                                            ? Icons.keyboard_arrow_up
+                                            : Icons.keyboard_arrow_down,
+                                        size: getPercentageWidth(9, context),
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
                         },
                       ),
 
@@ -531,6 +773,89 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ]),
         );
       }),
+    );
+  }
+
+  Widget _buildMealCard(Meal meal, BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final mediaPath = meal.mediaPaths.isNotEmpty
+        ? meal.mediaPaths.first
+        : extPlaceholderImage;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeDetailScreen(
+              mealData: meal,
+            ),
+          ),
+        );
+      },
+      child: Stack(
+        children: [
+          Container(
+            height: getPercentageHeight(33, context),
+            width: getPercentageWidth(33, context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: mediaPath.isNotEmpty && mediaPath.contains('http')
+                  ? OptimizedImage(
+                      imageUrl: mediaPath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      borderRadius: BorderRadius.circular(8),
+                    )
+                  : Image.asset(
+                      getAssetImageForItem(meal.category ?? 'default'),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Image.asset(
+                        extPlaceholderImage,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+            ),
+          ),
+          // Gradient overlay for better text visibility
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Meal title overlay
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: EdgeInsets.all(getPercentageWidth(1.5, context)),
+              child: Text(
+                meal.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.bodySmall?.copyWith(
+                  color: kWhite,
+                  fontWeight: FontWeight.w600,
+                  fontSize: getTextScale(2.8, context),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

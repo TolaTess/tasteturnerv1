@@ -119,7 +119,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
   Future<void> _loadProgramTypes() async {
     try {
       final snapshot = await firestore.collection('programs').get();
-      final types = snapshot.docs.map((doc) {
+      final types = snapshot.docs.where((doc) {
+        final data = doc.data();
+        // Filter out custom/private programs - they should not appear in the public list
+        final isPrivate = data['isPrivate'] as bool? ?? false;
+        return !isPrivate;
+      }).map((doc) {
         final data = doc.data();
         return {
           'programId': doc.id,
@@ -677,7 +682,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
                   : kDarkGrey.withValues(alpha: 0.7),
             ),
           ),
-          children: List.generate(_programService.archivedPrograms.length, (index) {
+          children:
+              List.generate(_programService.archivedPrograms.length, (index) {
             final program = _programService.archivedPrograms[index];
 
             return GestureDetector(
@@ -857,12 +863,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       'Monitor your progress with visual charts and milestones',
                   'color': kAccent,
                 },
-                // {
-                //   'icon': Icons.people,
-                //   'title': 'Community Support',
-                //   'description': 'Join others on similar health journeys',
-                //   'color': kAccent,
-                // },
+                {
+                  'icon': Icons.auto_awesome,
+                  'title': 'Customize Your Program',
+                  'description': 'Create a program tailored to your needs',
+                  'color': kAccent,
+                },
                 {
                   'icon': Icons.schedule,
                   'title': 'Flexible Duration',

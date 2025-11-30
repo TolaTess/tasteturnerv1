@@ -980,54 +980,161 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     ),
                   ),
 
-                  // Suggestions list
-                  if (suggestions.isNotEmpty) ...[
-                    SizedBox(height: getPercentageHeight(2, context)),
-                    Text(
-                      'Suggestions:',
-                      style: TextStyle(
-                        color: isDarkMode ? kWhite : kBlack,
-                        fontWeight: FontWeight.w600,
-                        fontSize: getTextScale(4, context),
+                  // Suggestions list or no results message
+                  if (!isLoading) ...[
+                    if (suggestions.isNotEmpty) ...[
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Suggestions from previous meals:',
+                            style: TextStyle(
+                              color: isDarkMode ? kWhite : kBlack,
+                              fontWeight: FontWeight.w600,
+                              fontSize: getTextScale(3.5, context),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final remainingCal =
+                                  int.tryParse(caloriesController.text) ?? 0;
+                              if (remainingCal > 0) {
+                                Navigator.pop(dialogContext);
+                                await _searchMealsByCalories(remainingCal);
+                              }
+                            },
+                            icon: Icon(Icons.search,
+                                color: kAccent, size: getIconScale(4, context)),
+                            label: Text(
+                              'Search More',
+                              style: TextStyle(
+                                color: kAccent,
+                                fontSize: getTextScale(3, context),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: getPercentageHeight(1, context)),
-                    Container(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.3,
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      Container(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.3,
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: suggestions.length,
+                          itemBuilder: (context, index) {
+                            final item = suggestions[index];
+                            return ListTile(
+                              title: Text(
+                                item['name'] ?? 'Unknown',
+                                style: TextStyle(
+                                  fontSize: getTextScale(3, context),
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${item['calories']} kcal • P: ${item['protein']?.toStringAsFixed(1) ?? '0'}g • C: ${item['carbs']?.toStringAsFixed(1) ?? '0'}g • F: ${item['fat']?.toStringAsFixed(1) ?? '0'}g',
+                                style: TextStyle(
+                                  fontSize: getTextScale(2.5, context),
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                              trailing: Icon(
+                                Icons.add_circle_outline,
+                                color: kAccent,
+                              ),
+                              onTap: () {
+                                Navigator.pop(dialogContext);
+                                _addSuggestedMeal(item);
+                              },
+                            );
+                          },
+                        ),
                       ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: suggestions.length,
-                        itemBuilder: (context, index) {
-                          final item = suggestions[index];
-                          return ListTile(
-                            title: Text(
-                              item['name'] ?? 'Unknown',
+                    ] else ...[
+                      // No suggestions found message
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Container(
+                        padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange,
+                              size: getIconScale(8, context),
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              'No meals found in previous history',
                               style: TextStyle(
                                 color: isDarkMode ? kWhite : kBlack,
+                                fontWeight: FontWeight.w600,
+                                fontSize: getTextScale(3.5, context),
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                            subtitle: Text(
-                              '${item['calories']} kcal • P: ${item['protein']?.toStringAsFixed(1) ?? '0'}g • C: ${item['carbs']?.toStringAsFixed(1) ?? '0'}g • F: ${item['fat']?.toStringAsFixed(1) ?? '0'}g',
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Text(
+                              'Search meals from the database within your calorie range',
                               style: TextStyle(
                                 color: isDarkMode ? kLightGrey : kDarkGrey,
+                                fontSize: getTextScale(3, context),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final remainingCal =
+                                      int.tryParse(caloriesController.text) ??
+                                          0;
+                                  if (remainingCal > 0) {
+                                    Navigator.pop(dialogContext);
+                                    await _searchMealsByCalories(remainingCal);
+                                  } else {
+                                    if (mounted) {
+                                      showTastySnackbar(
+                                        'Try Again',
+                                        'Please enter remaining calories first',
+                                        context,
+                                        backgroundColor: kRed,
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: Icon(Icons.search, color: kWhite),
+                                label: Text(
+                                  'Search Meals by Calories',
+                                  style: TextStyle(
+                                    color: kWhite,
+                                    fontSize: getTextScale(3.5, context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kAccent,
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1.5, context),
+                                  ),
+                                ),
                               ),
                             ),
-                            trailing: Icon(
-                              Icons.add_circle_outline,
-                              color: kAccent,
-                            ),
-                            onTap: () {
-                              // Add this item to the current meal type
-                              Navigator.pop(dialogContext);
-                              // TODO: Navigate to add this meal
-                              _addSuggestedMeal(item);
-                            },
-                          );
-                        },
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ],
               ),
@@ -1051,15 +1158,374 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
-  Future<void> _addSuggestedMeal(Map<String, dynamic> item) async {
-    // TODO: Implement adding suggested meal to current meal type
-    // For now, show a message
-    if (mounted) {
-      showTastySnackbar(
-        'Meal Selected',
-        '${item['name']} - Add this meal from the search results',
-        context,
+  /// Search meals from database filtered by calories (10% threshold)
+  Future<void> _searchMealsByCalories(int targetCalories) async {
+    try {
+      // Calculate 10% threshold (allow 10% below and 10% above)
+      final minCalories = (targetCalories * 0.9).round();
+      final maxCalories = (targetCalories * 1.1).round();
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Container(
+            padding: EdgeInsets.all(getPercentageWidth(5, context)),
+            decoration: BoxDecoration(
+              color: getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: kAccent),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Text(
+                  'Searching meals...',
+                  style: TextStyle(
+                    fontSize: getTextScale(3.5, context),
+                    color:
+                        getThemeProvider(context).isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
+
+      // Query meals collection
+      // Note: Since calories might be stored as String or num in Firestore,
+      // we can't use range queries reliably. Instead, we fetch a larger set and filter in memory.
+      final mealsSnapshot = await firestore
+          .collection('meals')
+          .limit(200) // Fetch more meals to filter from
+          .get();
+
+      // Filter in memory to ensure we're within the range
+      final filteredDocs = mealsSnapshot.docs
+          .where((doc) {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) return false;
+
+            // Handle calories as String or num
+            final caloriesValue = data['calories'];
+            int calories = 0;
+            if (caloriesValue is num) {
+              calories = caloriesValue.toInt();
+            } else if (caloriesValue is String) {
+              calories = int.tryParse(caloriesValue) ?? 0;
+            }
+
+            return calories >= minCalories && calories <= maxCalories;
+          })
+          .take(20)
+          .toList(); // Limit to 20 results
+
+      // Close loading
+      if (mounted) Navigator.pop(context);
+
+      if (filteredDocs.isEmpty) {
+        if (mounted) {
+          showTastySnackbar(
+            'No Meals Found',
+            'No meals found within ${minCalories}-${maxCalories} calories',
+            context,
+            backgroundColor: Colors.orange,
+          );
+        }
+        return;
+      }
+
+      // Convert to list of maps for display
+      final meals = filteredDocs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) {
+          return {
+            'name': 'Unknown',
+            'calories': 0,
+            'protein': 0.0,
+            'carbs': 0.0,
+            'fat': 0.0,
+            'mealId': doc.id,
+            'type': 'meal',
+            'source': 'database',
+          };
+        }
+
+        // Safely get macros
+        final macrosRaw = data['macros'] ?? data['nutritionalInfo'];
+        Map<String, dynamic> macros = {};
+        if (macrosRaw is Map) {
+          macros = Map<String, dynamic>.from(macrosRaw);
+        }
+
+        // Handle calories as String or num
+        final caloriesValue = data['calories'];
+        int calories = 0;
+        if (caloriesValue is num) {
+          calories = caloriesValue.toInt();
+        } else if (caloriesValue is String) {
+          calories = int.tryParse(caloriesValue) ?? 0;
+        }
+
+        // Safely parse macros (handle String or num)
+        double parseMacro(dynamic value) {
+          if (value is num) {
+            return value.toDouble();
+          } else if (value is String) {
+            return double.tryParse(value) ?? 0.0;
+          }
+          return 0.0;
+        }
+
+        return {
+          'name': data['title'] as String? ?? 'Unknown',
+          'calories': calories,
+          'protein': parseMacro(macros['protein']),
+          'carbs': parseMacro(macros['carbs']),
+          'fat': parseMacro(macros['fat']),
+          'mealId': doc.id,
+          'type': 'meal',
+          'source': 'database',
+        };
+      }).toList();
+
+      // Show meal selection dialog
+      if (mounted) {
+        _showMealSearchResultsDialog(meals, targetCalories);
+      }
+    } catch (e) {
+      // Close loading if still open
+      if (mounted) Navigator.pop(context);
+      debugPrint('Error searching meals by calories: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to search meals: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  /// Show dialog with meal search results
+  void _showMealSearchResultsDialog(
+    List<Map<String, dynamic>> meals,
+    int targetCalories,
+  ) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final minCalories = (targetCalories * 0.9).round();
+    final maxCalories = (targetCalories * 1.1).round();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Meals (${minCalories}-${maxCalories} kcal)',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            Text(
+              'Found ${meals.length} meals',
+              style: TextStyle(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+                fontSize: getTextScale(3, context),
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: meals.length,
+            itemBuilder: (context, index) {
+              final item = meals[index];
+              return ListTile(
+                title: Text(
+                  item['name'] ?? 'Unknown',
+                  style: TextStyle(
+                    fontSize: getTextScale(3, context),
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                subtitle: Text(
+                  '${item['calories']} kcal • P: ${item['protein']?.toStringAsFixed(1) ?? '0'}g • C: ${item['carbs']?.toStringAsFixed(1) ?? '0'}g • F: ${item['fat']?.toStringAsFixed(1) ?? '0'}g',
+                  style: TextStyle(
+                    fontSize: getTextScale(2.5, context),
+                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.add_circle_outline,
+                  color: kAccent,
+                ),
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  _addSuggestedMeal(item);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addSuggestedMeal(Map<String, dynamic> item) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    // Show dialog to select meal type
+    final mealTypeResult = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          String? selectedMealType;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            title: Text(
+              'Select Meal Type',
+              style: TextStyle(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Add "${item['name'] ?? 'Unknown'}" to:',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kBlack,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                ...['Breakfast', 'Lunch', 'Dinner', 'Fruits', 'Snacks']
+                    .map((mealType) => RadioListTile<String>(
+                          title: Text(
+                            mealType,
+                            style: TextStyle(
+                              color: isDarkMode ? kWhite : kBlack,
+                            ),
+                          ),
+                          value: mealType,
+                          groupValue: selectedMealType,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedMealType = value;
+                            });
+                            Navigator.pop(dialogContext, value);
+                          },
+                          activeColor: kAccent,
+                        ))
+                    .toList(),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDarkMode ? kWhite : kAccent,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (mealTypeResult == null || mealTypeResult.isEmpty) {
+      return; // User cancelled
+    }
+
+    try {
+      final currentDate = widget.date ?? DateTime.now();
+
+      // Create UserMeal from item data
+      final mealId = item['mealId'] as String? ??
+          item['ingredientId'] as String? ??
+          item['name'] as String? ??
+          'suggested_${DateTime.now().millisecondsSinceEpoch}';
+
+      final calories = item['calories'] as int? ?? 0;
+      final protein = (item['protein'] as num?)?.toDouble() ?? 0.0;
+      final carbs = (item['carbs'] as num?)?.toDouble() ?? 0.0;
+      final fat = (item['fat'] as num?)?.toDouble() ?? 0.0;
+
+      final userMeal = UserMeal(
+        name: item['name'] as String? ?? 'Unknown',
+        quantity: '1',
+        servings: 'serving',
+        calories: calories,
+        mealId: mealId,
+        macros: {
+          'protein': protein,
+          'carbs': carbs,
+          'fat': fat,
+        },
+      );
+
+      // Add meal to selected meal type
+      await dailyDataController.addUserMeal(
+        userId,
+        mealTypeResult,
+        userMeal,
+        currentDate,
+      );
+
+      // Refresh data
+      await _refreshMealData(mealTypeResult);
+
+      if (mounted) {
+        showTastySnackbar(
+          'Success',
+          'Added ${item['name']} to $mealTypeResult',
+          context,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error adding suggested meal: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to add meal: $e',
+          context,
+          backgroundColor: kRed,
+        );
+      }
     }
   }
 
@@ -2272,7 +2738,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               {
                 'icon': Icons.history,
                 'title': 'View History',
-                'description': 'See your eating patterns over time',
+                'description':
+                    'See your eating patterns over time and get recommendations',
                 'color': kAccent,
               },
               {
@@ -2335,6 +2802,23 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   showCaloriesAndGoal = !showCaloriesAndGoal;
                 });
                 saveShowCaloriesPref(showCaloriesAndGoal);
+
+                // Show snackbar feedback
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      showCaloriesAndGoal
+                          ? 'Calories visibility toggled on'
+                          : 'Calories visibility toggled off',
+                    ),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: kAccent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
               },
               child: Container(
                 padding: const EdgeInsets.all(8),

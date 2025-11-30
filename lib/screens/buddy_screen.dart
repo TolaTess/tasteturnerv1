@@ -81,16 +81,16 @@ class _TastyScreenState extends State<TastyScreen>
             args['familyMemberGoal'] as String?;
         chatController.familyMemberType.value =
             args['familyMemberType'] as String?;
-        
+
         // Store pantry ingredients if provided
         if (args['pantryIngredients'] != null) {
           final pantryList = args['pantryIngredients'] as List<dynamic>?;
           if (pantryList != null) {
-            chatController.pantryIngredients.value = 
+            chatController.pantryIngredients.value =
                 pantryList.map((e) => e.toString()).toList();
           }
         }
-        
+
         _pendingMealPlanMode = true;
       } else if (args['planningMode'] == true) {
         _pendingPlanningMode = true;
@@ -538,6 +538,7 @@ class _TastyScreenState extends State<TastyScreen>
                       Expanded(
                         child: ChatModeSwitcher(
                           controller: _tabController,
+                          isDarkMode: themeProvider.isDarkMode,
                           tabs: [
                             ChatModeTab(
                               icon: Icons.chat_bubble_outline,
@@ -673,7 +674,7 @@ class _TastyScreenState extends State<TastyScreen>
                         return SingleChildScrollView(
                           child: Column(
                             children: [
-                              _buildMealPlanQuickActions(),
+                              _buildMealPlanQuickActions(themeProvider.isDarkMode),
                             ],
                           ),
                         );
@@ -693,7 +694,7 @@ class _TastyScreenState extends State<TastyScreen>
                       children: [
                         // Show meal plan quick actions at the top when enabled
                         if (currentMode == 'meal' && _showMealPlanQuickActions)
-                          _buildMealPlanQuickActions(),
+                          _buildMealPlanQuickActions(themeProvider.isDarkMode),
 
                         // Chat messages list
                         Expanded(
@@ -854,7 +855,7 @@ class _TastyScreenState extends State<TastyScreen>
   }
 
   // Build meal plan quick actions widget
-  Widget _buildMealPlanQuickActions() {
+  Widget _buildMealPlanQuickActions(bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -904,10 +905,7 @@ class _TastyScreenState extends State<TastyScreen>
                 Text(
                   'Choose a quick option below or type your own request:',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.7),
+                        color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kBlack.withValues(alpha: 0.7),
                       ),
                 ),
                 const SizedBox(height: 16),

@@ -550,9 +550,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       final userName = userService.currentUser.value?.displayName ?? '';
       return userName == postName ? 'My Post' : postName;
     } else {
-      return _currentPostData['title']?.toString().isNotEmpty == true
-          ? _currentPostData['title'].toString()
-          : 'Group Challenge';
+      return _currentPostData['name']?.toString().isNotEmpty == true
+          ? _currentPostData['name'].toString()
+          : 'Unknown';
     }
   }
 
