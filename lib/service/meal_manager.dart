@@ -763,6 +763,80 @@ class MealManager extends GetxController {
     }
   }
 
+  /// Copy a meal from one date to another in meal plans
+  Future<bool> copyMealPlan(
+    DateTime sourceDate,
+    DateTime targetDate,
+    String fullMealId,
+  ) async {
+    try {
+      final sourceFormattedDate = DateFormat('yyyy-MM-dd').format(sourceDate);
+      final targetFormattedDate = DateFormat('yyyy-MM-dd').format(targetDate);
+      final userId = userService.userId;
+      
+      if (userId == null) return false;
+
+      // Use Firestore transaction to ensure atomicity
+      await firestore.runTransaction((transaction) async {
+        // Get source date document to verify meal exists
+        final sourceDateRef = firestore
+            .collection('mealPlans')
+            .doc(userId)
+            .collection('date')
+            .doc(sourceFormattedDate);
+
+        final sourceDateDoc = await transaction.get(sourceDateRef);
+
+        if (!sourceDateDoc.exists) {
+          throw Exception('Source date document does not exist');
+        }
+
+        // Verify meal exists in source date
+        final sourceMeals = List<String>.from(sourceDateDoc.data()?['meals'] ?? []);
+        if (!sourceMeals.contains(fullMealId)) {
+          throw Exception('Meal not found in source date');
+        }
+
+        // Get target date document (create if doesn't exist)
+        final targetDateRef = firestore
+            .collection('mealPlans')
+            .doc(userId)
+            .collection('date')
+            .doc(targetFormattedDate);
+
+        final targetDateDoc = await transaction.get(targetDateRef);
+
+        // Parse meals from target date (or initialize if doesn't exist)
+        List<String> targetMeals;
+        if (targetDateDoc.exists) {
+          targetMeals = List<String>.from(targetDateDoc.data()?['meals'] ?? []);
+        } else {
+          targetMeals = [];
+        }
+
+        // Add meal to target date (copy, don't remove from source)
+        if (!targetMeals.contains(fullMealId)) {
+          targetMeals.add(fullMealId);
+        }
+
+        // Update or create target date document
+        if (targetDateDoc.exists) {
+          transaction.update(targetDateRef, {'meals': targetMeals});
+        } else {
+          transaction.set(targetDateRef, {
+            'date': targetFormattedDate,
+            'meals': targetMeals,
+          });
+        }
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('Error copying meal plan: $e');
+      return false;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getMealPlansOrderedByDate() async {
     try {
       // Fetch meal plans ordered by date

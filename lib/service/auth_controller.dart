@@ -186,20 +186,29 @@ class AuthController extends GetxController {
               .map((e) => FamilyMember.fromMap(e as Map<String, dynamic>))
               .toList();
 
+          // Process settings - preserve Map types for nested objects like cycleTracking
+          Map<String, dynamic> settingsMap = {};
+          if (userDataMap['settings'] != null && userDataMap['settings'] is Map) {
+            final settingsRaw = userDataMap['settings'] as Map;
+            settingsRaw.forEach((key, value) {
+              final keyStr = key.toString();
+              // Preserve Map types for nested settings (e.g., cycleTracking)
+              if (value is Map) {
+                settingsMap[keyStr] = Map<String, dynamic>.from(value);
+              } else {
+                // Convert other values to String for compatibility
+                settingsMap[keyStr] = value?.toString() ?? '';
+              }
+            });
+          }
+
           final user = UserModel(
             userId: doc.id,
             displayName: userDataMap['displayName']?.toString() ?? '',
             profileImage: userDataMap['profileImage']?.toString() ?? '',
             bio: userDataMap['bio']?.toString() ?? getRandomBio(bios),
             dob: userDataMap['dob']?.toString() ?? '',
-            settings: userDataMap['settings'] != null
-                ? Map<String, String>.from(
-                    (userDataMap['settings'] as Map).map(
-                      (key, value) =>
-                          MapEntry(key.toString(), value?.toString() ?? ''),
-                    ),
-                  )
-                : {},
+            settings: settingsMap,
             following: following,
             userType: userDataMap['userType']?.toString() ?? 'user',
             isPremium: userDataMap['isPremium'] as bool? ?? false,

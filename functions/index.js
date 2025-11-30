@@ -5767,3 +5767,238 @@ function getReceiptStatusMessage(status) {
   };
   return statusMessages[status] || `Unknown status code: ${status}`;
 }
+
+/**
+ * Helper function to analyze symptom correlations for a user
+ * Returns correlations and symptom counts
+ */
+async function _analyzeSymptomCorrelationsForUser(userId, days = 7) {
+  const startTime = Date.now();
+  console.log(`=== Analyzing symptom correlations for user ${userId} (${days} days) ===`);
+
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - days);
+
+  // Fetch health journal entries for date range
+  const symptomEntries = [];
+  const ingredientFrequency = {}; // ingredient -> { count: number, symptoms: Set }
+
+  // Iterate through dates
+  for (let i = 0; i < days; i++) {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
+    const dateStr = format(date, 'yyyy-MM-dd');
+
+    const journalDoc = await firestore
+      .collection('users')
+      .doc(userId)
+      .collection('health_journal')
+      .doc(dateStr)
+      .get();
+
+    if (!journalDoc.exists) continue;
+
+    const journalData = journalDoc.data();
+    const data = journalData?.data;
+    if (!data) continue;
+
+    const symptoms = data.symptoms || [];
+
+    // Process each symptom entry
+    for (const symptomData of symptoms) {
+      if (!symptomData || typeof symptomData !== 'object') continue;
+
+      const symptomType = (symptomData.type || '').toLowerCase();
+      if (!symptomType) continue;
+
+      symptomEntries.push({
+        type: symptomType,
+        severity: symptomData.severity || 0,
+        timestamp: symptomData.timestamp,
+        mealContext: symptomData.mealContext,
+        ingredients: symptomData.ingredients || [],
+      });
+
+      // Count ingredient frequency for each symptom type
+      const ingredients = symptomData.ingredients || [];
+      for (const ingredient of ingredients) {
+        const ingKey = ingredient.toLowerCase();
+        if (!ingredientFrequency[ingKey]) {
+          ingredientFrequency[ingKey] = {
+            count: 0,
+            symptoms: new Set(),
+          };
+        }
+        ingredientFrequency[ingKey].count++;
+        ingredientFrequency[ingKey].symptoms.add(symptomType);
+      }
+    }
+  }
+
+  // Group symptoms by type
+  const symptomsByType = {};
+  for (const entry of symptomEntries) {
+    if (!symptomsByType[entry.type]) {
+      symptomsByType[entry.type] = [];
+    }
+    symptomsByType[entry.type].push(entry);
+  }
+
+  // Generate correlations for symptoms reported 3+ times
+  const allCorrelations = [];
+
+  for (const [symptomType, entries] of Object.entries(symptomsByType)) {
+    if (entries.length < 3) continue; // Skip if less than 3 occurrences
+
+    const totalOccurrences = entries.length;
+
+    // Find ingredients that appear in at least 50% of symptom occurrences
+    for (const [ingredient, data] of Object.entries(ingredientFrequency)) {
+      if (!data.symptoms.has(symptomType)) continue;
+
+      const frequency = data.count;
+      const confidence = frequency / totalOccurrences;
+
+      // Only include if ingredient appears in at least 50% of occurrences
+      if (confidence >= 0.5) {
+        allCorrelations.push({
+          ingredient: ingredient,
+          symptom: symptomType,
+          frequency: frequency,
+          confidence: confidence,
+        });
+      }
+    }
+  }
+
+  // Sort by confidence (highest first)
+  allCorrelations.sort((a, b) => b.confidence - a.confidence);
+
+  // Update health journal with correlations
+  // Store in the most recent journal entry or create a summary entry
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const journalRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('health_journal')
+    .doc(todayStr);
+
+  const journalDoc = await journalRef.get();
+  const existingData = journalDoc.exists ? journalDoc.data() : {};
+
+  // Update or create journal entry with correlations
+  await journalRef.set({
+    ...existingData,
+    data: {
+      ...(existingData.data || {}),
+      symptomCorrelations: allCorrelations,
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  const executionTime = Date.now() - startTime;
+  console.log(`=== Analysis completed in ${executionTime}ms ===`);
+  console.log(`Found ${allCorrelations.length} correlations`);
+
+  return {
+    success: true,
+    correlations: allCorrelations,
+    symptomCounts: Object.fromEntries(
+      Object.entries(symptomsByType).map(([type, entries]) => [type, entries.length])
+    ),
+    executionTime: executionTime,
+  };
+}
+
+/**
+ * Analyze symptom correlations from health journal entries
+ * Identifies patterns between symptoms and ingredients
+ * Can be called manually
+ */
+exports.analyzeSymptomCorrelations = functions
+  .runWith({ timeoutSeconds: 300, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    // Validate authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const userId = context.auth.uid;
+    const days = data?.days || 7; // Default to 7 days
+
+    try {
+      return await _analyzeSymptomCorrelationsForUser(userId, days);
+    } catch (error) {
+      console.error(`=== analyzeSymptomCorrelations failed ===`, error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while analyzing symptom correlations',
+        error.message
+      );
+    }
+  });
+
+/**
+ * Scheduled function to run weekly symptom analysis for all users
+ * Runs every Sunday at 2 AM
+ */
+exports.analyzeSymptomCorrelationsWeekly = onSchedule(
+  {
+    schedule: '0 2 * * 0', // Every Sunday at 2 AM
+    timeZone: 'America/New_York',
+  },
+  async (event) => {
+    console.log('=== Weekly Symptom Correlation Analysis Started ===');
+
+    try {
+      // Get all users (you may want to add pagination for large user bases)
+      const usersSnapshot = await firestore.collection('users').limit(100).get();
+
+      const results = [];
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+
+        try {
+          // Check if user has health journal enabled
+          const userData = userDoc.data();
+          const healthJournalEnabled = userData.settings?.healthJournalEnabled;
+
+          // Only analyze if health journal is enabled
+          if (!healthJournalEnabled) {
+            console.log(`Skipping user ${userId}: health journal not enabled`);
+            continue;
+          }
+
+          // Analyze symptoms for this user
+          const result = await _analyzeSymptomCorrelationsForUser(userId, 7);
+
+          results.push({
+            userId: userId,
+            success: result.success,
+            correlationCount: result.correlations?.length || 0,
+          });
+
+          console.log(`Analyzed symptoms for user ${userId}: ${result.correlations?.length || 0} correlations found`);
+        } catch (userError) {
+          console.error(`Error analyzing symptoms for user ${userId}:`, userError);
+          results.push({
+            userId: userId,
+            success: false,
+            error: userError.message,
+          });
+        }
+      }
+
+      console.log(`=== Weekly Symptom Correlation Analysis Completed ===`);
+      console.log(`Processed ${results.length} users`);
+      console.log(`Successful: ${results.filter(r => r.success).length}`);
+      console.log(`Failed: ${results.filter(r => !r.success).length}`);
+
+      return { results, totalProcessed: results.length };
+    } catch (error) {
+      console.error('Error in weekly symptom correlation analysis:', error);
+      throw error;
+    }
+  }
+);

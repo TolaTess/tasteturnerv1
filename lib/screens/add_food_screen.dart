@@ -1522,46 +1522,88 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     List<UserMeal> mealsToCopy,
     Map<String, List<UserMeal>> mealTypes,
   ) async {
+    int successCount = 0;
+    int failCount = 0;
+    String? lastError;
+
     try {
       final currentDate = widget.date ?? DateTime.now();
+      final dateStr = DateFormat('yyyy-MM-dd').format(currentDate);
 
       for (var entry in mealTypes.entries) {
         final mealType = entry.key;
         final meals = entry.value;
 
         for (var meal in meals) {
-          // Create new instance with originalMealId
-          final newInstance = meal.copyWith({
-            'originalMealId': meal.mealId,
-            'isInstance': true,
-            'loggedAt': DateTime.now(),
-          });
+          try {
+            // Create new instance with originalMealId and NEW instanceId
+            // Add small delay to ensure unique instanceId
+            await Future.delayed(const Duration(milliseconds: 1));
+            final newInstanceId =
+                DateTime.now().millisecondsSinceEpoch.toString();
 
-          await dailyDataController.addUserMeal(
-            userId,
-            mealType,
-            newInstance,
-            currentDate,
-          );
+            final newInstance = meal.copyWith({
+              'originalMealId': meal.mealId,
+              'instanceId': newInstanceId, // Generate new instanceId
+              'isInstance': true,
+              'loggedAt': DateTime.now(),
+            });
+
+            await dailyDataController.addUserMeal(
+              userId,
+              mealType,
+              newInstance,
+              currentDate,
+            );
+
+            successCount++;
+            debugPrint(
+                'Successfully copied meal "${meal.name}" (${newInstance.instanceId}) to $dateStr');
+          } catch (e) {
+            failCount++;
+            lastError = e.toString();
+            debugPrint('Error copying meal "${meal.name}": $e');
+            // Continue with other meals even if one fails
+          }
         }
-      }
-
-      if (mounted) {
-        showTastySnackbar(
-          'Success',
-          'Copied ${mealsToCopy.length} ${mealsToCopy.length == 1 ? 'meal' : 'meals'} to today',
-          context,
-        );
       }
 
       // Refresh data
       await _loadData();
+
+      // Show appropriate message based on results
+      if (mounted) {
+        if (failCount == 0) {
+          // All meals copied successfully
+          showTastySnackbar(
+            'Success',
+            'Copied ${successCount} ${successCount == 1 ? 'meal' : 'meals'} to today',
+            context,
+          );
+        } else if (successCount > 0) {
+          // Some succeeded, some failed
+          showTastySnackbar(
+            'Partial Success',
+            'Copied $successCount ${successCount == 1 ? 'meal' : 'meals'}, ${failCount} ${failCount == 1 ? 'failed' : 'failed'}',
+            context,
+            backgroundColor: Colors.orange,
+          );
+        } else {
+          // All failed
+          showTastySnackbar(
+            'Error',
+            'Failed to copy meals${lastError != null ? ': ${lastError.substring(0, lastError.length > 50 ? 50 : lastError.length)}' : ''}',
+            context,
+            backgroundColor: kRed,
+          );
+        }
+      }
     } catch (e) {
-      debugPrint('Error copying meals: $e');
+      debugPrint('Error in _copyMealsToCurrentDate: $e');
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to copy meals: $e',
+          'Failed to copy meals: ${e.toString().substring(0, e.toString().length > 50 ? 50 : e.toString().length)}',
           context,
           backgroundColor: kRed,
         );
@@ -1577,6 +1619,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     String recommendedCalories,
     IconData icon,
   ) {
+    final currentDate = widget.date ?? DateTime.now();
     showDialog(
       context: context,
       builder: (context) => MealDetailWidget(
@@ -1586,6 +1629,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         recommendedCalories: recommendedCalories,
         icon: icon,
         showCalories: showCaloriesAndGoal,
+        currentDate: currentDate,
         onAddMeal: () {
           setState(() {
             foodType = mealType;
@@ -2202,52 +2246,51 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         backgroundColor: kAccent,
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
-          title: Text(
-              widget.title,
-              style: textTheme.displaySmall?.copyWith(
-                fontSize: getTextScale(7, context),
-              ),
-            ),
+        title: Text(
+          widget.title,
+          style: textTheme.displaySmall?.copyWith(
+            fontSize: getTextScale(7, context),
+          ),
+        ),
         actions: [
-
-                     InfoIconWidget(
-              title: 'Food Diary',
-              description: 'Track your daily meals and nutrition',
-              details: const [
-                {
-                  'icon': Icons.restaurant,
-                  'title': 'Log Meals',
-                  'description': 'Record what you eat throughout the day',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.analytics,
-                  'title': 'Track Nutrition',
-                  'description': 'Monitor calories, macros, and nutrients',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.history,
-                  'title': 'View History',
-                  'description': 'See your eating patterns over time',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.calendar_month,
-                  'title': 'Plan Ahead',
-                  'description': 'View Today or Next day action items',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.analytics,
-                  'title': 'Analyze Meals',
-                  'description': 'Analyze your meals with AI and get insights',
-                  'color': kAccent,
-                },
-              ],
-              iconColor: isDarkMode ? kWhite : kDarkGrey,
-              tooltip: 'Food Diary Information',
-            ),
+          InfoIconWidget(
+            title: 'Food Diary',
+            description: 'Track your daily meals and nutrition',
+            details: const [
+              {
+                'icon': Icons.restaurant,
+                'title': 'Log Meals',
+                'description': 'Record what you eat throughout the day',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.analytics,
+                'title': 'Track Nutrition',
+                'description': 'Monitor calories, macros, and nutrients',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.history,
+                'title': 'View History',
+                'description': 'See your eating patterns over time',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.calendar_month,
+                'title': 'Plan Ahead',
+                'description': 'View Today or Next day action items',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.analytics,
+                'title': 'Analyze Meals',
+                'description': 'Analyze your meals with AI and get insights',
+                'color': kAccent,
+              },
+            ],
+            iconColor: isDarkMode ? kWhite : kDarkGrey,
+            tooltip: 'Food Diary Information',
+          ),
           // Health Journal Toggle
           Obx(() {
             final user = userService.currentUser.value;

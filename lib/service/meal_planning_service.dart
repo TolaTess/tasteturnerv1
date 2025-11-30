@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show debugPrint;
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../service/gemini_service.dart';
+import '../service/cycle_adjustment_service.dart';
 
 /// Service to consolidate meal planning functionality
 /// Used by buddy screen meal plan mode and other meal planning features
@@ -310,12 +311,37 @@ Please generate ${mealCount ?? 10} diverse meals that align with the user's requ
 """;
       }
 
+      // Get cycle phase context if enabled (only for main user, not family members)
+      String cycleContext = '';
+      if (familyMemberName == null || familyMemberName.isEmpty) {
+        final user = userService.currentUser.value;
+        if (user != null) {
+          final cycleData = user.settings['cycleTracking'] as Map<String, dynamic>?;
+          if (cycleData != null && (cycleData['isEnabled'] as bool? ?? false)) {
+            final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+            if (lastPeriodStartStr != null) {
+              final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+              if (lastPeriodStart != null) {
+                final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+                final cycleService = CycleAdjustmentService.instance;
+                final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
+                final phaseName = cycleService.getPhaseName(phase);
+                final suggestions = cycleService.getPhaseFoodSuggestions(phase);
+                final suggestionList = suggestions.join(', ');
+                
+                cycleContext = '\nCycle Phase: $phaseName\nRecommended foods for this phase: $suggestionList\n';
+              }
+            }
+          }
+        }
+      }
+
       final contextInfo = """
 Target: $targetPerson
 Fitness Goal: ${userContext['fitnessGoal']}
 Diet Preference: ${userContext['dietPreference']}
 ${familyMemberKcal != null ? 'Daily Calories: $familyMemberKcal kcal' : 'Current Weight: ${userContext['currentWeight']} kg'}
-${familyMemberType != null ? 'Age Group: $familyMemberType' : 'Goal Weight: ${userContext['goalWeight']} kg'}
+${familyMemberType != null ? 'Age Group: $familyMemberType' : 'Goal Weight: ${userContext['goalWeight']} kg'}$cycleContext
 """;
 
       final result = await generateMealPlan(

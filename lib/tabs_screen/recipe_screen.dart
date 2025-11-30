@@ -275,6 +275,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                   showAllTechniques ? 'Show Less' : 'Show All',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: kAccent,
+                                    fontSize: getTextScale(3, context),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

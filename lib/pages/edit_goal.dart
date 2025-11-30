@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/category_selector.dart';
@@ -9,6 +11,8 @@ import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 import '../pages/family_member.dart';
 import '../data_models/user_data_model.dart';
+import '../data_models/cycle_tracking_model.dart';
+import '../service/cycle_adjustment_service.dart';
 import 'safe_text_field.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
@@ -42,10 +46,14 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final TextEditingController dietPerfController = TextEditingController();
   final TextEditingController targetStepsController = TextEditingController();
   final TextEditingController heightController = TextEditingController();
+  final TextEditingController cycleLengthController = TextEditingController();
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
   String selectedDietCategoryId = '';
   String selectedDietCategoryName = '';
   bool isFamilyModeEnabled = false;
+  bool isCycleTrackingEnabled = false;
+  DateTime? lastPeriodStart;
+  final cycleAdjustmentService = CycleAdjustmentService.instance;
 
   @override
   void initState() {
@@ -85,6 +93,27 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
       // Initialize family mode from user data
       isFamilyModeEnabled = user.familyMode ?? false;
+
+      // Initialize cycle tracking from settings
+      final cycleDataRaw = user.settings['cycleTracking'];
+      if (cycleDataRaw != null && cycleDataRaw is Map) {
+        final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+        isCycleTrackingEnabled = cycleData['isEnabled'] as bool? ?? false;
+        cycleLengthController.text = (cycleData['cycleLength'] as num?)?.toString() ?? '28';
+        
+        // Handle lastPeriodStart - could be String (ISO8601) or Timestamp
+        final lastPeriodStartValue = cycleData['lastPeriodStart'];
+        if (lastPeriodStartValue != null) {
+          if (lastPeriodStartValue is String) {
+            lastPeriodStart = DateTime.tryParse(lastPeriodStartValue);
+          } else if (lastPeriodStartValue is Timestamp) {
+            lastPeriodStart = lastPeriodStartValue.toDate();
+          }
+        }
+      } else {
+        cycleLengthController.text = '28'; // Default
+        isCycleTrackingEnabled = false;
+      }
     }
   }
 
@@ -102,6 +131,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     dietPerfController.dispose();
     targetStepsController.dispose();
     heightController.dispose();
+    cycleLengthController.dispose();
     super.dispose();
   }
 
@@ -122,6 +152,11 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
           'dietPreference': dietPerfController.text,
           'targetSteps': targetStepsController.text,
           'height': heightController.text,
+          'cycleTracking': {
+            'isEnabled': isCycleTrackingEnabled,
+            'lastPeriodStart': lastPeriodStart?.toIso8601String(),
+            'cycleLength': int.tryParse(cycleLengthController.text) ?? 28,
+          },
         };
 
         // Update both settings and familyMode
@@ -731,6 +766,163 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   ],
                 ),
 
+              // Cycle Tracking Section (Optional)
+              SizedBox(height: getPercentageHeight(1, context)),
+              ExpansionTile(
+                title: Text(
+                  "Cycle Tracking (Optional)",
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                collapsedIconColor: kAccent,
+                iconColor: kAccent,
+                textColor: kAccent,
+                collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
+                children: [
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  // Enable/Disable Toggle
+                  SwitchListTile(
+                    title: Text(
+                      'Enable Cycle Syncing',
+                      style: textTheme.bodyLarge?.copyWith(
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Adjust macro goals based on your menstrual cycle phase',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    value: isCycleTrackingEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        isCycleTrackingEnabled = value;
+                      });
+                    },
+                    activeColor: kAccent,
+                  ),
+                  if (isCycleTrackingEnabled) ...[
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Last Period Start Date
+                    ListTile(
+                      title: Text(
+                        'Last Period Start',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                        ),
+                      ),
+                      subtitle: Text(
+                        lastPeriodStart != null
+                            ? DateFormat('MMM dd, yyyy').format(lastPeriodStart!)
+                            : 'Not set',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: kAccent,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: lastPeriodStart ?? DateTime.now(),
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            lastPeriodStart = picked;
+                          });
+                        }
+                      },
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Cycle Length
+                    SafeTextFormField(
+                      controller: cycleLengthController,
+                      style: textTheme.bodyLarge
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Average Cycle Length (days)",
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                      ),
+                      validator: (value) {
+                        if (isCycleTrackingEnabled && (value == null || value.isEmpty)) {
+                          return "Please enter your cycle length.";
+                        }
+                        final length = int.tryParse(value ?? '');
+                        if (isCycleTrackingEnabled && (length == null || length < 21 || length > 35)) {
+                          return "Cycle length should be between 21-35 days.";
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Show current phase if enabled
+                    if (lastPeriodStart != null) ...[
+                      Builder(
+                        builder: (context) {
+                          final phase = cycleAdjustmentService.getCurrentPhase(
+                            lastPeriodStart,
+                            int.tryParse(cycleLengthController.text) ?? 28,
+                          );
+                          final phaseName = cycleAdjustmentService.getPhaseName(phase);
+                          final phaseEmoji = cycleAdjustmentService.getPhaseEmoji(phase);
+                          final phaseColor = cycleAdjustmentService.getPhaseColor(phase);
+                          
+                          return Container(
+                            padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                            decoration: BoxDecoration(
+                              color: phaseColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: phaseColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  phaseEmoji,
+                                  style: TextStyle(fontSize: getTextScale(5, context)),
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Current Phase: $phaseName',
+                                        style: textTheme.bodyLarge?.copyWith(
+                                          color: isDarkMode ? kWhite : kDarkGrey,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      SizedBox(height: getPercentageHeight(0.5, context)),
+                                      Text(
+                                        _getPhaseDescription(phase),
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+
               SizedBox(height: getPercentageHeight(1, context)),
 
               DailyRoutineList(
@@ -757,5 +949,18 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         ),
       ),
     );
+  }
+
+  String _getPhaseDescription(CyclePhase phase) {
+    switch (phase) {
+      case CyclePhase.menstrual:
+        return 'During your period: +100 calories recommended';
+      case CyclePhase.follicular:
+        return 'Post-period phase: Use base goals';
+      case CyclePhase.ovulation:
+        return 'Ovulation phase: Use base goals';
+      case CyclePhase.luteal:
+        return 'Pre-period phase: +200 calories, +20g carbs recommended';
+    }
   }
 }

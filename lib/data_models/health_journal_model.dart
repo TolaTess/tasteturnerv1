@@ -77,12 +77,16 @@ class JournalData {
   final ActivityData activity;
   final MealsData meals;
   final GoalsData goals;
+  final List<SymptomEntry> symptoms;
+  final List<SymptomCorrelation> symptomCorrelations;
 
   JournalData({
     required this.nutrition,
     required this.activity,
     required this.meals,
     required this.goals,
+    this.symptoms = const [],
+    this.symptomCorrelations = const [],
   });
 
   factory JournalData.fromMap(Map<String, dynamic> json) {
@@ -91,6 +95,12 @@ class JournalData {
       activity: ActivityData.fromMap(json['activity'] as Map<String, dynamic>? ?? {}),
       meals: MealsData.fromMap(json['meals'] as Map<String, dynamic>? ?? {}),
       goals: GoalsData.fromMap(json['goals'] as Map<String, dynamic>? ?? {}),
+      symptoms: (json['symptoms'] as List<dynamic>?)
+          ?.map((e) => SymptomEntry.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
+      symptomCorrelations: (json['symptomCorrelations'] as List<dynamic>?)
+          ?.map((e) => SymptomCorrelation.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
     );
   }
 
@@ -100,6 +110,8 @@ class JournalData {
       'activity': activity.toMap(),
       'meals': meals.toMap(),
       'goals': goals.toMap(),
+      'symptoms': symptoms.map((s) => s.toMap()).toList(),
+      'symptomCorrelations': symptomCorrelations.map((c) => c.toMap()).toList(),
     };
   }
 }
@@ -252,6 +264,80 @@ class GoalsData {
       'protein': protein.toMap(),
       'carbs': carbs.toMap(),
       'fat': fat.toMap(),
+    };
+  }
+}
+
+class SymptomEntry {
+  final String type; // e.g., "bloating", "headache", "fatigue", "nausea", "energy", "good"
+  final int severity; // 1-5
+  final DateTime timestamp;
+  final String? mealContext; // Which meal (breakfast, lunch, dinner, snack)
+  final List<String> ingredients; // List of ingredients from meals eaten 2-4 hours before
+
+  SymptomEntry({
+    required this.type,
+    required this.severity,
+    required this.timestamp,
+    this.mealContext,
+    this.ingredients = const [],
+  });
+
+  factory SymptomEntry.fromMap(Map<String, dynamic> json) {
+    return SymptomEntry(
+      type: json['type'] as String? ?? '',
+      severity: (json['severity'] as num?)?.toInt() ?? 1,
+      timestamp: json['timestamp'] is Timestamp
+          ? (json['timestamp'] as Timestamp).toDate()
+          : json['timestamp'] is String
+              ? DateTime.tryParse(json['timestamp'] as String) ?? DateTime.now()
+              : DateTime.now(),
+      mealContext: json['mealContext'] as String?,
+      ingredients: (json['ingredients'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ?? [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type,
+      'severity': severity,
+      'timestamp': Timestamp.fromDate(timestamp),
+      if (mealContext != null) 'mealContext': mealContext,
+      'ingredients': ingredients,
+    };
+  }
+}
+
+class SymptomCorrelation {
+  final String ingredient;
+  final String symptom;
+  final double frequency; // How many times this correlation occurred
+  final double confidence; // 0.0 to 1.0
+
+  SymptomCorrelation({
+    required this.ingredient,
+    required this.symptom,
+    required this.frequency,
+    required this.confidence,
+  });
+
+  factory SymptomCorrelation.fromMap(Map<String, dynamic> json) {
+    return SymptomCorrelation(
+      ingredient: json['ingredient'] as String? ?? '',
+      symptom: json['symptom'] as String? ?? '',
+      frequency: (json['frequency'] as num?)?.toDouble() ?? 0.0,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'ingredient': ingredient,
+      'symptom': symptom,
+      'frequency': frequency,
+      'confidence': confidence,
     };
   }
 }

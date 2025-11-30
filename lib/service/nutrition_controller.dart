@@ -9,6 +9,7 @@ import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import 'badge_service.dart';
+import 'cycle_adjustment_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -246,10 +247,44 @@ class NutritionController extends GetxController {
       return;
     }
 
-    targetCalories.value =
-        (settings['foodGoal'] ?? '0').toString().trim().isEmpty
-            ? 0.0
-            : double.tryParse(settings['foodGoal'].toString()) ?? 0.0;
+    double baseCalories = (settings['foodGoal'] ?? '0').toString().trim().isEmpty
+        ? 0.0
+        : double.tryParse(settings['foodGoal'].toString()) ?? 0.0;
+    
+    // Apply cycle adjustments if enabled
+    final cycleDataRaw = settings['cycleTracking'];
+    Map<String, dynamic>? cycleData;
+    if (cycleDataRaw != null && cycleDataRaw is Map) {
+      cycleData = Map<String, dynamic>.from(cycleDataRaw);
+    }
+    
+    if (cycleData != null && (cycleData['isEnabled'] as bool? ?? false)) {
+      final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+      if (lastPeriodStartStr != null) {
+        final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+        if (lastPeriodStart != null) {
+          final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+          final cycleService = CycleAdjustmentService.instance;
+          final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
+          
+          final baseGoals = {
+            'calories': baseCalories,
+            'protein': double.tryParse(settings['proteinGoal']?.toString() ?? '0') ?? 0.0,
+            'carbs': double.tryParse(settings['carbsGoal']?.toString() ?? '0') ?? 0.0,
+            'fat': double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0,
+          };
+          
+          final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
+          targetCalories.value = adjustedGoals['calories'] ?? baseCalories;
+          
+          // Update macro goals if needed (for future use)
+          // Note: Currently only calories are adjusted in the UI
+          return;
+        }
+      }
+    }
+    
+    targetCalories.value = baseCalories;
 
     targetWater.value =
         (settings['waterIntake'] ?? '0').toString().trim().isEmpty

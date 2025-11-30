@@ -1,17 +1,17 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../pages/safe_text_field.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 import '../constants.dart';
 
@@ -113,6 +113,156 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     }
   }
 
+  /// Check if a meal has been logged (has instances in userMeals)
+  Future<Map<String, dynamic>> _checkMealHasLoggedInstances(
+      String mealId) async {
+    try {
+      final userId = userService.userId;
+      if (userId == null)
+        return {'hasInstances': false, 'count': 0, 'dates': []};
+
+      // Query userMeals collection for any meals with this mealId
+      final querySnapshot = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .get();
+
+      int instanceCount = 0;
+      List<String> dates = [];
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final mealsMap = data['meals'] as Map<String, dynamic>?;
+
+        if (mealsMap != null) {
+          for (var mealType in mealsMap.keys) {
+            final mealList = mealsMap[mealType] as List<dynamic>?;
+            if (mealList != null) {
+              for (var mealData in mealList) {
+                final mealMap = mealData as Map<String, dynamic>;
+                if (mealMap['mealId'] == mealId) {
+                  instanceCount++;
+                  final dateStr = doc.id;
+                  if (!dates.contains(dateStr)) {
+                    dates.add(dateStr);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        'hasInstances': instanceCount > 0,
+        'count': instanceCount,
+        'dates': dates,
+      };
+    } catch (e) {
+      debugPrint('Error checking meal instances: $e');
+      return {'hasInstances': false, 'count': 0, 'dates': []};
+    }
+  }
+
+  /// Show dialog warning about editing logged meals
+  Future<bool> _showEditLoggedMealDialog(
+      Map<String, dynamic> instanceInfo) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    final instanceCount = instanceInfo['count'] as int;
+    final dates = instanceInfo['dates'] as List<String>;
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: Text(
+              'This Recipe Has Been Logged',
+              style: textTheme.titleMedium?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This recipe has been logged on ${instanceCount} ${instanceCount == 1 ? 'date' : 'dates'}.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kWhite : kBlack,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Editing will create a new version. Past logs will remain unchanged and will continue to reference the original recipe.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                if (dates.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Logged on:',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? Colors.white70 : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ...dates.take(5).map((date) => Padding(
+                        padding: const EdgeInsets.only(left: 8.0, top: 2),
+                        child: Text(
+                          '• ${DateFormat('MMM dd, yyyy').format(DateFormat('yyyy-MM-dd').parse(date))}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                      )),
+                  if (dates.length > 5)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0, top: 2),
+                      child: Text(
+                        '• ...and ${dates.length - 5} more',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  'Create New Version',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   /// ✅ Add new ingredient to the list
   void _addIngredient() {
     setState(() {
@@ -147,12 +297,35 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     setState(() => isUploading = true);
 
     try {
-      // Use existing mealId if editing, or provided mealId for post_add, otherwise create new
-      String mealId = isEditing
-          ? widget.meal!.mealId
-          : (widget.screenType == 'post_add' && widget.mealId != null
-              ? widget.mealId!
-              : firestore.collection('meals').doc().id);
+      String mealId;
+
+      // If editing, check if meal has been logged
+      if (isEditing) {
+        final instanceInfo =
+            await _checkMealHasLoggedInstances(widget.meal!.mealId);
+
+        if (instanceInfo['hasInstances'] == true) {
+          // Show dialog warning user
+          final shouldCreateNew = await _showEditLoggedMealDialog(instanceInfo);
+
+          if (!shouldCreateNew) {
+            // User cancelled, stop upload
+            setState(() => isUploading = false);
+            return;
+          }
+
+          // Create new mealId for new version
+          mealId = firestore.collection('meals').doc().id;
+        } else {
+          // No logged instances, can safely update existing meal
+          mealId = widget.meal!.mealId;
+        }
+      } else {
+        // Not editing, use provided mealId or create new
+        mealId = (widget.screenType == 'post_add' && widget.mealId != null
+            ? widget.mealId!
+            : firestore.collection('meals').doc().id);
+      }
       final List<String> uploadedImageUrls = [];
 
       // If editing and no new images are selected, use existing images
@@ -238,12 +411,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               : 'Meal uploaded successfully!',
           context,
         );
+        // Navigate back instead of forward
+        Navigator.pop(context, newMeal);
       }
-
-      Get.to(() => const BottomNavSec(
-            selectedIndex: 1,
-            foodScreenTabIndex: 1,
-          ));
     } catch (e) {
       debugPrint("Error uploading meal: $e");
       if (mounted) {

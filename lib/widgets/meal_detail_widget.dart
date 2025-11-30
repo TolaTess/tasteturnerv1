@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import '../service/nutrition_controller.dart';
+import '../service/meal_move_service.dart';
 
 class MealDetailWidget extends StatefulWidget {
   final String mealType;
@@ -13,6 +15,7 @@ class MealDetailWidget extends StatefulWidget {
   final IconData icon;
   final VoidCallback onAddMeal;
   final bool showCalories;
+  final DateTime? currentDate; // Date of the meals being displayed
 
   const MealDetailWidget({
     super.key,
@@ -23,6 +26,7 @@ class MealDetailWidget extends StatefulWidget {
     required this.icon,
     required this.onAddMeal,
     this.showCalories = true,
+    this.currentDate,
   });
 
   @override
@@ -304,6 +308,27 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                           ),
                         ),
 
+                        // Move to Date button
+                        if (widget.currentDate != null)
+                          GestureDetector(
+                            onTap: () => _moveMealToDate(meal),
+                            child: Container(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(2, context)),
+                              margin: EdgeInsets.only(
+                                  right: getPercentageWidth(1, context)),
+                              decoration: BoxDecoration(
+                                color: kAccent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.calendar_today,
+                                color: kAccent,
+                                size: getIconScale(4, context),
+                              ),
+                            ),
+                          ),
+
                         // Delete button
                         GestureDetector(
                           onTap: () => _deleteMeal(meal),
@@ -461,6 +486,129 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                 'Delete',
                 style: textTheme.bodyMedium?.copyWith(
                   color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _moveMealToDate(UserMeal meal) {
+    if (widget.currentDate == null) return;
+    
+    // Store parent context before showing dialog
+    final parentContext = context;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDarkMode = getThemeProvider(context).isDarkMode;
+        final textTheme = Theme.of(context).textTheme;
+
+        return AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            'Copy Meal to Date',
+            style: textTheme.titleMedium?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            'Select a date to copy "${capitalizeFirstLetter(meal.name)}" to:',
+            style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close dialog first
+                
+                // Wait a frame to ensure dialog is fully closed
+                await Future.delayed(const Duration(milliseconds: 100));
+                
+                if (!mounted) return;
+                
+                // Show date picker using parent context
+                final selectedDate = await showDatePicker(
+                  context: parentContext,
+                  initialDate: widget.currentDate!.add(const Duration(days: 1)),
+                  firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                  helpText: 'Select date to move meal to',
+                );
+
+                if (selectedDate == null || !mounted) return;
+
+                // Move the meal
+                try {
+                  final success = await MealMoveService.instance.moveMeal(
+                    userId: userService.userId ?? '',
+                    instanceId: meal.instanceId,
+                    oldDate: widget.currentDate!,
+                    newDate: selectedDate,
+                    mealType: widget.mealType,
+                    mealData: meal,
+                  );
+
+                  if (!mounted) return;
+                  
+                  if (success) {
+                    // Close meal detail modal first
+                    Navigator.pop(parentContext);
+                    
+                    // Wait a frame before showing snackbar
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    
+                    if (mounted) {
+                      showTastySnackbar(
+                        'Success',
+                        'Moved "${capitalizeFirstLetter(meal.name)}" to ${DateFormat('MMM dd, yyyy').format(selectedDate)}',
+                        parentContext,
+                      );
+                    }
+                  } else {
+                    if (mounted) {
+                      showTastySnackbar(
+                        'Error',
+                        'Failed to move meal',
+                        parentContext,
+                        backgroundColor: kRed,
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    showTastySnackbar(
+                      'Error',
+                      'Failed to move meal: $e',
+                      parentContext,
+                      backgroundColor: kRed,
+                    );
+                  }
+                }
+              },
+              child: Text(
+                'Select Date',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: kAccent,
                   fontWeight: FontWeight.w600,
                 ),
               ),

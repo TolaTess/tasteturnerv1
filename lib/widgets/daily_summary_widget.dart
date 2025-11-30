@@ -10,6 +10,8 @@ import '../screens/tomorrow_action_items_screen.dart';
 import '../service/notification_handler_service.dart';
 import '../service/health_journal_service.dart';
 import '../data_models/health_journal_model.dart';
+import '../service/nutrient_breakdown_service.dart';
+import '../data_models/user_meal.dart';
 import 'health_journal_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
@@ -29,10 +31,15 @@ class DailySummaryWidget extends StatefulWidget {
 class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   final dailyDataController = Get.find<NutritionController>();
   final healthJournalService = HealthJournalService.instance;
+  final nutrientBreakdownService = NutrientBreakdownService.instance;
   bool isLoading = true;
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
   HealthJournalEntry? journalEntry;
+  Map<String, List<Map<String, dynamic>>> nutrientBreakdowns = {};
+  Map<String, List<UserMeal>> mealsWithContext = {}; // mealType -> List<UserMeal>
+  Map<String, int> contextCounts = {}; // context -> count
+  List<SymptomEntry> currentSymptoms = []; // Symptoms for today
 
   @override
   void initState() {
@@ -68,6 +75,21 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       final journal = await healthJournalService.fetchJournalEntry(userId, widget.date);
       if (journal != null) {
         journalEntry = journal;
+      }
+
+      // Load nutrient breakdowns
+      final breakdowns = await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
+        userId,
+        widget.date,
+      );
+      nutrientBreakdowns = breakdowns;
+
+      // Load meals with eating context
+      await _loadMealsWithContext(userId, dateString);
+
+      // Load existing symptoms from journal entry
+      if (journalEntry != null) {
+        currentSymptoms = journalEntry!.data.symptoms;
       }
 
       // Load user goals
@@ -123,6 +145,55 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     } catch (e) {
       debugPrint('Error loading routine completion data: $e');
       summaryData['routineCompletionPercentage'] = 0.0;
+    }
+  }
+
+  Future<void> _loadMealsWithContext(String userId, String dateString) async {
+    try {
+      final mealsDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .doc(dateString)
+          .get();
+
+      if (!mealsDoc.exists) {
+        mealsWithContext = {};
+        contextCounts = {};
+        return;
+      }
+
+      final data = mealsDoc.data()!;
+      final mealsMap = Map<String, dynamic>.from(data['meals'] ?? {});
+
+      final Map<String, List<UserMeal>> loadedMeals = {};
+      final Map<String, int> counts = {};
+
+      mealsMap.forEach((mealType, mealList) {
+        if (mealList is List) {
+          final meals = mealList
+              .map((mealData) => UserMeal.fromMap(Map<String, dynamic>.from(mealData)))
+              .where((meal) => meal.eatingContext != null && meal.eatingContext!.isNotEmpty)
+              .toList();
+          
+          if (meals.isNotEmpty) {
+            loadedMeals[mealType] = meals;
+            
+            // Count contexts
+            for (var meal in meals) {
+              final context = meal.eatingContext!;
+              counts[context] = (counts[context] ?? 0) + 1;
+            }
+          }
+        }
+      });
+
+      mealsWithContext = loadedMeals;
+      contextCounts = counts;
+    } catch (e) {
+      debugPrint('Error loading meals with context: $e');
+      mealsWithContext = {};
+      contextCounts = {};
     }
   }
 
@@ -331,6 +402,22 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             routineProgress,
           ),
 
+          // Nutrient Breakdown
+          if (nutrientBreakdowns.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            _buildNutrientBreakdown(context),
+          ],
+
+          // Eating Context Summary
+          if (contextCounts.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            _buildEatingContextSummary(context, isDarkMode, textTheme),
+          ],
+
+          // Symptom Input Section
+          SizedBox(height: getPercentageHeight(2, context)),
+          _buildSymptomInputSection(context, isDarkMode, textTheme),
+
           // Health Journal Entry
           if (journalEntry != null) ...[
             SizedBox(height: getPercentageHeight(2, context)),
@@ -339,6 +426,117 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         ],
       ),
     );
+  }
+
+  Widget _buildEatingContextSummary(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+      decoration: BoxDecoration(
+        color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.psychology,
+                color: kAccent,
+                size: getIconScale(4, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Text(
+                'Why You Ate Today',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1.5, context)),
+          Wrap(
+            spacing: getPercentageWidth(2, context),
+            runSpacing: getPercentageHeight(1, context),
+            children: contextCounts.entries.map((entry) {
+              final eatingContext = entry.key;
+              final count = entry.value;
+              return _buildContextChip(context, eatingContext, count, isDarkMode, textTheme);
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContextChip(
+    BuildContext buildContext,
+    String eatingContext,
+    int count,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final (emoji, label) = _getContextEmojiAndLabel(eatingContext);
+    
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(3, buildContext),
+        vertical: getPercentageHeight(0.8, buildContext),
+      ),
+      decoration: BoxDecoration(
+        color: kAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            emoji,
+            style: TextStyle(fontSize: getTextScale(3.5, buildContext)),
+          ),
+          SizedBox(width: getPercentageWidth(1.5, buildContext)),
+          Text(
+            '$label ($count)',
+            style: textTheme.bodySmall?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, String) _getContextEmojiAndLabel(String context) {
+    switch (context.toLowerCase()) {
+      case 'hunger':
+        return ('🍽️', 'Hunger');
+      case 'boredom':
+        return ('😴', 'Boredom');
+      case 'stress':
+        return ('😰', 'Stress');
+      case 'social':
+        return ('👥', 'Social');
+      case 'planned':
+        return ('✅', 'Planned');
+      case 'meal':
+        return ('🍴', 'Meal');
+      default:
+        return ('📝', context);
+    }
   }
 
   Widget _buildProgressCharts(
@@ -893,5 +1091,622 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             .toList(),
       ],
     );
+  }
+
+  Widget _buildNutrientBreakdown(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    bool isExpanded = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) => Container(
+        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+        decoration: BoxDecoration(
+          color: isDarkMode ? kDarkGrey : kLightGrey.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => isExpanded = !isExpanded),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.analytics_outlined,
+                        color: kAccent,
+                        size: getIconScale(4, context),
+                      ),
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Text(
+                        'Nutrient Breakdown',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: kAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: kAccent,
+                  ),
+                ],
+              ),
+            ),
+            if (isExpanded) ...[
+              SizedBox(height: getPercentageHeight(1.5, context)),
+              ...nutrientBreakdowns.entries.map((entry) {
+                final mealType = entry.key;
+                final meals = entry.value;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _capitalizeMealType(mealType),
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(0.5, context)),
+                    ...meals.map((meal) => _buildMealNutrientBreakdown(
+                          context,
+                          meal,
+                          isDarkMode,
+                          textTheme,
+                        )),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                  ],
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMealNutrientBreakdown(
+    BuildContext context,
+    Map<String, dynamic> meal,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final mealName = meal['mealName'] as String? ?? 'Unknown Meal';
+    final sodium = meal['sodium'] as List<dynamic>? ?? [];
+    final sugar = meal['sugar'] as List<dynamic>? ?? [];
+    final saturatedFat = meal['saturatedFat'] as List<dynamic>? ?? [];
+
+    return Container(
+      margin: EdgeInsets.only(
+        left: getPercentageWidth(2, context),
+        bottom: getPercentageHeight(1, context),
+      ),
+      padding: EdgeInsets.all(getPercentageWidth(2, context)),
+      decoration: BoxDecoration(
+        color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            mealName,
+            style: textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(0.5, context)),
+          if (sodium.isNotEmpty) ...[
+            _buildNutrientContributors(
+              context,
+              'Sodium',
+              sodium,
+              isDarkMode,
+              textTheme,
+            ),
+          ],
+          if (sugar.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            _buildNutrientContributors(
+              context,
+              'Sugar',
+              sugar,
+              isDarkMode,
+              textTheme,
+            ),
+          ],
+          if (saturatedFat.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            _buildNutrientContributors(
+              context,
+              'Saturated Fat',
+              saturatedFat,
+              isDarkMode,
+              textTheme,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutrientContributors(
+    BuildContext context,
+    String nutrientName,
+    List<dynamic> contributors,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$nutrientName:',
+          style: textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        SizedBox(height: getPercentageHeight(0.3, context)),
+        ...contributors.map((contributor) {
+          final ingredient = contributor['ingredient'] as String? ?? '';
+          final contribution = contributor['contribution'] as double? ?? 0.0;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: getPercentageWidth(2, context),
+              bottom: getPercentageHeight(0.3, context),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    ingredient,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? Colors.white60 : Colors.black54,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: getPercentageWidth(15, context),
+                  height: getPercentageHeight(0.8, context),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (contribution / 100).clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kAccent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(1, context)),
+                Text(
+                  '${contribution.toStringAsFixed(0)}%',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(2.5, context),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  String _capitalizeMealType(String mealType) {
+    if (mealType.isEmpty) return mealType;
+    return mealType[0].toUpperCase() + mealType.substring(1);
+  }
+
+  Widget _buildSymptomInputSection(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+      decoration: BoxDecoration(
+        color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.favorite,
+                color: kAccent,
+                size: getIconScale(4, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Text(
+                'How are you feeling?',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1.5, context)),
+          Wrap(
+            spacing: getPercentageWidth(2, context),
+            runSpacing: getPercentageHeight(1, context),
+            children: [
+              _buildSymptomButton(context, 'bloating', '💨', 'Bloating', isDarkMode, textTheme),
+              _buildSymptomButton(context, 'headache', '🤕', 'Headache', isDarkMode, textTheme),
+              _buildSymptomButton(context, 'fatigue', '😴', 'Fatigue', isDarkMode, textTheme),
+              _buildSymptomButton(context, 'nausea', '🤢', 'Nausea', isDarkMode, textTheme),
+              _buildSymptomButton(context, 'energy', '⚡', 'Energy', isDarkMode, textTheme),
+              _buildSymptomButton(context, 'good', '✅', 'Good', isDarkMode, textTheme),
+            ],
+          ),
+          // Display logged symptoms
+          if (currentSymptoms.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(1.5, context)),
+            Divider(color: kAccent.withValues(alpha: 0.3)),
+            SizedBox(height: getPercentageHeight(1, context)),
+            Text(
+              'Logged Symptoms:',
+              style: textTheme.bodySmall?.copyWith(
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Wrap(
+              spacing: getPercentageWidth(2, context),
+              runSpacing: getPercentageHeight(0.5, context),
+              children: currentSymptoms.map((symptom) {
+                final (emoji, label) = _getSymptomEmojiAndLabel(symptom.type);
+                return Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(2.5, context),
+                    vertical: getPercentageHeight(0.6, context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(emoji, style: TextStyle(fontSize: getTextScale(3, context))),
+                      SizedBox(width: getPercentageWidth(1, context)),
+                      Text(
+                        '$label (${symptom.severity}/5)',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                          fontSize: getTextScale(2.8, context),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSymptomButton(
+    BuildContext context,
+    String symptomType,
+    String emoji,
+    String label,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final isSelected = currentSymptoms.any((s) => s.type == symptomType);
+    
+    return GestureDetector(
+      onTap: () => _showSymptomSeverityDialog(context, symptomType, emoji, label, isDarkMode, textTheme),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(3, context),
+          vertical: getPercentageHeight(0.8, context),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kAccent.withValues(alpha: 0.2)
+              : kAccent.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? kAccent
+                : kAccent.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              emoji,
+              style: TextStyle(fontSize: getTextScale(3.5, context)),
+            ),
+            SizedBox(width: getPercentageWidth(1.5, context)),
+            Text(
+              label,
+              style: textTheme.bodySmall?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSymptomSeverityDialog(
+    BuildContext context,
+    String symptomType,
+    String emoji,
+    String label,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) async {
+    int severity = 3; // Default severity
+    
+    final result = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Row(
+            children: [
+              Text(emoji, style: TextStyle(fontSize: getTextScale(5, context))),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Text(
+                label,
+                style: textTheme.titleMedium?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Severity (1 = mild, 5 = severe)',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(5, (index) {
+                  final value = index + 1;
+                  return GestureDetector(
+                    onTap: () {
+                      setDialogState(() {
+                        severity = value;
+                      });
+                    },
+                    child: Container(
+                      width: getPercentageWidth(8, context),
+                      height: getPercentageWidth(8, context),
+                      decoration: BoxDecoration(
+                        color: severity == value
+                            ? kAccent
+                            : (isDarkMode ? kLightGrey : Colors.grey[300]),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$value',
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: severity == value ? kWhite : (isDarkMode ? kWhite : kBlack),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, severity),
+              child: Text(
+                'Save',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: kAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await _saveSymptom(symptomType, result);
+    }
+  }
+
+  Future<void> _saveSymptom(String symptomType, int severity) async {
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) return;
+
+      // Get meals eaten 2-4 hours before now
+      final now = DateTime.now();
+      final fourHoursAgo = now.subtract(const Duration(hours: 4));
+      final twoHoursAgo = now.subtract(const Duration(hours: 2));
+      
+      final ingredients = await _getIngredientsFromRecentMeals(userId, twoHoursAgo, fourHoursAgo);
+      
+      // Determine meal context (which meal was most recent)
+      String? mealContext;
+      if (now.hour >= 6 && now.hour < 11) {
+        mealContext = 'breakfast';
+      } else if (now.hour >= 11 && now.hour < 15) {
+        mealContext = 'lunch';
+      } else if (now.hour >= 15 && now.hour < 20) {
+        mealContext = 'dinner';
+      } else {
+        mealContext = 'snacks';
+      }
+
+      final symptom = SymptomEntry(
+        type: symptomType,
+        severity: severity,
+        timestamp: now,
+        mealContext: mealContext,
+        ingredients: ingredients,
+      );
+
+      await healthJournalService.addSymptomEntry(userId, widget.date, symptom);
+      
+      // Reload journal entry to update UI
+      final updatedJournal = await healthJournalService.fetchJournalEntry(userId, widget.date);
+      if (mounted) {
+        setState(() {
+          if (updatedJournal != null) {
+            journalEntry = updatedJournal;
+            currentSymptoms = updatedJournal.data.symptoms;
+          }
+        });
+      }
+
+      if (mounted) {
+        showTastySnackbar(
+          'Success',
+          'Symptom logged successfully',
+          context,
+          backgroundColor: kAccent,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving symptom: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to save symptom. Please try again.',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+    }
+  }
+
+  Future<List<String>> _getIngredientsFromRecentMeals(
+    String userId,
+    DateTime startTime,
+    DateTime endTime,
+  ) async {
+    try {
+      final ingredients = <String>{};
+      
+      // Get meals from today and yesterday (in case symptom is logged late)
+      final dates = [
+        DateFormat('yyyy-MM-dd').format(widget.date),
+        DateFormat('yyyy-MM-dd').format(widget.date.subtract(const Duration(days: 1))),
+      ];
+
+      for (final dateStr in dates) {
+        final mealsDoc = await firestore
+            .collection('userMeals')
+            .doc(userId)
+            .collection('meals')
+            .doc(dateStr)
+            .get();
+
+        if (!mealsDoc.exists) continue;
+
+        final data = mealsDoc.data()!;
+        final mealsMap = Map<String, dynamic>.from(data['meals'] ?? {});
+
+        // Get meal IDs from meals eaten in the time window
+        mealsMap.forEach((mealType, mealList) {
+          if (mealList is List) {
+            for (var mealData in mealList) {
+              final mealMap = Map<String, dynamic>.from(mealData);
+              final mealId = mealMap['mealId'] as String?;
+              
+              if (mealId != null && mealId.isNotEmpty) {
+                // Fetch meal to get ingredients
+                _fetchMealIngredients(mealId, ingredients);
+              }
+            }
+          }
+        });
+      }
+
+      return ingredients.toList();
+    } catch (e) {
+      debugPrint('Error getting ingredients from recent meals: $e');
+      return [];
+    }
+  }
+
+  Future<void> _fetchMealIngredients(String mealId, Set<String> ingredients) async {
+    try {
+      final mealDoc = await firestore.collection('meals').doc(mealId).get();
+      if (mealDoc.exists) {
+        final mealData = mealDoc.data()!;
+        final mealIngredients = mealData['ingredients'] as Map<String, dynamic>? ?? {};
+        ingredients.addAll(mealIngredients.keys);
+      }
+    } catch (e) {
+      debugPrint('Error fetching meal ingredients: $e');
+    }
+  }
+
+  (String, String) _getSymptomEmojiAndLabel(String symptomType) {
+    switch (symptomType.toLowerCase()) {
+      case 'bloating':
+        return ('💨', 'Bloating');
+      case 'headache':
+        return ('🤕', 'Headache');
+      case 'fatigue':
+        return ('😴', 'Fatigue');
+      case 'nausea':
+        return ('🤢', 'Nausea');
+      case 'energy':
+        return ('⚡', 'Energy');
+      case 'good':
+        return ('✅', 'Good');
+      default:
+        return ('📝', symptomType);
+    }
   }
 }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/routine_service.dart';
+import '../service/symptom_correlation_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 
@@ -48,6 +49,8 @@ class TomorrowActionItemsScreen extends StatefulWidget {
 
 class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
   late DateTime tomorrowDate;
+  final symptomCorrelationService = SymptomCorrelationService.instance;
+  List<Map<String, dynamic>> symptomActionItems = [];
 
   @override
   void initState() {
@@ -66,6 +69,71 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
 
     // Load routine completion data if not already present
     _loadRoutineCompletionData();
+    
+    // Load symptom correlations
+    _loadSymptomCorrelations();
+  }
+
+  Future<void> _loadSymptomCorrelations() async {
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) return;
+
+      // Get weekly symptom correlations
+      final correlations = await symptomCorrelationService.getWeeklySymptomCorrelations(userId);
+      
+      // Group by symptom type
+      final Map<String, List<Map<String, dynamic>>> correlationsBySymptom = {};
+      
+      for (var correlation in correlations) {
+        if (!correlationsBySymptom.containsKey(correlation.symptom)) {
+          correlationsBySymptom[correlation.symptom] = [];
+        }
+        correlationsBySymptom[correlation.symptom]!.add({
+          'ingredient': correlation.ingredient,
+          'confidence': correlation.confidence,
+          'frequency': correlation.frequency,
+        });
+      }
+
+      // Create action items for symptoms reported 3+ times
+      final symptomTypes = ['bloating', 'headache', 'fatigue', 'nausea'];
+      
+      for (var symptomType in symptomTypes) {
+        final count = await symptomCorrelationService.getSymptomCount(userId, symptomType, 7);
+        
+        if (count >= 3 && correlationsBySymptom.containsKey(symptomType)) {
+          final symptomCorrelations = correlationsBySymptom[symptomType]!;
+          final topIngredients = symptomCorrelations
+              .take(3)
+              .map((c) => c['ingredient'] as String)
+              .toList();
+          
+          if (topIngredients.isNotEmpty) {
+            final ingredientList = topIngredients.join(', ');
+            symptomActionItems.add({
+              'title': 'Symptom Pattern Detected: ${_capitalizeSymptom(symptomType)}',
+              'description':
+                  'You reported $symptomType $count times this week. All $count times you had $ingredientList 2-4 hours prior. Consider avoiding these ingredients to see if symptoms improve.',
+              'icon': Icons.warning,
+              'color': kOrange,
+              'priority': 'high',
+            });
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Error loading symptom correlations: $e');
+    }
+  }
+
+  String _capitalizeSymptom(String symptom) {
+    if (symptom.isEmpty) return symptom;
+    return symptom[0].toUpperCase() + symptom.substring(1);
   }
 
   Future<void> _loadRoutineCompletionData() async {
@@ -319,6 +387,9 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         'priority': 'medium',
       });
     }
+
+    // Add symptom correlation action items (high priority)
+    actionItems.addAll(symptomActionItems);
 
     // If no specific issues, add positive reinforcement
     if (actionItems.length <= 2) {
