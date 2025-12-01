@@ -514,54 +514,82 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           SizedBox(height: getPercentageHeight(0.8, context)),
                           Row(
                             children: [
-                              Icon(
-                                Icons.people,
-                                color: Colors.green,
-                                size: getIconScale(4, context),
-                              ),
-                              SizedBox(width: getPercentageWidth(1, context)),
-                              Text(
-                                '$userCount members',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w500,
+                              // Stats (people + duration) take remaining space and
+                              // shrink if needed to avoid horizontal overflow.
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.people,
+                                      color: Colors.green,
+                                      size: getIconScale(4, context),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Flexible(
+                                      child: Text(
+                                        '$userCount members',
+                                        style:
+                                            textTheme.bodySmall?.copyWith(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(3, context)),
+                                    Icon(
+                                      Icons.schedule,
+                                      color: Colors.orange,
+                                      size: getIconScale(4, context),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(1, context)),
+                                    Flexible(
+                                      child: Text(
+                                        program.duration,
+                                        style:
+                                            textTheme.bodySmall?.copyWith(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              SizedBox(width: getPercentageWidth(3, context)),
-                              Icon(
-                                Icons.schedule,
-                                color: Colors.orange,
-                                size: getIconScale(4, context),
-                              ),
-                              SizedBox(width: getPercentageWidth(1, context)),
-                              Text(
-                                program.duration,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              SizedBox(width: getPercentageWidth(2.5, context)),
+                              SizedBox(
+                                  width:
+                                      getPercentageWidth(2.5, context)),
                               GestureDetector(
                                 onTap: () {
-                                  Get.to(() => ProgramProgressScreen(
-                                        programId: program.programId,
-                                        programName: program.name,
-                                        programDescription: program.description,
-                                        benefits: program.benefits,
-                                        duration: program.duration,
-                                      ));
+                                  Get.to(
+                                    () => ProgramProgressScreen(
+                                      programId: program.programId,
+                                      programName: program.name,
+                                      programDescription:
+                                          program.description,
+                                      benefits: program.benefits,
+                                      duration: program.duration,
+                                    ),
+                                  );
                                 },
                                 child: Container(
                                   padding: EdgeInsets.all(
-                                      getPercentageWidth(1.5, context)),
+                                    getPercentageWidth(1.5, context),
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Colors.purple.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.purple
+                                        .withValues(alpha: 0.1),
+                                    borderRadius:
+                                        BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     'Tracking',
-                                    style: textTheme.bodySmall?.copyWith(
+                                    style:
+                                        textTheme.bodySmall?.copyWith(
                                       color: Colors.purple,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -841,7 +869,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             Text(
               'A Program Just for You',
               style: textTheme.displayMedium
-                  ?.copyWith(fontSize: getTextScale(5.8, context)),
+                  ?.copyWith(fontSize: getTextScale(5.5, context)),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(

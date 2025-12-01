@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../constants.dart';
 import '../helper/utils.dart';
 
@@ -14,7 +12,8 @@ class ThemeDarkManager {
   ThemeData mainTheme(BuildContext context) {
     return ThemeData(
       scaffoldBackgroundColor: kBackgroundDarkColor,
-      fontFamily: GoogleFonts.chivo().fontFamily,
+      // Use locally bundled Chivo font (configured in pubspec.yaml)
+      fontFamily: 'Chivo',
       appBarTheme: appBarTheme(),
       textTheme: textTheme(context),
       iconTheme: iconTheme(),
@@ -29,28 +28,30 @@ class ThemeDarkManager {
       );
 
   TextTheme textTheme(BuildContext context) {
-    final baseTextTheme = GoogleFonts.chivoTextTheme();
-    final accentFont = GoogleFonts.caveat();
-    final headingFont = GoogleFonts.blackOpsOne();
+    // Base on default Chivo text theme using the global fontFamily
+    final baseTextTheme = Theme.of(context).textTheme;
 
     return TextTheme(
-      // Display styles - using Caveat for artistic accent
-      displayLarge: accentFont.copyWith(
+      // Display styles - use Caveat/BlackOpsOne as accent display fonts
+      displayLarge: baseTextTheme.displayLarge?.copyWith(
         fontSize: getTextScale(10, context),
         fontWeight: FontWeight.bold,
         color: kWhite,
+        fontFamily: 'Caveat',
       ),
-      displayMedium: headingFont.copyWith(
+      displayMedium: baseTextTheme.displayMedium?.copyWith(
         fontSize: getTextScale(6, context),
         fontWeight: FontWeight.bold,
         color: kWhite,
+        // Use BlackOpsOne for the main heading-style display
+        fontFamily: 'BlackOpsOne',
       ),
-      displaySmall: accentFont.copyWith(
+      displaySmall: baseTextTheme.displaySmall?.copyWith(
         fontSize: getTextScale(8, context),
         fontWeight: FontWeight.bold,
         color: kWhite,
+        fontFamily: 'Caveat',
       ),
-      // Headline styles - using Chivo for main text
       headlineLarge: baseTextTheme.headlineLarge?.copyWith(
         fontSize: getTextScale(7, context),
         fontWeight: FontWeight.bold,
@@ -67,7 +68,6 @@ class ThemeDarkManager {
         color: kWhite,
       ),
 
-      // Title styles - using Chivo
       titleLarge: baseTextTheme.titleLarge?.copyWith(
         fontSize: getTextScale(4.5, context),
         fontWeight: FontWeight.w600,
@@ -84,7 +84,6 @@ class ThemeDarkManager {
         color: kWhite,
       ),
 
-      // Body styles - using Chivo
       bodyLarge: baseTextTheme.bodyLarge?.copyWith(
         fontSize: getTextScale(4, context),
         color: kWhite,
@@ -98,7 +97,6 @@ class ThemeDarkManager {
         color: kWhite,
       ),
 
-      // Label styles - using Chivo
       labelLarge: baseTextTheme.labelLarge?.copyWith(
         fontSize: getTextScale(3.5, context),
         fontWeight: FontWeight.w600,
@@ -122,10 +120,11 @@ class ThemeDarkManager {
       color: kDarkGrey,
       elevation: 0,
       iconTheme: const IconThemeData(color: kWhite),
-      titleTextStyle: GoogleFonts.chivo(
+      titleTextStyle: const TextStyle(
         color: kWhite,
         fontSize: 16,
         fontWeight: FontWeight.w600,
+        fontFamily: 'Chivo',
       ),
     );
   }

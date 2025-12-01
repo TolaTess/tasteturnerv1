@@ -456,7 +456,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       'icon': Icons.shopping_cart,
                       'title': 'Shopping List',
                       'description':
-                          'Add meals to your calender to automatically generate shopping lists',
+                          'Generate shopping lists at a click of a button',
                       'color': kAccentLight,
                     },
                   ];
@@ -1335,6 +1335,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final hasSharedMeals =
         _mealPlanController.showSharedCalendars.value && sharedPlans.isNotEmpty;
     final hasAnyMeals = hasPersonalMeals || hasSharedMeals;
+    final cycleSuggestion = _getCycleSuggestionForDate(normalizedSelectedDate);
 
     // Show empty state only if there are truly no meals and no special day
     if (!hasAnyMeals && !hasMeal && !isPersonalSpecialDay) {
@@ -1384,6 +1385,42 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
         ],
 
+        if (cycleSuggestion != null) ...[
+          SizedBox(height: getPercentageHeight(0.5, context)),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(2, context),
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: getPercentageWidth(80, context),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cycle Goals',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? kLightGrey : kDarkGrey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    SizedBox(height: getPercentageHeight(0.3, context)),
+                    Text(
+                      cycleSuggestion['appAction'] ?? '',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? kLightGrey : kDarkGrey,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+
         if (hasPersonalMeals &&
             !_mealPlanController.showSharedCalendars.value) ...[
           SizedBox(height: getPercentageHeight(1, context)),
@@ -1416,114 +1453,136 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   Widget _buildMealsListView(List<MealWithType> meals, bool isDarkMode) {
     final textTheme = Theme.of(context).textTheme;
-    return SizedBox(
-      height: MediaQuery.of(context).size.height > 700
-          ? getPercentageHeight(18, context)
-          : getPercentageHeight(25, context),
-      child: ListView.builder(
-        padding:
-            EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
-        scrollDirection: Axis.horizontal,
-        itemCount: meals.length,
-        itemBuilder: (context, index) {
-          final mealWithType = meals[index];
-          final meal = mealWithType.meal;
-          final mealType = mealWithType.mealType;
-          final mealMember = mealWithType.familyMember;
+    final mediaQuery = MediaQuery.of(context);
+    final size = mediaQuery.size;
+    final shortestSide = size.shortestSide;
 
-          // Create draggable meal card
-          return Draggable<Map<String, dynamic>>(
-            data: {
-              'fullMealId': mealWithType.fullMealId,
-              'meal': meal,
-              'mealType': mealType,
-              'familyMember': mealMember,
-              'sourceDate': selectedDate,
-            },
-            feedback: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: MediaQuery.of(context).size.height > 1100
-                    ? getPercentageWidth(25.5, context)
-                    : getPercentageWidth(30, context),
-                height: MediaQuery.of(context).size.height > 700
-                    ? getPercentageHeight(18, context)
-                    : getPercentageHeight(25, context),
-                decoration: BoxDecoration(
-                  color: kAccentLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Opacity(
-                  opacity: 0.8,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          padding:
-                              EdgeInsets.all(getPercentageWidth(1, context)),
-                          child: AspectRatio(
-                            aspectRatio: 1,
-                            child: ClipOval(
-                              child: meal.mediaPaths.isNotEmpty
-                                  ? meal.mediaPaths.first.contains('https')
-                                      ? OptimizedImage(
-                                          imageUrl: meal.mediaPaths.first,
-                                          fit: BoxFit.cover,
-                                          borderRadius: BorderRadius.circular(
-                                              getPercentageWidth(100, context)),
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                        )
-                                      : Image.asset(
-                                          getAssetImageForItem(
-                                              meal.mediaPaths.first),
-                                          fit: BoxFit.cover,
-                                        )
-                                  : Image.asset(
-                                      getAssetImageForItem(
-                                          meal.category ?? 'default'),
-                                      fit: BoxFit.cover,
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(1, context)),
-                          child: Center(
-                            child: Text(
-                              capitalizeFirstLetter(meal.title),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                fontSize: getPercentageWidth(3, context),
+    // Treat iPad/tablet layouts differently so we can show a denser grid (e.g. 3x3+)
+    final bool isTablet = shortestSide >= 600;
+    final int crossAxisCount = isTablet ? 6 : 3;
+
+    final double baseCardHeight = mediaQuery.size.height > 700
+        ? getPercentageHeight(isTablet ? 15 : 18, context)
+        : getPercentageHeight(isTablet ? 20 : 25, context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double itemWidth = constraints.maxWidth / crossAxisCount;
+        final double itemHeight = baseCardHeight;
+        final double childAspectRatio = itemWidth / itemHeight;
+
+        return GridView.builder(
+          padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(2, context),
+            vertical: getPercentageHeight(0.5, context),
+          ),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            // Tighter, consistent spacing similar to SearchContentGrid
+            mainAxisSpacing: getPercentageHeight(0.8, context),
+            crossAxisSpacing: getPercentageWidth(1.5, context),
+            childAspectRatio: childAspectRatio,
+          ),
+          itemCount: meals.length,
+          itemBuilder: (context, index) {
+            final mealWithType = meals[index];
+            final meal = mealWithType.meal;
+            final mealType = mealWithType.mealType;
+            final mealMember = mealWithType.familyMember;
+
+            // Create draggable meal card in a grid cell (drag starts on long-press)
+            return LongPressDraggable<Map<String, dynamic>>(
+              data: {
+                'fullMealId': mealWithType.fullMealId,
+                'meal': meal,
+                'mealType': mealType,
+                'familyMember': mealMember,
+                'sourceDate': selectedDate,
+              },
+              feedback: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: itemWidth,
+                  height: itemHeight,
+                  decoration: BoxDecoration(
+                    color: kAccentLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Opacity(
+                    opacity: 0.8,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(1, context)),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: ClipOval(
+                                child: meal.mediaPaths.isNotEmpty
+                                    ? meal.mediaPaths.first.contains('https')
+                                        ? OptimizedImage(
+                                            imageUrl: meal.mediaPaths.first,
+                                            fit: BoxFit.cover,
+                                            borderRadius: BorderRadius.circular(
+                                                getPercentageWidth(
+                                                    100, context)),
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                          )
+                                        : Image.asset(
+                                            getAssetImageForItem(
+                                                meal.mediaPaths.first),
+                                            fit: BoxFit.cover,
+                                          )
+                                    : Image.asset(
+                                        getAssetImageForItem(
+                                            meal.category ?? 'default'),
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          flex: 2,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(1, context)),
+                            child: Center(
+                              child: Text(
+                                capitalizeFirstLetter(meal.title),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: getPercentageWidth(3, context),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            childWhenDragging: Opacity(
-              opacity: 0.3,
+              childWhenDragging: Opacity(
+                opacity: 0.3,
+                child: _buildMealCard(mealWithType, meal, mealType, mealMember,
+                    meals, index, isDarkMode, textTheme),
+              ),
               child: _buildMealCard(mealWithType, meal, mealType, mealMember,
                   meals, index, isDarkMode, textTheme),
-            ),
-            child: _buildMealCard(mealWithType, meal, mealType, mealMember,
-                meals, index, isDarkMode, textTheme),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1541,10 +1600,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       clipBehavior: Clip.none,
       children: [
         Container(
-          width: MediaQuery.of(context).size.height > 1100
-              ? getPercentageWidth(25.5, context)
-              : getPercentageWidth(30, context),
-          margin: EdgeInsets.only(right: getPercentageWidth(2, context)),
+          // Let the grid cell define the width; avoid extra margin so spacing
+          // is controlled by the GridView's main/cross axis spacing.
+          width: double.infinity,
+          margin: EdgeInsets.zero,
           child: Card(
             color: kAccentLight,
             elevation: 2,
@@ -2262,6 +2321,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       {DateTime? normalizedSelectedDate, bool? isSpecialDay}) {
     final textTheme = Theme.of(context).textTheme;
     final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
+    final cycleSuggestion = _getCycleSuggestionForDate(date);
     return SizedBox(
       height: 200,
       child: Center(
@@ -2326,15 +2386,67 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       ),
                     ],
                     SizedBox(width: getPercentageWidth(1.5, context)),
-                    Text(
-                      getRelativeDayString(selectedDate) == 'Today' ||
-                              getRelativeDayString(selectedDate) == 'Tomorrow'
-                          ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
-                          : 'No meals planned for this day',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                    if (cycleSuggestion != null) ...[
+                      // Cycle Syncing messaging for luteal phase
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: getPercentageWidth(80, context),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cycle Goals',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                              Text(
+                                cycleSuggestion['description'] ?? '',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.3, context)),
+                              Text(
+                                cycleSuggestion['appAction'] ?? '',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                              SizedBox(
+                                  height: getPercentageHeight(0.8, context)),
+                              Text(
+                                getRelativeDayString(selectedDate) == 'Today' ||
+                                        getRelativeDayString(selectedDate) ==
+                                            'Tomorrow'
+                                    ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                                    : 'No meals planned for this day',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ] else ...[
+                      Text(
+                        getRelativeDayString(selectedDate) == 'Today' ||
+                                getRelativeDayString(selectedDate) == 'Tomorrow'
+                            ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
+                            : 'No meals planned for this day',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -2613,6 +2725,45 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         lastPeriodStart, cycleLength, date);
 
     return cycleAdjustmentService.getPhaseEmoji(phase);
+  }
+
+  /// Returns a suggestion for the given date if cycle syncing is enabled,
+  /// the user is not male, and the phase is luteal. Otherwise returns null.
+  Map<String, String>? _getCycleSuggestionForDate(DateTime date) {
+    final user = userService.currentUser.value;
+    if (user == null) return null;
+
+    final genderRaw = user.settings['gender'] as String?;
+    final gender = genderRaw?.toLowerCase() ?? '';
+    if (gender == 'male') return null;
+
+    final cycleData = _getCycleData();
+    if (cycleData == null) return null;
+
+    final isEnabled = cycleData['isEnabled'] as bool? ?? false;
+    if (!isEnabled) return null;
+
+    final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+    if (lastPeriodStartStr == null) return null;
+
+    final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+    if (lastPeriodStart == null) return null;
+
+    final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+    final phase = cycleAdjustmentService.getCurrentPhase(
+        lastPeriodStart, cycleLength, date);
+
+    // Handle both enum-like and string-like phases by inspecting the text.
+    final phaseText = phase.toString().toLowerCase();
+    if (!phaseText.contains('luteal')) return null;
+
+    return {
+      'title': 'Luteal Phase – Support Recovery & Energy',
+      'description':
+          'You\'re in the luteal phase of your cycle, when energy can dip and recovery matters a bit more.',
+      'appAction':
+          'Today we need to focus on steadier energy by nudging complex carbs slightly higher and keeping protein consistent to support recovery.'
+    };
   }
 }
 

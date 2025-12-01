@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/widgets/helper_widget.dart';
 import 'package:tasteturner/service/post_service.dart';
@@ -123,98 +122,109 @@ class _InspirationScreenState extends State<InspirationScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kAccent,
-        toolbarHeight: getPercentageHeight(10, context),
+        toolbarHeight: getPercentageHeight(11, context),
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "What's on Your Plate?",
-                  style: textTheme.displayMedium
-                      ?.copyWith(fontSize: getTextScale(5.8, context)),
-                ),
-                SizedBox(width: getPercentageWidth(2, context)),
-                InfoIconWidget(
-                  title: 'Community Inspiration',
-                  description:
-                      'Discover and share healthy meal ideas with the community',
-                  details: const [
-                    {
-                      'icon': Icons.check_circle,
-                      'title': 'Diet Matches',
-                      'description':
-                          'Posts marked with this icon match your dietary preferences',
-                      'color': kAccent,
-                    },
-                    {
-                      'icon': Icons.auto_awesome,
-                      'title': 'Filter by Recipe',
-                      'description':
-                          'Filter posts by recipes only',
-                      'color': kAccent,
-                    },
-                    {
-                      'icon': Icons.people,
-                      'title': 'Community Posts',
-                      'description': 'See what others are cooking and eating',
-                      'color': kAccent,
-                    },
-                    {
-                      'icon': Icons.add_a_photo,
-                      'title': 'Share Your Meals',
-                      'description':
-                          'Upload photos of your healthy meals to inspire others',
-                      'color': kAccent,
-                    },
-                    {
-                      'icon': Icons.filter_list,
-                      'title': 'Analyze Meals',
-                      'description':
-                          'Analyze any post with AI and get insights',
-                      'color': kAccent,
-                    },
-                  ],
-                  iconColor: isDarkMode ? kWhite : kDarkGrey,
-                  tooltip: 'Inspiration Information',
-                ),
-                IconButton(
-                  icon: Icon(
-                    filterByRecipe
-                        ? Icons.restaurant_menu
-                        : Icons.restaurant_menu_outlined,
-                    color: filterByRecipe
-                        ? kAccentLight.withValues(alpha: 0.7)
-                        : kWhite.withOpacity(0.7),
+            // Prevent horizontal overflow by allowing the title content
+            // to scale down within the available AppBar width.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "What's on Your Plate?",
+                    style: textTheme.displayMedium
+                        ?.copyWith(fontSize: getTextScale(5.3, context)),
                   ),
-                  tooltip: 'Show posts with recipes only',
-                  onPressed: () {
-                    setState(() {
-                      filterByRecipe = !filterByRecipe;
-                    });
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  InfoIconWidget(
+                    title: 'Community Inspiration',
+                    description:
+                        'Discover and share healthy meal ideas with the community',
+                    details: const [
+                      {
+                        'icon': Icons.check_circle,
+                        'title': 'Diet Matches',
+                        'description':
+                            'Posts marked with this icon match your dietary preferences',
+                        'color': kAccent,
+                      },
+                      {
+                        'icon': Icons.auto_awesome,
+                        'title': 'Filter by Recipe',
+                        'description': 'Filter posts by recipes only',
+                        'color': kAccent,
+                      },
+                      {
+                        'icon': Icons.people,
+                        'title': 'Community Posts',
+                        'description': 'See what others are cooking and eating',
+                        'color': kAccent,
+                      },
+                      {
+                        'icon': Icons.add_a_photo,
+                        'title': 'Share Your Meals',
+                        'description':
+                            'Upload photos of your healthy meals to inspire others',
+                        'color': kAccent,
+                      },
+                      {
+                        'icon': Icons.filter_list,
+                        'title': 'Analyze Meals',
+                        'description':
+                            'Analyze any post with AI and get insights',
+                        'color': kAccent,
+                      },
+                    ],
+                    iconColor: isDarkMode ? kWhite : kDarkGrey,
+                    tooltip: 'Inspiration Information',
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      filterByRecipe
+                          ? Icons.restaurant_menu
+                          : Icons.restaurant_menu_outlined,
+                      color: filterByRecipe
+                          ? kAccentLight.withValues(alpha: 0.7)
+                          : kWhite.withOpacity(0.7),
+                    ),
+                    tooltip: 'Show posts with recipes only',
+                    onPressed: () {
+                      setState(() {
+                        filterByRecipe = !filterByRecipe;
+                      });
 
-                    // Show feedback
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(filterByRecipe
-                            ? 'Showing posts with recipes only'
-                            : 'Showing all posts'),
-                        duration: const Duration(seconds: 1),
-                        backgroundColor: kAccent,
-                      ),
-                    );
-                  },
-                ),
-              ],
+                      // Show feedback
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            filterByRecipe
+                                ? 'Showing posts with recipes only'
+                                : 'Showing all posts',
+                          ),
+                          duration: const Duration(seconds: 1),
+                          backgroundColor: kAccent,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             Row(
               key: _addDietButtonKey,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle,
-                    color: kWhite, size: getIconScale(3.5, context)),
+                Icon(
+                  Icons.check_circle,
+                  color: kWhite,
+                  size: getIconScale(3.5, context),
+                ),
                 SizedBox(width: 8),
                 Text(
                   "Meals that match your $userGoal goal",

@@ -16,6 +16,7 @@ import '../service/notification_service.dart';
 import '../service/notification_handler_service.dart';
 import '../service/hybrid_notification_service.dart';
 import '../widgets/bottom_nav.dart';
+import 'onboarding_cycle_sync_screen.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -44,6 +45,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _darkModeEnabled = false;
   bool _isEditingName = false; // Track if user is editing their name
   bool _isSubmitting = false; // Prevent multiple submissions
+
+  // Gender selection (optional during onboarding)
+  String? _selectedGender;
+
+  // Cycle syncing (optional during onboarding)
+  bool _cycleSyncEnabled = false;
+  DateTime? _cycleLastPeriodStart;
+  final TextEditingController _cycleLengthController =
+      TextEditingController(text: '28');
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -139,8 +149,33 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         case 1:
         case 2:
         case 3:
-        case 4:
           _isNextEnabled = true; // Visual slides - always enabled
+          break;
+        case 4:
+          _isNextEnabled = true; // Gender slide - always enabled (optional)
+          break;
+        case 5:
+          // Cycle syncing slide - validate only if toggle is ON and gender is non-male
+          final isMale = _selectedGender?.toLowerCase() == 'male';
+          final shouldShowInfoOnly = _selectedGender == null || isMale;
+          if (shouldShowInfoOnly || !_cycleSyncEnabled) {
+            _isNextEnabled = true;
+          } else {
+            final length =
+                int.tryParse(_cycleLengthController.text.trim());
+            final validLength =
+                length != null && length >= 21 && length <= 40;
+            final now = DateTime.now();
+            final lastStart = _cycleLastPeriodStart;
+            final validDate = lastStart != null &&
+                !lastStart.isAfter(
+                  DateTime(now.year, now.month, now.day + 1),
+                );
+            _isNextEnabled = validLength && validDate;
+          }
+          break;
+        case 6:
+          _isNextEnabled = true; // Settings slide
           break;
         default:
           _isNextEnabled = false;
@@ -220,9 +255,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'fitnessGoal': 'Healthy Eating', // Default - will trigger prompt
           'targetSteps': '10000',
           'dietPreference': 'Balanced',
-          'gender': null, // Null - will trigger prompt
+          'gender': _selectedGender, // Gender from onboarding or null
           'notificationsEnabled': _notificationsEnabled,
           'notificationPreferenceSet': true, // User has made a choice
+          'cycleTracking': {
+            'isEnabled': _cycleSyncEnabled,
+            'lastPeriodStart': _cycleLastPeriodStart?.toIso8601String(),
+            'cycleLength':
+                int.tryParse(_cycleLengthController.text.trim()) ?? 28,
+          },
         },
         preferences: {
           'diet': 'None', // Default - will trigger prompt
@@ -545,6 +586,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       _buildMealPlanningSlide(),
                       _buildTrackingSlide(),
                       _buildCommunitySlide(),
+                      _buildGenderSlide(),
+                      _buildCycleSyncSlide(),
                       _buildSettingsSlide(),
                     ],
                   ),
@@ -1194,7 +1237,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Dismiss keyboard when navigating
       FocusScope.of(context).unfocus();
 
-      if (_currentPage < 4) {
+      if (_currentPage < 6) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
@@ -1221,7 +1264,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 4 ? "Get Started" : "Next",
+          _currentPage == 6 ? "Get Started" : "Next",
           textAlign: TextAlign.center,
           style: textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w500,
@@ -1263,6 +1306,229 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     await FirebaseAnalytics.instance.setConsent(
       adStorageConsentGranted: canRequest,
       analyticsStorageConsentGranted: canRequest,
+    );
+  }
+
+  /// Gender Selection Slide
+  Widget _buildGenderSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : "there";
+    final textTheme = Theme.of(context).textTheme;
+
+    return _buildPage(
+      textTheme: textTheme,
+      title: "Tell Us About Yourself, $userName",
+      description:
+          "This helps us provide more accurate calorie and macro recommendations. This is optional and can be changed later.",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kAccent, kAccent.withValues(alpha: 0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kAccent.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Gender (Optional)",
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = 'male';
+                        _validateInputs();
+                      });
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(2, context),
+                        horizontal: getPercentageWidth(2, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: _selectedGender == 'male'
+                            ? Colors.white
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Male',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: _selectedGender == 'male'
+                              ? kAccent
+                              : Colors.white,
+                          fontWeight: _selectedGender == 'male'
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(3, context)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = 'female';
+                        _validateInputs();
+                      });
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(2, context),
+                        horizontal: getPercentageWidth(2, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: _selectedGender == 'female'
+                            ? Colors.white
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Female',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: _selectedGender == 'female'
+                              ? kAccent
+                              : Colors.white,
+                          fontWeight: _selectedGender == 'female'
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedGender != null)
+              Padding(
+                padding: EdgeInsets.only(top: getPercentageHeight(1.5, context)),
+                child: Text(
+                  'Gender helps calculate more accurate calorie and macro recommendations',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Cycle Syncing Slide
+  Widget _buildCycleSyncSlide() {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    final isMale = _selectedGender?.toLowerCase() == 'male';
+    final shouldShowInfoOnly = _selectedGender == null || isMale;
+
+    return _buildPage(
+      textTheme: textTheme,
+      title: "Support Your Cycle",
+      description: shouldShowInfoOnly
+          ? "Cycle syncing is available for users with menstrual cycles. You can always add it later in Settings."
+          : "If you have a menstrual cycle, we can gently adapt your goals and suggestions around your phases. This is optional and can be changed later in Edit Goals.",
+      child1: shouldShowInfoOnly
+          ? Container(
+              padding: EdgeInsets.all(getPercentageWidth(5, context)),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? kDarkGrey.withValues(alpha: 0.3)
+                    : kLightGrey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: kAccent,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: kAccent,
+                    size: getIconScale(8, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(3, context)),
+                  Expanded(
+                    child: Text(
+                      "Cycle syncing adjusts goals and meal suggestions based on menstrual cycle phases. This feature is designed for users with menstrual cycles.",
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? kWhite : kDarkGrey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : OnboardingCycleSyncScreen(
+              isDarkMode: isDarkMode,
+              isEnabled: _cycleSyncEnabled,
+              lastPeriodStart: _cycleLastPeriodStart,
+              cycleLengthController: _cycleLengthController,
+              onToggle: () {
+                setState(() {
+                  _cycleSyncEnabled = !_cycleSyncEnabled;
+                  // Set a sensible default date when turning on if none selected yet
+                  if (_cycleSyncEnabled && _cycleLastPeriodStart == null) {
+                    _cycleLastPeriodStart =
+                        DateTime.now().subtract(const Duration(days: 3));
+                  }
+                  _validateInputs();
+                });
+              },
+              onPickDate: () async {
+                final now = DateTime.now();
+                final initialDate = _cycleLastPeriodStart ?? now;
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: initialDate,
+                  firstDate: now.subtract(const Duration(days: 90)),
+                  lastDate: now,
+                );
+                if (picked != null && mounted) {
+                  setState(() {
+                    _cycleLastPeriodStart = picked;
+                    _validateInputs();
+                  });
+                }
+              },
+            ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
     );
   }
 }
