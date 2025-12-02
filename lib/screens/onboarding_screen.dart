@@ -623,7 +623,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
- decoration: BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage(
               isDarkMode
@@ -633,7 +633,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               isDarkMode
-                    ? Colors.black.withOpacity(0.5)
+                  ? Colors.black.withOpacity(0.5)
                   : Colors.white.withOpacity(0.5),
               isDarkMode ? BlendMode.darken : BlendMode.lighten,
             ),
@@ -1497,8 +1497,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       textTheme: textTheme,
       title: "Sync the Menu to Your Body.",
       description: shouldShowInfoOnly
-          ? "Different weeks require different fuel. If you have a cycle, I can gently adapt your nutritional targets to match your hormonal phases."
-          : "Cycle syncing is available for Chefs with menstrual cycles. If you need this later, just let me know in Settings.",
+          ? "Cycle syncing is available for Chefs with menstrual cycles. If you need this later, just let me know in Settings."
+          : "Different weeks require different fuel. If you have a cycle, I can gently adapt your nutritional targets to match your hormonal phases.",
       child1: shouldShowInfoOnly
           ? Container(
               padding: EdgeInsets.all(getPercentageWidth(5, context)),

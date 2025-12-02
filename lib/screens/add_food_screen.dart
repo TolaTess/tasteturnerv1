@@ -34,7 +34,7 @@ class AddFoodScreen extends StatefulWidget {
 
   const AddFoodScreen({
     super.key,
-    this.title = 'Update Goals',
+    this.title = 'Chef\'s Logs',
     this.date,
     this.notAllowedMealType,
     this.isShowSummary = false,
@@ -165,6 +165,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     } catch (e) {
       debugPrint('Error refreshing meal data: $e');
     }
+  }
+
+  // Helper method to check if any meals have been logged
+  bool _hasAnyMealsLogged() {
+    final mealList = dailyDataController.userMealList;
+    // Check if any meal type has at least one meal
+    return mealList.values.any((meals) => meals.isNotEmpty);
   }
 
   // Helper method to get current calories for a meal type by counting actual meals in the list
@@ -660,7 +667,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       if (_searchResults.isEmpty && !_isSearching.value) {
                         return Center(
                           child: Text(
-                            'No results found',
+                            "I can't find that in the pantry",
                             style: TextStyle(
                               color: getThemeProvider(context).isDarkMode
                                   ? kWhite
@@ -1094,7 +1101,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         child: Column(
                           children: [
                             Text(
-                              'No meals found in previous history',
+                              "Nothing in the pantry from previous service",
                               style: TextStyle(
                                 color: isDarkMode ? kWhite : kBlack,
                                 fontWeight: FontWeight.w600,
@@ -1317,7 +1324,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (mounted) Navigator.pop(context);
       debugPrint('Error searching meals by calories: $e');
       if (mounted) {
-        _handleError('Failed to search meals. Please try again.',
+        _handleError("Chef, I can't find that in the pantry. Please try again.",
             details: e.toString());
       }
     }
@@ -2730,7 +2737,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             Text(
               widget.title,
               style: textTheme.displaySmall?.copyWith(
-                fontSize: getTextScale(7, context),
+                fontSize: getTextScale(8, context),
               ),
             ),
             // Icons row below title
@@ -2739,8 +2746,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 InfoIconWidget(
-                  title: 'Food Diary',
-                  description: 'Track your daily meals and nutrition',
+                  title: 'The Pass',
+                  description: 'Review orders and track your daily meals',
                   details: const [
                     {
                       'icon': Icons.restaurant,
@@ -2776,7 +2783,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     },
                   ],
                   iconColor: isDarkMode ? kWhite : kDarkGrey,
-                  tooltip: 'Food Diary Information',
+                  tooltip: 'The Pass Information',
                 ),
                 // Health Journal Toggle
                 Obx(() {
@@ -2964,66 +2971,77 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   ),
                 SizedBox(height: getPercentageHeight(0.5, context)),
 
-                // Fill Remaining Macros Button
+                // Fill Remaining Macros Button - only show if meals have been logged
                 if (isToday)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context)),
-                    child: GestureDetector(
-                      onTap: () => _showFillRemainingMacrosDialog(context),
-                      child: Container(
-                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                        decoration: BoxDecoration(
-                          color: kPurple.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: kPurple.withValues(alpha: 0.3),
-                            width: 1,
+                  Obx(() {
+                    // Access userMealList to trigger reactivity
+                    dailyDataController.userMealList;
+
+                    // Only show if at least one meal has been logged
+                    if (!_hasAnyMealsLogged()) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context)),
+                      child: GestureDetector(
+                        onTap: () => _showFillRemainingMacrosDialog(context),
+                        child: Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: kPurple.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: kPurple.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search,
+                                color: kPurple,
+                                size: getIconScale(5, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Fill Remaining Macros',
+                                      style: textTheme.titleMedium?.copyWith(
+                                        color: kPurple,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(0.3, context)),
+                                    Text(
+                                      'Find foods that fit your remaining macros',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: kPurple.withValues(alpha: 0.7),
+                                        fontSize: getTextScale(2.5, context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: kPurple,
+                                size: getIconScale(4, context),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search,
-                              color: kPurple,
-                              size: getIconScale(5, context),
-                            ),
-                            SizedBox(width: getPercentageWidth(2, context)),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Fill Remaining Macros',
-                                    style: textTheme.titleMedium?.copyWith(
-                                      color: kPurple,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height:
-                                          getPercentageHeight(0.3, context)),
-                                  Text(
-                                    'Find foods that fit your remaining macros',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: kPurple.withValues(alpha: 0.7),
-                                      fontSize: getTextScale(2.5, context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: kPurple,
-                              size: getIconScale(4, context),
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
 
                 SizedBox(height: getPercentageHeight(1, context)),
 
@@ -3514,8 +3532,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           final double currentWater =
                                               dailyDataController
                                                   .currentWater.value;
-                                          debugPrint(
-                                              '💧 Obx Water Tracker - currentWater: $currentWater, waterTotal: $waterTotal');
                                           return _buildGoalTracker(
                                             context: context,
                                             title: 'Water',
@@ -3529,8 +3545,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               // Not used with slider, but kept for compatibility
                                             },
                                             onValueChanged: (newValue) async {
-                                              debugPrint(
-                                                  '💧 Water slider changed - newValue: $newValue, currentDate: $currentDate');
                                               await dailyDataController
                                                   .updateCurrentWater(
                                                       userService.userId!,
@@ -3565,8 +3579,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           final double currentSteps =
                                               dailyDataController
                                                   .currentSteps.value;
-                                          debugPrint(
-                                              '🚶 Obx Steps Tracker - currentSteps: $currentSteps, stepsTotal: $stepsTotal');
+
                                           return _buildGoalTracker(
                                             context: context,
                                             title: 'Steps',
@@ -3580,8 +3593,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               // Not used with slider, but kept for compatibility
                                             },
                                             onValueChanged: (newValue) async {
-                                              debugPrint(
-                                                  '🚶 Steps slider changed - newValue: $newValue, currentDate: $currentDate');
                                               await dailyDataController
                                                   .updateCurrentSteps(
                                                       userService.userId!,

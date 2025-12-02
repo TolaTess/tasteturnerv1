@@ -1171,9 +1171,23 @@ class _DineInScreenState extends State<DineInScreen> {
             ElevatedButton(
               onPressed: selectedIngredients.isEmpty
                   ? null
-                  : () {
+                  : () async {
                       Navigator.pop(dialogContext);
-                      _saveIngredientsToPantry(selectedIngredients.toList());
+                      try {
+                        await _saveIngredientsToPantry(selectedIngredients.toList());
+                        // Refresh pantry items to show the newly added items
+                        await _fetchPantryItems();
+                      } catch (e) {
+                        debugPrint('Error saving ingredients to pantry: $e');
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to save ingredients to pantry. Please try again.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: kAccent,
@@ -1462,9 +1476,23 @@ class _DineInScreenState extends State<DineInScreen> {
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
-                  _saveIngredientsToPantry([ingredient]);
+                  try {
+                    await _saveIngredientsToPantry([ingredient]);
+                    // Refresh pantry items to show the newly added item
+                    await _fetchPantryItems();
+                  } catch (e) {
+                    debugPrint('Error saving ingredient to pantry: $e');
+                    if (mounted && context.mounted) {
+                      showTastySnackbar(
+                        'Error',
+                        'Failed to save ingredient to pantry. Please try again.',
+                        context,
+                        backgroundColor: Colors.red,
+                      );
+                    }
+                  }
                 },
               ),
             if (isInPantry)

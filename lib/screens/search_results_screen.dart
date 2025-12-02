@@ -845,15 +845,15 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                 } catch (e) {
                   // Show error message if meal generation fails
                   String errorMessage =
-                      'Failed to generate meals. Please try again.';
+                      'Chef, the kitchen hit a snag. Let me reset and try again.';
 
                   if (e.toString().contains('overloaded') ||
                       e.toString().contains('503')) {
                     errorMessage =
-                        'AI service is temporarily busy. Please try again in a few minutes.';
+                        'Chef, the station is busy right now. Please try again in a few minutes.';
                   } else if (e.toString().contains('fallback')) {
                     errorMessage =
-                        'Using backup meal suggestions while AI service is unavailable.';
+                        'Using backup menu suggestions while the main station is unavailable.';
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(

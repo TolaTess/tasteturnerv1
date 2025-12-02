@@ -26,6 +26,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   List<XFile> _selectedImages = [];
   XFile? _recentImage;
   String? selectedGender;
+  bool _shouldDisableCycleSyncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize selectedGender from user settings
+    selectedGender = userService.currentUser.value?.settings['gender'];
+  }
 
   Future<String> _compressAndResizeProfileImage(String imagePath) async {
     // Read the image file
@@ -182,18 +190,114 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     nameController: nameController,
                     bioController: bioController,
                     dobController: dobController,
-                    onGenderChanged: (gender) {
-                      setState(() {
-                        selectedGender = gender;
-                      });
+                    onGenderChanged: (gender) async {
+                      // Check if changing to male and cycle syncing is enabled
+                      if (gender?.toLowerCase() == 'male') {
+                        final currentUser = userService.currentUser.value;
+                        final cycleData = currentUser?.settings['cycleTracking'];
+                        final isCycleSyncingEnabled = cycleData != null &&
+                            cycleData is Map &&
+                            (cycleData['isEnabled'] as bool? ?? false);
+                        
+                        if (isCycleSyncingEnabled) {
+                          // Show dialog to inform user
+                          final shouldProceed = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (dialogContext) {
+                              final isDarkMode = getThemeProvider(context).isDarkMode;
+                              return AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                                title: Text(
+                                  'Cycle Syncing Will Be Disabled',
+                                  style: TextStyle(
+                                    color: isDarkMode ? kWhite : kBlack,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                content: Text(
+                                  'Since you\'re changing your gender to male, cycle syncing will be automatically disabled as it\'s only available for female users.',
+                                  style: TextStyle(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext, false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext, true),
+                                    child: Text(
+                                      'Continue',
+                                      style: TextStyle(
+                                        color: kAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          
+                          if (shouldProceed == true) {
+                            setState(() {
+                              selectedGender = gender;
+                              _shouldDisableCycleSyncing = true;
+                            });
+                          }
+                          // If user cancels, don't change gender
+                        } else {
+                          // Cycle syncing not enabled, just update gender
+                          setState(() {
+                            selectedGender = gender;
+                          });
+                        }
+                      } else {
+                        // Not changing to male, just update gender
+                        setState(() {
+                          selectedGender = gender;
+                          _shouldDisableCycleSyncing = false;
+                        });
+                      }
                     },
                     press: () {
-                      final updatedUser = {
+                      final updatedUser = <String, dynamic>{
                         'displayName': nameController.text,
                         'bio': bioController.text,
                         'dob': dobController.text,
                         'settings.gender': selectedGender,
                       };
+                      
+                      // If changing to male and cycle syncing should be disabled
+                      if (_shouldDisableCycleSyncing && selectedGender?.toLowerCase() == 'male') {
+                        // Get current cycle tracking data
+                        final currentUser = userService.currentUser.value;
+                        final currentCycleData = currentUser?.settings['cycleTracking'];
+                        
+                        // Disable cycle syncing while preserving other cycle data
+                        if (currentCycleData != null && currentCycleData is Map) {
+                          final updatedCycleData = Map<String, dynamic>.from(currentCycleData);
+                          updatedCycleData['isEnabled'] = false;
+                          updatedUser['settings.cycleTracking'] = updatedCycleData;
+                        } else {
+                          // Create new cycle tracking data with disabled state
+                          updatedUser['settings.cycleTracking'] = {
+                            'isEnabled': false,
+                            'cycleLength': 28,
+                          };
+                        }
+                      }
+                      
                       authController.updateUserData(updatedUser);
 
                       showTastySnackbar(
@@ -201,6 +305,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         'Your data was updated successfully!',
                         context,
                       );
+                      
+                      // Reset flag
+                      setState(() {
+                        _shouldDisableCycleSyncing = false;
+                      });
                     },
                   ),
                 ],

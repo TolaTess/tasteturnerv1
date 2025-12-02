@@ -141,7 +141,7 @@ class _TastyScreenState extends State<TastyScreen>
 
   void _handleTabChange() {
     if (!_tabController.indexIsChanging) {
-      final modes = ['tasty', 'planner', 'meal'];
+      final modes = ['sous chef', 'planner', 'meal'];
       final newMode = modes[_tabController.index];
       if (chatController.currentMode.value != newMode) {
         // Clear any welcome messages that might have been added for the wrong mode
@@ -186,7 +186,7 @@ class _TastyScreenState extends State<TastyScreen>
         } else if (correctMode == 'meal' &&
             (isTastyWelcome || isPlannerWelcome)) {
           messagesToRemove.add(msg);
-        } else if (correctMode == 'tasty' &&
+        } else if (correctMode == 'sous chef' &&
             (isPlannerWelcome || isMealPlanWelcome)) {
           messagesToRemove.add(msg);
         }
@@ -421,7 +421,7 @@ class _TastyScreenState extends State<TastyScreen>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!',
+                  'Upgrade to premium to chat with your digital Sous Chef Turner 👋 and get personalized nutrition advice!',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     color: themeProvider.isDarkMode ? kLightGrey : kDarkGrey,
@@ -464,6 +464,7 @@ class _TastyScreenState extends State<TastyScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     if (canUseAI()) {
       if (chatId == null) {
@@ -473,13 +474,30 @@ class _TastyScreenState extends State<TastyScreen>
         );
       }
       return Scaffold(
-        body: SafeArea(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              FocusScope.of(context).unfocus();
-            },
-            child: Column(
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                isDarkMode
+                    ? 'assets/images/background/imagedark.jpeg'
+                    : 'assets/images/background/imagelight.jpeg',
+              ),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                isDarkMode
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.white.withOpacity(0.5),
+                isDarkMode ? BlendMode.darken : BlendMode.lighten,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                FocusScope.of(context).unfocus();
+              },
+              child: Column(
               children: [
                 SizedBox(height: getPercentageHeight(1, context)),
                 // Top bar with back button and tabs aligned
@@ -528,7 +546,7 @@ class _TastyScreenState extends State<TastyScreen>
                           tabs: [
                             ChatModeTab(
                               icon: Icons.chat_bubble_outline,
-                              label: 'Tasty',
+                              label: 'Sous Chef',
                             ),
                             ChatModeTab(
                               icon: Icons.edit_note,
@@ -569,24 +587,22 @@ class _TastyScreenState extends State<TastyScreen>
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     child: (isPlannerMode && showForm)
-                        ? Flexible(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight:
-                                    MediaQuery.of(context).size.height * 0.5,
-                              ),
-                              child: SingleChildScrollView(
-                                child: PlanningForm(
-                                  onSubmit: (formData) {
-                                    _sendFormToAIForConfirmation(formData);
-                                  },
-                                  onClose: () {
-                                    chatController.showForm.value = false;
-                                  },
-                                  isDarkMode: themeProvider.isDarkMode,
-                                  initialData:
-                                      chatController.planningFormData.value,
-                                ),
+                        ? ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  MediaQuery.of(context).size.height * 0.5,
+                            ),
+                            child: SingleChildScrollView(
+                              child: PlanningForm(
+                                onSubmit: (formData) {
+                                  _sendFormToAIForConfirmation(formData);
+                                },
+                                onClose: () {
+                                  chatController.showForm.value = false;
+                                },
+                                isDarkMode: themeProvider.isDarkMode,
+                                initialData:
+                                    chatController.planningFormData.value,
                               ),
                             ),
                           )
@@ -711,6 +727,7 @@ class _TastyScreenState extends State<TastyScreen>
             ),
           ),
         ),
+      ),
       );
     } else {
       return Scaffold(
@@ -731,7 +748,7 @@ class _TastyScreenState extends State<TastyScreen>
         if (!mounted) return;
 
         // Sync tab controller with current mode
-        final modes = ['tasty', 'planner', 'meal'];
+        final modes = ['sous chef', 'planner', 'meal'];
         final modeIndex = modes.indexOf(chatController.currentMode.value);
         if (modeIndex >= 0 && modeIndex < 3) {
           _tabController.index = modeIndex;
@@ -995,8 +1012,8 @@ class _TastyScreenState extends State<TastyScreen>
           icon = Icons.restaurant_menu;
           color = kAccentLight;
           break;
-        default: // tasty
-          title = 'Tasty Mode';
+        default: // sous chef
+          title = 'Sous Chef Mode';
           description = 'General conversation about health and nutrition';
           icon = Icons.chat_bubble_outline;
           color = kAccent;
@@ -1168,9 +1185,9 @@ If you're happy with these details, click "Submit" below to generate your custom
           'Quick breakfast',
         ];
         break;
-      default: // tasty
+      default: // sous chef
         icon = Icons.chat_bubble_outline;
-        title = 'Chat with Tasty';
+        title = 'Chat with Sous Chef';
         subtitle = 'Ask me anything about nutrition, health, or food!';
         quickStarters = [
           'Analyze my food',

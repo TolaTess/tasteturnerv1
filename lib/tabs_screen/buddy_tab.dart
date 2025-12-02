@@ -807,7 +807,24 @@ class _BuddyTabState extends State<BuddyTab> {
         buttonKey: ValueKey('buddy_tab_button'),
         themeProvider: getThemeProvider(context),
       ),
-      body: Column(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: Column(
         children: [
           // Family member selector at the top
           if (familyMode && _familyMemberCategories.isNotEmpty) ...[
@@ -1384,6 +1401,7 @@ class _BuddyTabState extends State<BuddyTab> {
             ),
           ),
         ],
+          ),
       ),
     );
   }

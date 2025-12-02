@@ -21,22 +21,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Map<String, dynamic>? currentUserRank;
   bool isLoading = true;
   StreamSubscription? _subscription;
-  bool isDineInMode = false; 
+  bool isDineInMode = false;
   bool showChallengePosts = false;
 
-    loadExcludedIngredients() async {
-    await firebaseService.fetchGeneralData();
-    final excludedIngredients =
-        firebaseService.generalData['excludeIngredients'].toString().split(',');
-    if (excludedIngredients.contains('true')) {
-      setState(() {
-        showChallengePosts = true;
-      });
-    } else {
-      setState(() {
-        showChallengePosts = false;
-      });
-    }
+  loadExcludedIngredients() async {
+    // Use local excludeIngredients constant from utils.dart
+    // Note: This method checks if challenge posts should be shown
+    // For now, challenge posts are disabled, so we set it to false
+    setState(() {
+      showChallengePosts = false;
+    });
   }
 
   @override
@@ -83,7 +77,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   Future<void> _refreshData() async {
     await helperController.fetchWinners();
-    await firebaseService.fetchGeneralData();
     if (mounted) setState(() {});
   }
 
@@ -121,7 +114,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         }
 
         // Only add to main leaderboard if not tastyId
-        if (docUserId != tastyId && docUserId != tastyId2 && docUserId != tastyId3 && docUserId != tastyId4) {
+        if (docUserId != tastyId &&
+            docUserId != tastyId2 &&
+            docUserId != tastyId3 &&
+            docUserId != tastyId4) {
           data.add(userMap);
           actualRank++;
         } else {
@@ -163,9 +159,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       } else {
         // Refresh winners data
         await helperController.fetchWinners();
-
-        // Refresh general data (for announce date)
-        await firebaseService.fetchGeneralData();
 
         // Manually trigger a refresh of leaderboard data
         final snapshot = await firestore
@@ -253,58 +246,62 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         color: kWhite.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: showChallengePosts ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Points',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: isDineInMode
-                                  ? kWhite.withValues(alpha: 0.6)
-                                  : kWhite,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          GestureDetector(
-                            onTap: _toggleLeaderboardMode,
-                            child: Container(
-                              width: getPercentageWidth(12, context),
-                              height: getPercentageHeight(2.5, context),
-                              decoration: BoxDecoration(
-                                color: isDineInMode
-                                    ? kWhite
-                                    : kWhite.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: AnimatedAlign(
-                                alignment: isDineInMode
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                duration: const Duration(milliseconds: 200),
-                                child: Container(
-                                  width: getPercentageWidth(5, context),
-                                  height: getPercentageWidth(5, context),
-                                  decoration: BoxDecoration(
-                                    color: isDineInMode ? kAccent : kWhite,
-                                    shape: BoxShape.circle,
+                      child: showChallengePosts
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Points',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: isDineInMode
+                                        ? kWhite.withValues(alpha: 0.6)
+                                        : kWhite,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Text(
-                            'Dine-In',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: isDineInMode
-                                  ? kWhite
-                                  : kWhite.withValues(alpha: 0.6),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ) : const SizedBox.shrink(),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                GestureDetector(
+                                  onTap: _toggleLeaderboardMode,
+                                  child: Container(
+                                    width: getPercentageWidth(12, context),
+                                    height: getPercentageHeight(2.5, context),
+                                    decoration: BoxDecoration(
+                                      color: isDineInMode
+                                          ? kWhite
+                                          : kWhite.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: AnimatedAlign(
+                                      alignment: isDineInMode
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      child: Container(
+                                        width: getPercentageWidth(5, context),
+                                        height: getPercentageWidth(5, context),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              isDineInMode ? kAccent : kWhite,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                Text(
+                                  'Dine-In',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: isDineInMode
+                                        ? kWhite
+                                        : kWhite.withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -434,7 +431,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(4, context)),
       decoration: BoxDecoration(
-        gradient:  const LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [

@@ -32,6 +32,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
   String aiCoachResponse = '';
   bool showCaloriesAndGoal = true;
   RxList<Map<String, dynamic>> programTypes = <Map<String, dynamic>>[].obs;
+  RxBool _programsLoaded =
+      false.obs; // Track if programs have been loaded (even if empty)
   final GlobalKey _addFeaturedButtonKey = GlobalKey();
   final GlobalKey _addTastyAIButtonKey = GlobalKey();
   final GlobalKey _addProgramButtonKey = GlobalKey();
@@ -82,7 +84,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       tutorials: [
         TutorialStep(
           tutorialId: 'add_featured_button',
-          message: 'Tap here to view your featured meal!',
+          message: 'Tap here to see today\'s featured dish, Chef!',
           targetKey: _addFeaturedButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -90,7 +92,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         TutorialStep(
           tutorialId: 'add_tasty_ai_button',
-          message: 'Tap here to view your Tasty AI!',
+          message: 'Tap here to speak to Turner the Sous Chef!',
           targetKey: _addTastyAIButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -98,7 +100,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         TutorialStep(
           tutorialId: 'add_program_button',
-          message: 'Tap here to view your programs!',
+          message: 'Tap here to view your programs, Chef!',
           targetKey: _addProgramButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -116,10 +118,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
   /// Load program details from Firestore
   Future<Map<String, dynamic>?> _loadProgramDetails(String programId) async {
     try {
-      final programDoc = await firestore
-          .collection('programs')
-          .doc(programId)
-          .get();
+      final programDoc =
+          await firestore.collection('programs').doc(programId).get();
 
       if (programDoc.exists) {
         return {
@@ -160,13 +160,24 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
   Future<void> _loadProgramTypes() async {
     try {
-      // Use server-side filtering for better performance
-      final snapshot = await firestore
-          .collection('programs')
-          .where('isPrivate', isEqualTo: false)
-          .get();
-      
-      final types = snapshot.docs.map((doc) {
+      // Get all programs and filter client-side to handle missing isPrivate field
+      // Filter out: isPrivate == true OR type == 'custom'
+      final snapshot = await firestore.collection('programs').get().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          debugPrint('Timeout loading programs from Firestore');
+          throw TimeoutException('Loading programs timed out');
+        },
+      );
+
+      // Filter out private programs and custom type programs
+      final types = snapshot.docs.where((doc) {
+        final data = doc.data();
+        final isPrivate = data['isPrivate'] as bool? ?? false;
+        final type = data['type']?.toString().toLowerCase() ?? '';
+        // Exclude: private programs OR custom type programs
+        return !isPrivate && type != 'custom';
+      }).map((doc) {
         final data = doc.data();
         return {
           'programId': doc.id,
@@ -187,32 +198,101 @@ class _ProgramScreenState extends State<ProgramScreen> {
         };
       }).toList();
 
+      debugPrint(
+          'Loaded ${types.length} public programs from ${snapshot.docs.length} total (excluding private and custom type)');
+
       if (mounted) {
+        // Always set programTypes, even if empty, to stop loading indicator
         programTypes.value = types;
-        // Load user counts for all programs in batch
-        _loadProgramUserCounts(types);
+        _programsLoaded.value = true; // Mark as loaded
+        // Load user counts for all programs in batch (non-blocking)
+        if (types.isNotEmpty) {
+          _loadProgramUserCounts(types);
+        }
       }
-    } catch (e) {
-      debugPrint('Error loading program types: $e');
+    } on TimeoutException {
+      debugPrint('Timeout loading program types');
       if (mounted) {
-        _showErrorSnackbar('Failed to load programs. Please try again.');
-        // Fallback to default programs if loading fails
+        _showErrorSnackbar(
+            'Loading programs timed out, Chef. Please check your connection.');
+        // Set fallback programs to stop loading indicator
         programTypes.value = [
           {
+            'programId': 'fallback_vitality',
             'type': 'vitality',
             'name': 'Vitality',
             'image': 'salad',
             'description': 'A program focused on longevity and healthy eating',
             'options': ['beginner', 'intermediate', 'advanced'],
+            'goals': [],
+            'guidelines': [],
+            'tips': [],
+            'duration': '30 days',
+            'benefits': [],
+            'fitnessProgram': {},
+            'mealPlan': {},
+            'nutrition': {},
           },
           {
+            'programId': 'fallback_challenge',
             'type': 'Days Challenge',
             'name': '7 Days Challenge',
             'image': 'herbs',
             'description': 'A program focused on longevity and healthy eating',
             'options': ['beginner', 'intermediate', 'advanced'],
+            'goals': [],
+            'guidelines': [],
+            'tips': [],
+            'duration': '7 days',
+            'benefits': [],
+            'fitnessProgram': {},
+            'mealPlan': {},
+            'nutrition': {},
           },
         ];
+        _programsLoaded.value = true; // Mark as loaded even with fallback
+      }
+    } catch (e) {
+      debugPrint('Error loading program types: $e');
+      if (mounted) {
+        _showErrorSnackbar(
+            'Couldn\'t load the program menu, Chef. Please try again.');
+        // Fallback to default programs if loading fails
+        programTypes.value = [
+          {
+            'programId': 'fallback_vitality',
+            'type': 'vitality',
+            'name': 'Vitality',
+            'image': 'salad',
+            'description': 'A program focused on longevity and healthy eating',
+            'options': ['beginner', 'intermediate', 'advanced'],
+            'goals': [],
+            'guidelines': [],
+            'tips': [],
+            'duration': '30 days',
+            'benefits': [],
+            'fitnessProgram': {},
+            'mealPlan': {},
+            'nutrition': {},
+          },
+          {
+            'programId': 'fallback_challenge',
+            'type': 'Days Challenge',
+            'name': '7 Days Challenge',
+            'image': 'herbs',
+            'description': 'A program focused on longevity and healthy eating',
+            'options': ['beginner', 'intermediate', 'advanced'],
+            'goals': [],
+            'guidelines': [],
+            'tips': [],
+            'duration': '7 days',
+            'benefits': [],
+            'fitnessProgram': {},
+            'mealPlan': {},
+            'nutrition': {},
+          },
+        ];
+        _programsLoaded.value = true; // Mark as loaded even with fallback
       }
     }
   }
@@ -224,19 +304,20 @@ class _ProgramScreenState extends State<ProgramScreen> {
     try {
       final Map<String, int> counts = {};
       try {
-      await Future.wait(
-        programs.map((program) async {
-          final programId = program['programId'] as String?;
-          if (programId != null && programId.isNotEmpty) {
-            try {
-              final users = await _programService.getProgramUsers(programId);
-              counts[programId] = users.length;
-            } catch (e) {
-              debugPrint('Error loading user count for program $programId: $e');
-              counts[programId] = 0;
+        await Future.wait(
+          programs.map((program) async {
+            final programId = program['programId'] as String?;
+            if (programId != null && programId.isNotEmpty) {
+              try {
+                final users = await _programService.getProgramUsers(programId);
+                counts[programId] = users.length;
+              } catch (e) {
+                debugPrint(
+                    'Error loading user count for program $programId: $e');
+                counts[programId] = 0;
+              }
             }
-          }
-        }),
+          }),
         ).timeout(const Duration(seconds: 30));
       } on TimeoutException {
         debugPrint('Warning: Program user counts loading timed out');
@@ -262,7 +343,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       if (programData == null) {
         if (mounted) {
-          _showErrorSnackbar('Program not found. Please try again.');
+          _showErrorSnackbar(
+              'Program not on the menu, Chef. Please try again.');
         }
         return;
       }
@@ -270,7 +352,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final programId = programData['programId'] as String?;
       if (programId == null || programId.isEmpty) {
         if (mounted) {
-          _showErrorSnackbar('Invalid program data. Please try again.');
+          _showErrorSnackbar('Invalid program data, Chef. Please try again.');
         }
         return;
       }
@@ -314,14 +396,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
           if (mounted) {
             setState(() => isLoading = false);
             _showSuccessSnackbar(
-                'You\'ve successfully joined the ${programData['name'] ?? 'program'} program!');
+                'You\'ve joined the ${programData['name'] ?? 'program'} program, Chef!');
           }
         } catch (e) {
           if (mounted) {
             setState(() => isLoading = false);
             final errorMessage = e.toString().contains('already enrolled')
-                ? 'You are already enrolled in this program'
-                : 'Failed to join program. Please try again.';
+                ? 'You are already enrolled in this program, Chef'
+                : 'Couldn\'t join program, Chef. Please try again.';
             _showErrorSnackbar(errorMessage);
           }
         }
@@ -329,7 +411,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
     } catch (e) {
       debugPrint('Error in _showProgramQuestionnaire: $e');
       if (mounted) {
-        _showErrorSnackbar('An error occurred. Please try again.');
+        _showErrorSnackbar(
+            'Something went wrong in the kitchen, Chef. Please try again.');
       }
     }
   }
@@ -353,9 +436,9 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final userDiet = userService.currentUser.value?.settings['dietPreference']
               ?.toString() ??
           'balanced';
-      final userGoal = userService.currentUser.value?.settings['fitnessGoal']
-              ?.toString() ??
-          'Healthy Eating';
+      final userGoal =
+          userService.currentUser.value?.settings['fitnessGoal']?.toString() ??
+              'Healthy Eating';
       final prompt =
           'Give me a meal plan strategy for user $userName with a $userDiet diet with the goal to $userGoal. User name is $userName';
 
@@ -399,10 +482,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
       setState(() {
         isLoading = false;
         aiCoachResponse =
-            'Sorry, I encountered an error. Please try again later.';
+            'Apologies, Chef. I dozed off for a moment. Please try again.';
       });
 
-      _showErrorSnackbar('Failed to get AI coach response. Please try again.');
+      _showErrorSnackbar('Couldn\'t reach Turner, Chef. Please try again.');
     }
   }
 
@@ -419,7 +502,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         children: [
           Text(
             key: _addProgramButtonKey,
-            ' Current Programs',
+            ' Current Programs, Chef',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode ? kWhite : kDarkGrey,
             ),
@@ -431,28 +514,29 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             return GestureDetector(
               onTap: () async {
-                final programData = await _loadProgramDetails(program.programId);
+                final programData =
+                    await _loadProgramDetails(program.programId);
                 if (programData != null && mounted) {
-                    Get.to(() => ProgramDetailWidget(
-                          program: programData,
-                          isEnrolled: true,
-                        ));
+                  Get.to(() => ProgramDetailWidget(
+                        program: programData,
+                        isEnrolled: true,
+                      ));
                 } else if (mounted) {
-                    // Fallback to basic program data
+                  // Fallback to basic program data
                   final fallbackData = {
-                      'programId': program.programId,
-                      'name': program.name,
-                      'description': program.description,
-                      'type': program.type,
-                      'duration': program.duration,
-                      'goals': [],
-                      'guidelines': [],
-                      'tips': [],
-                      'options': [],
-                    };
-                    Get.to(() => ProgramDetailWidget(
+                    'programId': program.programId,
+                    'name': program.name,
+                    'description': program.description,
+                    'type': program.type,
+                    'duration': program.duration,
+                    'goals': [],
+                    'guidelines': [],
+                    'tips': [],
+                    'options': [],
+                  };
+                  Get.to(() => ProgramDetailWidget(
                         program: fallbackData,
-                        ));
+                      ));
                 }
               },
               child: Container(
@@ -533,8 +617,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                     Flexible(
                                       child: Text(
                                         '$userCount members',
-                                        style:
-                                            textTheme.bodySmall?.copyWith(
+                                        style: textTheme.bodySmall?.copyWith(
                                           color: Colors.green,
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -553,8 +636,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                     Flexible(
                                       child: Text(
                                         program.duration,
-                                        style:
-                                            textTheme.bodySmall?.copyWith(
+                                        style: textTheme.bodySmall?.copyWith(
                                           color: Colors.orange,
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -564,17 +646,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                   ],
                                 ),
                               ),
-                              SizedBox(
-                                  width:
-                                      getPercentageWidth(2.5, context)),
+                              SizedBox(width: getPercentageWidth(2.5, context)),
                               GestureDetector(
                                 onTap: () {
                                   Get.to(
                                     () => ProgramProgressScreen(
                                       programId: program.programId,
                                       programName: program.name,
-                                      programDescription:
-                                          program.description,
+                                      programDescription: program.description,
                                       benefits: program.benefits,
                                       duration: program.duration,
                                     ),
@@ -585,15 +664,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                     getPercentageWidth(1.5, context),
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.purple
-                                        .withValues(alpha: 0.1),
-                                    borderRadius:
-                                        BorderRadius.circular(8),
+                                    color: Colors.purple.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     'Tracking',
-                                    style:
-                                        textTheme.bodySmall?.copyWith(
+                                    style: textTheme.bodySmall?.copyWith(
                                       color: Colors.purple,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -608,15 +684,18 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
                     // Archive program button
                     PopupMenuButton<String>(
+                      color: isDarkMode ? kDarkGrey : kWhite,
                       icon: Container(
                         padding: EdgeInsets.all(getPercentageWidth(2, context)),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: isDarkMode
+                              ? kDarkGrey.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.more_vert,
-                          color: Colors.grey,
+                          color: isDarkMode ? kWhite : kDarkGrey,
                           size: getIconScale(5, context),
                         ),
                       ),
@@ -625,17 +704,21 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           try {
                             await _programService
                                 .archiveProgram(program.programId);
-                            _showSuccessSnackbar('${program.name} has been archived');
+                            _showSuccessSnackbar(
+                                '${program.name} has been archived, Chef');
                           } catch (e) {
-                            _showErrorSnackbar('Failed to archive program: ${e.toString()}');
+                            _showErrorSnackbar(
+                                'Couldn\'t archive program, Chef: ${e.toString()}');
                           }
                         } else if (value == 'leave') {
                           try {
                             await _programService
                                 .leaveProgram(program.programId);
-                            _showSuccessSnackbar('You\'ve left the ${program.name} program');
+                            _showSuccessSnackbar(
+                                'You\'ve left the ${program.name} program, Chef');
                           } catch (e) {
-                            _showErrorSnackbar('Failed to leave program: ${e.toString()}');
+                            _showErrorSnackbar(
+                                'Couldn\'t leave program, Chef: ${e.toString()}');
                           }
                         }
                       },
@@ -644,7 +727,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           value: 'archive',
                           child: Row(
                             children: [
-                              Icon(Icons.archive, color: Colors.grey),
+                              Icon(Icons.archive,
+                                  color: isDarkMode ? kWhite : kDarkGrey),
                               SizedBox(width: getPercentageWidth(2, context)),
                               Text('Archive'),
                             ],
@@ -654,10 +738,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           value: 'leave',
                           child: Row(
                             children: [
-                              Icon(Icons.exit_to_app, color: Colors.red),
+                              Icon(Icons.exit_to_app, color: kRed),
                               SizedBox(width: getPercentageWidth(2, context)),
                               Text('Leave Program',
-                                  style: TextStyle(color: Colors.red)),
+                                  style: TextStyle(color: kRed)),
                             ],
                           ),
                         ),
@@ -687,7 +771,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
           title: Text(
-            'Archived Programs',
+            'Archived Programs, Chef',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode
                   ? kWhite.withValues(alpha: 0.7)
@@ -700,12 +784,13 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             return GestureDetector(
               onTap: () async {
-                final programData = await _loadProgramDetails(program.programId);
+                final programData =
+                    await _loadProgramDetails(program.programId);
                 if (programData != null && mounted) {
-                    Get.to(() => ProgramDetailWidget(
-                          program: programData,
-                          isEnrolled: true,
-                        ));
+                  Get.to(() => ProgramDetailWidget(
+                        program: programData,
+                        isEnrolled: true,
+                      ));
                 } else if (mounted) {
                   _showErrorSnackbar('Unable to load program details');
                 }
@@ -777,9 +862,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         try {
                           await _programService
                               .unarchiveProgram(program.programId);
-                          _showSuccessSnackbar('${program.name} has been unarchived');
+                          _showSuccessSnackbar(
+                              '${program.name} has been unarchived, Chef');
                         } catch (e) {
-                          _showErrorSnackbar('Failed to unarchive program: ${e.toString()}');
+                          _showErrorSnackbar(
+                              'Couldn\'t unarchive program, Chef: ${e.toString()}');
                         }
                       },
                       child: Container(
@@ -806,60 +893,60 @@ class _ProgramScreenState extends State<ProgramScreen> {
   }
 
   /// Build the AppBar
-  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDarkMode,
-      TextTheme textTheme) {
+  PreferredSizeWidget _buildAppBar(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
     return AppBar(
-        backgroundColor: kAccent,
-        toolbarHeight: getPercentageHeight(10, context),
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'A Program Just for You',
-              style: textTheme.displayMedium
-                  ?.copyWith(fontSize: getTextScale(5.5, context)),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            InfoIconWidget(
-              title: 'Nutrition Programs',
-              description:
-                  'Join personalized programs to achieve your health goals',
-              details: const [
-                {
-                  'icon': Icons.fitness_center,
-                  'title': 'Personalized Programs',
-                  'description':
-                      'Programs tailored to your diet preferences and fitness goals',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.track_changes,
-                  'title': 'Progress Tracking',
-                  'description':
-                      'Monitor your progress with visual charts and milestones',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.auto_awesome,
-                  'title': 'Customize Your Program',
-                  'description': 'Create a program tailored to your needs',
-                  'color': kAccent,
-                },
-                {
-                  'icon': Icons.schedule,
-                  'title': 'Flexible Duration',
-                  'description':
-                      'Programs ranging from 7 days to long-term commitments',
-                  'color': kAccent,
-                },
-              ],
-              iconColor: isDarkMode ? kWhite : kDarkGrey,
-              tooltip: 'Program Information',
-            ),
-          ],
-        ),
-        centerTitle: true,
+      backgroundColor: kAccent,
+      toolbarHeight: getPercentageHeight(10, context),
+      automaticallyImplyLeading: false,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'A Program Just for You, Chef',
+            style: textTheme.displayMedium
+                ?.copyWith(fontSize: getTextScale(4.5, context)),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+          InfoIconWidget(
+            title: 'Nutrition Programs',
+            description:
+                'Join personalized programs to achieve your health goals',
+            details: const [
+              {
+                'icon': Icons.fitness_center,
+                'title': 'Personalized Programs',
+                'description':
+                    'Programs tailored to your diet preferences and fitness goals',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.track_changes,
+                'title': 'Progress Tracking',
+                'description':
+                    'Monitor your progress with visual charts and milestones',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.auto_awesome,
+                'title': 'Customize Your Program',
+                'description': 'Create a program tailored to your needs',
+                'color': kAccent,
+              },
+              {
+                'icon': Icons.schedule,
+                'title': 'Flexible Duration',
+                'description':
+                    'Programs ranging from 7 days to long-term commitments',
+                'color': kAccent,
+              },
+            ],
+            iconColor: isDarkMode ? kWhite : kDarkGrey,
+            tooltip: 'Program Information',
+          ),
+        ],
+      ),
+      centerTitle: true,
     );
   }
 
@@ -875,337 +962,407 @@ class _ProgramScreenState extends State<ProgramScreen> {
     final fontSize = getTextScale(5, context);
     return Scaffold(
       appBar: _buildAppBar(context, isDarkMode, textTheme),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-            top: getPercentageHeight(1, context),
-            left: getPercentageWidth(2, context),
-            right: getPercentageWidth(2, context),
-            bottom: getPercentageHeight(2, context),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Dietary prompt
-              if (_showDietaryPrompt)
-                OnboardingPrompt(
-                  title: "Better Meal Recommendations",
-                  message:
-                      "Tell us your dietary preferences and allergies so we can suggest meals that are perfect for you",
-                  actionText: "Set Preferences",
-                  onAction: () {
-                    setState(() {
-                      _showDietaryPrompt = false;
-                    });
-                    // Navigate to dietary choose screen
-                    Get.to(() => const ChooseDietScreen());
-                  },
-                  onDismiss: () {
-                    setState(() {
-                      _showDietaryPrompt = false;
-                    });
-                  },
-                  promptType: 'banner',
-                  storageKey: OnboardingPromptHelper.PROMPT_DIETARY_SHOWN,
-                ),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: getPercentageHeight(1, context),
+              left: getPercentageWidth(2, context),
+              right: getPercentageWidth(2, context),
+              bottom: getPercentageHeight(2, context),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Dietary prompt
+                if (_showDietaryPrompt)
+                  OnboardingPrompt(
+                    title: "Better Dish Recommendations, Chef",
+                    message:
+                        "Tell us your dietary preferences and allergies, Chef, so we can suggest dishes that are perfect for your station",
+                    actionText: "Set Preferences",
+                    onAction: () {
+                      setState(() {
+                        _showDietaryPrompt = false;
+                      });
+                      // Navigate to dietary choose screen
+                      Get.to(() => const ChooseDietScreen());
+                    },
+                    onDismiss: () {
+                      setState(() {
+                        _showDietaryPrompt = false;
+                      });
+                    },
+                    promptType: 'banner',
+                    storageKey: OnboardingPromptHelper.PROMPT_DIETARY_SHOWN,
+                  ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  if (showCaloriesAndGoal) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    if (showCaloriesAndGoal) ...[
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(() => const NutritionSettingsPage(
+                                      isHealthExpand: true,
+                                    ));
+                              },
+                              child: Text(
+                                'Your Diet: ',
+                                style: textTheme.displaySmall?.copyWith(
+                                  color: kAccent,
+                                  fontSize: getTextScale(5, context),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              userDiet.isNotEmpty
+                                  ? capitalizeFirstLetter(userDiet)
+                                  : 'Not set',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.w100,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    SizedBox(width: getPercentageWidth(4, context)),
                     Expanded(
                       flex: 2,
                       child: Column(
                         children: [
-                          GestureDetector(
-                            onTap: () {
-                              Get.to(() => const NutritionSettingsPage(
-                                    isHealthExpand: true,
-                                  ));
-                            },
-                            child: Text(
-                              'Your Diet: ',
-                              style: textTheme.displaySmall?.copyWith(
-                                color: kAccent,
-                                fontSize: getTextScale(5, context),
+                          if (showCaloriesAndGoal)
+                            SizedBox(width: getPercentageWidth(1, context)),
+                          if (showCaloriesAndGoal)
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(() => const NutritionSettingsPage(
+                                      isHealthExpand: true,
+                                    ));
+                              },
+                              child: Text(
+                                'Goal: ',
+                                style: textTheme.displaySmall?.copyWith(
+                                  color: kAccent,
+                                  fontSize: getTextScale(5.5, context),
+                                ),
                               ),
                             ),
-                          ),
-                          Text(
-                            userDiet.isNotEmpty
-                                ? capitalizeFirstLetter(userDiet)
-                                : 'Not set',
-                            style: textTheme.titleLarge?.copyWith(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w100,
+                          if (showCaloriesAndGoal)
+                            Text(
+                              userGoal.isNotEmpty
+                                  ? userGoal.toLowerCase() == "lose weight"
+                                      ? 'Weight Loss'
+                                      : userGoal.toLowerCase() == "muscle gain"
+                                          ? 'Muscle Gain'
+                                          : capitalizeFirstLetter(userGoal)
+                                  : 'Not set',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.w100,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
                   ],
-                  SizedBox(width: getPercentageWidth(4, context)),
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        if (showCaloriesAndGoal)
-                          SizedBox(width: getPercentageWidth(1, context)),
-                        if (showCaloriesAndGoal)
-                          GestureDetector(
-                            onTap: () {
-                              Get.to(() => const NutritionSettingsPage(
-                                    isHealthExpand: true,
-                                  ));
-                            },
-                            child: Text(
-                              'Goal: ',
-                              style: textTheme.displaySmall?.copyWith(
-                                color: kAccent,
-                                fontSize: getTextScale(5.5, context),
-                              ),
-                            ),
-                          ),
-                        if (showCaloriesAndGoal)
-                          Text(
-                            userGoal.isNotEmpty
-                                ? userGoal.toLowerCase() == "lose weight"
-                                    ? 'Weight Loss'
-                                    : userGoal.toLowerCase() == "muscle gain"
-                                        ? 'Muscle Gain'
-                                        : capitalizeFirstLetter(userGoal)
-                                : 'Not set',
-                            style: textTheme.titleLarge?.copyWith(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w100,
-                            ),
-                          ),
-                      ],
-                    ),
+                ),
+                SizedBox(height: getPercentageHeight(2.5, context)),
+
+                Text(
+                  'See recipes for your $userDiet station, Chef',
+                  maxLines: 2,
+                  style: textTheme.headlineMedium?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w400,
+                    fontSize: getTextScale(5, context),
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                SizedBox(height: getPercentageHeight(1.5, context)),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPink,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Get.to(() => RecipeListCategory(
+                          index: 1,
+                          searchIngredient: userDiet.toLowerCase(),
+                          screen: 'categories',
+                          isNoTechnique: true,
+                        ));
+                  },
+                  icon: const Icon(Icons.restaurant, color: kWhite),
+                  label: Text('Recipes',
+                      style: textTheme.labelLarge?.copyWith(color: kWhite)),
+                ),
+                SizedBox(height: getPercentageHeight(1.5, context)),
+
+                // AI Coach Section
+                Text(
+                  'Speak to "Turner" the Sous Chef',
+                  style: textTheme.displaySmall?.copyWith(
+                    color: kAccent,
+                    fontSize: getTextScale(7, context),
+                    fontWeight: FontWeight.w200,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(1.5, context)),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.lightbulb, color: kWhite),
+                  label: Text(
+                    key: _addTastyAIButtonKey,
+                    'Get Station Guidance',
+                    style: textTheme.labelLarge?.copyWith(color: kWhite),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccentLight,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: isLoading ? null : askAICoach,
+                ),
+                if (isLoading) ...[
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  Center(child: CircularProgressIndicator(color: kAccent)),
                 ],
-              ),
-              SizedBox(height: getPercentageHeight(2.5, context)),
-
-              Text(
-                'See Recipes for your $userDiet diet',
-                maxLines: 2,
-                style: textTheme.headlineMedium?.copyWith(
-                  color: kAccent,
-                  fontWeight: FontWeight.w300,
-                  fontSize: getTextScale(5, context),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(1.5, context)),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPink,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  Get.to(() => RecipeListCategory(
-                        index: 1,
-                        searchIngredient: userDiet.toLowerCase(),
-                        screen: 'categories',
-                        isNoTechnique: true,
-                      ));
-                },
-                icon: const Icon(Icons.restaurant, color: kWhite),
-                label: Text('Recipes',
-                    style: textTheme.labelLarge?.copyWith(color: kWhite)),
-              ),
-              SizedBox(height: getPercentageHeight(1.5, context)),
-
-              // AI Coach Section
-              Text(
-                'Speak to "Tasty" AI Coach',
-                style: textTheme.displaySmall?.copyWith(
-                  color: kAccent,
-                  fontSize: getTextScale(7, context),
-                  fontWeight: FontWeight.w200,
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(1.5, context)),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.lightbulb, color: kWhite),
-                label: Text(
-                  key: _addTastyAIButtonKey,
-                  'Get Meal Plan Guidance',
-                  style: textTheme.labelLarge?.copyWith(color: kWhite),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kAccentLight,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: isLoading ? null : askAICoach,
-              ),
-              if (isLoading) ...[
-                SizedBox(height: getPercentageHeight(2, context)),
-                Center(child: CircularProgressIndicator(color: kAccent)),
-              ],
-              if (aiCoachResponse.isNotEmpty) ...[
-                SizedBox(height: getPercentageHeight(2, context)),
-                Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.08),
-                      ),
-                      child: Text(
-                        aiCoachResponse.contains('Error')
-                            ? 'Sorry, I snoozed for a moment. Please try again.'
-                            : aiCoachResponse,
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
+                if (aiCoachResponse.isNotEmpty) ...[
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.08),
+                        ),
+                        child: Text(
+                          aiCoachResponse.contains('Error')
+                              ? 'Apologies, Chef, I dozed off for a moment. Please try again.'
+                              : aiCoachResponse,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isDarkMode ? kWhite : kDarkGrey,
+                          ),
                         ),
                       ),
-                    ),
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? kDarkGrey : kWhite,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Get.to(
-                                  () => const TastyScreen(screen: 'message'));
-                            },
-                            child: Text(
-                              'Talk More',
-                              style: textTheme.titleMedium?.copyWith(
-                                color: kAccentLight,
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? kDarkGrey : kWhite,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(
+                                    () => const TastyScreen(screen: 'message'));
+                              },
+                              child: Text(
+                                'Talk More',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: kAccentLight,
+                                ),
                               ),
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Get.to(() => const ChooseDietScreen(
-                                    isDontShowPicker: true,
-                                  ));
-                            },
-                            child: Text(
-                              'Generate a meal',
-                              style: textTheme.titleMedium?.copyWith(
-                                color: kAccentLight,
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(() => const ChooseDietScreen(
+                                      isDontShowPicker: true,
+                                    ));
+                              },
+                              child: Text(
+                                'Generate a dish',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: kAccentLight,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-              SizedBox(height: getPercentageHeight(2.5, context)),
-
-              // Create Custom Plan Button
-              ElevatedButton.icon(
-                icon: const Icon(Icons.auto_awesome, color: kWhite),
-                label: Text(
-                  'Create Custom Plan with AI',
-                  style: textTheme.labelLarge?.copyWith(color: kWhite),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    ],
                   ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(5, context),
-                    vertical: getPercentageHeight(1.5, context),
+                ],
+                SizedBox(height: getPercentageHeight(2.5, context)),
+
+                // Create Custom Plan Button
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.auto_awesome, color: kWhite),
+                  label: Text(
+                    'Customize Your Program, Chef', // Create Custom Menu with AI, Chef
+                    style: textTheme.labelLarge?.copyWith(color: kWhite),
                   ),
-                ),
-                onPressed: () {
-                  if (!canUseAI()) {
-                    showPremiumRequiredDialog(context, isDarkMode);
-                    return;
-                  }
-                  Get.to(() => const TastyScreen(screen: 'message'),
-                      arguments: {'planningMode': true});
-                },
-              ),
-              SizedBox(height: getPercentageHeight(2, context)),
-
-              // Current enrolled programs section
-              _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
-
-              _buildArchivedProgramsSection(context, textTheme, isDarkMode),
-
-              SizedBox(height: getPercentageHeight(2.5, context)),
-
-              Obx(() => Text(
-                    _programService.userPrograms.length > 1
-                        ? 'Explore More Programs'
-                        : _programService.userPrograms.length == 1
-                            ? 'Explore More Programs'
-                            : 'Customize Your Program',
-                    style: textTheme.headlineMedium?.copyWith(
-                      color: kAccent,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )),
-              SizedBox(height: getPercentageHeight(3, context)),
-              Obx(() => SizedBox(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(5, context),
+                      vertical: getPercentageHeight(1.5, context),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (!canUseAI()) {
+                      showPremiumRequiredDialog(context, isDarkMode);
+                      return;
+                    }
+                    Get.to(() => const TastyScreen(screen: 'message'),
+                        arguments: {'planningMode': true});
+                  },
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+
+                // Current enrolled programs section
+                _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
+
+                _buildArchivedProgramsSection(context, textTheme, isDarkMode),
+
+                SizedBox(height: getPercentageHeight(2.5, context)),
+
+                Obx(() => Text(
+                      _programService.userPrograms.length > 1
+                          ? 'Explore More Programs, Chef'
+                          : _programService.userPrograms.length == 1
+                              ? 'Explore More Programs, Chef'
+                              : 'Choose a Program, Chef',
+                      style: textTheme.headlineMedium?.copyWith(
+                        color: kAccent,
+                      ),
+                    )),
+                SizedBox(height: getPercentageHeight(3, context)),
+                Obx(() {
+                  // Show loading indicator only if programs haven't been loaded yet
+                  final isLoading = !_programsLoaded.value;
+
+                  return SizedBox(
                     height: getPercentageHeight(25, context),
-                    child: programTypes.isEmpty
+                    child: isLoading
                         ? Center(
-                            child: CircularProgressIndicator(
-                              color: kAccent,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  color: kAccent,
+                                ),
+                                SizedBox(
+                                    height: getPercentageHeight(2, context)),
+                                Text(
+                                  'Preparing programs...',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                  ),
+                                ),
+                              ],
                             ),
                           )
-                        : OverlappingCardsView(
-                            cardWidth: getPercentageWidth(65, context),
-                            cardHeight: getPercentageHeight(25, context),
-                            isProgram: true,
-                            overlap: 60,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(4, context),
-                            ),
-                            children: List.generate(
-                              programTypes.length,
-                              (index) {
-                                final programData = programTypes[index];
-                                final isEnrolled =
-                                    _programService.userPrograms.any(
-                                  (program) =>
-                                      program.programId ==
-                                      programData['programId'],
-                                );
+                        : programTypes.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: getIconScale(10, context),
+                                      color:
+                                          isDarkMode ? kLightGrey : kDarkGrey,
+                                    ),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(2, context)),
+                                    Text(
+                                      'No programs on the menu, Chef',
+                                      style: textTheme.bodyLarge?.copyWith(
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(1, context)),
+                                    Text(
+                                      'Check back later for new programs, Chef',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color:
+                                            isDarkMode ? kLightGrey : kDarkGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : OverlappingCardsView(
+                                cardWidth: getPercentageWidth(65, context),
+                                cardHeight: getPercentageHeight(25, context),
+                                isProgram: true,
+                                overlap: 60,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(4, context),
+                                ),
+                                children: List.generate(
+                                  programTypes.length,
+                                  (index) {
+                                    final programData = programTypes[index];
+                                    final isEnrolled =
+                                        _programService.userPrograms.any(
+                                      (program) =>
+                                          program.programId ==
+                                          programData['programId'],
+                                    );
 
-                                return OverlappingCard(
-                                  title: programData['name'] ?? '',
-                                  type: programData['type'],
-                                  subtitle: programData['description'] ?? '',
-                                  color: colors[index % colors.length],
-                                  imageUrl: programData['image'] != null
-                                      ? 'assets/images/${programData['image']}.jpg'
-                                      : null,
-                                  width: getPercentageWidth(70, context),
-                                  height: getPercentageHeight(25, context),
-                                  index: index,
-                                  onTap: () => _showProgramQuestionnaire(
-                                    programData['type'],
-                                    isDarkMode,
-                                  ),
-                                  isProgram: true,
-                                  isEnrolled: isEnrolled,
-                                );
-                              },
-                            ),
-                          ),
-                  )),
-              SizedBox(height: getPercentageHeight(6, context)),
-            ],
+                                    return OverlappingCard(
+                                      title: programData['name'] ?? '',
+                                      type: programData['type'],
+                                      subtitle:
+                                          programData['description'] ?? '',
+                                      color: colors[index % colors.length],
+                                      imageUrl: programData['image'] != null
+                                          ? 'assets/images/${programData['image']}.jpg'
+                                          : null,
+                                      width: getPercentageWidth(70, context),
+                                      height: getPercentageHeight(25, context),
+                                      index: index,
+                                      onTap: () => _showProgramQuestionnaire(
+                                        programData['type'],
+                                        isDarkMode,
+                                      ),
+                                      isProgram: true,
+                                      isEnrolled: isEnrolled,
+                                    );
+                                  },
+                                ),
+                              ),
+                  );
+                }),
+                SizedBox(height: getPercentageHeight(6, context)),
+              ],
+            ),
           ),
         ),
       ),
