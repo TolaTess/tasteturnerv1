@@ -694,9 +694,9 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
                   ),
                   child: Text(
                     isMealSpin
-                        ? 'Save to Meal Plan'
+                        ? 'Add to Menu'
                         : canUseAI()
-                            ? 'Generate Meals with Tasty AI!'
+                            ? 'Generate Meals with Turner!'
                             : 'Go Premium to generate a Meal!',
                     style: textTheme.labelLarge?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,

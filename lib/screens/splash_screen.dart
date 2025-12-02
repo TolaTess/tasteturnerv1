@@ -101,8 +101,21 @@ class _SplashScreenState extends State<SplashScreen>
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: kAccentLight,
+       decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5) 
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
         ),
         child: Center(
           child: AnimatedBuilder(

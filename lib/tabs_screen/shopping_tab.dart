@@ -3,6 +3,8 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:tasteturner/tabs_screen/spin_screen.dart';
+import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
@@ -512,7 +514,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   'icon': Icons.shopping_cart,
                   'title': 'Smart Lists',
                   'description':
-                      'Auto-generated lists based on your meal plans',
+                      'Generated lists based on your meal plans',
                   'color': kAccentLight,
                 },
                 {
@@ -536,7 +538,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 {
                   'icon': Icons.grid_view,
                   'title': '54321 Method',
-                  'description': 'AI-powered balanced shopping lists',
+                  'description': 'Balanced shopping lists',
                   'color': kAccentLight,
                 },
               ],
@@ -563,9 +565,26 @@ class _ShoppingTabState extends State<ShoppingTab> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Header card with shopping day and view info
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Header card with shopping day and view info
           Padding(
             padding: EdgeInsets.symmetric(
               vertical: getPercentageHeight(1, context),
@@ -596,15 +615,17 @@ class _ShoppingTabState extends State<ShoppingTab> {
                             text: _selectedDay ?? 'Select Day',
                             textTheme: textTheme,
                           ),
-                          _buildInfoColumn(
-                            context,
-                            title: _is54321View ? 'View' : 'Items',
-                            icon: _is54321View
-                                ? Icons.grid_view
-                                : Icons.shopping_basket,
-                            text: _is54321View ? '54321' : _getItemCountText(),
-                            textTheme: textTheme,
-                          ),
+                          Obx(() => _buildInfoColumn(
+                                context,
+                                title: _is54321View ? 'View' : 'Items',
+                                icon: _is54321View
+                                    ? Icons.grid_view
+                                    : Icons.shopping_basket,
+                                text: _is54321View
+                                    ? '54321'
+                                    : _getItemCountText(),
+                                textTheme: textTheme,
+                              )),
                         ],
                       ),
                     ),
@@ -722,10 +743,13 @@ class _ShoppingTabState extends State<ShoppingTab> {
                               style: textTheme.titleMedium,
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
-                            Text(
-                              'Generate a list from your meal plan',
-                              style: textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.grey),
+                            GestureDetector(
+                              onTap: () => Get.to(() => BottomNavSec(selectedIndex: 3)),
+                              child: Text(
+                                'Chef, how about a spin of the wheel?',
+                                style: textTheme.bodyMedium
+                                    ?.copyWith(color: kBlue, decoration: TextDecoration.underline),
+                              ),
                             ),
                             SizedBox(height: getPercentageHeight(3, context)),
                             // Only show button if there are new meals
@@ -762,6 +786,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             ),
           ],
         ],
+        ),
       ),
     );
   }

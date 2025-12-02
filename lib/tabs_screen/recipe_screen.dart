@@ -142,6 +142,21 @@ class _RecipeScreenState extends State<RecipeScreen> {
     super.dispose();
   }
 
+  /// Filter techniques by diet preference
+  List<Map<String, dynamic>> _filterTechniquesByDiet(
+      List<Map<String, dynamic>> techniques, String dietPreference) {
+    if (dietPreference == 'balanced') {
+      return techniques;
+    }
+
+    final dietLower = dietPreference.toLowerCase();
+    return techniques.where((technique) {
+      final bestFor = technique['bestFor'] as List<dynamic>? ?? [];
+      return bestFor.any((item) =>
+          item.toString().toLowerCase().contains(dietLower));
+    }).toList();
+  }
+
   /// Get cached shuffled techniques or create new cache if needed
   List<Map<String, dynamic>> _getShuffledTechniques() {
     if (_cachedShuffledTechniques == null || _cachedShuffledTechniques!.isEmpty) {
@@ -150,17 +165,45 @@ class _RecipeScreenState extends State<RecipeScreen> {
     return _cachedShuffledTechniques!;
   }
 
+  /// Get techniques filtered by diet, or fallback to top 5 if no matches
+  List<Map<String, dynamic>> _getFilteredTechniques(String dietPreference) {
+    final shuffledTechniques = _getShuffledTechniques();
+    
+    if (dietPreference == 'balanced') {
+      return showAllTechniques
+          ? shuffledTechniques
+          : shuffledTechniques.take(5).toList();
+    }
+
+    // Filter by diet preference
+    final filteredByDiet = _filterTechniquesByDiet(shuffledTechniques, dietPreference);
+    
+    // If no techniques match the diet, show top 5 without diet filter
+    if (filteredByDiet.isEmpty) {
+      return shuffledTechniques.take(5).toList();
+    }
+
+    return showAllTechniques
+        ? filteredByDiet
+        : filteredByDiet.take(5).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
         userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
 
-    // Use cached shuffled techniques instead of shuffling on every build
+    // Get filtered techniques (by diet if applicable, or top 5 if no matches)
+    final limitedTechniques = _getFilteredTechniques(dietPreference);
+    
+    // Check if there are techniques matching the diet preference
     final shuffledTechniques = _getShuffledTechniques();
-    final limitedTechniques = showAllTechniques
-        ? shuffledTechniques
-        : shuffledTechniques.take(5).toList();
+    final dietMatchedTechniques = dietPreference != 'balanced'
+        ? _filterTechniquesByDiet(shuffledTechniques, dietPreference)
+        : [];
+    final shouldShowDietPreference = dietPreference != 'balanced' && 
+        dietMatchedTechniques.isNotEmpty;
 
     return RefreshIndicator(
       color: kAccent,
@@ -250,8 +293,27 @@ class _RecipeScreenState extends State<RecipeScreen> {
             ],
           ),
         ),
-        body: SafeArea(
-          child: SingleChildScrollView(
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                getThemeProvider(context).isDarkMode
+                    ? 'assets/images/background/imagedark.jpeg'
+                    : 'assets/images/background/imagelight.jpeg',
+              ),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                getThemeProvider(context).isDarkMode
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.white.withOpacity(0.5),
+                getThemeProvider(context).isDarkMode
+                    ? BlendMode.darken
+                    : BlendMode.lighten,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -268,12 +330,12 @@ class _RecipeScreenState extends State<RecipeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (dietPreference != 'balanced')
+                          if (shouldShowDietPreference)
                             Text(
                               dietPreference,
                               style: textTheme.displayMedium?.copyWith(),
                             ),
-                          if (dietPreference != 'balanced')
+                          if (shouldShowDietPreference)
                             SizedBox(height: getPercentageHeight(0.5, context)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -292,6 +354,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                     if (_cachedShuffledTechniques != null) {
                                       _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
                                     }
+                                    // Force rebuild to update filtered techniques
                                   });
                                 },
                                 child: Text(
@@ -432,6 +495,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

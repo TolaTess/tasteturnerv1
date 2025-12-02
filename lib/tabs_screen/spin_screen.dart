@@ -4,6 +4,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../data_models/meal_model.dart';
 import '../pages/spinwheelpop.dart';
+import '../helper/utils.dart';
 
 class SpinScreen extends StatefulWidget {
   SpinScreen({
@@ -40,41 +41,11 @@ class _SpinScreenState extends State<SpinScreen> {
     _fetchData();
   }
 
-  /// Parse excluded ingredients from general data with validation
+  /// Parse excluded ingredients from local constant
   List<String> _parseExcludedIngredients() {
     try {
-      final generalData = firebaseService.generalData;
-      if (generalData.isEmpty) {
-        debugPrint('Warning: generalData is empty');
-        return [];
-      }
-
-      final excludeIngredientsData = generalData['excludeIngredients'];
-      if (excludeIngredientsData == null) {
-        debugPrint('Warning: excludeIngredients is null');
-        return [];
-      }
-
-      // Handle both string and list types
-      if (excludeIngredientsData is String) {
-        if (excludeIngredientsData.isEmpty) {
-          return [];
-        }
-        return excludeIngredientsData
-            .split(',')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList();
-      } else if (excludeIngredientsData is List) {
-        return excludeIngredientsData
-            .map((item) => item.toString().trim())
-            .where((item) => item.isNotEmpty)
-            .toList();
-      } else {
-        debugPrint(
-            'Warning: excludeIngredients is not a string or list: ${excludeIngredientsData.runtimeType}');
-        return [];
-      }
+      // Use local excludeIngredients constant from utils.dart
+      return excludeIngredients.map((item) => item.trim().toLowerCase()).toList();
     } catch (e) {
       debugPrint('Error parsing excluded ingredients: $e');
       return [];
@@ -121,14 +92,12 @@ class _SpinScreenState extends State<SpinScreen> {
       final results = await Future.wait([
         macroManager.getFirstNIngredients(_ingredientCount),
         mealManager.fetchMealsByCategory('all'),
-        firebaseService.fetchGeneralData(),
       ]);
 
       final ingredients = results[0] as List<MacroData>;
       final mealListData = results[1] as List<Meal>;
-      // results[2] is the general data fetch (void)
 
-      // Parse excluded ingredients with validation
+      // Parse excluded ingredients from local constant
       final excludedIngredients = _parseExcludedIngredients();
 
       // Filter ingredients

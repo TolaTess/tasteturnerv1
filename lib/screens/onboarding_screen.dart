@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _isNextEnabled = false;
   bool _notificationsEnabled = false;
   bool _darkModeEnabled = false;
-  bool _isEditingName = false; // Track if user is editing their name
   bool _isSubmitting = false; // Prevent multiple submissions
 
   // Gender selection (optional during onboarding)
@@ -80,6 +80,40 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _controller.dispose();
     nameController.dispose();
     super.dispose();
+  }
+
+  /// Check if name page should be skipped (name provided from Apple/Google)
+  bool _shouldSkipNamePage() {
+    final hasName =
+        widget.displayName != null && widget.displayName!.isNotEmpty;
+    final isAppleOrGoogle = widget.authProvider == 'apple.com' ||
+        widget.authProvider == 'google.com';
+    return hasName && isAppleOrGoogle;
+  }
+
+  /// Get the total number of pages (excluding name page if skipped)
+  int get _totalPages => _shouldSkipNamePage() ? 6 : 7;
+
+  /// Build the list of pages for PageView, conditionally excluding name page
+  List<Widget> _buildPageViewChildren() {
+    final children = <Widget>[];
+
+    // Only include name page if name is not provided from Apple/Google
+    if (!_shouldSkipNamePage()) {
+      children.add(_buildNamePage());
+    }
+
+    // Add all other pages
+    children.addAll([
+      _buildMealPlanningSlide(),
+      _buildTrackingSlide(),
+      _buildCommunitySlide(),
+      _buildGenderSlide(),
+      _buildCycleSyncSlide(),
+      _buildSettingsSlide(),
+    ]);
+
+    return children;
   }
 
   bool isProfane(String text) {
@@ -130,51 +164,97 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// ✅ Check if all required fields are filled before enabling "Next"
   void _validateInputs() {
     setState(() {
+      final skipNamePage = _shouldSkipNamePage();
+
       switch (_currentPage) {
         case 0:
-          final name = nameController.text.trim();
-          // For Apple Sign In with provided name, always enable Next (name is read-only)
-          final bool isAppleSignInWithName =
-              widget.authProvider == 'apple.com' &&
-                  widget.displayName != null &&
-                  widget.displayName!.isNotEmpty;
-          // Only name is required, or if Apple provided name, it's always valid
-          if (isAppleSignInWithName) {
+          if (skipNamePage) {
+            // Page 0 is now Meal Planning (visual slide)
             _isNextEnabled = true;
           } else {
+            // Page 0 is Name Page - only shown when no name is provided
+            final name = nameController.text.trim();
             final validationError = _validateName(name);
             _isNextEnabled = validationError == null;
           }
           break;
         case 1:
-        case 2:
-        case 3:
-          _isNextEnabled = true; // Visual slides - always enabled
-          break;
-        case 4:
-          _isNextEnabled = true; // Gender slide - always enabled (optional)
-          break;
-        case 5:
-          // Cycle syncing slide - validate only if toggle is ON and gender is non-male
-          final isMale = _selectedGender?.toLowerCase() == 'male';
-          final shouldShowInfoOnly = _selectedGender == null || isMale;
-          if (shouldShowInfoOnly || !_cycleSyncEnabled) {
+          if (skipNamePage) {
+            // Page 1 is now Tracking (visual slide)
             _isNextEnabled = true;
           } else {
-            final length =
-                int.tryParse(_cycleLengthController.text.trim());
-            final validLength =
-                length != null && length >= 21 && length <= 40;
-            final now = DateTime.now();
-            final lastStart = _cycleLastPeriodStart;
-            final validDate = lastStart != null &&
-                !lastStart.isAfter(
-                  DateTime(now.year, now.month, now.day + 1),
-                );
-            _isNextEnabled = validLength && validDate;
+            // Page 1 is Meal Planning (visual slide)
+            _isNextEnabled = true;
+          }
+          break;
+        case 2:
+          if (skipNamePage) {
+            // Page 2 is now Community (visual slide)
+            _isNextEnabled = true;
+          } else {
+            // Page 2 is Tracking (visual slide)
+            _isNextEnabled = true;
+          }
+          break;
+        case 3:
+          if (skipNamePage) {
+            // Page 3 is now Gender slide
+            _isNextEnabled = true; // Gender slide - always enabled (optional)
+          } else {
+            // Page 3 is Community (visual slide)
+            _isNextEnabled = true;
+          }
+          break;
+        case 4:
+          if (skipNamePage) {
+            // Page 4 is now Cycle Sync slide
+            final isMale = _selectedGender?.toLowerCase() == 'male';
+            final shouldShowInfoOnly = _selectedGender == null || isMale;
+            if (shouldShowInfoOnly || !_cycleSyncEnabled) {
+              _isNextEnabled = true;
+            } else {
+              final length = int.tryParse(_cycleLengthController.text.trim());
+              final validLength =
+                  length != null && length >= 21 && length <= 40;
+              final now = DateTime.now();
+              final lastStart = _cycleLastPeriodStart;
+              final validDate = lastStart != null &&
+                  !lastStart.isAfter(
+                    DateTime(now.year, now.month, now.day + 1),
+                  );
+              _isNextEnabled = validLength && validDate;
+            }
+          } else {
+            // Page 4 is Gender slide
+            _isNextEnabled = true; // Gender slide - always enabled (optional)
+          }
+          break;
+        case 5:
+          if (skipNamePage) {
+            // Page 5 is now Settings slide
+            _isNextEnabled = true; // Settings slide
+          } else {
+            // Page 5 is Cycle Sync slide
+            final isMale = _selectedGender?.toLowerCase() == 'male';
+            final shouldShowInfoOnly = _selectedGender == null || isMale;
+            if (shouldShowInfoOnly || !_cycleSyncEnabled) {
+              _isNextEnabled = true;
+            } else {
+              final length = int.tryParse(_cycleLengthController.text.trim());
+              final validLength =
+                  length != null && length >= 21 && length <= 40;
+              final now = DateTime.now();
+              final lastStart = _cycleLastPeriodStart;
+              final validDate = lastStart != null &&
+                  !lastStart.isAfter(
+                    DateTime(now.year, now.month, now.day + 1),
+                  );
+              _isNextEnabled = validLength && validDate;
+            }
           }
           break;
         case 6:
+          // Only reached if name page is NOT skipped
           _isNextEnabled = true; // Settings slide
           break;
         default:
@@ -322,7 +402,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         if (widget.userId != tastyId3 && widget.userId != tastyId4) {
           await friendController.followFriend(
-              widget.userId, tastyId, 'Tasty AI', context);
+              widget.userId, tastyId, 'Sous Chef', context);
         }
 
         await prefs.setBool('is_first_time_user', true);
@@ -380,8 +460,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 }
               }
 
-              // Initialize hybrid notification service for Android/iOS
-              if (mounted) {
+              // Initialize hybrid notification service for Android only
+              // iOS uses local notifications which are already handled by NotificationService
+              if (mounted && Platform.isAndroid) {
                 try {
                   HybridNotificationService? hybridNotificationService;
                   try {
@@ -395,11 +476,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     await hybridNotificationService
                         .initializeHybridNotifications();
                     debugPrint(
-                        'Hybrid notifications initialized during onboarding');
+                        'Hybrid notifications initialized during onboarding (Android)');
                   }
                 } catch (e) {
                   debugPrint('Error initializing hybrid notifications: $e');
                 }
+              } else if (mounted && Platform.isIOS) {
+                // For iOS, notification preferences can be set up later when needed
+                // The local notification service is already initialized above
+                debugPrint(
+                    'iOS notifications: Using local notifications (hybrid service skipped)');
               }
 
               debugPrint('Notifications enabled during onboarding');
@@ -533,17 +619,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: GestureDetector(
-        onTap: () {
-          // Dismiss keyboard when tapping outside
-          FocusScope.of(context).unfocus();
-        },
-        child: Container(
-          // decoration: const BoxDecoration(
-          //   color: kAccentLight,
-          // ),
+      body: Container(
+ decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                    ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: GestureDetector(
+          onTap: () {
+            // Dismiss keyboard when tapping outside
+            FocusScope.of(context).unfocus();
+          },
           child: SafeArea(
             child: Column(
               children: [
@@ -581,15 +681,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         _validateInputs();
                       });
                     },
-                    children: [
-                      _buildNamePage(),
-                      _buildMealPlanningSlide(),
-                      _buildTrackingSlide(),
-                      _buildCommunitySlide(),
-                      _buildGenderSlide(),
-                      _buildCycleSyncSlide(),
-                      _buildSettingsSlide(),
-                    ],
+                    children: _buildPageViewChildren(),
                   ),
                 ),
                 Padding(
@@ -606,107 +698,46 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Welcome & Name Input Page
+  /// Only shown when no name is provided from auth provider
   Widget _buildNamePage() {
-    final bool hasExistingName =
-        widget.displayName != null && widget.displayName!.isNotEmpty;
-    // For Apple Sign In, if name is provided, it should be read-only (no edit option)
-    final bool isAppleSignIn = widget.authProvider == 'apple.com';
-    final bool isNameFromApple = isAppleSignIn && hasExistingName;
-    // Show text field only if: no name exists OR (not Apple Sign In OR user explicitly wants to edit)
-    final bool showTextField =
-        !hasExistingName || (!isAppleSignIn && _isEditingName);
     final textTheme = Theme.of(context).textTheme;
-    final isDarkMode = getThemeProvider(context).isDarkMode;
 
     return _buildPage(
       textTheme: textTheme,
       title: "Welcome to $appName!",
-      child1: showTextField
-          ? Container(
-              padding: EdgeInsets.all(getPercentageWidth(5, context)),
-              decoration: BoxDecoration(
-                color: kDarkGrey,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: SafeTextFormField(
-                controller: nameController,
-                autofocus: _isEditingName,
-                style: TextStyle(
-                    color: kDarkGrey, fontSize: getTextScale(3.5, context)),
-                onChanged: (_) => _validateInputs(),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFFF3F3F3),
-                  enabledBorder: outlineInputBorder(10),
-                  focusedBorder: outlineInputBorder(10),
-                  border: outlineInputBorder(10),
-                  labelStyle: const TextStyle(color: Color(0xffefefef)),
-                  hintStyle: TextStyle(
-                      color: kLightGrey, fontSize: getTextScale(3.5, context)),
-                  hintText: "Enter your name",
-                  floatingLabelBehavior: FloatingLabelBehavior.always,
-                  contentPadding: EdgeInsets.only(
-                    top: getPercentageHeight(1.5, context),
-                    bottom: getPercentageHeight(1.5, context),
-                    right: getPercentageWidth(2, context),
-                    left: getPercentageWidth(2, context),
-                  ),
-                ),
-              ),
-            )
-          : isNameFromApple
-              ? // Apple Sign In with name - show as read-only (no edit option per Apple guidelines)
-              Container(
-                  padding: EdgeInsets.all(getPercentageWidth(5, context)),
-                  decoration: BoxDecoration(
-                    color:
-                        isDarkMode ? kDarkGrey : kAccent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: kAccent.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        nameController.text,
-                        style: textTheme.displaySmall?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : // Other providers or no name - allow editing
-              GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isEditingName = true;
-                    });
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        nameController.text,
-                        style: textTheme.displaySmall?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: getPercentageWidth(3, context)),
-                      Icon(
-                        Icons.edit,
-                        color: kAccent,
-                        size: getIconScale(7, context),
-                      ),
-                    ],
-                  ),
-                ),
+      description:
+          "The stations are clean and the prep is ready. Who is running the pass today? Enter your name, Chef.",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          color: kDarkGrey,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SafeTextFormField(
+          controller: nameController,
+          style:
+              TextStyle(color: kDarkGrey, fontSize: getTextScale(3.5, context)),
+          onChanged: (_) => _validateInputs(),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF3F3F3),
+            enabledBorder: outlineInputBorder(10),
+            focusedBorder: outlineInputBorder(10),
+            border: outlineInputBorder(10),
+            labelStyle: const TextStyle(color: Color(0xffefefef)),
+            hintStyle: TextStyle(
+                color: kLightGrey, fontSize: getTextScale(3.5, context)),
+            hintText: "Enter your name",
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            contentPadding: EdgeInsets.only(
+              top: getPercentageHeight(1.5, context),
+              bottom: getPercentageHeight(1.5, context),
+              right: getPercentageWidth(2, context),
+              left: getPercentageWidth(2, context),
+            ),
+          ),
+        ),
+      ),
       child2: const SizedBox.shrink(),
       child3: Image.asset(
         'assets/images/tasty/tasty.png',
@@ -714,11 +745,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         width: getPercentageWidth(50, context),
         fit: BoxFit.contain,
       ),
-      description: isNameFromApple
-          ? 'Great to see you!\n\nWelcome to $appName! Let\'s explore what we can do for you.'
-          : hasExistingName && !_isEditingName
-              ? 'Great to see you!\n\nYour name looks good. Tap the edit icon if you\'d like to change it, or continue to explore what $appName can do for you.'
-              : 'Let\'s get started!\n\nTell us your name and we\'ll show you what $appName can do for you.',
     );
   }
 
@@ -730,11 +756,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Hi $userName!\nWe can help you Plan Your Perfect Meals",
+      title: "Welcome to the Kitchen, \nChef $userName!",
       description:
-          "Get delicious, personalized meal plans designed to fit your unique dietary needs and health goals, including programs like No Sugar or Intermittent Fasting",
+          "Let's get your station organized. Whether you need a No Sugar plan or Intermittent Fasting logic, I’m here to design the perfect menu for your specific goals.",
       child1: Container(
-        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(2, context),
+          vertical: getPercentageHeight(3, context),
+        ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -756,10 +785,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           children: [
             // Calendar + Plate Icon (referencing the image)
-
-            SizedBox(height: getPercentageHeight(3, context)),
             Text(
-              "Personalized Meal Plans",
+              "Organizer",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: getTextScale(5, context),
@@ -820,9 +847,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildTrackingSlide() {
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Meet Your AI Nutrition Coach",
+      title: "Reporting for Duty.",
       description:
-          "Snap a photo of your meal and let our Tasty AI coach provide instant nutritional breakdowns, helping you make smarter food choices effortlessly",
+          'My name is Turner, your digital Sous Chef. My job is simple: You run the pass, I handle the prep.',
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
@@ -847,7 +874,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           children: [
             SizedBox(height: getPercentageHeight(3, context)),
             Text(
-              "Tasty AI Coach",
+              "At Your Service!", // My expertise at your service.
               style: TextStyle(
                 color: Colors.white,
                 fontSize: getTextScale(5, context),
@@ -908,9 +935,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildCommunitySlide() {
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Track Your Journey!",
+      title: "Master Your Inventory.",
       description:
-          "Easily track your macros and calories to stay on target. Plus, get auto-generated shopping lists to make healthy eating convenient and stress-free",
+          "I’ll track the macros and calories so you don't have to. Plus, I'll generate your shopping lists to make sure your kitchen is always stocked.",
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
@@ -935,7 +962,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           children: [
             SizedBox(height: getPercentageHeight(3, context)),
             Text(
-              "Effortless Tracking",
+              "Your Kitchen, Your Rules.",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: getTextScale(5, context),
@@ -1000,9 +1027,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Almost There, $userName!",
+      title: "Final Polish,\nChef $userName!",
       description:
-          "Customize your experience with notifications and theme preferences",
+          "Set your kitchen vibe and notification style. Once this is done, we’re ready for our first service.",
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
@@ -1144,8 +1171,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildFeatureBox(
       BuildContext context, String text, Color color, IconData icon) {
     return Container(
-      width: getPercentageWidth(20, context), // Even smaller width
-      height: getPercentageWidth(20, context), // Even smaller height
+      width: getPercentageWidth(22, context), // Even smaller width
+      height: getPercentageWidth(22, context), // Even smaller height
       padding:
           EdgeInsets.all(getPercentageWidth(2.5, context)), // Reduced padding
       decoration: BoxDecoration(
@@ -1237,7 +1264,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Dismiss keyboard when navigating
       FocusScope.of(context).unfocus();
 
-      if (_currentPage < 6) {
+      if (_currentPage < _totalPages - 1) {
         _controller.nextPage(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeIn,
@@ -1264,7 +1291,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == 6 ? "Get Started" : "Next",
+          _currentPage == _totalPages - 1 ? "Get Started" : "Next",
           textAlign: TextAlign.center,
           style: textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w500,
@@ -1276,29 +1303,38 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> requestUMPConsent() async {
-    final params = ConsentRequestParameters();
-    ConsentInformation.instance.requestConsentInfoUpdate(
-      params,
-      () {
-        // Consent info updated successfully
-        ConsentForm.loadAndShowConsentFormIfRequired((formError) {
-          if (formError != null) {
-            debugPrint('formError: $formError');
-            // Consent gathering failed, but you can still check if ads can be requested
-            _setFirebaseConsent();
-          } else {
-            debugPrint('formError: null');
-            // Consent has been gathered
-            _setFirebaseConsent();
-          }
-        });
-      },
-      (FormError error) {
-        // Handle the error updating consent info
-        // Optionally, you can still check if ads can be requested
-        _setFirebaseConsent();
-      },
-    );
+    try {
+      final params = ConsentRequestParameters();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        params,
+        () async {
+          // Consent info updated successfully
+          // For new users, always try to show the consent form
+          // loadAndShowConsentFormIfRequired will automatically check if form is needed
+          ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+            if (formError != null) {
+              debugPrint('UMP Consent form error: $formError');
+              // Consent gathering failed, but you can still check if ads can be requested
+              _setFirebaseConsent();
+            } else {
+              debugPrint('UMP Consent form processed successfully');
+              // Consent has been gathered or was not required
+              _setFirebaseConsent();
+            }
+          });
+        },
+        (FormError error) {
+          // Handle the error updating consent info
+          debugPrint('UMP Consent info update error: $error');
+          // Optionally, you can still check if ads can be requested
+          _setFirebaseConsent();
+        },
+      );
+    } catch (e) {
+      debugPrint('Error requesting UMP consent: $e');
+      // Still set Firebase consent even if UMP fails
+      _setFirebaseConsent();
+    }
   }
 
   Future<void> _setFirebaseConsent() async {
@@ -1318,9 +1354,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       textTheme: textTheme,
-      title: "Tell Us About Yourself, $userName",
+      title: "Calibrating Your Station, \nChef $userName!",
       description:
-          "This helps us provide more accurate calorie and macro recommendations. This is optional and can be changed later.",
+          "To design the right menu, I need to know who I'm cooking for. These details help me calculate your precise nutritional targets. (Optional, Chef - we can adjust later)",
       child1: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
@@ -1432,7 +1468,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
             if (_selectedGender != null)
               Padding(
-                padding: EdgeInsets.only(top: getPercentageHeight(1.5, context)),
+                padding:
+                    EdgeInsets.only(top: getPercentageHeight(1.5, context)),
                 child: Text(
                   'Gender helps calculate more accurate calorie and macro recommendations',
                   style: textTheme.bodySmall?.copyWith(
@@ -1458,10 +1495,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return _buildPage(
       textTheme: textTheme,
-      title: "Support Your Cycle",
+      title: "Sync the Menu to Your Body.",
       description: shouldShowInfoOnly
-          ? "Cycle syncing is available for users with menstrual cycles. You can always add it later in Settings."
-          : "If you have a menstrual cycle, we can gently adapt your goals and suggestions around your phases. This is optional and can be changed later in Edit Goals.",
+          ? "Different weeks require different fuel. If you have a cycle, I can gently adapt your nutritional targets to match your hormonal phases."
+          : "Cycle syncing is available for Chefs with menstrual cycles. If you need this later, just let me know in Settings.",
       child1: shouldShowInfoOnly
           ? Container(
               padding: EdgeInsets.all(getPercentageWidth(5, context)),
@@ -1485,7 +1522,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   SizedBox(width: getPercentageWidth(3, context)),
                   Expanded(
                     child: Text(
-                      "Cycle syncing adjusts goals and meal suggestions based on menstrual cycle phases. This feature is designed for users with menstrual cycles.",
+                      "Let me adjust your nutritional targets based on your cycle phase. This is exclusively available for Chefs with menstrual cycles",
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kWhite : kDarkGrey,
                       ),

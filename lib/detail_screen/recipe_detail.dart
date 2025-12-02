@@ -708,7 +708,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         onPressed: widget.onEdit,
                         icon: Icon(Icons.edit,
                             size: getResponsiveBoxSize(context, 17, 17)),
-                        label: Text('Edit',
+                        label: Text('Remake Plate',
                             style: textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w400,
                             )),

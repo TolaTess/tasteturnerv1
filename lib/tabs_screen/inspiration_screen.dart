@@ -27,22 +27,10 @@ class _InspirationScreenState extends State<InspirationScreen> {
     if (!mounted) return;
 
     try {
-    await firebaseService.fetchGeneralData();
-
-      if (!mounted) return;
-
-      // Safely handle excluded ingredients data
-      final excludeIngredientsData =
-          firebaseService.generalData['excludeIngredients'];
-      if (excludeIngredientsData != null) {
-        final excludedIngredientsString = excludeIngredientsData.toString();
-        if (excludedIngredientsString.isNotEmpty) {
-          final excludedIngredients = excludedIngredientsString.split(',');
-          // Note: Challenge posts feature is currently disabled
-          // This data is kept for potential future use
-          debugPrint('Excluded ingredients loaded: ${excludedIngredients.length}');
-        }
-      }
+      // Use local excludeIngredients constant from utils.dart
+      // Note: Challenge posts feature is currently disabled
+      // This data is kept for potential future use
+      debugPrint('Excluded ingredients loaded: ${excludeIngredients.length}');
     } catch (e) {
       debugPrint('Error loading excluded ingredients: $e');
       // Fail silently - not critical for main functionality

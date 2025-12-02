@@ -377,9 +377,26 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               indicatorColor: isDarkMode ? kWhite : kBlack,
             ),
           ),
-          body: RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: TabBarView(
+          body: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(
+                  isDarkMode
+                      ? 'assets/images/background/imagedark.jpeg'
+                      : 'assets/images/background/imagelight.jpeg',
+                ),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  isDarkMode
+                      ? Colors.black.withOpacity(0.5)
+                      : Colors.white.withOpacity(0.5),
+                  isDarkMode ? BlendMode.darken : BlendMode.lighten,
+                ),
+              ),
+            ),
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: TabBarView(
               controller: _tabController,
               children: [
                 Padding(
@@ -395,6 +412,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   child: const BuddyTab(),
                 ),
               ],
+            ),
             ),
           ),
         ));

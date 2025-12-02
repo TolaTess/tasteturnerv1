@@ -46,7 +46,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleGoogleSignIn() async {
     if (_isGoogleLoading || _isAppleLoading) return;
-    
+
     setState(() {
       _isGoogleLoading = true;
     });
@@ -66,7 +66,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleAppleSignIn() async {
     if (_isGoogleLoading || _isAppleLoading) return;
-    
+
     setState(() {
       _isAppleLoading = true;
     });
@@ -87,11 +87,25 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Container(
-        decoration: const BoxDecoration(
-          color: kAccentLight,
+    decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
         ),
         child: SafeArea(
           child: SizedBox(
@@ -107,6 +121,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
 
                   const Spacer(),
+                  Text(
+                    "Welcome to $appName",
+                    style: textTheme.displaySmall?.copyWith(
+                      fontSize: getTextScale(10, context),
+                      color: kAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -165,6 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               style: textTheme.displayMedium?.copyWith(
                                 fontSize: getTextScale(6, context),
                                 fontWeight: FontWeight.w400,
+                                color: kBlack,
                               ),
                             ),
                           ),
@@ -174,7 +197,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           "with Confidence",
                           style: textTheme.displayMedium?.copyWith(
                             fontSize: getTextScale(6, context),
-                            color: kWhite,
+                            color: kAccent,
                             fontWeight: FontWeight.w100,
                           ),
                         ),
@@ -197,10 +220,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             child: Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(9, context),
-                                vertical: 12,
+                                vertical: getPercentageHeight(1.2, context),
                               ),
                               decoration: BoxDecoration(
-                                color: kWhite,
+                                color: kAccentLight,
                                 borderRadius: BorderRadius.circular(
                                   50,
                                 ),
@@ -211,15 +234,16 @@ class _SignupScreenState extends State<SignupScreen> {
                                       width: getPercentageWidth(5, context),
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
                                           kAccent,
                                         ),
                                       ),
                                     )
                                   : SvgPicture.asset(
-                                "assets/images/svg/apple.svg",
-                                height: getPercentageWidth(5, context),
-                              ),
+                                      "assets/images/svg/apple.svg",
+                                      height: getPercentageWidth(5, context),
+                                    ),
                             ),
                           ),
                         ),
@@ -233,10 +257,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(9, context),
-                              vertical: getPercentageHeight(1, context),
+                              vertical: getPercentageHeight(1.2, context),
                             ),
                             decoration: BoxDecoration(
-                              color: kDarkGrey,
+                              color: kBlack,
                               borderRadius: BorderRadius.circular(
                                 50,
                               ),
@@ -253,9 +277,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   )
                                 : SvgPicture.asset(
-                              "assets/images/svg/google.svg",
-                              height: getPercentageWidth(5, context),
-                            ),
+                                    "assets/images/svg/google.svg",
+                                    height: getPercentageWidth(5, context),
+                                  ),
                           ),
                         ),
                       ),
@@ -289,8 +313,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       Text(
                         "Already have an account? ",
                         style: textTheme.titleMedium?.copyWith(
-                          color: kWhite,
-                          fontWeight: FontWeight.w100,
+                          color: kBlack,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
 
@@ -307,8 +331,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: Text(
                           "Log in",
                           style: textTheme.titleMedium?.copyWith(
-                            color: kWhite,
-                            fontWeight: FontWeight.w100,
+                            color: kBlack,
+                            fontWeight: FontWeight.w400,
                             decoration: TextDecoration.underline,
                           ),
                         ),

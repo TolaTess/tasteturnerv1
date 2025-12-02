@@ -65,38 +65,39 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
-      final categoryDatasMeal = helperController.headers;
-      if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
-        // Check if meal times are already added to avoid duplicates
-        final hasMealTimes = categoryDatasMeal.any((item) =>
-            item['id'] == '1' || item['id'] == '2' || item['id'] == '3');
+        final categoryDatasMeal = helperController.headers;
+        if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
+          // Check if meal times are already added to avoid duplicates
+          final hasMealTimes = categoryDatasMeal.any((item) =>
+              item['id'] == '1' || item['id'] == '2' || item['id'] == '3');
 
-        if (!hasMealTimes) {
-          // Add meal times to start of the list
-          categoryDatasMeal.insertAll(0, [
-            {'id': '1', 'name': 'breakfast'},
-            {'id': '2', 'name': 'lunch'},
-            {'id': '3', 'name': 'dinner'},
-          ]);
-        }
+          if (!hasMealTimes) {
+            // Add meal times to start of the list
+            categoryDatasMeal.insertAll(0, [
+              {'id': '1', 'name': 'breakfast'},
+              {'id': '2', 'name': 'lunch'},
+              {'id': '3', 'name': 'dinner'},
+            ]);
+          }
 
           // Add bounds check before accessing array
           if (categoryDatasMeal.isNotEmpty) {
-            selectedCategoryIdMeal = categoryDatasMeal[0]['id']?.toString() ?? '';
+            selectedCategoryIdMeal =
+                categoryDatasMeal[0]['id']?.toString() ?? '';
 
-        // Safely extract the name
-        final nameData = categoryDatasMeal[0]['name'];
-        if (nameData is String) {
-          selectedCategoryMeal = nameData;
-        } else if (nameData is Map<String, dynamic>) {
-          selectedCategoryMeal = nameData['name']?.toString() ?? '';
-        } else {
-          selectedCategoryMeal = nameData?.toString() ?? '';
-        }
+            // Safely extract the name
+            final nameData = categoryDatasMeal[0]['name'];
+            if (nameData is String) {
+              selectedCategoryMeal = nameData;
+            } else if (nameData is Map<String, dynamic>) {
+              selectedCategoryMeal = nameData['name']?.toString() ?? '';
+            } else {
+              selectedCategoryMeal = nameData?.toString() ?? '';
+            }
 
-        if (mounted) {
-          setState(() {});
-        }
+            if (mounted) {
+              setState(() {});
+            }
           }
         }
       } catch (e) {
@@ -107,13 +108,13 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Set default for meal diet categories
     try {
-    if (userService.currentUser.value?.familyMode ?? false) {
-      _mealDietCategories = [
-        ...helperController.category
-            .where((category) => category['kidsFriendly'] == true)
-      ];
-    } else {
-      _mealDietCategories = [...helperController.category];
+      if (userService.currentUser.value?.familyMode ?? false) {
+        _mealDietCategories = [
+          ...helperController.category
+              .where((category) => category['kidsFriendly'] == true)
+        ];
+      } else {
+        _mealDietCategories = [...helperController.category];
       }
     } catch (e) {
       debugPrint('Error loading meal diet categories: $e');
@@ -124,7 +125,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     _updateMealListByType();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-      _showAddSpinTutorial();
+        _showAddSpinTutorial();
       }
     });
   }
@@ -164,12 +165,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   Future<void> _loadMuteState() async {
     try {
-    final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
       if (mounted) {
-    setState(() {
-      _isMuted =
-          prefs.getBool('isMuted') ?? false; // Default to false if not set
-    });
+        setState(() {
+          _isMuted =
+              prefs.getBool('isMuted') ?? false; // Default to false if not set
+        });
       }
     } catch (e) {
       debugPrint('Error loading mute state: $e');
@@ -185,7 +186,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   @override
   void dispose() {
     // Always dispose controller to prevent memory leak
-      customController.dispose();
+    customController.dispose();
     // AudioPlayer disposal handled by AudioService
     super.dispose();
   }
@@ -219,74 +220,75 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   void _updateCategoryIngredientData(String categoryId, String category) async {
     if (!mounted) return;
-    
+
     try {
       if (mounted) {
-    setState(() {
-      selectedCategoryIdIngredient = categoryId;
-      selectedCategoryIngredient = category;
-    });
+        setState(() {
+          selectedCategoryIdIngredient = categoryId;
+          selectedCategoryIngredient = category;
+        });
       }
 
-    if (categoryId == 'custom' && category == 'custom') {
+      if (categoryId == 'custom' && category == 'custom') {
         if (!mounted || !context.mounted) return;
-        
+
         try {
-      final result = await showDialog<List<String>>(
-        context: context,
-        builder: (context) {
-          final TextEditingController modalController = TextEditingController();
-          final isDarkMode = getThemeProvider(context).isDarkMode;
-          final textTheme = Theme.of(context).textTheme;
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-            title: Text(
-              'Enter Ingredients',
-              style: textTheme.titleMedium?.copyWith(color: kAccent),
-            ),
-            content: SafeTextFormField(
-              controller: modalController,
-              style: textTheme.bodyMedium
-                  ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-              keyboardType: TextInputType.text,
-              decoration: InputDecoration(
-                labelText:
-                    "Enter your Ingredients \n(eggs, tuna, etc.) \nseparate by commas",
-                labelStyle: textTheme.bodySmall
-                    ?.copyWith(color: isDarkMode ? kLightGrey : kLightGrey),
-                enabledBorder: outlineInputBorder(10),
-                focusedBorder: outlineInputBorder(10),
-                border: outlineInputBorder(10),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cancel',
+          final result = await showDialog<List<String>>(
+            context: context,
+            builder: (context) {
+              final TextEditingController modalController =
+                  TextEditingController();
+              final isDarkMode = getThemeProvider(context).isDarkMode;
+              final textTheme = Theme.of(context).textTheme;
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                title: Text(
+                  'Enter Ingredients',
+                  style: textTheme.titleMedium?.copyWith(color: kAccent),
+                ),
+                content: SafeTextFormField(
+                  controller: modalController,
                   style: textTheme.bodyMedium
                       ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                  keyboardType: TextInputType.text,
+                  decoration: InputDecoration(
+                    labelText:
+                        "Enter your Ingredients \n(eggs, tuna, etc.) \nseparate by commas",
+                    labelStyle: textTheme.bodySmall
+                        ?.copyWith(color: isDarkMode ? kLightGrey : kLightGrey),
+                    enabledBorder: outlineInputBorder(10),
+                    focusedBorder: outlineInputBorder(10),
+                    border: outlineInputBorder(10),
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: () {
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
                       try {
                         final text = modalController.text.trim();
                         if (text.isEmpty) {
                           Navigator.pop(context, null);
                           return;
                         }
-                  final items = text
-                      .split(RegExp(r'[,;\n]'))
-                      .map((i) => i.trim())
-                      .where((i) => i.isNotEmpty)
-                      .toList();
+                        final items = text
+                            .split(RegExp(r'[,;\n]'))
+                            .map((i) => i.trim())
+                            .where((i) => i.isNotEmpty)
+                            .toList();
                         if (items.isNotEmpty) {
-                  _funMode = true;
-                  Navigator.pop(context, items);
+                          _funMode = true;
+                          Navigator.pop(context, items);
                         } else {
                           Navigator.pop(context, null);
                         }
@@ -294,30 +296,30 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                         debugPrint('Error parsing custom ingredients: $e');
                         Navigator.pop(context, null);
                       }
-                },
-                child: Text(
-                  'Add',
-                  style: textTheme.bodyMedium?.copyWith(color: kAccent),
-                ),
-              ),
-            ],
+                    },
+                    child: Text(
+                      'Add',
+                      style: textTheme.bodyMedium?.copyWith(color: kAccent),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
-        },
-      );
           if (result != null && result.isNotEmpty && mounted) {
-        setState(() {
-          _ingredientList = result;
-        });
+            setState(() {
+              _ingredientList = result;
+            });
           }
         } catch (e) {
           debugPrint('Error showing custom ingredient dialog: $e');
           // Non-critical error, continue with default category
-      }
-    } else {
-      _ingredientList = updateIngredientListByType(
-              widget.ingredientList, selectedCategoryIngredient)
-          .map((ingredient) => ingredient.title)
-          .toList();
+        }
+      } else {
+        _ingredientList = updateIngredientListByType(
+                widget.ingredientList, selectedCategoryIngredient)
+            .map((ingredient) => ingredient.title)
+            .toList();
       }
     } catch (e) {
       debugPrint('Error updating category ingredient data: $e');
@@ -330,34 +332,34 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     try {
       final categoryLower = selectedCategoryMeal.toLowerCase();
-    if (selectedCategoryMeal.isEmpty ||
+      if (selectedCategoryMeal.isEmpty ||
           categoryLower == 'balanced' ||
           categoryLower == 'general' ||
           categoryLower == 'all') {
         if (mounted) {
-      setState(() {
+          setState(() {
             _mealList = widget.mealList
                 .map((meal) => meal.title)
                 .take(_maxMealListSize)
                 .toList();
-      });
+          });
         }
-    } else {
-      final newMealList = widget.mealList
-          .where((meal) => meal.categories.contains(selectedCategoryMeal))
-          .toList();
+      } else {
+        final newMealList = widget.mealList
+            .where((meal) => meal.categories.contains(selectedCategoryMeal))
+            .toList();
 
         if (mounted) {
-      setState(() {
+          setState(() {
             if (newMealList.length > _maxMealListSize) {
               _mealList = newMealList
                   .map((meal) => meal.title)
                   .take(_maxMealListSize)
                   .toList();
-        } else {
-          _mealList = newMealList.map((meal) => meal.title).toList();
-        }
-      });
+            } else {
+              _mealList = newMealList.map((meal) => meal.title).toList();
+            }
+          });
         }
       }
     } catch (e) {
@@ -389,115 +391,134 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             getPercentageHeight(10, context), // Control height with percentage
         title: Text('Don\'t Know What to Eat?', style: textTheme.displayMedium),
       ),
-      body: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height,
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
           ),
-          child: IntrinsicHeight(
-            child: Column(
-              children: [
-                SizedBox(height: getPercentageHeight(1.5, context)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Take a Spin!',
-                      style: textTheme.displaySmall?.copyWith(color: kAccent),
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    const InfoIconWidget(
-                      title: 'Spin & Discover',
-                      description:
-                          'Let our smart wheel help you decide what to eat',
-                      details: [
-                        {
-                          'icon': Icons.casino,
-                          'title': 'Ingredient Spin',
-                          'description':
-                              'Spin for random ingredients to inspire your cooking',
-                          'color': kAccentLight,
-                        },
-                        {
-                          'icon': Icons.restaurant,
-                          'title': 'Meal Spin',
-                          'description':
-                              'Get complete meal suggestions based on your preferences',
-                          'color': kAccentLight,
-                        },
-                        {
-                          'icon': Icons.category,
-                          'title': 'Category Filter',
-                          'description':
-                              'Filter by protein, carbs, vegetables, or all ingredients',
-                          'color': kAccentLight,
-                        },
-                        {
-                          'icon': Icons.volume_up,
-                          'title': 'Sound Effects',
-                          'description':
-                              'Toggle sound effects for a more engaging experience',
-                          'color': kAccentLight,
-                        },
-                      ],
-                      iconColor: kAccentLight,
-                      tooltip: 'Spin Wheel Information',
-                    ),
-                  ],
-                ),
-                SizedBox(height: getPercentageHeight(1, context)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context),
+        ),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Take a Spin!',
+                        style: textTheme.displaySmall?.copyWith(color: kAccent),
                       ),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      const InfoIconWidget(
+                        title: 'Spin & Discover',
+                        description:
+                            'Let our smart wheel help you decide what to eat',
+                        details: [
+                          {
+                            'icon': Icons.casino,
+                            'title': 'Ingredient Spin',
+                            'description':
+                                'Spin for random ingredients to inspire your cooking',
+                            'color': kAccentLight,
+                          },
+                          {
+                            'icon': Icons.restaurant,
+                            'title': 'Meal Spin',
+                            'description':
+                                'Get complete meal suggestions based on your preferences',
+                            'color': kAccentLight,
+                          },
+                          {
+                            'icon': Icons.category,
+                            'title': 'Category Filter',
+                            'description':
+                                'Filter by protein, carbs, vegetables, or all ingredients',
+                            'color': kAccentLight,
+                          },
+                          {
+                            'icon': Icons.volume_up,
+                            'title': 'Sound Effects',
+                            'description':
+                                'Toggle sound effects for a more engaging experience',
+                            'color': kAccentLight,
+                          },
+                        ],
+                        iconColor: kAccentLight,
+                        tooltip: 'Spin Wheel Information',
                       ),
-                      child: TextButton(
-                        key: _addSwitchButtonKey,
-                        onPressed: () {
-                          setState(() {
-                            showIngredientSpin = !showIngredientSpin;
-                            if (!showIngredientSpin) {
-                              // Switched to meal spin, update meal list
-                              _updateMealListByType();
-                            }
-                          });
-                        },
-                        child: Text(
-                          showIngredientSpin
-                              ? 'Switch to Meal Spin'
-                              : 'Switch to Ingredient Spin',
-                          style: textTheme.titleMedium?.copyWith(
-                              color: kAccentLight, fontWeight: FontWeight.w600),
+                    ],
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(2, context),
+                        ),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: TextButton(
+                          key: _addSwitchButtonKey,
+                          onPressed: () {
+                            setState(() {
+                              showIngredientSpin = !showIngredientSpin;
+                              if (!showIngredientSpin) {
+                                // Switched to meal spin, update meal list
+                                _updateMealListByType();
+                              }
+                            });
+                          },
+                          child: Text(
+                            showIngredientSpin
+                                ? 'Switch to Meal Spin'
+                                : 'Switch to Ingredient Spin',
+                            style: textTheme.titleMedium?.copyWith(
+                                color: kAccentLight,
+                                fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      key: _addAudioButtonKey,
-                      iconSize: getIconScale(6, context),
-                      icon: Icon(
-                        _isMuted ? Icons.volume_off : Icons.volume_up,
+                      IconButton(
+                        key: _addAudioButtonKey,
+                        iconSize: getIconScale(6, context),
+                        icon: Icon(
+                          _isMuted ? Icons.volume_off : Icons.volume_up,
+                        ),
+                        onPressed: _toggleMute,
                       ),
-                      onPressed: _toggleMute,
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: showIngredientSpin
-                      ? _buildIngredientSpinView(isDarkMode, textTheme)
-                      :                       _buildMealSpinView(
-                          isDarkMode,
-                          categoryDatasMeal,
-                          categoryDatasIngredientDiet,
-                          textTheme,
-                          dietPreference.toString()),
-                ),
-              ],
+                    ],
+                  ),
+                  Expanded(
+                    child: showIngredientSpin
+                        ? _buildIngredientSpinView(isDarkMode, textTheme)
+                        : _buildMealSpinView(
+                            isDarkMode,
+                            categoryDatasMeal,
+                            categoryDatasIngredientDiet,
+                            textTheme,
+                            dietPreference.toString()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -612,7 +633,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       TextTheme textTheme,
       String dietPreference) {
     // Ensure dietPreference is not null
-    final safeDietPreference = dietPreference.isNotEmpty ? dietPreference : 'balanced';
+    final safeDietPreference =
+        dietPreference.isNotEmpty ? dietPreference : 'balanced';
     return Column(
       children: [
         // ------------------------------------Premium / Ads------------------------------------

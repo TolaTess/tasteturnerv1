@@ -35,6 +35,7 @@ import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
 import '../pages/edit_goal.dart';
 import '../widgets/notification_preference_dialog.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -129,6 +130,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
+      // Check if user is first-time user and show family dialog if needed
+      _checkFamilyDialogForNewUser();
+
+      if (!mounted) return;
+
       // Setup Cloud Functions notifications (replaces local scheduling)
       _setupHybridNotifications();
 
@@ -136,6 +142,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Preload dietary/cuisine data early for better performance
       _preloadDietaryData();
+
+      // Initialize non-critical services after UI is rendered (with delay)
+      // This prevents blocking app startup
+      Future.delayed(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+
+        // Initialize ads in background (not critical for startup)
+        try {
+          await MobileAds.instance.initialize();
+          debugPrint('Ads initialized successfully');
+        } catch (e) {
+          debugPrint('Error initializing ads: $e');
+        }
+      });
     });
   }
 
@@ -283,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       tutorials: [
         TutorialStep(
           tutorialId: 'add_profile_button',
-          message: 'Tap here to view your profile!',
+          message: 'Tap here to view your station, Chef!',
           targetKey: _addProfileButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -291,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_meal_button',
-          message: 'Tap here to add your meal!',
+          message: 'Tap here to add to The Pass, Chef!',
           targetKey: _addMealButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -299,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_dine_in_button',
-          message: 'Tap here to analyze what is in your fridge!',
+          message: 'Tap here to see what\'s in the pantry, Chef!',
           targetKey: _addDineInButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -307,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_shopping_button',
-          message: 'Tap here to view your shopping list!',
+          message: 'Tap here to check the shopping list, Chef!',
           targetKey: _addShoppingButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -315,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_recipe_button',
-          message: 'Tap here to view our recipe library!',
+          message: 'Tap here to browse the recipe library, Chef!',
           targetKey: _addRecipeButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -323,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_message_button',
-          message: 'Tap here to view your messages!',
+          message: 'Tap here to check your messages, Chef!',
           targetKey: _addMessageButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -331,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         TutorialStep(
           tutorialId: 'add_analyse_button',
-          message: 'Tap here to analyze your meal!',
+          message: 'Tap here to taste your meal, Chef!',
           targetKey: _addAnalyseButtonKey,
           onComplete: () {
             // Mark tutorial as completed
@@ -382,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         backgroundColor:
             getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
         title: Text(
-          'Manage Family Nutrition?',
+          'Manage Family Station, Chef?',
           style: TextStyle(
             color: kAccent,
             fontSize: getTextScale(4, context),
@@ -390,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         content: Text(
-          'Would you like to manage nutrition for your family members? \n\nYou can add family members and plan their meals \n(you can always change this later in Settings -> Edit Goals).',
+          'Would you like to manage stations for your family members, Chef? \n\nYou can add family members and plan their meals \n(you can always change this later in Settings -> Edit Goals).',
           style: TextStyle(
             color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
             fontSize: getTextScale(3.5, context),
@@ -423,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _showFamilySetupDialog();
             },
             child: Text(
-              'Yes, Set Up Family',
+              'Yes, Set Up Family Station',
               style: TextStyle(
                 fontSize: getTextScale(3.5, context),
                 fontWeight: FontWeight.w600,
@@ -533,15 +553,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Show success message
       if (mounted && context.mounted) {
         showTastySnackbar(
-          'Family Setup Complete!',
-          'You can now manage nutrition for ${familyMembers.length} family member${familyMembers.length > 1 ? 's' : ''}.',
+          'Family station is ready, Chef!',
+          'You can now manage stations for ${familyMembers.length} family member${familyMembers.length > 1 ? 's' : ''}, Chef.',
           context,
           backgroundColor: kAccentLight,
         );
       }
     } catch (e) {
       debugPrint('Error saving family members: $e');
-      _showErrorSnackbar('Failed to save family members. Please try again.');
+      _showErrorSnackbar(
+          'Couldn\'t save family members, Chef. Please try again.');
     }
   }
 
@@ -629,7 +650,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       try {
         await Future.wait([
           helperController.fetchWinners(),
-          firebaseService.fetchGeneralData(),
           macroManager.fetchIngredients(),
         ]).timeout(
           const Duration(seconds: 30),
@@ -645,8 +665,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       debugPrint('Error refreshing data: $e');
       if (mounted && context.mounted) {
         showTastySnackbar(
-          'Refresh Failed',
-          'Unable to refresh data. Please try again.',
+          'Couldn\'t refresh the station, Chef',
+          'The station couldn\'t update. Please try again, Chef.',
           context,
           backgroundColor: Colors.red,
         );
@@ -719,7 +739,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     dailyDataController.listenToDailyData(userId, DateTime.now());
   }
-
 
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -798,6 +817,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await Future.delayed(const Duration(seconds: 30));
     if (mounted && _tutorialCompleted) {
       await _checkAndShowFamilyNutritionDialog();
+    }
+  }
+
+  /// Check and show family dialog for new users (even if tutorial not completed)
+  Future<void> _checkFamilyDialogForNewUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isFirstTimeUser = prefs.getBool('is_first_time_user') ?? false;
+
+      if (isFirstTimeUser) {
+        // Wait a bit for the app to settle, then check family dialog
+        await Future.delayed(const Duration(seconds: 5));
+        if (mounted) {
+          await _checkAndShowFamilyNutritionDialog();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking family dialog for new user: $e');
     }
   }
 
@@ -1073,7 +1110,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             SizedBox(width: getPercentageWidth(2, context)),
             Expanded(
               child: Text(
-                'No internet connection. Some features may be limited.',
+                'No connection to the kitchen, Chef. Some features may be limited.',
                 style: textTheme.bodyMedium?.copyWith(
                   color: kWhite,
                   fontWeight: FontWeight.w500,
@@ -1110,8 +1147,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Expanded(
             child: Text(
               familyMode
-                  ? "Shopping Day: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
-                  : "Shopping Day: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
+                  ? "Shopping Day, Chef: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                  : "Shopping Day, Chef: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
               style: textTheme.bodyMedium?.copyWith(
                 color: kAccentLight,
               ),
@@ -1190,12 +1227,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const Icon(Icons.error_outline, size: 48, color: kAccent),
                 const SizedBox(height: 16),
                 Text(
-                  'Unable to load user data',
+                  'Unable to load station data, Chef',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Please try logging out and back in',
+                  'Please try logging out and back in, Chef',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -1220,192 +1257,196 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           onSuccess: () {},
           onError: () {},
         ),
-        body: RefreshIndicator(
-          onRefresh: () async {
-            await _onRefresh();
-            await _loadShoppingDay();
-          },
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                  vertical: getPercentageHeight(0.5, context),
-                  horizontal: getPercentageWidth(2, context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Goals prompt banner
-                  if (_showGoalsPrompt)
-                    OnboardingPrompt(
-                      title: "Personalize Your Nutrition Goals",
-                      message:
-                          "Set your health goals to get personalized calorie and macro recommendations tailored to you",
-                      actionText: "Set Goals",
-                      onAction: () async {
-                        // Dismiss the prompt immediately
-                        setState(() {
-                          _showGoalsPrompt = false;
-                        });
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                isDarkMode
+                    ? 'assets/images/background/imagedark.jpeg'
+                    : 'assets/images/background/imagelight.jpeg',
+              ),
+              fit: BoxFit.cover,
+               colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+              ),
+            ),
+          ),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await _onRefresh();
+              await _loadShoppingDay();
+            },
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                    vertical: getPercentageHeight(0.5, context),
+                    horizontal: getPercentageWidth(2, context)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Goals prompt banner
+                    if (_showGoalsPrompt)
+                      OnboardingPrompt(
+                        title: "Personalize Your Station, Chef",
+                        message:
+                            "Set your station goals to get personalized calorie and macro recommendations tailored to you, Chef",
+                        actionText: "Set Goals",
+                        onAction: () async {
+                          // Dismiss the prompt immediately
+                          setState(() {
+                            _showGoalsPrompt = false;
+                          });
 
-                        // Mark as shown in storage
-                        await OnboardingPromptHelper.markGoalsPromptShown();
+                          // Mark as shown in storage
+                          await OnboardingPromptHelper.markGoalsPromptShown();
 
-                        if (!mounted) return;
+                          if (!mounted) return;
 
-                        // Navigate to nutrition settings
-                        try {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const NutritionSettingsPage(),
-                            ),
-                          );
-                        } catch (e) {
-                          debugPrint(
-                              'Error navigating to NutritionSettingsPage: $e');
-                          if (mounted && context.mounted) {
-                            showTastySnackbar(
-                              'Error',
-                              'Unable to open nutrition settings. Please try again.',
-                              context,
-                              backgroundColor: Colors.red,
-                            );
-                          }
-                        }
-                      },
-                      onDismiss: () {
-                        setState(() {
-                          _showGoalsPrompt = false;
-                        });
-                      },
-                      promptType: 'banner',
-                      storageKey: OnboardingPromptHelper.PROMPT_GOALS_SHOWN,
-                    ),
-
-                  SizedBox(
-                      height: MediaQuery.of(context).size.width > 800
-                          ? getPercentageHeight(1.5, context)
-                          : getPercentageHeight(0.5, context)),
-
-                  // Network status indicator
-                  _buildNetworkStatusIndicator(context, isDarkMode, textTheme),
-
-                  // Shopping day banner
-                  if (_isTodayShoppingDay())
-                    SizedBox(height: getPercentageHeight(1, context)),
-                  if (_isTodayShoppingDay())
-                    _buildShoppingDayBanner(context, isDarkMode, textTheme)!,
-                  if (_isTodayShoppingDay())
-                    SizedBox(height: getPercentageHeight(1, context)),
-
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(4.5, context),
-                        vertical: getPercentageHeight(1.5, context)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        //diary
-                        SecondNavWidget(
-                          key: _addMealButtonKey,
-                          label: 'Diary',
-                          icon: 'assets/images/svg/diary.svg',
-                          color: isDarkMode
-                              ? kAccent
-                              : kAccent.withValues(alpha: 0.5),
-                          destinationScreen: familyMode &&
-                                  selectedUserIndex != 0
-                              ? null // No destination when family member is selected
-                              : AddFoodScreen(
-                                  date: DateTime.now(),
-                                  isShowSummary: true,
-                                  notAllowedMealType:
-                                      _programService.userPrograms.isNotEmpty
-                                          ? _programService
-                                              .userPrograms.first.notAllowed
-                                              .join(',')
-                                          : null,
-                                ),
-                          onTap: familyMode && selectedUserIndex != 0
-                              ? () {
-                                  // Show snackbar when family member is selected
-                                  showTastySnackbar(
-                                    'Tracking Only',
-                                    'Food tracking is only available for ${userService.currentUser.value?.displayName}',
-                                    context,
-                                    backgroundColor: kAccentLight,
-                                  );
-                                }
-                              : null,
-                          isDarkMode: isDarkMode,
-                        ),
-                        //shopping
-                        SecondNavWidget(
-                          key: _addDineInButtonKey,
-                          label: 'Dine In',
-                          icon: 'assets/images/svg/target.svg',
-                          color:
-                              isDarkMode ? kBlue : kBlue.withValues(alpha: 0.5),
-                          destinationScreen: const DineInScreen(),
-                          isDarkMode: isDarkMode,
-                        ),
-                        //Planner
-                        SecondNavWidget(
-                          key: _addShoppingButtonKey,
-                          label: 'Shopping',
-                          icon: 'assets/images/svg/shopping.svg',
-                          color: isDarkMode
-                              ? kAccentLight
-                              : kAccentLight.withValues(alpha: 0.5),
-                          destinationScreen: const ShoppingTab(),
-                          isDarkMode: isDarkMode,
-                        ),
-                        //spin
-                        SecondNavWidget(
-                          key: _addRecipeButtonKey,
-                          label: 'Recipes',
-                          icon: 'assets/images/svg/book-outline.svg',
-                          color: isDarkMode
-                              ? kPurple
-                              : kPurple.withValues(alpha: 0.5),
-                          destinationScreen: const RecipeScreen(),
-                          isDarkMode: isDarkMode,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  // ------------------------------------Premium / Ads------------------------------------
-
-                  getAdsWidget(currentUser.isPremium, isDiv: false),
-
-                  // ------------------------------------Premium / Ads-------------------------------------
-                  if (!currentUser.isPremium)
-                    SizedBox(height: getPercentageHeight(1, context)),
-                  const Divider(
-                    color: kAccentLight,
-                    thickness: 1.5,
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  // Milestones tracker
-                  Obx(() => GestureDetector(
-                        onTap: () {
-                          if (_programService.userPrograms.isNotEmpty) {
-                            Get.to(() => const ProgramProgressScreen());
-                          } else {
-                            Navigator.push(
+                          // Navigate to nutrition settings
+                          try {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    const BottomNavSec(selectedIndex: 1),
+                                    const NutritionSettingsPage(),
                               ),
                             );
+                          } catch (e) {
+                            debugPrint(
+                                'Error navigating to NutritionSettingsPage: $e');
+                            if (mounted && context.mounted) {
+                              showTastySnackbar(
+                                'Couldn\'t open station settings, Chef',
+                                'Unable to open nutrition settings. Please try again, Chef.',
+                                context,
+                                backgroundColor: Colors.red,
+                              );
+                            }
                           }
                         },
-                        child: MilestonesTracker(
-                          ongoingPrograms: _programService.userPrograms.length,
-                          onJoinProgram: () {
+                        onDismiss: () {
+                          setState(() {
+                            _showGoalsPrompt = false;
+                          });
+                        },
+                        promptType: 'banner',
+                        storageKey: OnboardingPromptHelper.PROMPT_GOALS_SHOWN,
+                      ),
+
+                    SizedBox(
+                        height: MediaQuery.of(context).size.width > 800
+                            ? getPercentageHeight(1.5, context)
+                            : getPercentageHeight(0.5, context)),
+
+                    // Network status indicator
+                    _buildNetworkStatusIndicator(
+                        context, isDarkMode, textTheme),
+
+                    // Shopping day banner
+                    if (_isTodayShoppingDay())
+                      SizedBox(height: getPercentageHeight(1, context)),
+                    if (_isTodayShoppingDay())
+                      _buildShoppingDayBanner(context, isDarkMode, textTheme)!,
+                    if (_isTodayShoppingDay())
+                      SizedBox(height: getPercentageHeight(1, context)),
+
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(4.5, context),
+                          vertical: getPercentageHeight(1.5, context)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          //the pass
+                          SecondNavWidget(
+                            key: _addMealButtonKey,
+                            label: 'The Pass',
+                            icon: 'assets/images/svg/diary.svg',
+                            color: isDarkMode
+                                ? kAccent
+                                : kAccent.withValues(alpha: 0.5),
+                            destinationScreen: familyMode &&
+                                    selectedUserIndex != 0
+                                ? null // No destination when family member is selected
+                                : AddFoodScreen(
+                                    date: DateTime.now(),
+                                    isShowSummary: true,
+                                    notAllowedMealType:
+                                        _programService.userPrograms.isNotEmpty
+                                            ? _programService
+                                                .userPrograms.first.notAllowed
+                                                .join(',')
+                                            : null,
+                                  ),
+                            onTap: familyMode && selectedUserIndex != 0
+                                ? () {
+                                    // Show snackbar when family member is selected
+                                    showTastySnackbar(
+                                      'Station tracking is only available for ${userService.currentUser.value?.displayName}, Chef',
+                                      'Food tracking is only available for ${userService.currentUser.value?.displayName}, Chef.',
+                                      context,
+                                      backgroundColor: kAccentLight,
+                                    );
+                                  }
+                                : null,
+                            isDarkMode: isDarkMode,
+                          ),
+                          //shopping
+                          SecondNavWidget(
+                            key: _addDineInButtonKey,
+                            label: 'Dine In',
+                            icon: 'assets/images/svg/target.svg',
+                            color: isDarkMode
+                                ? kBlue
+                                : kBlue.withValues(alpha: 0.5),
+                            destinationScreen: const DineInScreen(),
+                            isDarkMode: isDarkMode,
+                          ),
+                          //Planner
+                          SecondNavWidget(
+                            key: _addShoppingButtonKey,
+                            label: 'Inventory',
+                            icon: 'assets/images/svg/shopping.svg',
+                            color: isDarkMode
+                                ? kAccentLight
+                                : kAccentLight.withValues(alpha: 0.5),
+                            destinationScreen: const ShoppingTab(),
+                            isDarkMode: isDarkMode,
+                          ),
+                          //spin
+                          SecondNavWidget(
+                            key: _addRecipeButtonKey,
+                            label: 'Cookbook',
+                            icon: 'assets/images/svg/book-outline.svg',
+                            color: isDarkMode
+                                ? kPurple
+                                : kPurple.withValues(alpha: 0.5),
+                            destinationScreen: const RecipeScreen(),
+                            isDarkMode: isDarkMode,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                    // ------------------------------------Premium / Ads------------------------------------
+
+                    getAdsWidget(currentUser.isPremium, isDiv: false),
+
+                    // ------------------------------------Premium / Ads-------------------------------------
+                    if (!currentUser.isPremium)
+                      SizedBox(height: getPercentageHeight(1, context)),
+                    const Divider(
+                      color: kAccentLight,
+                      thickness: 1.5,
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Milestones tracker
+                    Obx(() => GestureDetector(
+                          onTap: () {
                             if (_programService.userPrograms.isNotEmpty) {
                               Get.to(() => const ProgramProgressScreen());
                             } else {
@@ -1418,36 +1459,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               );
                             }
                           },
-                        ),
-                      )),
+                          child: MilestonesTracker(
+                            ongoingPrograms:
+                                _programService.userPrograms.length,
+                            onJoinProgram: () {
+                              if (_programService.userPrograms.isNotEmpty) {
+                                Get.to(() => const ProgramProgressScreen());
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const BottomNavSec(selectedIndex: 1),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        )),
 
-                  SizedBox(height: getPercentageHeight(2, context)),
+                    SizedBox(height: getPercentageHeight(2, context)),
 
-                  // Nutrition Overview
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isDarkMode = getThemeProvider(context).isDarkMode;
-                      final userData = {
-                        'name': currentUser.displayName ?? '',
-                        'fitnessGoal':
-                            currentUser.settings['fitnessGoal'] ?? '',
-                        'foodGoal': currentUser.settings['foodGoal'] ?? '',
-                        'meals': [],
-                        'avatar': null,
-                      };
+                    // Nutrition Overview
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDarkMode = getThemeProvider(context).isDarkMode;
+                        final userData = {
+                          'name': currentUser.displayName ?? '',
+                          'fitnessGoal':
+                              currentUser.settings['fitnessGoal'] ?? '',
+                          'foodGoal': currentUser.settings['foodGoal'] ?? '',
+                          'meals': [],
+                          'avatar': null,
+                        };
 
-                      final familyMembers = currentUser.familyMembers ?? [];
-                      final familyList =
-                          familyMembers.map((f) => f.toMap()).toList();
-                      final displayList = [userData, ...familyList];
-                      final user = familyMode
-                          ? displayList[selectedUserIndex]
-                          : displayList[0];
+                        final familyMembers = currentUser.familyMembers ?? [];
+                        final familyList =
+                            familyMembers.map((f) => f.toMap()).toList();
+                        final displayList = [userData, ...familyList];
+                        final user = familyMode
+                            ? displayList[selectedUserIndex]
+                            : displayList[0];
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (familyMode)
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (familyMode)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(2, context)),
+                                child: Container(
+                                  padding: EdgeInsets.all(
+                                      getPercentageWidth(2, context)),
+                                  decoration: BoxDecoration(
+                                    color: colors[
+                                            selectedUserIndex % colors.length]
+                                        .withValues(alpha: kMidOpacity),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: colors[
+                                            selectedUserIndex % colors.length],
+                                        width: 1.5),
+                                  ),
+                                  child: Center(
+                                    child: FamilySelectorSection(
+                                      familyMode: familyMode,
+                                      selectedUserIndex: selectedUserIndex,
+                                      displayList: displayList,
+                                      onSelectUser: (index) {
+                                        setState(() {
+                                          selectedUserIndex = index;
+                                          // No need for redundant setState - the above already triggers rebuild
+                                        });
+                                      },
+                                      isDarkMode: isDarkMode,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            SizedBox(height: getPercentageHeight(1, context)),
                             Padding(
                               padding: EdgeInsets.symmetric(
                                   horizontal: getPercentageWidth(2, context)),
@@ -1464,198 +1554,172 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           selectedUserIndex % colors.length],
                                       width: 1.5),
                                 ),
-                                child: Center(
-                                  child: FamilySelectorSection(
-                                    familyMode: familyMode,
-                                    selectedUserIndex: selectedUserIndex,
-                                    displayList: displayList,
-                                    onSelectUser: (index) {
-                                      setState(() {
-                                        selectedUserIndex = index;
-                                        // No need for redundant setState - the above already triggers rebuild
-                                      });
-                                    },
-                                    isDarkMode: isDarkMode,
-                                  ),
+                                child: UserDetailsSection(
+                                  user: user,
+                                  isDarkMode: isDarkMode,
+                                  showCaloriesAndGoal: showCaloriesAndGoal,
+                                  familyMode: familyMode,
+                                  selectedUserIndex: selectedUserIndex,
+                                  displayList: displayList,
+                                  onToggleShowCalories: () {
+                                    setState(() {
+                                      showCaloriesAndGoal =
+                                          !showCaloriesAndGoal;
+                                    });
+                                    saveShowCaloriesPref(showCaloriesAndGoal);
+                                  },
+                                  onEdit: (editedUser, isDarkMode) {
+                                    // Handle family member editing
+                                    if (familyMode &&
+                                        editedUser['name'] !=
+                                            userService.currentUser.value
+                                                ?.displayName) {
+                                      // Find the family member in the current user's family members
+                                      final currentUser =
+                                          userService.currentUser.value;
+                                      if (currentUser?.familyMembers != null) {
+                                        final familyMemberIndex = currentUser!
+                                            .familyMembers!
+                                            .indexWhere((member) =>
+                                                member.name ==
+                                                editedUser['name']);
+
+                                        if (familyMemberIndex != -1) {
+                                          // Get the specific family member to edit
+                                          final familyMember =
+                                              currentUser.familyMembers![
+                                                  familyMemberIndex];
+                                          final familyMemberData = {
+                                            'name': familyMember.name,
+                                            'ageGroup': familyMember.ageGroup,
+                                            'fitnessGoal':
+                                                familyMember.fitnessGoal,
+                                            'foodGoal': familyMember.foodGoal,
+                                          };
+
+                                          // Show family member edit dialog
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) =>
+                                                EditFamilyMemberDialog(
+                                              familyMember: familyMemberData,
+                                              onMemberUpdated:
+                                                  (updatedMember) async {
+                                                // Update the specific family member
+                                                final updatedFamilyMembers =
+                                                    List<FamilyMember>.from(
+                                                        currentUser
+                                                            .familyMembers!);
+                                                updatedFamilyMembers[
+                                                        familyMemberIndex] =
+                                                    FamilyMember.fromMap(
+                                                        updatedMember);
+
+                                                final updatedUser =
+                                                    currentUser.copyWith(
+                                                  familyMembers:
+                                                      updatedFamilyMembers,
+                                                );
+                                                userService
+                                                    .setUser(updatedUser);
+
+                                                // Save to Firestore
+                                                try {
+                                                  final userId =
+                                                      userService.userId;
+                                                  if (userId == null ||
+                                                      userId.isEmpty) {
+                                                    throw Exception(
+                                                        'User ID is missing');
+                                                  }
+
+                                                  await firestore
+                                                      .collection('users')
+                                                      .doc(userId)
+                                                      .set({
+                                                    'familyMembers': updatedUser
+                                                        .familyMembers
+                                                        ?.map((f) => f.toMap())
+                                                        .toList(),
+                                                    'familyMode': updatedUser
+                                                            .familyMembers
+                                                            ?.isNotEmpty ??
+                                                        false,
+                                                  }, SetOptions(merge: true));
+
+                                                  if (mounted &&
+                                                      context.mounted) {
+                                                    showTastySnackbar(
+                                                      'Family member station updated, Chef',
+                                                      'Family member updated successfully, Chef.',
+                                                      context,
+                                                      backgroundColor:
+                                                          kAccentLight,
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  debugPrint(
+                                                      'Error updating family member: $e');
+                                                  if (mounted &&
+                                                      context.mounted) {
+                                                    showTastySnackbar(
+                                                      'Couldn\'t update family member, Chef',
+                                                      'Failed to update family member. Please try again, Chef.',
+                                                      context,
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    } else {
+                                      // Handle current user editing
+                                      Get.to(() => const ProfileEditScreen());
+                                    }
+                                  },
                                 ),
                               ),
                             ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(2, context)),
-                            child: Container(
-                              padding: EdgeInsets.all(
-                                  getPercentageWidth(2, context)),
-                              decoration: BoxDecoration(
-                                color: colors[selectedUserIndex % colors.length]
-                                    .withValues(alpha: kMidOpacity),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: colors[
-                                        selectedUserIndex % colors.length],
-                                    width: 1.5),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            if (DateTime.now().isAfter(DateTime.now()
+                                .subtract(const Duration(days: 1)))) ...[
+                              DailyMealPortion(
+                                key: ValueKey(
+                                    'daily_meal_portion_$selectedUserIndex'), // Add key for proper rebuilding
+                                programName: _programService
+                                        .userPrograms.isNotEmpty
+                                    ? _programService.userPrograms.first.type
+                                    : '',
+                                userProgram:
+                                    _programService.userPrograms.isNotEmpty
+                                        ? _programService.userPrograms.first
+                                        : null,
+                                notAllowed:
+                                    _programService.userPrograms.isNotEmpty
+                                        ? (_programService.userPrograms.first
+                                                .notAllowed.isNotEmpty
+                                            ? _programService
+                                                .userPrograms.first.notAllowed
+                                            : [])
+                                        : [],
+                                selectedUser:
+                                    user, // Pass the selected user data
                               ),
-                              child: UserDetailsSection(
-                                user: user,
-                                isDarkMode: isDarkMode,
-                                showCaloriesAndGoal: showCaloriesAndGoal,
-                                familyMode: familyMode,
-                                selectedUserIndex: selectedUserIndex,
-                                displayList: displayList,
-                                onToggleShowCalories: () {
-                                  setState(() {
-                                    showCaloriesAndGoal = !showCaloriesAndGoal;
-                                  });
-                                  saveShowCaloriesPref(showCaloriesAndGoal);
-                                },
-                                onEdit: (editedUser, isDarkMode) {
-                                  // Handle family member editing
-                                  if (familyMode &&
-                                      editedUser['name'] !=
-                                          userService
-                                              .currentUser.value?.displayName) {
-                                    // Find the family member in the current user's family members
-                                    final currentUser =
-                                        userService.currentUser.value;
-                                    if (currentUser?.familyMembers != null) {
-                                      final familyMemberIndex = currentUser!
-                                          .familyMembers!
-                                          .indexWhere((member) =>
-                                              member.name ==
-                                              editedUser['name']);
-
-                                      if (familyMemberIndex != -1) {
-                                        // Get the specific family member to edit
-                                        final familyMember = currentUser
-                                            .familyMembers![familyMemberIndex];
-                                        final familyMemberData = {
-                                          'name': familyMember.name,
-                                          'ageGroup': familyMember.ageGroup,
-                                          'fitnessGoal':
-                                              familyMember.fitnessGoal,
-                                          'foodGoal': familyMember.foodGoal,
-                                        };
-
-                                        // Show family member edit dialog
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) =>
-                                              EditFamilyMemberDialog(
-                                            familyMember: familyMemberData,
-                                            onMemberUpdated:
-                                                (updatedMember) async {
-                                              // Update the specific family member
-                                              final updatedFamilyMembers =
-                                                  List<FamilyMember>.from(
-                                                      currentUser
-                                                          .familyMembers!);
-                                              updatedFamilyMembers[
-                                                      familyMemberIndex] =
-                                                  FamilyMember.fromMap(
-                                                      updatedMember);
-
-                                              final updatedUser =
-                                                  currentUser.copyWith(
-                                                familyMembers:
-                                                    updatedFamilyMembers,
-                                              );
-                                              userService.setUser(updatedUser);
-
-                                              // Save to Firestore
-                                              try {
-                                                final userId =
-                                                    userService.userId;
-                                                if (userId == null ||
-                                                    userId.isEmpty) {
-                                                  throw Exception(
-                                                      'User ID is missing');
-                                                }
-
-                                                await firestore
-                                                    .collection('users')
-                                                    .doc(userId)
-                                                    .set({
-                                                  'familyMembers': updatedUser
-                                                      .familyMembers
-                                                      ?.map((f) => f.toMap())
-                                                      .toList(),
-                                                  'familyMode': updatedUser
-                                                          .familyMembers
-                                                          ?.isNotEmpty ??
-                                                      false,
-                                                }, SetOptions(merge: true));
-
-                                                if (mounted &&
-                                                    context.mounted) {
-                                                  showTastySnackbar(
-                                                    'Success',
-                                                    'Family member updated successfully',
-                                                    context,
-                                                    backgroundColor:
-                                                        kAccentLight,
-                                                  );
-                                                }
-                                              } catch (e) {
-                                                debugPrint(
-                                                    'Error updating family member: $e');
-                                                if (mounted &&
-                                                    context.mounted) {
-                                                  showTastySnackbar(
-                                                    'Error',
-                                                    'Failed to update family member. Please try again.',
-                                                    context,
-                                                    backgroundColor: Colors.red,
-                                                  );
-                                                }
-                                              }
-                                            },
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  } else {
-                                    // Handle current user editing
-                                    Get.to(() => const ProfileEditScreen());
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-                          if (DateTime.now().isAfter(DateTime.now()
-                              .subtract(const Duration(days: 1)))) ...[
-                            DailyMealPortion(
-                              key: ValueKey(
-                                  'daily_meal_portion_$selectedUserIndex'), // Add key for proper rebuilding
-                              programName:
-                                  _programService.userPrograms.isNotEmpty
-                                      ? _programService.userPrograms.first.type
-                                      : '',
-                              userProgram:
-                                  _programService.userPrograms.isNotEmpty
-                                      ? _programService.userPrograms.first
-                                      : null,
-                              notAllowed:
-                                  _programService.userPrograms.isNotEmpty
-                                      ? (_programService.userPrograms.first
-                                              .notAllowed.isNotEmpty
-                                          ? _programService
-                                              .userPrograms.first.notAllowed
-                                          : [])
-                                      : [],
-                              selectedUser: user, // Pass the selected user data
-                            ),
+                            ],
+                            SizedBox(height: getPercentageHeight(3, context)),
                           ],
-                          SizedBox(height: getPercentageHeight(3, context)),
-                        ],
-                      );
-                    },
-                  ),
-                  SizedBox(
-                    height: getPercentageHeight(15, context),
-                  ),
-                ],
+                        );
+                      },
+                    ),
+                    SizedBox(
+                      height: getPercentageHeight(15, context),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

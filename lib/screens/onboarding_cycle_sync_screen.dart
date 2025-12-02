@@ -37,10 +37,8 @@ class OnboardingCycleSyncScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'If you have a menstrual cycle, we can gently adjust your goals '
-          'and meal suggestions around your cycle phases to support energy, '
-          'cravings, and recovery.',
-          style: textTheme.bodyMedium?.copyWith(
+          'If you have a cycle, I\'ll gently modify the daily specials to match your body\'s rhythm adding extra fuel when you need energy, and comfort foods when you need recovery.',
+          style: textTheme.bodyMedium?.copyWith(    
             color: isDarkMode ? Colors.white70 : Colors.black87,
           ),
         ),
