@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart' show debugPrint;
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/health_journal_model.dart';
+import '../helper/utils.dart';
 
 class HealthJournalService extends GetxController {
   static HealthJournalService get instance {
@@ -14,15 +14,30 @@ class HealthJournalService extends GetxController {
     }
   }
 
-  /// Fetch journal entry for a specific date
-  Future<HealthJournalEntry?> fetchJournalEntry(String userId, DateTime date) async {
+  /// Get week ID in ISO format (YYYY-Www)
+  String _getWeekId(DateTime date) {
+    final weekStart = getWeekStart(date);
+    final year = weekStart.year;
+    
+    // Calculate week number: days from Jan 1 to week start / 7, rounded up
+    final jan1 = DateTime(year, 1, 1);
+    final daysFromJan1 = weekStart.difference(jan1).inDays;
+    final weekNumber = ((daysFromJan1 + 1) / 7).ceil();
+    
+    return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
+  }
+
+  /// Fetch weekly journal entry for a specific week
+  Future<HealthJournalEntry?> fetchWeeklyJournalEntry(
+    String userId,
+    String weekId,
+  ) async {
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
       final docRef = firestore
           .collection('users')
           .doc(userId)
           .collection('health_journal')
-          .doc(dateStr);
+          .doc(weekId);
 
       final docSnapshot = await docRef.get();
 
@@ -30,47 +45,102 @@ class HealthJournalService extends GetxController {
         return null;
       }
 
-      return HealthJournalEntry.fromFirestore(dateStr, docSnapshot.data()!);
+      return HealthJournalEntry.fromFirestore(weekId, docSnapshot.data()!);
+    } catch (e) {
+      debugPrint('Error fetching weekly journal entry: $e');
+      return null;
+    }
+  }
+
+  /// Fetch journal entry for a specific date (backward compatibility)
+  /// Now fetches the weekly journal for that date's week
+  Future<HealthJournalEntry?> fetchJournalEntry(String userId, DateTime date) async {
+    try {
+      final weekId = _getWeekId(date);
+      return await fetchWeeklyJournalEntry(userId, weekId);
     } catch (e) {
       debugPrint('Error fetching journal entry: $e');
       return null;
     }
   }
 
-  /// Stream journal entry for real-time updates
-  Stream<HealthJournalEntry?> getJournalEntryStream(String userId, DateTime date) {
+  /// Stream weekly journal entry for real-time updates
+  Stream<HealthJournalEntry?> getWeeklyJournalEntryStream(
+    String userId,
+    String weekId,
+  ) {
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
       return firestore
           .collection('users')
           .doc(userId)
           .collection('health_journal')
-          .doc(dateStr)
+          .doc(weekId)
           .snapshots()
           .map((snapshot) {
         if (!snapshot.exists) {
           return null;
         }
-        return HealthJournalEntry.fromFirestore(dateStr, snapshot.data()!);
+        return HealthJournalEntry.fromFirestore(weekId, snapshot.data()!);
       });
+    } catch (e) {
+      debugPrint('Error setting up weekly journal entry stream: $e');
+      return Stream.value(null);
+    }
+  }
+
+  /// Stream journal entry for real-time updates (backward compatibility)
+  Stream<HealthJournalEntry?> getJournalEntryStream(String userId, DateTime date) {
+    try {
+      final weekId = _getWeekId(date);
+      return getWeeklyJournalEntryStream(userId, weekId);
     } catch (e) {
       debugPrint('Error setting up journal entry stream: $e');
       return Stream.value(null);
     }
   }
 
-  /// Check if journal entry exists for a date
-  Future<bool> hasJournalEntry(String userId, DateTime date) async {
+  /// Get journal status for a week
+  Future<String> getJournalStatus(String userId, String weekId) async {
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
       final docRef = firestore
           .collection('users')
           .doc(userId)
           .collection('health_journal')
-          .doc(dateStr);
+          .doc(weekId);
 
       final docSnapshot = await docRef.get();
-      return docSnapshot.exists;
+      if (!docSnapshot.exists) {
+        return 'pending';
+      }
+
+      final data = docSnapshot.data()!;
+      return data['status'] as String? ?? 'pending';
+    } catch (e) {
+      debugPrint('Error getting journal status: $e');
+      return 'pending';
+    }
+  }
+
+  /// Get previous weeks (week IDs)
+  List<String> getPreviousWeeks(int count, {DateTime? fromDate}) {
+    final startDate = fromDate ?? DateTime.now();
+    final weeks = <String>[];
+    
+    for (int i = 0; i < count; i++) {
+      final date = startDate.subtract(Duration(days: 7 * i));
+      final weekId = _getWeekId(date);
+      weeks.add(weekId);
+    }
+    
+    return weeks;
+  }
+
+  /// Check if journal entry exists for a date (backward compatibility)
+  Future<bool> hasJournalEntry(String userId, DateTime date) async {
+    try {
+      final weekId = _getWeekId(date);
+      final status = await getJournalStatus(userId, weekId);
+      return status != 'pending' || status == 'completed' || status == 'generating';
     } catch (e) {
       debugPrint('Error checking journal entry: $e');
       return false;
@@ -84,19 +154,21 @@ class HealthJournalService extends GetxController {
     SymptomEntry symptom,
   ) async {
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final weekId = _getWeekId(date);
+      final weekStart = getWeekStart(date);
+      final weekEnd = weekStart.add(const Duration(days: 6));
       final docRef = firestore
           .collection('users')
           .doc(userId)
           .collection('health_journal')
-          .doc(dateStr);
+          .doc(weekId);
 
       // Get existing entry or create new
       final docSnapshot = await docRef.get();
       
       if (docSnapshot.exists) {
         final existingData = docSnapshot.data()!;
-        final existingJournal = HealthJournalEntry.fromFirestore(dateStr, existingData);
+        final existingJournal = HealthJournalEntry.fromFirestore(weekId, existingData);
         
         // Add symptom to existing symptoms list
         final updatedSymptoms = List<SymptomEntry>.from(existingJournal.data.symptoms)
@@ -138,7 +210,10 @@ class HealthJournalService extends GetxController {
         );
         
         final newJournal = HealthJournalEntry(
-          date: dateStr,
+          weekId: weekId,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+          status: 'pending',
           summary: JournalSummary(
             narrative: '',
             highlights: [],

@@ -70,12 +70,20 @@ class _DineInScreenState extends State<DineInScreen> {
   @override
   void initState() {
     super.initState();
+    loadExcludedIngredients();
+    // Load local data immediately (fast operations)
     _loadSavedMeal();
     _loadFridgeData();
     _loadFridgeRecipesFromSharedPreferences();
-    loadExcludedIngredients();
-    _fetchPantryItems(); // Load pantry items on init
-    _loadRecentlyUsedIngredients(); // Load recently used ingredients
+    _loadRecentlyUsedIngredients();
+    
+    // Defer Firestore query to after first frame to avoid blocking UI
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _fetchPantryItems();
+      }
+    });
+    
     debugPrint('Excluded ingredients: ${excludedIngredients.length}');
   }
 

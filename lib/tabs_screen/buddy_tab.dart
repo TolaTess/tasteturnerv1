@@ -82,8 +82,21 @@ class _BuddyTabState extends State<BuddyTab> {
     }).toList();
   }
 
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
+
   // Update selected family member
   void _updateSelectedUser(String userId, String userName) {
+    if (!mounted) return;
     final currentUser = userService.currentUser.value;
     if (currentUser == null) return;
 
@@ -99,10 +112,12 @@ class _BuddyTabState extends State<BuddyTab> {
       }
     }
 
+    if (mounted) {
     setState(() {
       selectedUserIndex = index;
       currentGenerationIndex = 0; // Reset to most recent when switching users
     });
+    }
 
     // Refresh buddy data for the selected user
     _initializeBuddyData();
@@ -129,16 +144,20 @@ class _BuddyTabState extends State<BuddyTab> {
   }
 
   void _initializeFamilyMode() {
+    if (!mounted) return;
     final currentUser = userService.currentUser.value;
     if (currentUser != null) {
+      if (mounted) {
       setState(() {
         familyMode = currentUser.familyMode ?? false;
         _buildFamilyMemberCategories();
       });
+      }
     }
   }
 
   void _buildFamilyMemberCategories() {
+    if (!mounted) return;
     final currentUser = userService.currentUser.value;
     if (currentUser == null) return;
 
@@ -161,9 +180,11 @@ class _BuddyTabState extends State<BuddyTab> {
       });
     }
 
+    if (mounted) {
     setState(() {
       _familyMemberCategories = categories;
     });
+    }
   }
 
   void _initializeBuddyData() {
@@ -187,10 +208,12 @@ class _BuddyTabState extends State<BuddyTab> {
     }
 
     // Reset generation index when refreshing data
+    if (mounted) {
     setState(() {
       currentGenerationIndex = 0;
       allAvailableGenerations = [];
     });
+    }
 
     // Fetch multiple documents to collect enough generations
     // Document IDs are dates in 'yyyy-MM-dd' format, so ordering descending gives most recent
@@ -212,6 +235,10 @@ class _BuddyTabState extends State<BuddyTab> {
           .get();
     } catch (e) {
       debugPrint('Error loading buddy data: $e');
+      if (mounted) {
+        _handleError('Failed to load meal plans. Please try again.',
+            details: e.toString());
+      }
       return null;
     }
   }
@@ -411,32 +438,14 @@ class _BuddyTabState extends State<BuddyTab> {
       ];
     } catch (e) {
       debugPrint('Error fetching meals: $e');
+      if (mounted) {
+        _handleError('Failed to load meals. Please try again.',
+            details: e.toString());
+      }
       return [];
     }
   }
 
-  String getMostCommonCategory(List<Map<String, dynamic>> meals) {
-    final allCategories = meals
-        .expand((meal) => meal['categories'] as List<dynamic>)
-        .map((category) => category.toString().toLowerCase())
-        .toList();
-
-    final categoryCount = <String, int>{};
-    for (final category in allCategories) {
-      categoryCount[category] = (categoryCount[category] ?? 0) + 1;
-    }
-
-    String mostCommonCategory = 'balanced';
-    int highestCount = 0;
-
-    categoryCount.forEach((category, count) {
-      if (count > highestCount) {
-        mostCommonCategory = category;
-        highestCount = count;
-      }
-    });
-    return mostCommonCategory;
-  }
 
   Widget _buildDefaultView(BuildContext context, bool mealEmpty) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -1607,6 +1616,7 @@ class _BuddyTabState extends State<BuddyTab> {
           mealId = '${meal.mealId}/$mealType';
         }
 
+        try {
         await helperController.saveMealPlanBuddy(
           userService.userId ?? '',
           formattedDate,
@@ -1624,8 +1634,16 @@ class _BuddyTabState extends State<BuddyTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(successMessage),
+                backgroundColor: kAccent,
             ),
           );
+          }
+        } catch (e) {
+          debugPrint('Error saving meal to calendar: $e');
+          if (context.mounted) {
+            _handleError('Failed to add meal to calendar. Please try again.',
+                details: e.toString());
+          }
         }
       }
     }

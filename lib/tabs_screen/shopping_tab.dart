@@ -13,6 +13,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../service/macro_manager.dart';
 import '../widgets/ingredient_features.dart';
 import '../widgets/info_icon_widget.dart';
+import '../widgets/shopping_list_generate_button.dart';
 import '../screens/premium_screen.dart';
 
 class ShoppingTab extends StatefulWidget {
@@ -44,6 +45,29 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
   final MacroManager _macroManager = Get.find<MacroManager>();
 
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
+
+  /// Show success message with consistent styling
+  void _showSuccessMessage(String message) {
+    if (!mounted || !context.mounted) return;
+    showTastySnackbar(
+      'Success',
+      message,
+      context,
+      backgroundColor: kGreen,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,105 +86,156 @@ class _ShoppingTabState extends State<ShoppingTab> {
   }
 
   void _setupMealPlansListener() {
-    final userId = userService.userId;
-    if (userId == null) return;
+    try {
+      final userId = userService.userId;
+      if (userId == null) return;
 
-    _mealPlansSubscription?.cancel();
+      _mealPlansSubscription?.cancel();
 
-    // Get current week's start and end dates
-    final now = DateTime.now();
-    final weekStart = _getWeekStart(now);
-    final weekEnd = weekStart.add(const Duration(days: 6));
+      // Get current week's start and end dates
+      final now = DateTime.now();
+      final weekStart = getWeekStart(now);
+      final weekEnd = weekStart.add(const Duration(days: 6));
 
-    // Format dates as YYYY-MM-DD
-    final formatDate = (DateTime date) {
-      final y = date.year;
-      final m = date.month.toString().padLeft(2, '0');
-      final d = date.day.toString().padLeft(2, '0');
-      return '$y-$m-$d';
-    };
+      // Format dates as YYYY-MM-DD
+      final formatDate = (DateTime date) {
+        final y = date.year;
+        final m = date.month.toString().padLeft(2, '0');
+        final d = date.day.toString().padLeft(2, '0');
+        return '$y-$m-$d';
+      };
 
-    final startDateStr = formatDate(weekStart);
-    final endDateStr = formatDate(weekEnd);
+      final startDateStr = formatDate(weekStart);
+      final endDateStr = formatDate(weekEnd);
 
-    // Listen to meal plans for the current week
-    _mealPlansSubscription = firestore
-        .collection('mealPlans')
-        .doc(userId)
-        .collection('date')
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: startDateStr)
-        .where(FieldPath.documentId, isLessThanOrEqualTo: endDateStr)
-        .snapshots()
-        .listen((snapshot) {
-      // When meal plans change, update the count
-      if (mounted) {
-        _checkForNewItems();
-      }
-    }, onError: (e) {
-      debugPrint('Error listening to meal plans: $e');
-    });
-  }
-
-  DateTime _getWeekStart(DateTime date) {
-    final daysFromMonday = date.weekday - 1; // Monday = 1, so subtract 1
-    return DateTime(date.year, date.month, date.day)
-        .subtract(Duration(days: daysFromMonday));
+      // Listen to meal plans for the current week
+      _mealPlansSubscription = firestore
+          .collection('mealPlans')
+          .doc(userId)
+          .collection('date')
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: startDateStr)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: endDateStr)
+          .snapshots()
+          .listen((snapshot) {
+        // When meal plans change, update the count
+        if (mounted) {
+          _checkForNewItems();
+        }
+      }, onError: (e) {
+        debugPrint('Error listening to meal plans: $e');
+        // Non-critical error, don't show to user
+      });
+    } catch (e) {
+      debugPrint('Error setting up meal plans listener: $e');
+      // Non-critical error, don't show to user
+    }
   }
 
   Future<void> _loadSelectedDay() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _selectedDay = prefs.getString('shopping_day');
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _selectedDay = prefs.getString('shopping_day');
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading selected day: $e');
+      // Non-critical error, don't show to user
     }
   }
 
   Future<void> _loadViewPreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        // If widget.is54321View is true, it should override shared preferences
-        _is54321View = widget.is54321View ||
-            (prefs.getBool('shopping_54321_view') ?? false);
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          // If widget.is54321View is true, it should override shared preferences
+          _is54321View = widget.is54321View ||
+              (prefs.getBool('shopping_54321_view') ?? false);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading view preference: $e');
+      // Non-critical error, don't show to user
     }
   }
 
   Future<void> _saveViewPreference(bool is54321View) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('shopping_54321_view', is54321View);
-    if (mounted) {
-      setState(() {
-        _is54321View = is54321View;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('shopping_54321_view', is54321View);
+      if (mounted) {
+        setState(() {
+          _is54321View = is54321View;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error saving view preference: $e');
+      if (mounted && context.mounted) {
+        _handleError('Failed to save view preference. Please try again.',
+            details: e.toString());
+      }
     }
   }
 
   Future<void> _saveSelectedDay(String day) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('shopping_day', day);
-    if (mounted) {
-      setState(() {
-        _selectedDay = day;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('shopping_day', day);
+      if (mounted) {
+        setState(() {
+          _selectedDay = day;
+        });
+      }
+
+      try {
+        await notificationService.cancelScheduledNotification(1001);
+      } catch (e) {
+        debugPrint('Error canceling notification: $e');
+        // Continue even if cancel fails
+      }
+
+      int dayIndex = _daysOfWeek.indexOf(day);
+      if (dayIndex == -1) {
+        throw Exception('Invalid day: $day');
+      }
+      int weekday = dayIndex + 1;
+
+      try {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'shopping_day_selected',
+          parameters: {'day': day},
+        );
+      } catch (e) {
+        debugPrint('Error logging analytics: $e');
+        // Continue even if analytics fails
+      }
+
+      try {
+        await notificationService.scheduleWeeklyReminder(
+          id: 1001,
+          title: 'Shopping Reminder',
+          body:
+              'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
+          weekday: weekday,
+          hour: 10,
+          minute: 0,
+        );
+      } catch (e) {
+        debugPrint('Error scheduling notification: $e');
+        if (mounted && context.mounted) {
+          _handleError('Failed to schedule reminder. Please try again.',
+              details: e.toString());
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving selected day: $e');
+      if (mounted && context.mounted) {
+        _handleError('Failed to save shopping day. Please try again.',
+            details: e.toString());
+      }
     }
-    await notificationService.cancelScheduledNotification(1001);
-    int dayIndex = _daysOfWeek.indexOf(day);
-    int weekday = dayIndex + 1;
-    FirebaseAnalytics.instance
-        .logEvent(name: 'shopping_day_selected', parameters: {
-      'day': day,
-    });
-    await notificationService.scheduleWeeklyReminder(
-      id: 1001,
-      title: 'Shopping Reminder',
-      body:
-          'Today is your shopping day! Don\'t forget to buy your groceries for a healthy week!',
-      weekday: weekday,
-      hour: 10,
-      minute: 0,
-    );
   }
 
   Future<void> _load54321ShoppingList() async {
@@ -173,19 +248,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
     try {
       // Use MacroManager instead of GeminiService
       final savedListData = await _macroManager.getLatest54321ShoppingList();
-      debugPrint(
-          '54321 Load: Received data: ${savedListData != null ? 'Yes' : 'No'}');
-
-      if (savedListData != null) {
-        debugPrint('54321 Load: Keys: ${savedListData.keys.toList()}');
-        debugPrint('54321 Load: Tips: ${savedListData['tips']}');
-        debugPrint('54321 Load: Meal Ideas: ${savedListData['mealIdeas']}');
-        debugPrint(
-            '54321 Load: Estimated Cost: ${savedListData['estimatedCost']}');
-        debugPrint(
-            '54321 Load: Generated from: ${savedListData['generatedFrom']}');
-      }
-
       if (mounted) {
         setState(() {
           _shoppingList54321 = savedListData;
@@ -201,6 +263,10 @@ class _ShoppingTabState extends State<ShoppingTab> {
         setState(() {
           _shoppingList54321 = null;
         });
+        if (context.mounted) {
+          _handleError('Failed to load 54321 shopping list. Please try again.',
+              details: e.toString());
+        }
       }
     }
   }
@@ -300,25 +366,15 @@ class _ShoppingTabState extends State<ShoppingTab> {
       await _macroManager.refreshShoppingLists(userId, currentWeek);
 
       // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'All items removed from ${isManual ? 'manual' : 'generated'} list'),
-            backgroundColor: kAccent,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      if (mounted && context.mounted) {
+        _showSuccessMessage(
+            'All items removed from ${isManual ? 'manual' : 'generated'} list');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to remove items: $e'),
-            backgroundColor: kRed,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      debugPrint('Error removing all items: $e');
+      if (mounted && context.mounted) {
+        _handleError('Failed to remove items. Please try again.',
+            details: e.toString());
       }
     }
   }
@@ -333,9 +389,11 @@ class _ShoppingTabState extends State<ShoppingTab> {
       return;
     }
 
-    setState(() {
-      _isLoading54321 = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading54321 = true;
+      });
+    }
 
     try {
       debugPrint(
@@ -354,29 +412,26 @@ class _ShoppingTabState extends State<ShoppingTab> {
             _shoppingList54321 = shoppingListData;
             _isLoading54321 = false;
           });
-        }
 
-        // Show success message
-        showTastySnackbar(
-          'Success!',
-          'New 54321 shopping list generated with diet preferences',
-          context,
-          backgroundColor: kGreen,
-        );
+          // Show success message
+          if (context.mounted) {
+            _showSuccessMessage(
+                'New 54321 shopping list generated with diet preferences');
+          }
+        }
       } else {
         throw Exception('Failed to generate shopping list');
       }
     } catch (e) {
+      debugPrint('Error generating 54321 shopping list: $e');
       if (mounted) {
         setState(() {
           _isLoading54321 = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate 54321 list: $e'),
-            backgroundColor: kRed,
-          ),
-        );
+        if (context.mounted) {
+          _handleError('Failed to generate 54321 list. Please try again.',
+              details: e.toString());
+        }
       }
     }
   }
@@ -604,151 +659,28 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 List<Widget> listWidgets = [];
 
                 if (hasItems) {
-                  // Add Generate Button at the top
-                  listWidgets.add(
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(2, context),
-                        horizontal: getPercentageWidth(4, context),
+                  // Add Generate Button at the top only if there are new meals
+                  if (_newItemsCount.value > 0) {
+                    listWidgets.add(
+                      ShoppingListGenerateButton(
+                        isGenerating: _isGenerating,
+                        newItemsCount: _newItemsCount,
+                        macroManager: _macroManager,
+                        onGeneratingStateChanged: (isGenerating) {
+                          if (mounted) {
+                            setState(() {
+                              _isGenerating = isGenerating;
+                            });
+                          }
+                        },
+                        onSuccess: () async {
+                          if (mounted) {
+                            await _checkForNewItems();
+                          }
+                        },
                       ),
-                      child: Obx(() => Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: _isGenerating
-                                ? null
-                                : () async {
-                                    setState(() {
-                                      _isGenerating = true;
-                                    });
-                                    try {
-                                      final status = await _macroManager
-                                          .generateAndFetchShoppingList();
-
-                                      if (mounted) {
-                                        if (status == 'success') {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                  'Shopping list updated from meal plan!'),
-                                              backgroundColor: kGreen,
-                                            ),
-                                          );
-                                          // Refresh the shopping list to update UI
-                                          final userId = userService.userId;
-                                          if (userId != null) {
-                                            await Future.delayed(const Duration(milliseconds: 500));
-                                            await _macroManager.refreshShoppingLists(userId, getCurrentWeek());
-                                            // Wait a bit more for the listener to update, then check for new items
-                                            await Future.delayed(const Duration(milliseconds: 1000));
-                                            await _checkForNewItems();
-                                          }
-                                        } else if (status == 'no_meals') {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                  'No meals found in this week\'s plan.'),
-                                              backgroundColor: kOrange,
-                                            ),
-                                          );
-                                        } else {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                  'Failed to generate list. Please try again.'),
-                                              backgroundColor: kRed,
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'Failed to generate list: $e')),
-                                        );
-                                      }
-                                    } finally {
-                                      if (mounted) {
-                                        setState(() {
-                                          _isGenerating = false;
-                                        });
-                                      }
-                                    }
-                                  },
-                            icon: _isGenerating
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: kWhite,
-                                    ),
-                                  )
-                                : Icon(
-                                    _newItemsCount.value > 0
-                                        ? Icons.update
-                                        : Icons.refresh,
-                                    color: kWhite,
-                                  ),
-                            label: Text(
-                              _isGenerating
-                                  ? 'Generating...'
-                                  : (_newItemsCount.value > 0
-                                      ? 'Update Shopping List from Meal Plan'
-                                      : 'Generate from Meal Plan'),
-                              style: const TextStyle(color: kWhite),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kAccent,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: getPercentageWidth(6, context),
-                                vertical: getPercentageHeight(1.5, context),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                          ),
-                          if (_newItemsCount.value > 0 && !_isGenerating)
-                            Positioned(
-                              right: -8,
-                              top: -8,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: kRed,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isDarkMode ? kDarkGrey : kWhite,
-                                    width: 2,
-                                  ),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 24,
-                                  minHeight: 24,
-                                ),
-                                child: Text(
-                                  _newItemsCount.value > 99
-                                      ? '99+'
-                                      : _newItemsCount.value.toString(),
-                                  style: const TextStyle(
-                                    color: kWhite,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                        ],
-                      )),
-                    ),
-                  );
+                    );
+                  }
 
                   if (manualItems.isNotEmpty) {
                     listWidgets.add(_buildSectionHeader(
@@ -761,7 +693,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
                   if (generatedItems.isNotEmpty) {
                     listWidgets.add(_buildSectionHeader(
-                        'From Your Meal Plan', textTheme, context,
+                        'From This Week\'s Meal Plan', textTheme, context,
                         isGenerated: true));
                     listWidgets.addAll(_buildConsolidatedList(
                         generatedItems.toList(),
@@ -796,142 +728,26 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                   ?.copyWith(color: Colors.grey),
                             ),
                             SizedBox(height: getPercentageHeight(3, context)),
-                            Obx(() => Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: _isGenerating
-                                      ? null
-                                      : () async {
-                                          setState(() {
-                                            _isGenerating = true;
-                                          });
-                                          try {
-                                            final status = await _macroManager
-                                                .generateAndFetchShoppingList();
-
-                                            if (mounted) {
-                                              if (status == 'success') {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'Shopping list updated from meal plan!'),
-                                                    backgroundColor: kGreen,
-                                                  ),
-                                                );
-                                                // Refresh the shopping list to update UI
-                                                final userId = userService.userId;
-                                                if (userId != null) {
-                                                  await Future.delayed(const Duration(milliseconds: 500));
-                                                  await _macroManager.refreshShoppingLists(userId, getCurrentWeek());
-                                                  // Check for new items after refresh
-                                                  await _checkForNewItems();
-                                                }
-                                              } else if (status == 'no_meals') {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'No meals found in this week\'s plan.'),
-                                                    backgroundColor: kOrange,
-                                                  ),
-                                                );
-                                              } else {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'Failed to generate list. Please try again.'),
-                                                    backgroundColor: kRed,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                    content: Text(
-                                                        'Failed to generate list: $e')),
-                                              );
-                                            }
-                                          } finally {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isGenerating = false;
-                                              });
-                                            }
-                                          }
-                                        },
-                                  icon: _isGenerating
-                                      ? SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: kWhite,
-                                          ),
-                                        )
-                                      : Icon(
-                                          _newItemsCount.value > 0
-                                              ? Icons.update
-                                              : Icons.refresh,
-                                          color: kWhite,
-                                        ),
-                                  label: Text(
-                                    _isGenerating
-                                        ? 'Generating...'
-                                        : (_newItemsCount.value > 0
-                                            ? 'Update Shopping List from Meal Plan'
-                                            : 'Generate from Meal Plan'),
-                                    style: const TextStyle(color: kWhite),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: kAccent,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: getPercentageWidth(6, context),
-                                      vertical: getPercentageHeight(1.5, context),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                ),
-                                if (_newItemsCount.value > 0 && !_isGenerating)
-                                  Positioned(
-                                    right: -8,
-                                    top: -8,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: kRed,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isDarkMode ? kDarkGrey : kWhite,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 24,
-                                        minHeight: 24,
-                                      ),
-                                      child: Text(
-                                        _newItemsCount.value > 99
-                                            ? '99+'
-                                            : _newItemsCount.value.toString(),
-                                        style: const TextStyle(
-                                          color: kWhite,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            )),
+                            // Only show button if there are new meals
+                            if (_newItemsCount.value > 0)
+                              ShoppingListGenerateButton(
+                                isGenerating: _isGenerating,
+                                newItemsCount: _newItemsCount,
+                                macroManager: _macroManager,
+                                showInEmptyState: true,
+                                onGeneratingStateChanged: (isGenerating) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isGenerating = isGenerating;
+                                    });
+                                  }
+                                },
+                                onSuccess: () async {
+                                  if (mounted) {
+                                    await _checkForNewItems();
+                                  }
+                                },
+                              ),
                           ],
                         ),
                       ),
@@ -1196,10 +1012,6 @@ class _ShoppingTabState extends State<ShoppingTab> {
     final mealIdeas = _shoppingList54321!['mealIdeas'] as List<dynamic>? ?? [];
     final estimatedCost = _shoppingList54321!['estimatedCost'] as String? ?? '';
     final generatedAt = _shoppingList54321!['generatedAt'] as String?;
-
-    debugPrint('54321 Shopping List: Tips: $tips');
-    debugPrint('54321 Shopping List: Meal Ideas: $mealIdeas');
-    debugPrint('54321 Shopping List: Estimated Cost: $estimatedCost');
 
     // Format the generation date
     String formattedDate = '';
@@ -1508,7 +1320,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
           title,
           style: textTheme.titleLarge?.copyWith(
             fontSize: getTextScale(4.5, context),
-            fontWeight: FontWeight.w200,
+            fontWeight: FontWeight.w600,
             color: kAccent,
           ),
         ),
@@ -1535,7 +1347,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 text,
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: getTextScale(4, context),
-                  fontWeight: FontWeight.w200,
+                  fontWeight: FontWeight.w400,
                   color: kAccent,
                 ),
               ),
@@ -1567,7 +1379,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             title,
             style: textTheme.titleLarge?.copyWith(
               fontSize: getTextScale(4.5, context),
-              fontWeight: FontWeight.w200,
+              fontWeight: FontWeight.w400,
               color: kAccent,
             ),
           ),
@@ -1761,14 +1573,30 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
   void _deleteItem(
       MacroData displayItem, List<MacroData> groupedItems, bool isManual) {
-    final userId = userService.userId;
-    if (userId == null) return;
+    try {
+      final userId = userService.userId;
+      if (userId == null) {
+        _handleError('User not found. Please try again.');
+        return;
+      }
 
-    // Delete all items in the group (for consolidated items)
-    for (final itemToDelete in groupedItems) {
-      if (itemToDelete.id != null) {
-        _macroManager.removeFromShoppingList(userId, itemToDelete,
-            isManual: isManual);
+      // Delete all items in the group (for consolidated items)
+      for (final itemToDelete in groupedItems) {
+        if (itemToDelete.id != null) {
+          try {
+            _macroManager.removeFromShoppingList(userId, itemToDelete,
+                isManual: isManual);
+          } catch (e) {
+            debugPrint('Error removing item ${itemToDelete.id}: $e');
+            // Continue with other items even if one fails
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting item: $e');
+      if (mounted && context.mounted) {
+        _handleError('Failed to delete item. Please try again.',
+            details: e.toString());
       }
     }
   }

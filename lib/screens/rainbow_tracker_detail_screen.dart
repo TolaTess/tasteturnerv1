@@ -1,0 +1,463 @@
+import 'package:flutter/material.dart';
+import '../constants.dart';
+import '../helper/utils.dart';
+import '../service/plant_detection_service.dart';
+
+class RainbowTrackerDetailScreen extends StatefulWidget {
+  final DateTime weekStart;
+
+  const RainbowTrackerDetailScreen({
+    super.key,
+    required this.weekStart,
+  });
+
+  @override
+  State<RainbowTrackerDetailScreen> createState() =>
+      _RainbowTrackerDetailScreenState();
+}
+
+class _RainbowTrackerDetailScreenState
+    extends State<RainbowTrackerDetailScreen> {
+  final plantDetectionService = PlantDetectionService.instance;
+  PlantDiversityScore? _diversityScore;
+  List<PlantIngredient> _plants = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlantData();
+  }
+
+  Future<void> _loadPlantData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final score = await plantDetectionService.getPlantDiversityScore(
+        userId,
+        widget.weekStart,
+      );
+      final plants = await plantDetectionService.getUniquePlantsForWeek(
+        userId,
+        widget.weekStart,
+      );
+
+      if (mounted) {
+        setState(() {
+          _diversityScore = score;
+          _plants = plants;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading plant data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _getLevelName(int level) {
+    switch (level) {
+      case 1:
+        return 'Beginner';
+      case 2:
+        return 'Healthy';
+      case 3:
+        return 'Gut Hero';
+      default:
+        return 'Getting Started';
+    }
+  }
+
+  Color _getLevelColor(int level) {
+    switch (level) {
+      case 1:
+        return kGreen;
+      case 2:
+        return kBlue;
+      case 3:
+        return kAccent;
+      default:
+        return kLightGrey;
+    }
+  }
+
+  String _getCategoryName(PlantCategory category) {
+    switch (category) {
+      case PlantCategory.vegetable:
+        return 'Vegetables';
+      case PlantCategory.fruit:
+        return 'Fruits';
+      case PlantCategory.grain:
+        return 'Grains';
+      case PlantCategory.legume:
+        return 'Legumes';
+      case PlantCategory.nutSeed:
+        return 'Nuts & Seeds';
+      case PlantCategory.herbSpice:
+        return 'Herbs & Spices';
+    }
+  }
+
+  IconData _getCategoryIcon(PlantCategory category) {
+    switch (category) {
+      case PlantCategory.vegetable:
+        return Icons.eco;
+      case PlantCategory.fruit:
+        return Icons.apple;
+      case PlantCategory.grain:
+        return Icons.grass;
+      case PlantCategory.legume:
+        return Icons.circle;
+      case PlantCategory.nutSeed:
+        return Icons.radio_button_unchecked;
+      case PlantCategory.herbSpice:
+        return Icons.local_florist;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      appBar: AppBar(
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: isDarkMode ? kWhite : kBlack),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Rainbow Tracker',
+          style: textTheme.titleLarge?.copyWith(
+            color: isDarkMode ? kWhite : kBlack,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: kAccent),
+            )
+          : _diversityScore == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.eco_outlined,
+                        size: getIconScale(15, context),
+                        color: kLightGrey,
+                      ),
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Text(
+                        'No plant data available',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: kLightGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Summary Card
+                      Container(
+                        padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? kDarkGrey : kWhite,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: kAccent.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.1)
+                                  : kDarkGrey.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Large Count
+                            Container(
+                              width: getPercentageWidth(30, context),
+                              height: getPercentageWidth(30, context),
+                              decoration: BoxDecoration(
+                                color: _getLevelColor(_diversityScore!.level > 0
+                                        ? _diversityScore!.level
+                                        : 1)
+                                    .withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _getLevelColor(
+                                      _diversityScore!.level > 0
+                                          ? _diversityScore!.level
+                                          : 1),
+                                  width: 3,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${_diversityScore!.uniquePlants}',
+                                  style: textTheme.headlineLarge?.copyWith(
+                                    fontSize: getTextScale(15, context),
+                                    fontWeight: FontWeight.bold,
+                                    color: _getLevelColor(
+                                        _diversityScore!.level > 0
+                                            ? _diversityScore!.level
+                                            : 1),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            Text(
+                              'Unique Plants This Week',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode ? kWhite : kBlack,
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            if (_diversityScore!.level > 0)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(3, context),
+                                  vertical: getPercentageHeight(1, context),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getLevelColor(_diversityScore!.level)
+                                      .withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  _getLevelName(_diversityScore!.level),
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: _getLevelColor(_diversityScore!.level),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            // Progress Bar
+                            if (_diversityScore!.level < 3) ...[
+                              Text(
+                                'Progress to ${_getLevelName(_diversityScore!.level + 1)}',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                              SizedBox(height: getPercentageHeight(1, context)),
+                              LinearProgressIndicator(
+                                value: _diversityScore!.progress,
+                                backgroundColor:
+                                    kLightGrey.withValues(alpha: 0.3),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _getLevelColor(_diversityScore!.level + 1),
+                                ),
+                                minHeight: 8,
+                              ),
+                              SizedBox(height: getPercentageHeight(0.5, context)),
+                              Text(
+                                '${((_diversityScore!.progress * 100).toInt())}%',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                ),
+                              ),
+                            ] else
+                              Text(
+                                '🎉 You\'ve reached Gut Hero level!',
+                                style: textTheme.bodyLarge?.copyWith(
+                                  color: kAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: getPercentageHeight(3, context)),
+
+                      // Category Breakdown
+                      if (_diversityScore!.categoryBreakdown.isNotEmpty) ...[
+                        Text(
+                          'Category Breakdown',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        Wrap(
+                          spacing: getPercentageWidth(2, context),
+                          runSpacing: getPercentageHeight(1.5, context),
+                          children: _diversityScore!.categoryBreakdown.entries
+                              .map((entry) {
+                            return Container(
+                              padding: EdgeInsets.all(
+                                  getPercentageWidth(3, context)),
+                              decoration: BoxDecoration(
+                                color: kAccent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: kAccent.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _getCategoryIcon(entry.key),
+                                    color: kAccent,
+                                    size: getIconScale(4, context),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(2, context)),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _getCategoryName(entry.key),
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isDarkMode ? kWhite : kBlack,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${entry.value} plants',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: kAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        SizedBox(height: getPercentageHeight(3, context)),
+                      ],
+
+                      // All Plants List
+                      Text(
+                        'All Plants (${_plants.length})',
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? kWhite : kBlack,
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      if (_plants.isEmpty)
+                        Container(
+                          padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? kDarkGrey.withValues(alpha: 0.5)
+                                : kLightGrey.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'No plants tracked yet this week.\nLog meals with vegetables, fruits, and other plants to start tracking!',
+                              textAlign: TextAlign.center,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: isDarkMode ? kLightGrey : kDarkGrey,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._plants.map((plant) {
+                          return Container(
+                            margin: EdgeInsets.only(
+                                bottom: getPercentageHeight(1, context)),
+                            padding: EdgeInsets.all(
+                                getPercentageWidth(3, context)),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? kDarkGrey.withValues(alpha: 0.5)
+                                  : kLightGrey.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: kAccent.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(
+                                      getPercentageWidth(2, context)),
+                                  decoration: BoxDecoration(
+                                    color: kAccent.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _getCategoryIcon(plant.category),
+                                    color: kAccent,
+                                    size: getIconScale(4, context),
+                                  ),
+                                ),
+                                SizedBox(width: getPercentageWidth(3, context)),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        plant.name,
+                                        style: textTheme.bodyLarge?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isDarkMode ? kWhite : kBlack,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          height:
+                                              getPercentageHeight(0.3, context)),
+                                      Text(
+                                        _getCategoryName(plant.category),
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: kAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
+    );
+  }
+}
+

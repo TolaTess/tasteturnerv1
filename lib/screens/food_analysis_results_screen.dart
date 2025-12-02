@@ -46,6 +46,10 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   bool _hasCreatedMeal = false;
   late String mealType;
 
+  // Constants for health score thresholds
+  static const int _highHealthScoreThreshold = 8;
+  static const int _mediumHealthScoreThreshold = 6;
+
   @override
   void initState() {
     super.initState();
@@ -59,47 +63,48 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     _recalculateTotalNutrition();
   }
 
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
+
+  /// Show success message with consistent styling
+  void _showSuccessMessage(String message) {
+    if (!mounted || !context.mounted) return;
+    showTastySnackbar(
+      'Success',
+      message,
+      context,
+      backgroundColor: kAccent,
+    );
+  }
+
   /// Calculate health score from confidence level
   int _calculateHealthScoreFromConfidence(String confidence) {
     switch (confidence.toLowerCase()) {
       case 'high':
-        return 8; // High confidence = good health score
+        return _highHealthScoreThreshold; // High confidence = good health score
       case 'medium':
-        return 6; // Medium confidence = moderate health score
+        return _mediumHealthScoreThreshold; // Medium confidence = moderate health score
       case 'low':
         return 4; // Low confidence = lower health score
       default:
-        return 6; // Default to medium
+        return _mediumHealthScoreThreshold; // Default to medium
     }
   }
 
   /// Normalize and validate analysis data to prevent duplicates and handle errors
   void _normalizeAnalysisData() {
     try {
-      debugPrint('=== NORMALIZING ANALYSIS DATA ===');
-      debugPrint('Analysis data type: ${_editableAnalysis.runtimeType}');
-      debugPrint('Analysis data keys: ${_editableAnalysis.keys.toList()}');
-      debugPrint(
-        'Food items type: ${_editableAnalysis['foodItems'].runtimeType}',
-      );
-      debugPrint(
-        'Food items count: ${(_editableAnalysis['foodItems'] as List).length}',
-      );
 
-      if ((_editableAnalysis['foodItems'] as List).isNotEmpty) {
-        final firstItem = (_editableAnalysis['foodItems'] as List).first;
-        debugPrint('First food item type: ${firstItem.runtimeType}');
-        debugPrint('First food item: $firstItem');
-
-        if (firstItem is Map) {
-          final nutritionalInfo = firstItem['nutritionalInfo'];
-          debugPrint('Nutritional info type: ${nutritionalInfo.runtimeType}');
-          debugPrint('Nutritional info: $nutritionalInfo');
-        }
-      }
-      debugPrint('=== END ANALYSIS DATA LOGGING ===');
-
-      // Normalize ingredients if they exist
+      // Normalize ingredients if they exist using shared helpers
       if (_editableAnalysis.containsKey('ingredients') &&
           _editableAnalysis['ingredients'] is Map) {
         _editableAnalysis['ingredients'] = _normalizeAndDeduplicateIngredients(
@@ -214,7 +219,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     }
   }
 
-  /// Normalize and deduplicate ingredients to prevent variations like "sesameseed" vs "sesame seed"
+  /// Normalize and deduplicate ingredients using shared helpers from ingredient_utils.dart
+  /// This method uses normalizeIngredientName and combineIngredients from the shared utility
   Map<String, String> _normalizeAndDeduplicateIngredients(
     Map<String, dynamic> ingredients,
   ) {
@@ -227,7 +233,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       stringIngredients[key] = value.toString();
     });
 
-    // Group ingredients by normalized name
+    // Group ingredients by normalized name using shared helper
     stringIngredients.forEach((originalName, amount) {
       final normalizedName = normalizeIngredientName(originalName);
 
@@ -237,14 +243,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       groupedIngredients[normalizedName]!.add(MapEntry(originalName, amount));
     });
 
-    // Process grouped ingredients
+    // Process grouped ingredients using shared combineIngredients helper
     groupedIngredients.forEach((normalizedName, ingredientList) {
       if (ingredientList.length == 1) {
         // Single ingredient, use as-is
         final ingredient = ingredientList.first;
         normalizedIngredients[ingredient.key] = ingredient.value;
       } else {
-        // Multiple ingredients with same normalized name - combine them
+        // Multiple ingredients with same normalized name - combine them using shared helper
         final combinedResult = combineIngredients(ingredientList);
         normalizedIngredients[combinedResult.key] = combinedResult.value;
       }
@@ -255,8 +261,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
   Color _getHealthScoreColor(int? score, String? confidence) {
     if (score != null) {
-      if (score >= 8) return Colors.green;
-      if (score >= 6) return Colors.orange;
+      if (score >= _highHealthScoreThreshold) return Colors.green;
+      if (score >= _mediumHealthScoreThreshold) return Colors.orange;
       return Colors.red;
     }
 
@@ -275,8 +281,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
   String _getHealthScoreDescription(int? score, String? confidence) {
     if (score != null) {
-      if (score >= 8) return 'Excellent nutritional choice!';
-      if (score >= 6)
+      if (score >= _highHealthScoreThreshold) return 'Excellent nutritional choice!';
+      if (score >= _mediumHealthScoreThreshold)
         return 'Good with room for improvement, check AI suggestions';
       return 'Consider healthier alternatives, check AI suggestions';
     }
@@ -340,12 +346,20 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             'cloud_function_generated', // Placeholder since cloud function handles image
       );
 
+      if (mounted) {
       setState(() {
         _hasCreatedMeal = true;
       });
+      }
     } catch (e) {
       debugPrint('Failed to save analysis: $e');
       // Don't show error dialog on back navigation, just fail silently
+      // But log the error for debugging
+      if (mounted && context.mounted) {
+        // Only show error if it's a critical failure
+        _handleError('Failed to save analysis. Please try again.',
+            details: e.toString());
+      }
     }
   }
 
@@ -356,30 +370,29 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
     try {
       // Show immediate success message
-      showTastySnackbar(
-        'Success!',
-        'Meal added to your daily meals!',
-        context,
-        backgroundColor: kAccent,
-      );
+      if (mounted && context.mounted) {
+        _showSuccessMessage('Meal added to your daily meals!');
+      }
 
       // Navigate back immediately
+      if (mounted && context.mounted) {
       Navigator.of(context).pop(true);
+      }
 
       // Save to daily meals and create meal in background (non-blocking)
       _saveToDailyMealsInBackground();
     } catch (e) {
       debugPrint('Failed to save analysis: $e');
-      showTastySnackbar(
-        'Failed to save analysis',
-        'Please try again',
-        context,
-        backgroundColor: kAccent,
-      );
+      if (mounted && context.mounted) {
+        _handleError('Failed to save analysis. Please try again.',
+            details: e.toString());
+      }
     } finally {
+      if (mounted) {
       setState(() {
         _isSaving = false;
       });
+      }
     }
   }
 
@@ -393,11 +406,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
       if (mealIds.isNotEmpty) {
         // Use the first meal ID as the primary meal ID
-        debugPrint('Meal IDs: $mealIds');
         actualMealId = mealIds.first.toString();
       } else {
         // Create a new meal in the meals collection if no meal IDs exist
-        debugPrint('No meal IDs, creating new meal');
         try {
           actualMealId = await geminiService.createMealFromAnalysis(
             analysisResult: _editableAnalysis,
@@ -405,18 +416,18 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             imagePath: 'cloud_function_generated',
             mealType: mealType,
           );
-          debugPrint(
-              'Successfully created new meal $actualMealId in meals collection');
         } catch (e) {
           debugPrint('Failed to create meal in meals collection: $e');
           // Fallback to temporary ID
           actualMealId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+          // Log error for monitoring but don't show to user (background operation)
         }
       }
 
       // Skip daily meals addition for challenge detail screen
       if (widget.skipAnalysisSave != true &&
           widget.screen != 'challenge_detail') {
+        try {
         await geminiService.addAnalyzedMealToDaily(
           mealId: actualMealId,
           userId: userService.userId ?? '',
@@ -424,10 +435,10 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           analysisResult: _editableAnalysis,
           date: widget.date ?? DateTime.now(),
         );
-
-        debugPrint(
-          'Successfully added meal $actualMealId to daily meals in background',
-        );
+        } catch (e) {
+          debugPrint('Failed to add meal to daily meals: $e');
+          // Log error but don't show to user (background operation)
+        }
       }
 
       // Update existing post with meal ID if we have one and it's from challenge detail
@@ -439,10 +450,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             postId: widget.postId!,
             updateData: {'mealId': actualMealId},
           );
-          debugPrint(
-              'Successfully updated post ${widget.postId} with mealId: $actualMealId');
         } catch (e) {
           debugPrint('Failed to update post with mealId: $e');
+          // Log error but don't show to user (background operation)
         }
       }
 
@@ -452,7 +462,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       }
     } catch (e) {
       debugPrint('Background save to daily meals failed: $e');
-      // Don't show error to user since UI already showed success
+      // Log error for monitoring but don't show to user since UI already showed success
+      // This is a background operation and failures are non-critical
     }
   }
 
@@ -465,6 +476,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       if (isExistingPostAnalysis) return; // Skip for existing posts
 
       // Upload image to Firebase Storage
+      try {
         String imagePath =
             'tastyanalysis/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final uploadTask =
@@ -495,12 +507,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       await postController.uploadPost(post, userService.userId ?? '', [
         postImageUrl,
       ]);
-
-      debugPrint(
-          'Successfully created post in background with mealId: $actualMealId');
     } catch (e) {
       debugPrint('Background post creation failed: $e');
-      // Don't show error to user since UI already showed success
+        // Log error but don't show to user (background operation)
+        // This is non-critical as the meal was already saved
+      }
+    } catch (e) {
+      debugPrint('Background post creation error: $e');
+      // Log error but don't show to user since UI already showed success
     }
   }
 

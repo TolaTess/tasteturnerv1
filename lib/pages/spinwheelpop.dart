@@ -20,19 +20,14 @@ import 'spin_stack.dart';
 class SpinWheelPop extends StatefulWidget {
   const SpinWheelPop({
     super.key,
-    // required this.macro,
     required this.ingredientList,
     required this.mealList,
-    required this.macroList,
     required this.selectedCategory,
-    this.customMacro = false,
   });
 
   final String selectedCategory;
   final List<MacroData> ingredientList;
   final List<Meal> mealList;
-  final List<String> macroList;
-  final bool customMacro;
 
   @override
   _SpinWheelPopState createState() => _SpinWheelPopState();
@@ -56,7 +51,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
   final GlobalKey _addAudioButtonKey = GlobalKey();
-  bool showDietCategories = false;
+
+  // Constants
+  static const int _maxMealListSize = 10;
 
   @override
   void initState() {
@@ -66,6 +63,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     // Set default for meal category
     // Defer any mutations to reactive lists until after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
       final categoryDatasMeal = helperController.headers;
       if (categoryDatasMeal.isNotEmpty && selectedCategoryIdMeal.isEmpty) {
         // Check if meal times are already added to avoid duplicates
@@ -81,7 +80,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           ]);
         }
 
-        selectedCategoryIdMeal = categoryDatasMeal[0]['id'] ?? '';
+          // Add bounds check before accessing array
+          if (categoryDatasMeal.isNotEmpty) {
+            selectedCategoryIdMeal = categoryDatasMeal[0]['id']?.toString() ?? '';
 
         // Safely extract the name
         final nameData = categoryDatasMeal[0]['name'];
@@ -96,10 +97,16 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         if (mounted) {
           setState(() {});
         }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error initializing meal categories: $e');
+        // Non-critical error, continue with defaults
       }
     });
 
     // Set default for meal diet categories
+    try {
     if (userService.currentUser.value?.familyMode ?? false) {
       _mealDietCategories = [
         ...helperController.category
@@ -107,12 +114,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       ];
     } else {
       _mealDietCategories = [...helperController.category];
+      }
+    } catch (e) {
+      debugPrint('Error loading meal diet categories: $e');
+      _mealDietCategories = [];
     }
 
     // Ensure meal list is populated for default category
     _updateMealListByType();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
       _showAddSpinTutorial();
+      }
     });
   }
 
@@ -150,11 +163,18 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   }
 
   Future<void> _loadMuteState() async {
+    try {
     final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
     setState(() {
       _isMuted =
           prefs.getBool('isMuted') ?? false; // Default to false if not set
     });
+      }
+    } catch (e) {
+      debugPrint('Error loading mute state: $e');
+      // Non-critical error, continue with default
+    }
   }
 
   Future<void> _saveMuteState() async {
@@ -164,9 +184,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   @override
   void dispose() {
-    if (_funMode) {
+    // Always dispose controller to prevent memory leak
       customController.dispose();
-    }
     // AudioPlayer disposal handled by AudioService
     super.dispose();
   }
@@ -200,12 +219,19 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
   void _updateCategoryIngredientData(String categoryId, String category) async {
     if (!mounted) return;
+    
+    try {
+      if (mounted) {
     setState(() {
       selectedCategoryIdIngredient = categoryId;
       selectedCategoryIngredient = category;
     });
+      }
 
     if (categoryId == 'custom' && category == 'custom') {
+        if (!mounted || !context.mounted) return;
+        
+        try {
       final result = await showDialog<List<String>>(
         context: context,
         builder: (context) {
@@ -247,14 +273,27 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               ),
               TextButton(
                 onPressed: () {
-                  final text = modalController.text;
+                      try {
+                        final text = modalController.text.trim();
+                        if (text.isEmpty) {
+                          Navigator.pop(context, null);
+                          return;
+                        }
                   final items = text
                       .split(RegExp(r'[,;\n]'))
                       .map((i) => i.trim())
                       .where((i) => i.isNotEmpty)
                       .toList();
+                        if (items.isNotEmpty) {
                   _funMode = true;
                   Navigator.pop(context, items);
+                        } else {
+                          Navigator.pop(context, null);
+                        }
+                      } catch (e) {
+                        debugPrint('Error parsing custom ingredients: $e');
+                        Navigator.pop(context, null);
+                      }
                 },
                 child: Text(
                   'Add',
@@ -265,41 +304,69 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           );
         },
       );
-      if (result != null && result.isNotEmpty) {
+          if (result != null && result.isNotEmpty && mounted) {
         setState(() {
           _ingredientList = result;
         });
+          }
+        } catch (e) {
+          debugPrint('Error showing custom ingredient dialog: $e');
+          // Non-critical error, continue with default category
       }
     } else {
       _ingredientList = updateIngredientListByType(
               widget.ingredientList, selectedCategoryIngredient)
           .map((ingredient) => ingredient.title)
           .toList();
+      }
+    } catch (e) {
+      debugPrint('Error updating category ingredient data: $e');
+      // Non-critical error, continue with defaults
     }
   }
 
   void _updateMealListByType() async {
     if (!mounted) return;
 
+    try {
+      final categoryLower = selectedCategoryMeal.toLowerCase();
     if (selectedCategoryMeal.isEmpty ||
-        selectedCategoryMeal.toLowerCase() == 'balanced' ||
-        selectedCategoryMeal.toLowerCase() == 'general' ||
-        selectedCategoryMeal.toLowerCase() == 'all') {
+          categoryLower == 'balanced' ||
+          categoryLower == 'general' ||
+          categoryLower == 'all') {
+        if (mounted) {
       setState(() {
-        _mealList = widget.mealList.map((meal) => meal.title).take(10).toList();
+            _mealList = widget.mealList
+                .map((meal) => meal.title)
+                .take(_maxMealListSize)
+                .toList();
       });
+        }
     } else {
       final newMealList = widget.mealList
           .where((meal) => meal.categories.contains(selectedCategoryMeal))
           .toList();
 
+        if (mounted) {
       setState(() {
-        if (newMealList.length > 10) {
-          _mealList = newMealList.map((meal) => meal.title).take(10).toList();
+            if (newMealList.length > _maxMealListSize) {
+              _mealList = newMealList
+                  .map((meal) => meal.title)
+                  .take(_maxMealListSize)
+                  .toList();
         } else {
           _mealList = newMealList.map((meal) => meal.title).toList();
         }
       });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating meal list by type: $e');
+      if (mounted) {
+        setState(() {
+          _mealList = [];
+        });
+      }
     }
   }
 
@@ -310,7 +377,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
-        userService.currentUser.value?.settings['dietPreference'];
+        userService.currentUser.value?.settings['dietPreference']?.toString() ??
+            'balanced';
 
     return Scaffold(
       appBar: AppBar(
@@ -422,12 +490,12 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 Expanded(
                   child: showIngredientSpin
                       ? _buildIngredientSpinView(isDarkMode, textTheme)
-                      : _buildMealSpinView(
+                      :                       _buildMealSpinView(
                           isDarkMode,
                           categoryDatasMeal,
                           categoryDatasIngredientDiet,
                           textTheme,
-                          dietPreference),
+                          dietPreference.toString()),
                 ),
               ],
             ),
@@ -543,6 +611,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       List<Map<String, dynamic>> categoryDatatDiet,
       TextTheme textTheme,
       String dietPreference) {
+    // Ensure dietPreference is not null
+    final safeDietPreference = dietPreference.isNotEmpty ? dietPreference : 'balanced';
     return Column(
       children: [
         // ------------------------------------Premium / Ads------------------------------------
@@ -561,9 +631,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 onTap: () {
                   if (mounted) {
                     setState(() {
-                      final dietPrefStr = dietPreference.toString();
-                      selectedCategoryIdMeal = dietPrefStr;
-                      selectedCategoryMeal = dietPrefStr;
+                      selectedCategoryIdMeal = safeDietPreference;
+                      selectedCategoryMeal = safeDietPreference;
                     });
                     _updateMealListByType();
                   }
@@ -575,17 +644,17 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   ),
                   decoration: BoxDecoration(
                     color: selectedCategoryMeal.toLowerCase() ==
-                            (dietPreference.toString()).toLowerCase()
+                            safeDietPreference.toLowerCase()
                         ? kAccent.withValues(alpha: 0.2)
                         : kLightGrey.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
-                      dietPreference,
+                      safeDietPreference,
                       style: textTheme.titleMedium?.copyWith(
                           color: selectedCategoryMeal.toLowerCase() ==
-                                  (dietPreference.toString()).toLowerCase()
+                                  safeDietPreference.toLowerCase()
                               ? kAccent
                               : kLightGrey),
                     ),
@@ -596,8 +665,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             Expanded(
               flex: 3,
               child: CategorySelector(
-                categories:
-                    showDietCategories ? categoryDatatDiet : categoryDatas,
+                categories: categoryDatas,
                 selectedCategoryId: selectedCategoryIdMeal,
                 onCategorySelected: _updateCategoryData,
                 isDarkMode: isDarkMode,

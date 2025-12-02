@@ -34,6 +34,7 @@ import '../service/helper_controller.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
 import '../pages/edit_goal.dart';
+import '../widgets/notification_preference_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,7 +44,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int currentPage = 0;
   final PageController _pageController = PageController();
   bool familyMode = userService.currentUser.value?.familyMode ?? false;
   late final ProgramService _programService;
@@ -52,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _tastyPopupTimer;
   bool allDisabled = false;
   int _lastUnreadCount = 0; // Track last unread count
-  DateTime currentDate = DateTime.now();
   final GlobalKey _addMealButtonKey = GlobalKey();
   final GlobalKey _addProfileButtonKey = GlobalKey();
   final GlobalKey _addAnalyseButtonKey = GlobalKey();
@@ -62,9 +61,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _addMessageButtonKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
-  List<Map<String, dynamic>> familyList = [];
   bool hasMealPlan = true;
-  Map<String, dynamic> mealPlan = {};
   bool showCaloriesAndGoal = true;
   bool _isConnected = true;
   Timer? _networkCheckTimer;
@@ -264,127 +261,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _showNotificationPreferenceDialog() {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          title: Row(
-            children: [
-              Icon(Icons.notifications_active,
-                  color: kAccent, size: getIconScale(8, context)),
-              SizedBox(width: getPercentageWidth(3, context)),
-              Expanded(
-                child: Text(
-                  'Enable Notifications?',
-                  style: TextStyle(
-                    color: isDarkMode ? kWhite : kDarkGrey,
-                    fontSize: getTextScale(4.5, context),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'Stay on track with meal reminders, hydration alerts, and personalized nutrition tips!',
-            style: TextStyle(
-              color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
-              fontSize: getTextScale(3.5, context),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                if (!mounted) return;
-                try {
-                  // User declined
-                  await authController.updateUserData({
-                    'settings.notificationsEnabled': false,
-                    'settings.notificationPreferenceSet': true,
-                  });
-                  if (mounted && context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                } catch (e) {
-                  debugPrint('Error updating notification preference: $e');
-                  if (mounted && context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                }
-              },
-              child: Text(
-                'Not Now',
-                style: TextStyle(
-                  color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
-                  fontSize: getTextScale(3.5, context),
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(6, context),
-                  vertical: getPercentageHeight(1.5, context),
-                ),
-              ),
-              onPressed: () async {
-                if (!mounted) return;
-                try {
-                  // User accepted
-                  await authController.updateUserData({
-                    'settings.notificationsEnabled': true,
-                    'settings.notificationPreferenceSet': true,
-                  });
-                  if (mounted && context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-
-                  if (!mounted) return;
-
-                  // Initialize notifications
-                  await _initializeNotifications();
-
-                  // Show success message
-                  if (mounted && context.mounted) {
-                    showTastySnackbar(
-                      'Notifications Enabled',
-                      'You\'ll now receive helpful reminders!',
-                      context,
-                      backgroundColor: kAccent,
-                    );
-                  }
-                } catch (e) {
-                  debugPrint('Error enabling notifications: $e');
-                  if (mounted && context.mounted) {
-                    Navigator.of(context).pop();
-                    showTastySnackbar(
-                      'Error',
-                      'Failed to enable notifications. Please try again.',
-                      context,
-                      backgroundColor: Colors.red,
-                    );
-                  }
-                }
-              },
-              child: Text(
-                'Enable',
-                style: TextStyle(
-                  color: kWhite,
-                  fontSize: getTextScale(3.5, context),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+        return NotificationPreferenceDialog(
+          onNotificationsInitialized: () async {
+            if (!mounted) return;
+            await _initializeNotifications();
+          },
         );
       },
     );
@@ -566,83 +452,86 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  /// Validate and sanitize family member data
+  List<FamilyMember> _validateAndSanitizeFamilyMembers(
+      List<Map<String, String>> members) {
+    return members.where((m) {
+      final name = m['name']?.trim() ?? '';
+      return name.isNotEmpty && name.length >= 2 && name.length <= 50;
+    }).map((m) {
+      // Sanitize name
+      final sanitizedName =
+          (m['name']?.trim() ?? '').replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+
+      return FamilyMember(
+        name: sanitizedName,
+        ageGroup: m['ageGroup'] ?? 'Adult',
+        fitnessGoal: m['fitnessGoal'] ?? 'Family Nutrition',
+        foodGoal: m['foodGoal'] ?? '2000',
+      );
+    }).toList();
+  }
+
+  /// Update Firestore with family members
+  Future<void> _updateFirestoreFamilyMembers(
+      String userId, List<FamilyMember> familyMembers) async {
+    await firestore.collection('users').doc(userId).update({
+      'familyMode': true,
+      'familyMembers': familyMembers.map((f) => f.toMap()).toList(),
+    });
+  }
+
+  /// Update local user data with family members
+  void _updateLocalUserData(List<FamilyMember> familyMembers) {
+    final currentUser = userService.currentUser.value;
+    if (currentUser != null) {
+      final updatedUser = UserModel(
+        userId: currentUser.userId,
+        displayName: currentUser.displayName,
+        bio: currentUser.bio,
+        dob: currentUser.dob,
+        profileImage: currentUser.profileImage,
+        following: currentUser.following,
+        settings: currentUser.settings,
+        preferences: currentUser.preferences,
+        userType: currentUser.userType,
+        isPremium: currentUser.isPremium,
+        created_At: currentUser.created_At,
+        freeTrialDate: currentUser.freeTrialDate,
+        familyMode: true,
+        familyMembers: familyMembers,
+      );
+      userService.setUser(updatedUser);
+    }
+  }
+
   Future<void> _saveFamilyMembers(List<Map<String, String>> members) async {
     if (!mounted) return;
 
     try {
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
-        debugPrint('Error: userId is null in _saveFamilyMembers');
-        if (mounted && context.mounted) {
-          showTastySnackbar(
-            'Error',
-            'User ID is missing. Please try again.',
-            context,
-            backgroundColor: Colors.red,
-          );
-        }
+        _showErrorSnackbar('User ID is missing. Please try again.');
         return;
       }
 
       // Validate and sanitize family member data
-      final familyMembers = members.where((m) {
-        final name = m['name']?.trim() ?? '';
-        return name.isNotEmpty && name.length >= 2 && name.length <= 50;
-      }).map((m) {
-        // Sanitize name
-        final sanitizedName =
-            (m['name']?.trim() ?? '').replaceAll(RegExp(r'[<>{}[\]\\]'), '');
-
-        return FamilyMember(
-          name: sanitizedName,
-          ageGroup: m['ageGroup'] ?? 'Adult',
-          fitnessGoal: m['fitnessGoal'] ?? 'Family Nutrition',
-          foodGoal: m['foodGoal'] ?? '2000',
-        );
-      }).toList();
+      final familyMembers = _validateAndSanitizeFamilyMembers(members);
 
       if (familyMembers.isEmpty) {
-        if (mounted && context.mounted) {
-          showTastySnackbar(
-            'Invalid Input',
-            'Please enter valid family member names (2-50 characters).',
-            context,
-            backgroundColor: Colors.red,
-          );
-        }
+        _showErrorSnackbar(
+            'Please enter valid family member names (2-50 characters).');
         return;
       }
 
-      // Update user in Firestore
-      await firestore.collection('users').doc(userId).update({
-        'familyMode': true,
-        'familyMembers': familyMembers.map((f) => f.toMap()).toList(),
-      });
+      // Update Firestore
+      await _updateFirestoreFamilyMembers(userId, familyMembers);
 
       // Update local user data
-      final currentUser = userService.currentUser.value;
-      if (currentUser != null) {
-        final updatedUser = UserModel(
-          userId: currentUser.userId,
-          displayName: currentUser.displayName,
-          bio: currentUser.bio,
-          dob: currentUser.dob,
-          profileImage: currentUser.profileImage,
-          following: currentUser.following,
-          settings: currentUser.settings,
-          preferences: currentUser.preferences,
-          userType: currentUser.userType,
-          isPremium: currentUser.isPremium,
-          created_At: currentUser.created_At,
-          freeTrialDate: currentUser.freeTrialDate,
-          familyMode: true,
-          familyMembers: familyMembers,
-        );
-        userService.setUser(updatedUser);
-      }
+      _updateLocalUserData(familyMembers);
 
       // Show success message
-      if (mounted) {
+      if (mounted && context.mounted) {
         showTastySnackbar(
           'Family Setup Complete!',
           'You can now manage nutrition for ${familyMembers.length} family member${familyMembers.length > 1 ? 's' : ''}.',
@@ -652,14 +541,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       debugPrint('Error saving family members: $e');
-      if (mounted) {
-        showTastySnackbar(
-          'Error',
-          'Failed to save family members. Please try again.',
-          context,
-          backgroundColor: Colors.red,
-        );
-      }
+      _showErrorSnackbar('Failed to save family members. Please try again.');
+    }
+  }
+
+  /// Helper method to show error snackbar
+  void _showErrorSnackbar(String message) {
+    if (mounted && context.mounted) {
+      showTastySnackbar(
+        'Error',
+        message,
+        context,
+        backgroundColor: Colors.red,
+      );
     }
   }
 
@@ -678,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     try {
-      final formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
+      final formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
       QuerySnapshot snapshot = await firestore
           .collection('mealPlans')
           .doc(userId)
@@ -731,15 +625,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         chatController.loadUserChats(userId);
       }
 
-      // Run independent operations in parallel
-      await Future.wait([
-        helperController.fetchWinners(),
-        firebaseService.fetchGeneralData(),
-        macroManager.fetchIngredients(),
-      ]);
+      // Run independent operations in parallel with timeout
+      try {
+        await Future.wait([
+          helperController.fetchWinners(),
+          firebaseService.fetchGeneralData(),
+          macroManager.fetchIngredients(),
+        ]).timeout(
+          const Duration(seconds: 30),
+        );
+      } on TimeoutException {
+        debugPrint('Warning: Some refresh operations timed out');
+      }
 
       if (mounted) {
-        loadMeals(DateFormat('yyyy-MM-dd').format(currentDate));
+        loadMeals(DateFormat('yyyy-MM-dd').format(DateTime.now()));
       }
     } catch (e) {
       debugPrint('Error refreshing data: $e');
@@ -820,20 +720,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     dailyDataController.listenToDailyData(userId, DateTime.now());
   }
 
-  void _initializeMealDataByDate() async {
-    if (!mounted) return;
-
-    final userId = userService.userId;
-    if (userId == null || userId.isEmpty) {
-      debugPrint('Warning: userId is null in _initializeMealDataByDate');
-      return;
-    }
-
-    // Settings conversion is not needed - dailyDataController doesn't use it
-    // Removed unnecessary settings map creation
-
-    dailyDataController.listenToDailyData(userId, currentDate);
-  }
 
   Future<bool> _getAllDisabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1008,6 +894,258 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  /// Build the AppBar with avatar, greeting, and message icon
+  PreferredSizeWidget _buildAppBar(
+      BuildContext context,
+      UserModel currentUser,
+      bool isDarkMode,
+      TextTheme textTheme,
+      String inspiration,
+      String avatarUrl) {
+    return PreferredSize(
+      preferredSize: Size.fromHeight(getProportionalHeight(90, context)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(2, context),
+                  horizontal: getPercentageWidth(2, context)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildAvatarAndGreeting(context, currentUser, isDarkMode,
+                      textTheme, inspiration, avatarUrl),
+                  _buildMessageSection(context, isDarkMode, textTheme),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build avatar and greeting section
+  Widget _buildAvatarAndGreeting(
+      BuildContext context,
+      UserModel currentUser,
+      bool isDarkMode,
+      TextTheme textTheme,
+      String inspiration,
+      String avatarUrl) {
+    return Row(
+      children: [
+        Builder(builder: (context) {
+          return GestureDetector(
+            onTap: () {
+              Scaffold.of(context).openDrawer();
+            },
+            child: CircleAvatar(
+              key: _addProfileButtonKey,
+              radius: getResponsiveBoxSize(context, 20, 20),
+              backgroundColor: kAccent.withValues(alpha: kOpacity),
+              child: CircleAvatar(
+                backgroundImage: getAvatarImage(avatarUrl),
+                radius: getResponsiveBoxSize(context, 18, 18),
+              ),
+            ),
+          );
+        }),
+        SizedBox(width: getPercentageWidth(2, context)),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$greeting ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
+              style: textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  fontSize: getPercentageWidth(6, context)),
+            ),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              inspiration,
+              style: textTheme.bodyMedium?.copyWith(
+                fontSize: getTextScale(3, context),
+                color: isDarkMode
+                    ? kLightGrey.withValues(alpha: 0.9)
+                    : kDarkGrey.withValues(alpha: 0.5),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(width: getPercentageWidth(2, context)),
+      ],
+    );
+  }
+
+  /// Build message section with unread count badge
+  Widget _buildMessageSection(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const MessageScreen(),
+              ),
+            );
+          },
+          key: _addMessageButtonKey,
+          child: SvgPicture.asset(
+            'assets/images/svg/message.svg',
+            height: getIconScale(8, context),
+            width: getIconScale(8, context),
+            color: kAccent,
+          ),
+        ),
+        SizedBox(width: getPercentageWidth(2, context)),
+        _buildUnreadCountBadge(context, textTheme),
+      ],
+    );
+  }
+
+  /// Build unread count badge
+  Widget _buildUnreadCountBadge(BuildContext context, TextTheme textTheme) {
+    return Obx(() {
+      final nonBuddyChats = chatController.userChats
+          .where((chat) => !(chat['participants'] as List).contains('buddy'))
+          .toList();
+
+      if (nonBuddyChats.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final int unreadCount = nonBuddyChats.fold<int>(
+        0,
+        (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
+      );
+
+      if (unreadCount >= 1) {
+        return Container(
+          padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(1.5, context),
+              vertical: getPercentageWidth(0.5, context)),
+          decoration: BoxDecoration(
+            color: kRed,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            unreadCount.toString(),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: getTextScale(2.5, context),
+            ),
+          ),
+        );
+      } else {
+        return const SizedBox.shrink();
+      }
+    });
+  }
+
+  /// Build network status indicator
+  Widget _buildNetworkStatusIndicator(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    if (!_isConnected) {
+      return Container(
+        margin: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(2, context),
+            vertical: getPercentageHeight(0.5, context)),
+        padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(3, context),
+            vertical: getPercentageHeight(1, context)),
+        decoration: BoxDecoration(
+          color: Colors.red[600],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red[700]!, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.wifi_off, color: kWhite, size: getIconScale(6, context)),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                'No internet connection. Some features may be limited.',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: kWhite,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// Build shopping day banner
+  Widget? _buildShoppingDayBanner(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    if (!_isTodayShoppingDay()) return null;
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+      padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(3, context),
+          vertical: getPercentageHeight(0.5, context)),
+      decoration: BoxDecoration(
+        color: kAccentLight.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kAccentLight, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.shopping_cart,
+              color: kAccentLight, size: getIconScale(8, context)),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Expanded(
+            child: Text(
+              familyMode
+                  ? "Shopping Day: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                  : "Shopping Day: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
+              style: textTheme.bodyMedium?.copyWith(
+                color: kAccentLight,
+              ),
+            ),
+          ),
+          SizedBox(width: getPercentageWidth(0.2, context)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(getPercentageWidth(10, context),
+                  getPercentageHeight(4, context)),
+              backgroundColor: kAccentLight,
+              foregroundColor: kWhite,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ShoppingTab(),
+                ),
+              );
+            },
+            child: Text('Go',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: kWhite,
+                )),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -1073,149 +1211,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       return Scaffold(
         drawer: const CustomDrawer(),
-        appBar: PreferredSize(
-          preferredSize: Size.fromHeight(getProportionalHeight(90, context)),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDarkMode ? kLightGrey.withValues(alpha: 0.1) : kWhite,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                      vertical: getPercentageHeight(2, context),
-                      horizontal: getPercentageWidth(2, context)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Avatar and Greeting Section
-                      Row(
-                        children: [
-                          Builder(builder: (context) {
-                            return GestureDetector(
-                              onTap: () {
-                                Scaffold.of(context).openDrawer();
-                              },
-                              child: CircleAvatar(
-                                key: _addProfileButtonKey,
-                                radius: getResponsiveBoxSize(context, 20, 20),
-                                backgroundColor:
-                                    kAccent.withValues(alpha: kOpacity),
-                                child: CircleAvatar(
-                                  backgroundImage: getAvatarImage(avatarUrl),
-                                  radius: getResponsiveBoxSize(context, 18, 18),
-                                ),
-                              ),
-                            );
-                          }),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$greeting ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
-                                style: textTheme.displaySmall?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: getPercentageWidth(6, context)),
-                              ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.5, context)),
-                              Text(
-                                inspiration,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  fontSize: getTextScale(3, context),
-                                  color: isDarkMode
-                                      ? kLightGrey.withValues(alpha: 0.9)
-                                      : kDarkGrey.withValues(alpha: 0.5),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                        ],
-                      ),
-                      // Message Section
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MessageScreen(),
-                                ),
-                              );
-                            },
-                            key: _addMessageButtonKey,
-                            child: SvgPicture.asset(
-                              'assets/images/svg/message.svg',
-                              height: getIconScale(8, context),
-                              width: getIconScale(8, context),
-                              color: kAccent,
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(2, context)),
-
-                          // Unread Count Badge
-                          Obx(() {
-                            final nonBuddyChats = chatController.userChats
-                                .where((chat) => !(chat['participants'] as List)
-                                    .contains('buddy'))
-                                .toList();
-
-                            if (nonBuddyChats.isEmpty) {
-                              return const SizedBox
-                                  .shrink(); // Hide badge if no chats
-                            }
-
-                            // Calculate total unread count across all non-buddy chats
-                            final int unreadCount = nonBuddyChats.fold<int>(
-                              0,
-                              (sum, chat) =>
-                                  sum + (chat['unreadCount'] as int? ?? 0),
-                            );
-
-                            // Note: Unread notifications are now handled by _setupUnreadNotificationsListener()
-                            // This prevents async operations in build method
-
-                            if (unreadCount >= 1) {
-                              return Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal:
-                                        getPercentageWidth(1.5, context),
-                                    vertical: getPercentageWidth(0.5, context)),
-                                decoration: BoxDecoration(
-                                  color: kRed,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  unreadCount.toString(),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: getTextScale(2.5, context),
-                                  ),
-                                ),
-                              );
-                            } else {
-                              return const SizedBox
-                                  .shrink(); // Hide badge if unreadCount is 0
-                            }
-                          }),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        appBar: _buildAppBar(context, currentUser, isDarkMode, textTheme,
+            inspiration, avatarUrl),
         floatingActionButton: buildFullWidthHomeButton(
           key: _addAnalyseButtonKey,
           context: context,
-          date: currentDate,
+          date: DateTime.now(),
           onSuccess: () {},
           onError: () {},
         ),
@@ -1287,183 +1288,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           : getPercentageHeight(0.5, context)),
 
                   // Network status indicator
-                  if (!_isConnected)
-                    Container(
-                      margin: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(2, context),
-                          vertical: getPercentageHeight(0.5, context)),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(3, context),
-                          vertical: getPercentageHeight(1, context)),
-                      decoration: BoxDecoration(
-                        color: Colors.red[600],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red[700]!, width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.wifi_off,
-                              color: kWhite, size: getIconScale(6, context)),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Expanded(
-                            child: Text(
-                              'No internet connection. Some features may be limited.',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: kWhite,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  _buildNetworkStatusIndicator(context, isDarkMode, textTheme),
 
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(0.3, context)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            final DateTime sevenDaysAgo = DateTime.now()
-                                .subtract(const Duration(days: 7));
-                            if (currentDate.isAfter(sevenDaysAgo)) {
-                              setState(() {
-                                currentDate = DateTime(
-                                  currentDate.year,
-                                  currentDate.month,
-                                  currentDate.day,
-                                ).subtract(const Duration(days: 1));
-                              });
-                              _initializeMealDataByDate(); // Fetch data for new date
-                            }
-                          },
-                          icon: Icon(
-                            Icons.arrow_back_ios_new,
-                            size: getIconScale(7, context),
-                            color: currentDate.isBefore(DateTime.now()
-                                    .subtract(const Duration(days: 7)))
-                                ? isDarkMode
-                                    ? kLightGrey.withValues(alpha: 0.5)
-                                    : kDarkGrey.withValues(alpha: 0.1)
-                                : null,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              '${getRelativeDayString(currentDate)}',
-                              style: textTheme.displaySmall
-                                  ?.copyWith(color: kAccent),
-                            ),
-                            SizedBox(width: getPercentageWidth(0.5, context)),
-                            if (getRelativeDayString(currentDate) != 'Today' &&
-                                getRelativeDayString(currentDate) !=
-                                    'Yesterday')
-                              Text(
-                                ' ${shortMonthName(currentDate.month)} ${currentDate.day}',
-                                style: textTheme.displaySmall
-                                    ?.copyWith(color: kAccent),
-                              ),
-                          ],
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            final DateTime now = DateTime.now();
-                            final DateTime nextDate = DateTime(
-                              currentDate.year,
-                              currentDate.month,
-                              currentDate.day,
-                            ).add(const Duration(days: 1));
-
-                            setState(() {
-                              if (!nextDate.isAfter(
-                                  DateTime(now.year, now.month, now.day))) {
-                                currentDate = nextDate;
-                              } else {
-                                currentDate =
-                                    DateTime(now.year, now.month, now.day);
-                              }
-                            });
-                            _initializeMealDataByDate(); // Fetch data for new date
-                          },
-                          icon: Icon(
-                            Icons.arrow_forward_ios,
-                            size: getIconScale(7, context),
-                            color: getCurrentDate(currentDate)
-                                ? isDarkMode
-                                    ? kLightGrey.withValues(alpha: 0.5)
-                                    : kDarkGrey.withValues(alpha: 0.1)
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                      height: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageHeight(2, context)
-                          : getPercentageHeight(0.5, context)),
-
+                  // Shopping day banner
                   if (_isTodayShoppingDay())
                     SizedBox(height: getPercentageHeight(1, context)),
-
                   if (_isTodayShoppingDay())
-                    Container(
-                      margin: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(2, context)),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(3, context),
-                          vertical: getPercentageHeight(0.5, context)),
-                      decoration: BoxDecoration(
-                        color: kAccentLight.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kAccentLight, width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.shopping_cart,
-                              color: kAccentLight,
-                              size: getIconScale(8, context)),
-                          SizedBox(width: getPercentageWidth(2, context)),
-                          Expanded(
-                            child: Text(
-                              familyMode
-                                  ? "Shopping Day: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
-                                  : "Shopping Day: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: kAccentLight,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: getPercentageWidth(0.2, context)),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: Size(getPercentageWidth(10, context),
-                                  getPercentageHeight(4, context)),
-                              backgroundColor: kAccentLight,
-                              foregroundColor: kWhite,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ShoppingTab(),
-                                ),
-                              );
-                            },
-                            child: Text('Go',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: kWhite,
-                                )),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildShoppingDayBanner(context, isDarkMode, textTheme)!,
                   if (_isTodayShoppingDay())
                     SizedBox(height: getPercentageHeight(1, context)),
 
@@ -1486,7 +1317,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   selectedUserIndex != 0
                               ? null // No destination when family member is selected
                               : AddFoodScreen(
-                                  date: currentDate,
+                                  date: DateTime.now(),
                                   isShowSummary: true,
                                   notAllowedMealType:
                                       _programService.userPrograms.isNotEmpty
@@ -1732,19 +1563,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                               userService.setUser(updatedUser);
 
                                               // Save to Firestore
-                                              await firestore
-                                                  .collection('users')
-                                                  .doc(userService.userId)
-                                                  .set({
-                                                'familyMembers': updatedUser
-                                                    .familyMembers
-                                                    ?.map((f) => f.toMap())
-                                                    .toList(),
-                                                'familyMode': updatedUser
-                                                        .familyMembers
-                                                        ?.isNotEmpty ??
-                                                    false,
-                                              }, SetOptions(merge: true));
+                                              try {
+                                                final userId =
+                                                    userService.userId;
+                                                if (userId == null ||
+                                                    userId.isEmpty) {
+                                                  throw Exception(
+                                                      'User ID is missing');
+                                                }
+
+                                                await firestore
+                                                    .collection('users')
+                                                    .doc(userId)
+                                                    .set({
+                                                  'familyMembers': updatedUser
+                                                      .familyMembers
+                                                      ?.map((f) => f.toMap())
+                                                      .toList(),
+                                                  'familyMode': updatedUser
+                                                          .familyMembers
+                                                          ?.isNotEmpty ??
+                                                      false,
+                                                }, SetOptions(merge: true));
+
+                                                if (mounted &&
+                                                    context.mounted) {
+                                                  showTastySnackbar(
+                                                    'Success',
+                                                    'Family member updated successfully',
+                                                    context,
+                                                    backgroundColor:
+                                                        kAccentLight,
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                debugPrint(
+                                                    'Error updating family member: $e');
+                                                if (mounted &&
+                                                    context.mounted) {
+                                                  showTastySnackbar(
+                                                    'Error',
+                                                    'Failed to update family member. Please try again.',
+                                                    context,
+                                                    backgroundColor: Colors.red,
+                                                  );
+                                                }
+                                              }
                                             },
                                           ),
                                         );
@@ -1759,7 +1623,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
-                          if (currentDate.isAfter(DateTime.now()
+                          if (DateTime.now().isAfter(DateTime.now()
                               .subtract(const Duration(days: 1)))) ...[
                             DailyMealPortion(
                               key: ValueKey(
